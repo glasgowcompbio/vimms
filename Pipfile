@@ -1,0 +1,34 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+numpy = "*"
+pandas = "*"
+scipy = "*"
+matplotlib = "*"
+seaborn = "*"
+scikit-learn = "==0.21.3"
+jupyterlab = "*"
+pymzml = "*"
+psims = "*"
+events = "*"
+tqdm = "*"
+joblib = "*"
+ipyparallel = "*"
+requests = "*"
+trio = "*"
+loguru = "*"
+pyDOE = "*"
+networkx = "*"
+jsonpickle = "*"
+jupyter = "*"
+pyzmq = "==18.1.1"
+xlrd = "*"
+statsmodels = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3"

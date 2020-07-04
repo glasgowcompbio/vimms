@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<batch>
+    <batchstep method="net.sf.mzmine.modules.peaklistmethods.io.mztabimport.MzTabImportModule">
+        <parameter name="mzTab files">
+            <file>FILEHERE</file>
+        </parameter>
+        <parameter name="Import raw data files?">true</parameter>
+    </batchstep>
+    <batchstep method="net.sf.mzmine.modules.peaklistmethods.alignment.join.JoinAlignerModule">
+        <parameter name="Peak lists" type="BATCH_LAST_PEAKLISTS"/>
+        <parameter name="Peak list name">Aligned peak list</parameter>
+        <parameter name="m/z tolerance">
+            <absolutetolerance>0.01</absolutetolerance>
+            <ppmtolerance>10.0</ppmtolerance>
+        </parameter>
+        <parameter name="Weight for m/z">75.0</parameter>
+        <parameter name="Retention time tolerance" type="absolute">0.5</parameter>
+        <parameter name="Weight for RT">25.0</parameter>
+        <parameter name="Require same charge state">false</parameter>
+        <parameter name="Require same ID">false</parameter>
+        <parameter name="Compare isotope pattern" selected="false">
+            <parameter name="Isotope m/z tolerance">
+                <absolutetolerance>0.001</absolutetolerance>
+                <ppmtolerance>5.0</ppmtolerance>
+            </parameter>
+            <parameter name="Minimum absolute intensity"/>
+            <parameter name="Minimum score"/>
+        </parameter>
+    </batchstep>
+    <batchstep method="net.sf.mzmine.modules.peaklistmethods.io.csvexport.CSVExportModule">
+        <parameter name="Peak lists" type="BATCH_LAST_PEAKLISTS"/>
+        <parameter name="Filename">
+            <current_file>CSV HERE</current_file>
+        </parameter>
+        <parameter name="Field separator">,</parameter>
+        <parameter name="Export common elements">
+            <item>Export row ID</item>
+            <item>Export row m/z</item>
+            <item>Export row retention time</item>
+        </parameter>
+        <parameter name="Export data file elements">
+            <item>Peak area</item>
+        </parameter>
+        <parameter name="Export quantitation results and other information">false</parameter>
+        <parameter name="Identification separator">;</parameter>
+        <parameter name="Filter rows">ALL</parameter>
+    </batchstep>
+</batch>

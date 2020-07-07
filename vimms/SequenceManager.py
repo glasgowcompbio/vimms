@@ -127,9 +127,6 @@ class BaseSequenceManager(object):
         return results_df
 
 
-
-
-
 class VimmsSequenceManager(BaseSequenceManager):
     def __init__(self, controller_schedule, evaluation_methods, base_dir,
                  evaluaton_min_ms1_intensity=1.75E5,
@@ -210,9 +207,9 @@ class Experiment(object):
 
 
 class BasicExperiment(Experiment):
-    def __init__(self, sequence_manager, parallel=False):
-        # TODO: change parallel to True once working
+    def __init__(self, sequence_manager, parallel=True):
         self.parallel = parallel
+        self.add_defaults_controller_params(sequence_manager)
         super().__init__(sequence_manager)
 
     def run(self):
@@ -257,6 +254,15 @@ class BasicExperiment(Experiment):
                 self.results.loc[idx, score_name] = results_df[score_name]
             logger.info('Finished %d' % idx)
 
+    def add_defaults_controller_params(self, sequence_manager):
+        for i in range(len(sequence_manager.controller_schedule['Controller Params'])):
+            if sequence_manager.controller_schedule['Controller Params'][i] is not None:
+                new_dict = merge_controller_param_dict(sequence_manager.controller_schedule['Controller Params'][i],
+                                                       dict(),
+                                                       sequence_manager.controller_schedule['Controller Method'][i])
+                sequence_manager.controller_schedule['Controller Params'][i] = new_dict
+        return sequence_manager
+
 
 def run_single(params):
     idx = params['idx']
@@ -279,7 +285,6 @@ class GridSearchExperiment(BasicExperiment):
     def __init__(self, sequence_manager, controller_method, mass_spec_param_dict, dataset_file, variable_params_dict,
                  base_params_dict,
                  parallel=True):
-        # TODO: change parallel to True once working
         self.sequence_manager = sequence_manager
         self.parallel = parallel
         self.controller_method = controller_method

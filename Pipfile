@@ -29,6 +29,7 @@ xlrd = "*"
 statsmodels = "*"
 
 [dev-packages]
+pipenv-setup = "*"
 
 [requires]
 python_version = "3"

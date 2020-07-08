@@ -237,7 +237,7 @@ class IndependentMassSpectrometer(object):
         """
 
         # current scan index and internal time
-        self.idx = 0
+        self.idx = 100000 # same as the real mass spec
         self.time = 0
 
         # current task queue
@@ -347,7 +347,7 @@ class IndependentMassSpectrometer(object):
         """
         self.clear_events()
         self.time = 0
-        self.idx = 0
+        self.idx = 100000 # same as the real mass spec
         self.processing_queue = []
         self.current_N = 0
         self.current_DEW = 0

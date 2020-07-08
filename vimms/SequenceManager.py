@@ -17,6 +17,7 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Scoring import picked_peaks_evaluation, roi_scoring
+from vimms.BOMAS import mzml2chems
 
 from alignment import BoxJoinAligner
 from ms2_matching import MZMLFile, load_picked_boxes, map_boxes_to_scans
@@ -97,15 +98,20 @@ class BaseSequenceManager(object):
         scores_dict = dict(mzmine_peaks_dict.items() | roi_score_dict.items())
         return scores_dict
 
-    def pick_peaks(self, mzml_file, controller_name):
-        ms2_picked_peaks_file = self.base_dir + '\\' + controller_name + '_pp.csv'
-        pickle_pp = glob.glob(os.path.join(self.base_dir, '*.csv'))
-        if os.path.basename(controller_name) + '_pp.csv' not in [os.path.basename(file) for file in pickle_pp]:
-            pick_peaks([mzml_file], xml_template=self.xml_template_ms2, output_dir=self.base_dir,
+    def pick_peaks(self, mzml_file, controller_name, ms_level):
+        if ms_level == 1:
+            picked_peaks_file = os.path.join(self.base_dir, Path(mzml_file).stem + '_pp.csv')
+            pick_peaks([mzml_file], xml_template=self.xml_template_ms1, output_dir=self.base_dir,
                        mzmine_command=self.mzmine_command)
         else:
-            logger.info('Found picked peaks file. Skipping...')
-        return ms2_picked_peaks_file
+            picked_peaks_file = self.base_dir + '\\' + controller_name + '_pp.csv'
+            pickle_pp = glob.glob(os.path.join(self.base_dir, '*.csv'))
+            if os.path.basename(controller_name) + '_pp.csv' not in [os.path.basename(file) for file in pickle_pp]:
+                pick_peaks([mzml_file], xml_template=self.xml_template_ms2, output_dir=self.base_dir,
+                           mzmine_command=self.mzmine_command)
+            else:
+                logger.info('Found picked peaks file. Skipping...')
+        return picked_peaks_file
 
     def update_aligned_scores(self):
         NotImplementedError()
@@ -127,9 +133,6 @@ class BaseSequenceManager(object):
         return results_df
 
 
-
-
-
 class VimmsSequenceManager(BaseSequenceManager):
     def __init__(self, controller_schedule, evaluation_methods, base_dir,
                  evaluaton_min_ms1_intensity=1.75E5,
@@ -149,6 +152,7 @@ class VimmsSequenceManager(BaseSequenceManager):
         if self.controller_schedule is not None:
             # filter controller_schedule to remove blank and calibration samples
             # in this case, we set the Controller Method to None in the schedule file
+            self.schedule_idx = np.where(np.array(controller_schedule['Controller Method']) != None)[0]
             self.controller_schedule = controller_schedule[
                 controller_schedule['Controller Method'].values != None].reset_index(drop=True)
 
@@ -198,7 +202,7 @@ class Experiment(object):
 
     def run_peak_picking(self, idx, current_mzml_file, controller_name):
         logger.info('Started Peak Picking: ' + self.sequence_manager.controller_schedule['Sample ID'][idx])
-        ms2_picked_peaks_file = self.sequence_manager.pick_peaks(current_mzml_file, controller_name)
+        ms2_picked_peaks_file = self.sequence_manager.pick_peaks(current_mzml_file, controller_name, 2)
         logger.info('Completed Peak Picking: ' + self.sequence_manager.controller_schedule['Sample ID'][idx])
         return ms2_picked_peaks_file
 
@@ -210,10 +214,23 @@ class Experiment(object):
 
 
 class BasicExperiment(Experiment):
-    def __init__(self, sequence_manager, parallel=False):
-        # TODO: change parallel to True once working
+    def __init__(self, sequence_manager, parallel=True, mzml_file_list=None, MZML2CHEMS_DICT=None, ps=None):
         self.parallel = parallel
+        self.mzml2chems_dict = MZML2CHEMS_DICT
+        self.ps = ps
+        sequence_manager = self.add_defaults_controller_params(sequence_manager)
+        if mzml_file_list is not None and all(np.array(sequence_manager.controller_schedule['Dataset']) == None):
+            sequence_manager = self.add_dataset_files(sequence_manager, mzml_file_list)
         super().__init__(sequence_manager)
+
+    def add_dataset_files(self, sequence_manager, mzml_file_list):
+        for i in range(len(sequence_manager.controller_schedule['Dataset'])):
+            if mzml_file_list[sequence_manager.schedule_idx[i]] is not None:
+                dataset = mzml2chems(mzml_file_list[sequence_manager.schedule_idx[i]], self.ps, self.mzml2chems_dict, n_peaks=None)
+                dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file_list[sequence_manager.schedule_idx[i]]).stem + '.p')
+                save_obj(dataset, dataset_name)
+                sequence_manager.controller_schedule['Dataset'][i] = dataset_name
+        return sequence_manager
 
     def run(self):
         if self.parallel:
@@ -257,6 +274,15 @@ class BasicExperiment(Experiment):
                 self.results.loc[idx, score_name] = results_df[score_name]
             logger.info('Finished %d' % idx)
 
+    def add_defaults_controller_params(self, sequence_manager):
+        for i in range(len(sequence_manager.controller_schedule['Controller Params'])):
+            if sequence_manager.controller_schedule['Controller Params'][i] is not None:
+                new_dict = merge_controller_param_dict(sequence_manager.controller_schedule['Controller Params'][i],
+                                                       dict(),
+                                                       sequence_manager.controller_schedule['Controller Method'][i])
+                sequence_manager.controller_schedule['Controller Params'][i] = new_dict
+        return sequence_manager
+
 
 def run_single(params):
     idx = params['idx']
@@ -277,19 +303,25 @@ def run_single(params):
 
 class GridSearchExperiment(BasicExperiment):
     def __init__(self, sequence_manager, controller_method, mass_spec_param_dict, dataset_file, variable_params_dict,
-                 base_params_dict,
-                 parallel=True):
-        # TODO: change parallel to True once working
+                 base_params_dict, mzml_file=None, MZML2CHEMS_DICT=None, ps=None, parallel=True):
+
         self.sequence_manager = sequence_manager
         self.parallel = parallel
         self.controller_method = controller_method
         self.mass_spec_param_dict = mass_spec_param_dict
         self.dataset_file = dataset_file
+        self.mzml_file = mzml_file
+        if self.dataset_file is None:
+            dataset = mzml2chems(self.mzml_file, ps, MZML2CHEMS_DICT, n_peaks=None)
+            dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
+            save_obj(dataset, dataset_name)
+            self.dataset_file = dataset_name
+            if self.sequence_manager.ms1_picked_peaks_file is None:
+                self.sequence_manager.ms1_picked_peaks_file = self.sequence_manager.pick_peaks(self.mzml_file, None, 1)
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
-        self.sequence_manager.controller_schedule = self._generate_controller_schedule()
-        self.results = self.sequence_manager.create_results_df()
-        self.run()
+        sequence_manager.controller_schedule = self._generate_controller_schedule()
+        super().__init__(sequence_manager, self.parallel)
 
     def run(self):
         super().run()

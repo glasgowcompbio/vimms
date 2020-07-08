@@ -205,7 +205,7 @@ class SmartRoiController(RoiController):
         if self.scan_to_process is not None:
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
-            self.current_rt = self.last_ms1_scan.rt
+            self.current_rt = self.scan_to_process.rt
 
             # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":

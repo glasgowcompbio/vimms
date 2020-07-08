@@ -100,7 +100,7 @@ class BaseSequenceManager(object):
 
     def pick_peaks(self, mzml_file, controller_name, ms_level):
         if ms_level == 1:
-            picked_peaks_file = os.path.join(self.base_dir, Path(mzml_file).stem + '.csv')
+            picked_peaks_file = os.path.join(self.base_dir, Path(mzml_file).stem + '_pp.csv')
             pick_peaks([mzml_file], xml_template=self.xml_template_ms1, output_dir=self.base_dir,
                        mzmine_command=self.mzmine_command)
         else:
@@ -316,9 +316,10 @@ class GridSearchExperiment(BasicExperiment):
             dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
             save_obj(dataset, dataset_name)
             self.dataset_file = dataset_name
+            if self.sequence_manager.ms1_picked_peaks_file is None:
+                self.sequence_manager.ms1_picked_peaks_file = self.sequence_manager.pick_peaks(self.mzml_file, None, 1)
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
-        # add option to run fullscan and pick peaks from it
         sequence_manager.controller_schedule = self._generate_controller_schedule()
         super().__init__(sequence_manager, self.parallel)
 

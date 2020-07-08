@@ -98,15 +98,20 @@ class BaseSequenceManager(object):
         scores_dict = dict(mzmine_peaks_dict.items() | roi_score_dict.items())
         return scores_dict
 
-    def pick_peaks(self, mzml_file, controller_name):
-        ms2_picked_peaks_file = self.base_dir + '\\' + controller_name + '_pp.csv'
-        pickle_pp = glob.glob(os.path.join(self.base_dir, '*.csv'))
-        if os.path.basename(controller_name) + '_pp.csv' not in [os.path.basename(file) for file in pickle_pp]:
-            pick_peaks([mzml_file], xml_template=self.xml_template_ms2, output_dir=self.base_dir,
+    def pick_peaks(self, mzml_file, controller_name, ms_level):
+        if ms_level == 1:
+            picked_peaks_file = os.path.join(self.base_dir, Path(mzml_file).stem + '.csv')
+            pick_peaks([mzml_file], xml_template=self.xml_template_ms1, output_dir=self.base_dir,
                        mzmine_command=self.mzmine_command)
         else:
-            logger.info('Found picked peaks file. Skipping...')
-        return ms2_picked_peaks_file
+            picked_peaks_file = self.base_dir + '\\' + controller_name + '_pp.csv'
+            pickle_pp = glob.glob(os.path.join(self.base_dir, '*.csv'))
+            if os.path.basename(controller_name) + '_pp.csv' not in [os.path.basename(file) for file in pickle_pp]:
+                pick_peaks([mzml_file], xml_template=self.xml_template_ms2, output_dir=self.base_dir,
+                           mzmine_command=self.mzmine_command)
+            else:
+                logger.info('Found picked peaks file. Skipping...')
+        return picked_peaks_file
 
     def update_aligned_scores(self):
         NotImplementedError()
@@ -197,7 +202,7 @@ class Experiment(object):
 
     def run_peak_picking(self, idx, current_mzml_file, controller_name):
         logger.info('Started Peak Picking: ' + self.sequence_manager.controller_schedule['Sample ID'][idx])
-        ms2_picked_peaks_file = self.sequence_manager.pick_peaks(current_mzml_file, controller_name)
+        ms2_picked_peaks_file = self.sequence_manager.pick_peaks(current_mzml_file, controller_name, 2)
         logger.info('Completed Peak Picking: ' + self.sequence_manager.controller_schedule['Sample ID'][idx])
         return ms2_picked_peaks_file
 
@@ -216,15 +221,6 @@ class BasicExperiment(Experiment):
         sequence_manager = self.add_defaults_controller_params(sequence_manager)
         if mzml_file_list is not None and all(np.array(sequence_manager.controller_schedule['Dataset']) == None):
             sequence_manager = self.add_dataset_files(sequence_manager, mzml_file_list)
-            if sequence_manager.ms1_picked_peaks_file is None:
-                # do peak picking on each mzml file
-                # add if statement to only do it once if all files are the same
-                pass
-        if mzml_file_list is None and sequence_manager.ms1_picked_peaks_file is None:
-            # run a full scan on each mzml
-            # do the peak picking
-            # add if statement to only do it once if all files are the same
-            pass
         super().__init__(sequence_manager)
 
     def add_dataset_files(self, sequence_manager, mzml_file_list):

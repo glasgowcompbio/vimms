@@ -320,7 +320,7 @@ class GridSearchExperiment(BasicExperiment):
         # TODO: add options to convert mzml to dataset
         # add option to run fullscan and pick peaks from it
         sequence_manager.controller_schedule = self._generate_controller_schedule()
-        super.__init__(sequence_manager)
+        super().__init__(sequence_manager, self.parallel)
 
     def run(self):
         super().run()

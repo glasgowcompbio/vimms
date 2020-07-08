@@ -17,6 +17,7 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Scoring import picked_peaks_evaluation, roi_scoring
+from vimms.BOMAS import mzml2chems
 
 from alignment import BoxJoinAligner
 from ms2_matching import MZMLFile, load_picked_boxes, map_boxes_to_scans
@@ -146,6 +147,7 @@ class VimmsSequenceManager(BaseSequenceManager):
         if self.controller_schedule is not None:
             # filter controller_schedule to remove blank and calibration samples
             # in this case, we set the Controller Method to None in the schedule file
+            self.schedule_idx = np.where(np.array(controller_schedule['Controller Method']) != None)[0]
             self.controller_schedule = controller_schedule[
                 controller_schedule['Controller Method'].values != None].reset_index(drop=True)
 
@@ -207,10 +209,32 @@ class Experiment(object):
 
 
 class BasicExperiment(Experiment):
-    def __init__(self, sequence_manager, parallel=True):
+    def __init__(self, sequence_manager, parallel=True, mzml_file_list=None, MZML2CHEMS_DICT=None, ps=None):
         self.parallel = parallel
-        self.add_defaults_controller_params(sequence_manager)
+        self.mzml2chems_dict = MZML2CHEMS_DICT
+        self.ps = ps
+        sequence_manager = self.add_defaults_controller_params(sequence_manager)
+        if mzml_file_list is not None and all(np.array(sequence_manager.controller_schedule['Dataset']) == None):
+            sequence_manager = self.add_dataset_files(sequence_manager, mzml_file_list)
+            if sequence_manager.ms1_picked_peaks_file is None:
+                # do peak picking on each mzml file
+                # add if statement to only do it once if all files are the same
+                pass
+        if mzml_file_list is None and sequence_manager.ms1_picked_peaks_file is None:
+            # run a full scan on each mzml
+            # do the peak picking
+            # add if statement to only do it once if all files are the same
+            pass
         super().__init__(sequence_manager)
+
+    def add_dataset_files(self, sequence_manager, mzml_file_list):
+        for i in range(len(sequence_manager.controller_schedule['Dataset'])):
+            if mzml_file_list[sequence_manager.schedule_idx[i]] is not None:
+                dataset = mzml2chems(mzml_file_list[sequence_manager.schedule_idx[i]], self.ps, self.mzml2chems_dict, n_peaks=None)
+                dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file_list[sequence_manager.schedule_idx[i]]).stem + '.p')
+                save_obj(dataset, dataset_name)
+                sequence_manager.controller_schedule['Dataset'][i] = dataset_name
+        return sequence_manager
 
     def run(self):
         if self.parallel:
@@ -283,18 +307,20 @@ def run_single(params):
 
 class GridSearchExperiment(BasicExperiment):
     def __init__(self, sequence_manager, controller_method, mass_spec_param_dict, dataset_file, variable_params_dict,
-                 base_params_dict,
-                 parallel=True):
+                 base_params_dict, mzml_file=None, parallel=True):
+
         self.sequence_manager = sequence_manager
         self.parallel = parallel
         self.controller_method = controller_method
         self.mass_spec_param_dict = mass_spec_param_dict
         self.dataset_file = dataset_file
+        self.mzml_file = mzml_file
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
-        self.sequence_manager.controller_schedule = self._generate_controller_schedule()
-        self.results = self.sequence_manager.create_results_df()
-        self.run()
+        # TODO: add options to convert mzml to dataset
+        # add option to run fullscan and pick peaks from it
+        sequence_manager.controller_schedule = self._generate_controller_schedule()
+        super.__init__(sequence_manager)
 
     def run(self):
         super().run()

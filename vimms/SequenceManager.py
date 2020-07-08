@@ -303,7 +303,7 @@ def run_single(params):
 
 class GridSearchExperiment(BasicExperiment):
     def __init__(self, sequence_manager, controller_method, mass_spec_param_dict, dataset_file, variable_params_dict,
-                 base_params_dict, mzml_file=None, parallel=True):
+                 base_params_dict, mzml_file=None, MZML2CHEMS_DICT=None, ps=None, parallel=True):
 
         self.sequence_manager = sequence_manager
         self.parallel = parallel
@@ -311,9 +311,13 @@ class GridSearchExperiment(BasicExperiment):
         self.mass_spec_param_dict = mass_spec_param_dict
         self.dataset_file = dataset_file
         self.mzml_file = mzml_file
+        if self.dataset_file is None:
+            dataset = mzml2chems(self.mzml_file, ps, MZML2CHEMS_DICT, n_peaks=None)
+            dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
+            save_obj(dataset, dataset_name)
+            self.dataset_file = dataset_name
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
-        # TODO: add options to convert mzml to dataset
         # add option to run fullscan and pick peaks from it
         sequence_manager.controller_schedule = self._generate_controller_schedule()
         super().__init__(sequence_manager, self.parallel)

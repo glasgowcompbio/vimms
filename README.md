@@ -54,6 +54,15 @@ Test Cases
 
 Additionally unit tests that demonstrate how simulations can be run are available in the `tests` folder. You can use the script `run_tests.sh` or `run_tests.bat` to run them.
 
+To run individual test classes you can use:
+
+`pipenv run python -m unittest <module>.<class>`
+
+For example:
+
+`pipenv run python -m unittest tests.integration.test_controllers.TestSMARTROIController`
+
+
 Binder
 --------
 

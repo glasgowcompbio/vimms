@@ -18,7 +18,9 @@ class Controller(object):
         self.make_plot = False
         self.scan_to_process = None
         self.environment = None
-        self.next_processed_scan_id = 100000
+        initial_scan_id = 100000
+        self.next_processed_scan_id = initial_scan_id
+        self.initial_scan_id = initial_scan_id
 
     def set_environment(self, env):
         self.environment = env
@@ -732,7 +734,7 @@ class PurityController(TopNController):
             ms1_insert_position = max(len(new_tasks) - self.ms1_shift, 0)
             new_tasks.insert(ms1_insert_position, ms1_scan_params)
             num_scans = (len(self.scans[1]) + len(self.scans[2]) + ms1_insert_position + self.pending_tasks)
-            self.next_processed_scan_id = num_scans
+            self.next_processed_scan_id = self.initial_scan_id + num_scans
 
             # create temp exclusion items
             tasks = new_tasks[(ms1_insert_position + 1):]

@@ -8,7 +8,7 @@ from ms2_matching import load_picked_boxes
 
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION
+    DEFAULT_MS2_ORBITRAP_RESOLUTION, INITIAL_SCAN_ID
 from vimms.MassSpec import ScanParameters, ExclusionItem
 
 
@@ -18,9 +18,8 @@ class Controller(object):
         self.make_plot = False
         self.scan_to_process = None
         self.environment = None
-        initial_scan_id = 100000
-        self.next_processed_scan_id = initial_scan_id
-        self.initial_scan_id = initial_scan_id
+        self.next_processed_scan_id = INITIAL_SCAN_ID
+        self.initial_scan_id = INITIAL_SCAN_ID
 
     def set_environment(self, env):
         self.environment = env

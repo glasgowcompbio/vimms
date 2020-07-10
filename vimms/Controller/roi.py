@@ -18,7 +18,7 @@ class RoiController(TopNController):
     """
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                 ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -176,7 +176,7 @@ class RoiController(TopNController):
 
 class SmartRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
+                 min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans",
                  drop_perc=0.01, ms1_shift=0,
                  # advanced parameters

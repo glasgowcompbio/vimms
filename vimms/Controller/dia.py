@@ -58,14 +58,14 @@ class AIF(Controller):
                                                         orbitrap_resolution=self.ms1_orbitrap_resolution)
         task.set(ScanParameters.FIRST_MASS, self.min_mz)
         task.set(ScanParameters.LAST_MASS, self.max_mz)
-        task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
+        # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
 
         scans.append(task)
         self.scan_number += 1 # increase every time we make a scan
         
         # make the MS2 scan
         dda_scan_params = ScanParameters()
-        dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
+        dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
         isolation_windows = [[[self.min_mz,self.max_mz]]] # why tripple brackets needed?
         dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, isolation_windows)
         dda_scan_params.set(ScanParameters.COLLISION_ENERGY,self.ms2_collision_energy)
@@ -75,7 +75,7 @@ class AIF(Controller):
         dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5*(self.max_mz + self.min_mz))
         dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
         dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
-        dda_scan_params.set(ScanParameters.CURRENT_TOP_N,10) # time sampling fix see iss18
+        # dda_scan_params.set(ScanParameters.CURRENT_TOP_N,10) # time sampling fix see iss18
 
 
         scans.append(dda_scan_params)

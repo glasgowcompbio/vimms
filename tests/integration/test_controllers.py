@@ -528,9 +528,11 @@ class TestDIAControllers(unittest.TestCase):
         min_rt = 0
         max_rt = 400 
 
+        scan_time_dict = {1:0.12}
+
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
         controller = AIF(min_mz,max_mz)
         
         # create an environment to run both the mass spec and controller
@@ -553,7 +555,8 @@ class TestDIAControllers(unittest.TestCase):
 
         # create a simulated mass spec with noise and Top-N controller
         logger.info('With noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True)
+        
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True, scan_duration_dict = scan_time_dict)
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller
@@ -590,7 +593,8 @@ class TestDIAControllers(unittest.TestCase):
         max_rt = 500 
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False)
+        scan_time_dict = {1:0.12}
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller

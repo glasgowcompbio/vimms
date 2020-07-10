@@ -51,12 +51,27 @@ class AIF(Controller):
         # we make a new block
         # each block is an MS1 scan followed by an MS2 scan where the MS2 fragmens everything
         scans = []
+        # make the SM1 scan
         task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                         max_it=self.ms1_max_it,
                                                         collision_energy=self.ms1_collision_energy,
                                                         orbitrap_resolution=self.ms1_orbitrap_resolution)
+        scans.append(task)
+        self.scan_number += 1 # increase every time we make a scan
+        
+        # make the MS2 scan
+        dda_scan_params = ScanParameters()
+        dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
+        isolation_windows = [[self.min_mz,self.max_mz]]
+        dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, isolation_windows)
+
+        dda_scan_params.set(ScanParameters.COLLISION_ENERGY,self.ms2_collision_energy)
+        dda_scan_params.set(ScanParameters.AGC_TARGET,self.ms2_agc_target)
+        dda_scan_params.set(ScanParameters.MAX_IT,self.ms2_max_it)
+        dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION,self.ms2_orbitrap_resolution)
+
+        scans.append(dda_scan_params)
         self.next_processed_scan_id = self.scan_number
         self.scan_number += 1
-        scans.append(task)
         return scans
         

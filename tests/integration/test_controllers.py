@@ -594,6 +594,8 @@ class TestDIAControllers(unittest.TestCase):
 
         # create a simulated mass spec without noise and Top-N controller
         scan_time_dict = {1:0.12}
+        import numpy as np
+        scan_time_dict = {1:np.random.rand()}
         mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
         controller = AIF(min_mz,max_mz)
 

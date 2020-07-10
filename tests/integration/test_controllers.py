@@ -9,7 +9,7 @@ from pathlib import Path
 
 from vimms.Chemicals import ChemicalCreator, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import SimpleMs1Controller, TopNController, PurityController, TopN_RoiController
+from vimms.Controller import SimpleMs1Controller, TopNController, PurityController, TopN_RoiController, TopN_SmartRoiController
 from vimms.Environment import Environment
 from vimms.Common import *
 
@@ -385,6 +385,93 @@ class TestROIController(unittest.TestCase):
         env.write_mzML(out_dir, filename)
         self.assertTrue(os.path.exists(out_file))
         print()
+
+class TestSMARTROIController(unittest.TestCase):
+    """
+    Tests the ROI controller that performs fragmentations and dynamic exclusions based on selecting regions of interests
+    (rather than the top-N most intense peaks)
+    """
+
+    def setUp(self):
+        self.ps = load_obj(Path(base_dir, 'peak_sampler_mz_rt_int_beerqcb_fragmentation.p'))
+        self.ms_level = 1
+
+    def test_smart_roi_controller_with_simulated_chems(self):
+        logger.info('Testing ROI controller with simulated chemicals')
+
+        # create some chemical objects
+        chems = ChemicalCreator(self.ps, ROI_Sources, hmdb)
+        dataset = chems.sample(mz_range, rt_range, min_ms1_intensity, n_chems, self.ms_level,
+                               get_children_method=GET_MS2_BY_SPECTRA)
+        self.assertEqual(len(dataset), n_chems)
+
+        isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        min_roi_intensity = 5000
+        min_roi_length = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec with noise and ROI controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True)
+        controller = TopN_SmartRoiController(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
+                                        min_roi_intensity, min_roi_length, N, rt_tol)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+
+        # set the log level back to DEBUG
+        set_log_level_debug()
+
+        # write simulated output to mzML file
+        filename = 'smart_roi_controller_simulated_chems.mzML'
+        out_file = os.path.join(out_dir, filename)
+        env.write_mzML(out_dir, filename)
+        self.assertTrue(os.path.exists(out_file))
+        print()
+
+    def test_smart_roi_controller_with_beer_chems(self):
+        logger.info('Testing ROI controller with QC beer chemicals')
+
+        isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        min_roi_intensity = 5000
+        min_roi_length = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec with noise and ROI controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=True)
+        controller = TopN_SmartRoiController(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
+                                        min_roi_intensity, min_roi_length, N, rt_tol)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+
+        # set the log level back to DEBUG
+        set_log_level_debug()
+
+        # write simulated output to mzML file
+        filename = 'smart_controller_qcbeer_chems.mzML'
+        out_file = os.path.join(out_dir, filename)
+        env.write_mzML(out_dir, filename)
+        self.assertTrue(os.path.exists(out_file))
+        print()
+
 
 
 

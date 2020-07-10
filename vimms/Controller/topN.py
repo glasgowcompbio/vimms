@@ -20,6 +20,7 @@ class Controller(object):
         self.environment = None
         self.next_processed_scan_id = INITIAL_SCAN_ID
         self.initial_scan_id = INITIAL_SCAN_ID
+        self.current_task_id = self.initial_scan_id
 
     def set_environment(self, env):
         self.environment = env
@@ -320,6 +321,7 @@ class TopNController(Controller):
                                                                orbitrap_resolution=self.ms2_orbitrap_resolution)
                 new_tasks.append(dda_scan_params)
                 fragmented_count += 1
+                self.current_task_id += 1
 
                 # add an ms1 here
                 if fragmented_count == self.N - self.ms1_shift:
@@ -327,7 +329,8 @@ class TopNController(Controller):
                                                                                max_it=self.ms1_max_it,
                                                                                collision_energy=self.ms1_collision_energy,
                                                                                orbitrap_resolution=self.ms1_orbitrap_resolution)
-                    self.next_processed_scan_id += fragmented_count + self.pending_tasks + 1
+                    self.current_task_id += 1
+                    self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
 
             # if no ms1 has been added, then add at the end
@@ -336,7 +339,8 @@ class TopNController(Controller):
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
                                                                            orbitrap_resolution=self.ms1_orbitrap_resolution)
-                self.next_processed_scan_id += fragmented_count + self.pending_tasks + 1
+                self.current_task_id += 1
+                self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items

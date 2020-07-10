@@ -251,15 +251,32 @@ class SmartRoiController(RoiController):
                                                                       self.isolation_width, self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
                 self.live_roi[i].fragmented()
+                fragmented_count += 1
+                self.current_task_id += 1
 
-            ms1_scan_params = self.environment.get_default_scan_params()
-            ms1_insert_position = max(len(new_tasks) - self.ms1_shift, 0)
-            new_tasks.insert(ms1_insert_position, ms1_scan_params)
-            num_scans = (len(self.scans[1]) + len(self.scans[2]) + ms1_insert_position + self.pending_tasks)
-            self.next_processed_scan_id = self.initial_scan_id + num_scans
+                # add an ms1 here
+                if fragmented_count == self.N - self.ms1_shift:
+                    ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                               max_it=self.ms1_max_it,
+                                                                               collision_energy=self.ms1_collision_energy,
+                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution)
+                    self.current_task_id += 1
+                    self.next_processed_scan_id = self.current_task_id
+                    new_tasks.append(ms1_scan_params)
+
+                # if no ms1 has been added, then add at the end
+            if fragmented_count < self.N - self.ms1_shift:
+                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                           max_it=self.ms1_max_it,
+                                                                           collision_energy=self.ms1_collision_energy,
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+                self.current_task_id += 1
+                self.next_processed_scan_id = self.current_task_id
+                new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items
-            tasks = new_tasks[(ms1_insert_position + 1):]
+            tasks = new_tasks[
+                    min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
             self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
 
             # set this ms1 scan as has been processed

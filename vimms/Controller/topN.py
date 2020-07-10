@@ -43,7 +43,6 @@ class Controller(object):
         if scan.scan_id == self.next_processed_scan_id:
             self.scan_to_process = scan
             self.pending_tasks = pending_tasks_size
-            assert scan.ms_level == 1
             logger.debug('self.next_processed_scan_id is increased to %d' % self.next_processed_scan_id)
         else:
             self.scan_to_process = None

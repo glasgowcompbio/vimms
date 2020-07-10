@@ -65,9 +65,7 @@ class RoiController(TopNController):
             rt = self.scan_to_process.rt
 
             # loop over points in decreasing score
-            # t0 = time()
             scores = self._get_scores()
-            # logger.debug(time()-t0)
             idx = np.argsort(scores)[::-1]
             for i in idx:
                 mz = self.current_roi_mzs[i]

@@ -284,13 +284,13 @@ class TopNController(Controller):
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
+        fragmented_count = 0
         if self.scan_to_process is not None:
             mzs = self.scan_to_process.mzs
             intensities = self.scan_to_process.intensities
             rt = self.scan_to_process.rt
 
             # loop over points in decreasing intensity
-            fragmented_count = 0
             idx = np.argsort(intensities)[::-1]
             for i in idx:
                 mz = mzs[i]

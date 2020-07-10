@@ -524,6 +524,10 @@ class TestDIAControllers(unittest.TestCase):
         min_mz = 100
         max_mz = 500
 
+        # shorten  the rt range for quicker tests
+        min_rt = 0
+        max_rt = 400 
+
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')
         mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False)
@@ -581,6 +585,10 @@ class TestDIAControllers(unittest.TestCase):
         ionisation_mode = POSITIVE
         min_mz = 100
         max_mz = 500
+
+        min_rt = 0 
+        max_rt = 500 
+
         # create a simulated mass spec without noise and Top-N controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False)
         controller = AIF(min_mz,max_mz)

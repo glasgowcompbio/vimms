@@ -454,7 +454,12 @@ class IndependentMassSpectrometer(object):
         else:  # for (1, 2), (2, 1) and (2, 2)
             current_scan_duration = self.peak_sampler.scan_durations(current_level, next_level, 1,
                                                                      N=current_N, DEW=current_DEW)
-        current_scan_duration = current_scan_duration.flatten()[0]
+        
+        try:
+            current_scan_duration = current_scan_duration.flatten()[0]
+        except:
+            print("Failed to sample, current level =  {}, next level = {}".format(current_level,next_level))
+            current_scan_duration =  0.1
         return current_scan_duration
 
     def _store_next_N_DEW(self, next_scan_param):

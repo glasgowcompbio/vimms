@@ -27,6 +27,7 @@ class Controller(object):
     def handle_scan(self, scan, outgoing_queue_size, pending_tasks_size):
         # record every scan that we've received
         logger.debug('Time %f Received %s' % (scan.rt, scan))
+        print(scan.ms_level,scan.num_peaks)
         self.scans[scan.ms_level].append(scan)
 
         # plot scan if there are peaks

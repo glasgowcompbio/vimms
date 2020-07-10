@@ -28,9 +28,9 @@ class RoiController(TopNController):
                 ms2_max_it = DEFAULT_MS2_MAXIT,
                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_agc_target, ms1_shift,
-                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
-                         ms2_collision_energy, ms2_orbitrap_resolution)
+        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift,
+                         ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target,
+                         ms2_max_it, ms2_collision_energy, ms2_orbitrap_resolution)
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity

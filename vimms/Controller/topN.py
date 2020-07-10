@@ -39,21 +39,19 @@ class Controller(object):
         self.last_scan = scan
         logger.debug(
             'scan.scan_id = %d, self.next_processed_scan_id = %d' % (scan.scan_id, self.next_processed_scan_id))
-        if scan.scan_id == self.next_processed_scan_id and scan.num_peaks > 0:
+        if scan.scan_id == self.next_processed_scan_id:
             self.scan_to_process = scan
             self.pending_tasks = pending_tasks_size
             assert scan.ms_level == 1
             logger.debug('self.next_processed_scan_id is increased to %d' % self.next_processed_scan_id)
         else:
             self.scan_to_process = None
-        if scan.num_peaks == 0:
-            self.next_processed_scan_id += 1
 
         logger.debug('outgoing_queue_size = %d, pending_tasks_size = %d' % (outgoing_queue_size, pending_tasks_size))
         logger.debug('scan.scan_params = %s' % scan.scan_params)
         logger.debug('scan_to_process = %s' % self.scan_to_process)
 
-        # impelemnted by subclass
+        # implemented by subclass
         new_tasks = self._process_scan(scan)
         return new_tasks
 

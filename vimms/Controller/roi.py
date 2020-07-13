@@ -183,7 +183,7 @@ class RoiController(TopNController):
 
     def _get_dda_scores(self):
         scores = np.log(self.current_roi_intensities)  # log intensities
-        scores *= (np.log(self.current_roi_intensities) > np.log(self.min_ms1_intensity))  # intensity filter
+        scores *= (self.current_roi_intensities > self.min_ms1_intensity)  # intensity filter
         time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
         time_filter[time_filter == 0] = (
                 (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
@@ -344,7 +344,7 @@ class SmartRoiController(RoiController):
 
     def _get_dda_scores(self):
         scores = np.log(self.current_roi_intensities)  # log intensities
-        scores *= (np.log(self.current_roi_intensities) > np.log(self.min_ms1_intensity))  # intensity filter
+        scores *= (self.current_roi_intensities > self.min_ms1_intensity)  # intensity filter
         scores *= ([roi.get_can_fragment() for roi in self.live_roi])
         return scores
 

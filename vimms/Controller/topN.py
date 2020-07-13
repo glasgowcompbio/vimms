@@ -718,9 +718,11 @@ class PurityController(TopNController):
                                                                               current_isolation_width, current_mz_tol,
                                                                               current_rt_tol)
                         new_tasks.append(dda_scan_params)
+                        self.current_task_id += 1
                         if self.purity_add_ms1 and purity_idx != purity_randomise_idx[-1]:
                             ms1_scan_params = self.environment.get_default_scan_params()
                             new_tasks.append(ms1_scan_params)
+                            self.current_task_id += 1
                         fragmented_count += 1
                 else:
                     # create a new ms2 scan parameter to be sent to the mass spec
@@ -728,6 +730,7 @@ class PurityController(TopNController):
                     dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                           current_isolation_width, current_mz_tol,
                                                                           current_rt_tol)
+                    self.current_task_id += 1
                     new_tasks.append(dda_scan_params)
                     fragmented_count += 1
 
@@ -735,6 +738,7 @@ class PurityController(TopNController):
             ms1_scan_params = self.environment.get_default_scan_params()
             ms1_insert_position = max(len(new_tasks) - self.ms1_shift, 0)
             new_tasks.insert(ms1_insert_position, ms1_scan_params)
+            self.current_task_id += 1
             num_scans = (len(self.scans[1]) + len(self.scans[2]) + ms1_insert_position + self.pending_tasks)
             self.next_processed_scan_id = self.initial_scan_id + num_scans
 

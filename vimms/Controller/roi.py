@@ -51,6 +51,7 @@ class RoiController(TopNController):
         self._update_roi(scan)
         # if there's a previous ms1 scan to process
         new_tasks = []
+        ms2_tasks = []
         fragmented_count = 0
         if self.scan_to_process is not None:
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
@@ -67,6 +68,9 @@ class RoiController(TopNController):
             # loop over points in decreasing score
             scores = self._get_scores()
             idx = np.argsort(scores)[::-1]
+
+            done_ms1 = False
+
             for i in idx:
                 mz = self.current_roi_mzs[i]
                 intensity = self.current_roi_intensities[i]
@@ -85,6 +89,7 @@ class RoiController(TopNController):
                 dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                       self.isolation_width, self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
                 self.current_task_id += 1
 
@@ -97,9 +102,11 @@ class RoiController(TopNController):
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
+                    done_ms1 = True
 
             # if no ms1 has been added, then add at the end
-            if fragmented_count < self.N - self.ms1_shift:
+            # if fragmented_count < self.N - self.ms1_shift:
+            if not done_ms1:
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
@@ -108,10 +115,11 @@ class RoiController(TopNController):
                 self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
 
-                # create temp exclusion items
-            tasks = new_tasks[
-                    min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
-            self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            # create temp exclusion items
+            # tasks = new_tasks[
+            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
+            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
@@ -232,6 +240,10 @@ class SmartRoiController(RoiController):
             # loop over points in decreasing score
             scores = self._get_scores()
             idx = np.argsort(scores)[::-1]
+
+            done_ms1 = False
+            ms2_tasks = []
+
             for i in idx:
                 mz = self.current_roi_mzs[i]
                 intensity = self.current_roi_intensities[i]
@@ -250,6 +262,7 @@ class SmartRoiController(RoiController):
                 dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                       self.isolation_width, self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
                 self.live_roi[i].fragmented()
                 fragmented_count += 1
                 self.current_task_id += 1
@@ -263,9 +276,11 @@ class SmartRoiController(RoiController):
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
+                    done_ms1 = True
 
-                # if no ms1 has been added, then add at the end
-            if fragmented_count < self.N - self.ms1_shift:
+            # if no ms1 has been added, then add at the end
+            # if fragmented_count < self.N - self.ms1_shift:
+            if not done_ms1:
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
@@ -275,9 +290,10 @@ class SmartRoiController(RoiController):
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items
-            tasks = new_tasks[
-                    min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
-            self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            # tasks = new_tasks[
+            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
+            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

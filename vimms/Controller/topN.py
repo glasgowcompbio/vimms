@@ -43,7 +43,6 @@ class Controller(object):
         if scan.scan_id == self.next_processed_scan_id:
             self.scan_to_process = scan
             self.pending_tasks = pending_tasks_size
-            assert scan.ms_level == 1
             logger.debug('self.next_processed_scan_id is increased to %d' % self.next_processed_scan_id)
         else:
             self.scan_to_process = None
@@ -292,6 +291,9 @@ class TopNController(Controller):
 
             # loop over points in decreasing intensity
             idx = np.argsort(intensities)[::-1]
+
+            done_ms1 = False
+            ms2_tasks = []
             for i in idx:
                 mz = mzs[i]
                 intensity = intensities[i]
@@ -320,6 +322,7 @@ class TopNController(Controller):
                                                                collision_energy=self.ms2_collision_energy,
                                                                orbitrap_resolution=self.ms2_orbitrap_resolution)
                 new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
                 self.current_task_id += 1
 
@@ -332,9 +335,11 @@ class TopNController(Controller):
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
+                    done_ms1 = True
 
             # if no ms1 has been added, then add at the end
-            if fragmented_count < self.N - self.ms1_shift:
+            if not done_ms1:
+            # if fragmented_count < self.N - self.ms1_shift:
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
@@ -344,8 +349,9 @@ class TopNController(Controller):
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items
-            tasks = new_tasks[min(self.N - self.ms1_shift+1, len(new_tasks)):max(self.N - self.ms1_shift+1, len(new_tasks))]
-            self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            # tasks = new_tasks[min(self.N - self.ms1_shift+1, len(new_tasks)):max(self.N - self.ms1_shift+1, len(new_tasks))]
+            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

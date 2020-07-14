@@ -231,12 +231,10 @@ class SmartRoiController(RoiController):
         # if there's a previous ms1 scan to process
         new_tasks = []
         fragmented_count = 0
-        # keep growing ROIs if we encounter a new ms1 scan
-        self._update_roi(scan)
         if self.scan_to_process is not None:
 
-            
-
+            # keep growing ROIs if we encounter a new ms1 scan
+            self._update_roi(scan)
 
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
@@ -315,51 +313,47 @@ class SmartRoiController(RoiController):
         return new_tasks
 
     def _update_roi(self, new_scan):
-        try:
-            if new_scan.ms_level == 1:
-                order = np.argsort(self.live_roi)
-                self.live_roi.sort()
-                self.live_roi_fragmented = np.array(self.live_roi_fragmented)[order].tolist()
-                self.live_roi_last_rt = np.array(self.live_roi_last_rt)[order].tolist()
-                current_ms1_scan_rt = new_scan.rt
-                not_grew = set(self.live_roi)
-                for idx in range(len(new_scan.intensities)):
-                    intensity = new_scan.intensities[idx]
-                    mz = new_scan.mzs[idx]
-                    if intensity >= self.min_roi_intensity:
-                        match_roi = match(SmartRoi(mz, 0, 0, self.min_roi_length_for_fragmentation,
-                                                self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
-                                        self.live_roi, self.mz_tol, mz_units=self.mz_units)
-                        if match_roi:
-                            match_roi.add(mz, current_ms1_scan_rt, intensity)
-                            if match_roi in not_grew:
-                                not_grew.remove(match_roi)
-                        else:
-                            new_roi = SmartRoi(mz, current_ms1_scan_rt, intensity, self.min_roi_length_for_fragmentation,
-                                            self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol, drop_perc = self.drop_perc)
-                            bisect.insort_right(self.live_roi, new_roi)
-                            self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
-                            self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
-
-                for roi in not_grew:
-                    if self.length_units == "scans":
-                        if roi.n >= self.min_roi_length:
-                            self.dead_roi.append(roi)
-                        else:
-                            self.junk_roi.append(roi)
+        if new_scan.ms_level == 1:
+            order = np.argsort(self.live_roi)
+            self.live_roi.sort()
+            self.live_roi_fragmented = np.array(self.live_roi_fragmented)[order].tolist()
+            self.live_roi_last_rt = np.array(self.live_roi_last_rt)[order].tolist()
+            current_ms1_scan_rt = new_scan.rt
+            not_grew = set(self.live_roi)
+            for idx in range(len(new_scan.intensities)):
+                intensity = new_scan.intensities[idx]
+                mz = new_scan.mzs[idx]
+                if intensity >= self.min_roi_intensity:
+                    match_roi = match(SmartRoi(mz, 0, 0, self.min_roi_length_for_fragmentation,
+                                            self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
+                                    self.live_roi, self.mz_tol, mz_units=self.mz_units)
+                    if match_roi:
+                        match_roi.add(mz, current_ms1_scan_rt, intensity)
+                        if match_roi in not_grew:
+                            not_grew.remove(match_roi)
                     else:
-                        if roi.length_in_seconds >= self.min_roi_length:
-                            self.dead_roi.append(roi)
-                        else:
-                            self.junk_roi.append(roi)
+                        new_roi = SmartRoi(mz, current_ms1_scan_rt, intensity, self.min_roi_length_for_fragmentation,
+                                        self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol, drop_perc = self.drop_perc)
+                        bisect.insort_right(self.live_roi, new_roi)
+                        self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
+                        self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
 
-                    pos = self.live_roi.index(roi)
-                    del self.live_roi[pos]
-                    del self.live_roi_fragmented[pos]
-                    del self.live_roi_last_rt[pos]
-        except Exception as e:
-            track = traceback.format_exc()
-            print(track)
+            for roi in not_grew:
+                if self.length_units == "scans":
+                    if roi.n >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+                else:
+                    if roi.length_in_seconds >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+
+                pos = self.live_roi.index(roi)
+                del self.live_roi[pos]
+                del self.live_roi_fragmented[pos]
+                del self.live_roi_last_rt[pos]
 
     def _get_dda_scores(self):
         scores = np.log(self.current_roi_intensities)  # log intensities

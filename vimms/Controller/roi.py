@@ -254,7 +254,7 @@ class SmartRoiController(RoiController):
 
                 # stopping criteria is done based on the scores
                 if scores[i] <= 0:
-                    logger.debug('Time %f Top-%d ions have been selected' % (self.current_rt, self.N))
+                    logger.debug('Time %f, %d ions have been selected' % (self.current_rt, len(ms2_tasks)))
                     break
 
                 # updated fragmented list and times

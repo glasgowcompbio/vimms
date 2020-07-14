@@ -286,6 +286,8 @@ class SmartRoiController(RoiController):
                                                                                orbitrap_resolution=self.ms1_orbitrap_resolution)
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
+                    logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+
                     new_tasks.append(ms1_scan_params)
                     done_ms1 = True
 
@@ -298,6 +300,8 @@ class SmartRoiController(RoiController):
                                                                            orbitrap_resolution=self.ms1_orbitrap_resolution)
                 self.current_task_id += 1
                 self.next_processed_scan_id = self.current_task_id
+                logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items
@@ -355,7 +359,7 @@ class SmartRoiController(RoiController):
                     del self.live_roi_last_rt[pos]
         except Exception as e:
             track = traceback.format_exc()
-            logger.debug(track)
+            print(track)
 
     def _get_dda_scores(self):
         scores = np.log(self.current_roi_intensities)  # log intensities

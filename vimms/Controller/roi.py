@@ -235,7 +235,7 @@ class SmartRoiController(RoiController):
 
             # keep growing ROIs if we encounter a new ms1 scan
             self._update_roi(scan)
-
+            logger.debug("Updated rois, currently %d rois" % (len(self.live_roi)))
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
             self.current_rt = self.scan_to_process.rt

@@ -221,13 +221,16 @@ class SmartRoiController(RoiController):
         self.drop_perc = drop_perc
 
     def _process_scan(self, scan):
-        # keep growing ROIs if we encounter a new ms1 scan
-        self._update_roi(scan)
 
         # if there's a previous ms1 scan to process
         new_tasks = []
         fragmented_count = 0
         if self.scan_to_process is not None:
+
+            # keep growing ROIs if we encounter a new ms1 scan
+            self._update_roi(scan)
+
+
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
             self.current_rt = self.scan_to_process.rt

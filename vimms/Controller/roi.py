@@ -102,6 +102,8 @@ class RoiController(TopNController):
                                                                                orbitrap_resolution=self.ms1_orbitrap_resolution)
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
+                    logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+
                     new_tasks.append(ms1_scan_params)
                     done_ms1 = True
 
@@ -114,6 +116,7 @@ class RoiController(TopNController):
                                                                            orbitrap_resolution=self.ms1_orbitrap_resolution)
                 self.current_task_id += 1
                 self.next_processed_scan_id = self.current_task_id
+                logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items

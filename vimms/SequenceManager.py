@@ -21,7 +21,8 @@ from vimms.Scoring import picked_peaks_evaluation, roi_scoring
 from vimms.BOMAS import mzml2chems
 
 from alignment import BoxJoinAligner
-from ms2_matching import MZMLFile, load_picked_boxes, map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 
 parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')

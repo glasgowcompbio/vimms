@@ -31,6 +31,8 @@ mass-spec-utils = "*"
 
 [dev-packages]
 pipenv-setup = "*"
+flake8 = "*"
+pytest = "*"
 
 [requires]
 python_version = "3"

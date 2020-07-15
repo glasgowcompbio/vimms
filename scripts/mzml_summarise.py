@@ -3,10 +3,9 @@ import os
 import glob
 from tabulate import tabulate
 
-PATH_TO_PYMZM = '/Users/simon/git/pymzm'
+from mass_spec_utils.data_import.mzml import MZMLFile
 
 def get_summary(mzml_file_path):
-    from ms2_matching import MZMLFile
     summary = {}
     mzml_file = MZMLFile(mzml_file_path)
     scan_sub = mzml_file.scans
@@ -32,14 +31,9 @@ def get_summary(mzml_file_path):
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        print("Pass a path to an mzml file or to a folder. Optional second argument is path to local pymzm")
+        print("Pass a path to an mzml file or to a folder.")
         sys.exit(0)
     mzml_path = sys.argv[1] # annoying
-    if len(sys.argv) > 2:
-        path_to_pymzm = sys.argv[2]
-    else:
-        path_to_pymzm = PATH_TO_PYMZM
-    sys.path.append(path_to_pymzm)
 
 
     summaries = []

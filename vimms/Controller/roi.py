@@ -10,7 +10,8 @@ from vimms.PeakDetector import calculate_window_change
 from vimms.Roi import match, Roi, SmartRoi
 from vimms.Common import *
 
-from ms2_matching import MZMLFile, load_picked_boxes, map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 
 class RoiController(TopNController):
     """

@@ -174,7 +174,7 @@ class BaseOptimiser(object):
             dataset = mzml2chems(ms1_mzml, ps, chem_param_dict)
         else:
             dataset = load_obj(dataset_file)
-        if ms1_picked_peaks_file is None and self.method_name is not 'RepeatedExperiment':
+        if ms1_picked_peaks_file is None and self.method_name != 'RepeatedExperiment':
             pick_peaks([ms1_mzml], xml_template=self.xml_template_ms1, output_dir=self.picked_peaks_dir,
                        mzmine_command=self.mzmine_command)
             ms1_picked_peaks_file = self.picked_peaks_dir + '\\' + self.base_name + '.csv'

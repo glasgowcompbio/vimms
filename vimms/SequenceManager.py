@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from loguru import logger
+import seaborn as sns
 from sklearn.linear_model import LogisticRegression
 
 from vimms.Common import *
@@ -706,3 +707,9 @@ def create_controller(controller_method, param_dict):
     else:
         logger.warning('Invalid controller_method')
     return controller
+
+
+
+def Heatmap_GridSearch(GridSearch_object, outcome_name, X_name, Y_name):
+    results = GridSearch_object.results.pivot(X_name, Y_name, outcome_name)
+    ax = sns.heatmap(results)

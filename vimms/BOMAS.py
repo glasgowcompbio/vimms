@@ -3,7 +3,6 @@ from sklearn.gaussian_process.kernels import ConstantKernel, Matern
 from scipy.stats import norm
 from scipy.optimize import minimize
 from itertools import product
-import seaborn as sns
 
 from pyDOE import *
 from pathlib import Path
@@ -343,11 +342,6 @@ def create_controller(controller_method, search_param_dict, base_param_dict):
     # TODO: make this function create the relevant controller based on the inputs
     # Can be used in the parallel and non parallel version of the controllers
     NotImplementedError()
-
-
-def Heatmap_GridSearch(GridSearch_object, outcome_name, X_name, Y_name):
-    results = GridSearch_object.results.pivot(X_name, Y_name, outcome_name)
-    ax = sns.heatmap(results)
 
 
 def Heatmap_GP(BOMAS_object): # TODO: allow you to specify the columns

@@ -619,7 +619,7 @@ class OptimalTopNController(TopNController):
 
 class PurityController(TopNController):
     def __init__(self, ionisation_mode, N, scan_param_changepoints,
-                 isolation_widths, mz_tols, rt_tols, min_ms1_intensity, ms1_shift=0,
+                 isolation_widths, mz_tols, rt_tols, min_ms1_intensity,
                  n_purity_scans=None, purity_shift=None, purity_threshold=0, purity_randomise=True,
                  purity_add_ms1=True,
                  # advanced parameters
@@ -632,7 +632,7 @@ class PurityController(TopNController):
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION
                  ):
-        super().__init__(ionisation_mode, N, isolation_widths, mz_tols, rt_tols, min_ms1_intensity, ms1_shift, ms1_agc_target,
+        super().__init__(ionisation_mode, N, isolation_widths, mz_tols, rt_tols, min_ms1_intensity, 0, ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
 
@@ -689,6 +689,7 @@ class PurityController(TopNController):
             # loop over points in decreasing intensity
             fragmented_count = 0
             idx = np.argsort(intensities)[::-1]
+            ms2_tasks = []
             for i in idx:
                 mz = mzs[i]
                 intensity = intensities[i]
@@ -724,6 +725,7 @@ class PurityController(TopNController):
                                                                               current_isolation_width, current_mz_tol,
                                                                               current_rt_tol)
                         new_tasks.append(dda_scan_params)
+                        ms2_tasks.append(dda_scan_params)
                         self.current_task_id += 1
                         if self.purity_add_ms1 and purity_idx != purity_randomise_idx[-1]:
                             ms1_scan_params = self.environment.get_default_scan_params()
@@ -742,15 +744,12 @@ class PurityController(TopNController):
 
             # an MS1 is added here, as we no longer send MS1s as default
             ms1_scan_params = self.environment.get_default_scan_params()
-            ms1_insert_position = max(len(new_tasks) - self.ms1_shift, 0)
-            new_tasks.insert(ms1_insert_position, ms1_scan_params)
+            new_tasks.append(ms1_scan_params)
             self.current_task_id += 1
-            num_scans = (len(self.scans[1]) + len(self.scans[2]) + ms1_insert_position + self.pending_tasks)
-            self.next_processed_scan_id = self.initial_scan_id + num_scans
+            self.next_processed_scan_id = self.current_task_id
 
             # create temp exclusion items
-            tasks = new_tasks[(ms1_insert_position + 1):]
-            self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

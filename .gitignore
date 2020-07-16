@@ -126,3 +126,5 @@ scripts/*.bat
 vimms/.idea/
 tests/integration/results/
 experimental/results
+demo/01. Data/QCA_22May19_1.p
+demo/01. Data/QCA_22May19_1_pp.csv

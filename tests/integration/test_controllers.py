@@ -4,6 +4,7 @@ import unittest
 sys.path.append('..')
 sys.path.append('C:\\Users\\joewa\\Work\\git\\pymzm') # FIXME: termporary hack
 sys.path.append('/Users/simon/git/pymzm')
+sys.path.append('C:\\Users\\Vinny\\work\\pymzm')
 
 from pathlib import Path
 

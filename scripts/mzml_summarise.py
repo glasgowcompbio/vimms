@@ -5,6 +5,9 @@ from tabulate import tabulate
 
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+
+TABLE_HEADS = ['FileName','StartRT','EndRT','Nscans','Nscans_MS1','Nscans_MS2','Scans per sec','First MS2','First MS2 block']
+
 def get_summary(mzml_file_path):
     summary = {}
     mzml_file = MZMLFile(mzml_file_path)
@@ -20,8 +23,8 @@ def get_summary(mzml_file_path):
         pos += 1
     end_pos = pos
 
-    summary['First MS2 pos'] = start_pos
-    summary['First MS2 block length'] = end_pos - start_pos
+    summary['First MS2'] = start_pos
+    summary['First MS2 block'] = end_pos - start_pos
     summary['StartRT'] = scan_sub[0].rt_in_seconds
     summary['EndRT'] = scan_sub[-1].rt_in_seconds
     summary['Nscans'] = len(scan_sub)
@@ -35,6 +38,17 @@ def get_summary(mzml_file_path):
 
     return summary
 
+def make_summary_table(file_list,heads = TABLE_HEADS):
+    summaries = []
+    for mzml_file_path in file_list:
+        summary = get_summary(mzml_file_path)
+        row = []
+        for head in heads:
+            row.append(summary[head])
+        summaries.append(row)
+    table = tabulate(summaries,headers = heads)
+    return table
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         print("Pass a path to an mzml file or to a folder.")
@@ -43,25 +57,14 @@ if __name__ == '__main__':
 
 
     summaries = []
-    heads = ['FileName','StartRT','EndRT','Nscans','Nscans_MS1','Nscans_MS2','Scans per sec','First MS2 pos','First MS2 block length']
     if os.path.isdir(mzml_path):
         print("Extracting mzml from folder")
         file_list = glob.glob(os.path.join(mzml_path,'*.mzML'))
-        for mzml_file_path in file_list:
-            summary = get_summary(mzml_file_path)
-            row = []
-            for head in heads:
-                row.append(summary[head])
-            summaries.append(row)
+        table = make_summary_table(file_list)
     else:
         print("Individual file")
-        summary = get_summary(mzml_path)
-        row = []
-        for head in heads:
-            row.append(summary[head])
-        summaries.append(row)
+        table = make_summary_table([mzml_path])
 
-    table = tabulate(summaries,headers = heads)
     print(table)
 
 

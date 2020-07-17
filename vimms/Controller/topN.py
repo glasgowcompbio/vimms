@@ -429,6 +429,9 @@ class TopNController(Controller):
             # items are checked for dynamic exclusion is the time when MS2 fragmentation occurs
             # TODO: we need to add a repeat count too, i.e. how many times we've seen a fragment peak before
             #  it gets excluded (now it's basically 1)
+
+
+            # TODO: check if already excluded and, if so, just move the time
             mz = precursor.precursor_mz
             mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
             rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
@@ -463,6 +466,180 @@ class TopNController(Controller):
                     'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
                 return True
         return False
+
+
+class ScanItem(object):
+    def __init__(self,mz,intensity,weight=1):
+        self.mz = mz
+        self.intensity = intensity
+        self.weight = weight
+
+    def __lt__(self,other):
+        if self.intensity*self.weight <= other.intensity*other.weight:
+            return True
+        else:
+            return False
+
+class ExcludingTopNController(TopNController):
+    """
+    A Top-N controller. Does an MS1 scan followed by N fragmentation scans of the peaks with the highest intensity
+    that are not excluded
+    """
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+                exclusion_t_0=15,log_intensity = False,
+                 # advanced parameters
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
+        super().__init__(ionisation_mode,N,isolation_width,mz_tol,rt_tol,min_ms1_intensity,ms1_shift=ms1_shift,
+                        ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                        ms1_max_it=DEFAULT_MS1_MAXIT,
+                        ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                        ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                        ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                        ms2_max_it=DEFAULT_MS2_MAXIT,
+                        ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                        ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION)
+        
+        self.exclusion_t_0 = exclusion_t_0
+        self.log_intensity = log_intensity
+        assert self.exclusion_t_0 <= self.rt_tol
+
+    def _process_scan(self, scan):
+        # if there's a previous ms1 scan to process
+        new_tasks = []
+        fragmented_count = 0
+        if self.scan_to_process is not None:
+            mzs = self.scan_to_process.mzs
+            intensities = self.scan_to_process.intensities
+            rt = self.scan_to_process.rt
+
+
+
+            if not self.log_intensity:
+                mzi = [ScanItem(mz,intensities[i]) for i,mz in enumerate(mzs) if intensities[i] >= self.min_ms1_intensity]
+            else:
+                # take log of intensities for peak scoring
+                mzi = [ScanItem(mz,np.log(intensities[i])) for i,mz in enumerate(mzs) if intensities[i] >= self.min_ms1_intensity]
+            
+            
+            for si in mzi:
+                is_exc,weight = self._is_excluded(si.mz,rt)
+                si.weight = weight
+            
+            mzi.sort(reverse = True)
+
+            done_ms1 = False
+            ms2_tasks = []
+            for i in range(len(mzi)):
+                # mz = mzi[i].mz
+                # intensity = mzi[i].intensity
+                # stopping criteria is after we've fragmented N ions or we found ion < min_intensity
+                if fragmented_count >= self.N:
+                    logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
+                    break
+                
+                mz = mzi[i].mz
+                if not self.log_intensity:
+                    intensity =  mzi[i].intensity
+                else:
+                    intensity = np.exp(mzi[i].intensity)
+
+                # if 138 <= mz <= 138.5:
+                #     print(mz,intensity,mzi[i].weight)
+
+                if mzi[i].weight == 0.0:
+                    logger.debug(
+                        'Time %f no ions left reached at %f, %d' % (
+                            rt, intensity, fragmented_count))
+                    break
+
+                
+                # create a new ms2 scan parameter to be sent to the mass spec
+                precursor_scan_id = self.scan_to_process.scan_id
+                dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
+                                                               self.isolation_width, self.mz_tol, self.rt_tol,
+                                                               agc_target=self.ms2_agc_target,
+                                                               max_it=self.ms2_max_it,
+                                                               collision_energy=self.ms2_collision_energy,
+                                                               orbitrap_resolution=self.ms2_orbitrap_resolution)
+                new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
+                fragmented_count += 1
+                self.current_task_id += 1
+
+                # add an ms1 here
+                if fragmented_count == self.N - self.ms1_shift:
+                    ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                               max_it=self.ms1_max_it,
+                                                                               collision_energy=self.ms1_collision_energy,
+                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution)
+                    self.current_task_id += 1
+                    self.next_processed_scan_id = self.current_task_id
+                    new_tasks.append(ms1_scan_params)
+                    done_ms1 = True
+
+            # if no ms1 has been added, then add at the end
+            if not done_ms1:
+            # if fragmented_count < self.N - self.ms1_shift:
+                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                           max_it=self.ms1_max_it,
+                                                                           collision_energy=self.ms1_collision_energy,
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+                self.current_task_id += 1
+                self.next_processed_scan_id = self.current_task_id
+                new_tasks.append(ms1_scan_params)
+
+            # create temp exclusion items
+            # tasks = new_tasks[min(self.N - self.ms1_shift+1, len(new_tasks)):max(self.N - self.ms1_shift+1, len(new_tasks))]
+            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+
+            # set this ms1 scan as has been processed
+            self.scan_to_process = None
+        return new_tasks
+
+    
+    def _manage_dynamic_exclusion_list(self, scan):
+        # self.exclusion_list = set(self.exclusion_list)
+        # for ei in self.remove_exclusion_items:
+        #     if ei in self.exclusion_list:
+        #         self.exclusion_list.remove(ei)
+        # self.exclusion_list = list(self.exclusion_list)
+        super()._manage_dynamic_exclusion_list(scan)
+
+        
+
+    def _is_excluded(self, mz, rt):
+        """
+        Checks if a pair of (mz, rt) value is currently excluded by dynamic exclusion window
+        :param mz: m/z value
+        :param rt: RT value
+        :return: True if excluded, False otherwise
+        """
+        # TODO: make this faster?
+        exclusion_list = self.exclusion_list + self.temp_exclusion_list
+        exclusion_list.sort(key = lambda x: x.from_rt,reverse = True)
+        for x in exclusion_list:
+            exclude_mz = x.from_mz <= mz <= x.to_mz
+            exclude_rt = x.from_rt <= rt <= x.to_rt
+            if exclude_mz and exclude_rt:
+                logger.debug(
+                    'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
+                if rt <= x.from_rt + self.exclusion_t_0:
+                    return True,0.0
+                else:
+                    weight = (rt - (self.exclusion_t_0 + x.from_rt))/(self.rt_tol - self.exclusion_t_0)
+                    assert weight <= 1,weight
+                    # self.remove_exclusion_items.append(x)
+                    return True,weight
+        return False,1
+
 
 
 def box_match(mzi, boxes):

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from vimms.Chemicals import ChemicalCreator, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import SimpleMs1Controller, TopNController, PurityController, TopN_RoiController, TopN_SmartRoiController
+from vimms.Controller import SimpleMs1Controller, TopNController, PurityController, TopN_RoiController, TopN_SmartRoiController, ExcludingTopNController
 from vimms.Environment import Environment
 from vimms.Common import *
 
@@ -21,6 +21,7 @@ out_dir = Path(dir_path, 'results')
 
 ROI_Sources = [str(Path(base_dir, 'beer_t10_simulator_files'))]
 min_ms1_intensity = 1.75E5
+min_ms1_intensity = 1
 rt_range = [(0, 1200)]
 min_rt = rt_range[0][0]
 max_rt = rt_range[0][1]
@@ -485,74 +486,74 @@ class TestTopNShiftedController(unittest.TestCase):
         self.ps = load_obj(Path(base_dir, 'peak_sampler_mz_rt_int_beerqcb_fragmentation.p'))
         self.ms_level = 1
 
-    def test_TopN_controller_with_simulated_chems(self):
+    # def test_TopN_controller_with_simulated_chems(self):
 
-        test_shift = 3
+    #     test_shift = 3
 
-        logger.info('Testing Top-N controller with simulated chemicals')
+    #     logger.info('Testing Top-N controller with simulated chemicals')
 
-        # create some chemical objects
-        chems = ChemicalCreator(self.ps, ROI_Sources, hmdb)
-        dataset = chems.sample(mz_range, rt_range, min_ms1_intensity, n_chems, self.ms_level,
-                               get_children_method=GET_MS2_BY_PEAKS)
-        self.assertEqual(len(dataset), n_chems)
+    #     # create some chemical objects
+    #     chems = ChemicalCreator(self.ps, ROI_Sources, hmdb)
+    #     dataset = chems.sample(mz_range, rt_range, min_ms1_intensity, n_chems, self.ms_level,
+    #                            get_children_method=GET_MS2_BY_PEAKS)
+    #     self.assertEqual(len(dataset), n_chems)
 
-        isolation_width = 1
-        N = 10
-        rt_tol = 15
-        mz_tol = 10
-        ionisation_mode = POSITIVE
+    #     isolation_width = 1
+    #     N = 10
+    #     rt_tol = 15
+    #     mz_tol = 10
+    #     ionisation_mode = POSITIVE
 
-        # create a simulated mass spec without noise and Top-N controller
-        logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False)
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
+    #     # create a simulated mass spec without noise and Top-N controller
+    #     logger.info('Without noise')
+    #     mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False)
+    #     controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
 
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+    #     # create an environment to run both the mass spec and controller
+    #     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
-        set_log_level_warning()
+    #     # set the log level to WARNING so we don't see too many messages when environment is running
+    #     set_log_level_warning()
 
-        # run the simulation
-        env.run()
+    #     # run the simulation
+    #     env.run()
 
-        # set the log level back to DEBUG
-        set_log_level_debug()
+    #     # set the log level back to DEBUG
+    #     set_log_level_debug()
 
-        # write simulated output to mzML file
-        filename = 'topN_shifted_controller_simulated_chems_no_noise.mzML'
-        out_file = os.path.join(out_dir, filename)
-        env.write_mzML(out_dir, filename)
-        self.assertTrue(os.path.exists(out_file))
+    #     # write simulated output to mzML file
+    #     filename = 'topN_shifted_controller_simulated_chems_no_noise.mzML'
+    #     out_file = os.path.join(out_dir, filename)
+    #     env.write_mzML(out_dir, filename)
+    #     self.assertTrue(os.path.exists(out_file))
 
-        # create a simulated mass spec with noise and Top-N controller
-        logger.info('With noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True)
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
+    #     # create a simulated mass spec with noise and Top-N controller
+    #     logger.info('With noise')
+    #     mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True)
+    #     controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
 
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+    #     # create an environment to run both the mass spec and controller
+    #     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
-        set_log_level_warning()
+    #     # set the log level to WARNING so we don't see too many messages when environment is running
+    #     set_log_level_warning()
 
-        # run the simulation
-        env.run()
+    #     # run the simulation
+    #     env.run()
 
-        # set the log level back to DEBUG
-        set_log_level_debug()
+    #     # set the log level back to DEBUG
+    #     set_log_level_debug()
 
-        # write simulated output to mzML file
-        filename = 'topN_shifted_controller_simulated_chems_with_noise.mzML'
-        out_file = os.path.join(out_dir, filename)
-        env.write_mzML(out_dir, filename)
-        self.assertTrue(os.path.exists(out_file))
-        print()
+    #     # write simulated output to mzML file
+    #     filename = 'topN_shifted_controller_simulated_chems_with_noise.mzML'
+    #     out_file = os.path.join(out_dir, filename)
+    #     env.write_mzML(out_dir, filename)
+    #     self.assertTrue(os.path.exists(out_file))
+    #     print()
 
     def test_TopN_controller_with_beer_chems(self):
 
-        test_shift = 3
+        test_shift = 0
 
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -562,9 +563,16 @@ class TestTopNShiftedController(unittest.TestCase):
         mz_tol = 10
         ionisation_mode = POSITIVE
 
+
+        scan_duration_dict = {1:0.2,2:0.1}
+
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False,scan_duration_dict = scan_duration_dict)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
+
+
+        min_rt = 500
+        max_rt = 600
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
@@ -580,6 +588,126 @@ class TestTopNShiftedController(unittest.TestCase):
 
         # write simulated output to mzML file
         filename = 'topN_shifted_controller_qcbeer_chems_no_noise.mzML'
+        out_file = os.path.join(out_dir, filename)
+        env.write_mzML(out_dir, filename)
+        self.assertTrue(os.path.exists(out_file))
+        print()
+
+class TestTopNExcludingShiftedController(unittest.TestCase):
+    """
+    Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
+    """
+    
+    def setUp(self):
+        self.ps = load_obj(Path(base_dir, 'peak_sampler_mz_rt_int_beerqcb_fragmentation.p'))
+        self.ms_level = 1
+
+    # def test_excluded_TopN_controller_with_simulated_chems(self):
+
+    #     test_shift = 0
+
+    #     logger.info('Testing Top-N controller with simulated chemicals')
+
+    #     # create some chemical objects
+    #     chems = ChemicalCreator(self.ps, ROI_Sources, hmdb)
+    #     dataset = chems.sample(mz_range, rt_range, min_ms1_intensity, n_chems, self.ms_level,
+    #                            get_children_method=GET_MS2_BY_PEAKS)
+    #     self.assertEqual(len(dataset), n_chems)
+
+    #     isolation_width = 1
+    #     N = 10
+    #     rt_tol = 60
+    #     exclusion_t_0 = 15
+    #     mz_tol = 10
+    #     ionisation_mode = POSITIVE
+
+    #     # create a simulated mass spec without noise and Top-N controller
+    #     logger.info('Without noise')
+    #     mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False)
+    #     controller = ExcludingTopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
+
+    #     # create an environment to run both the mass spec and controller
+    #     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+
+    #     # set the log level to WARNING so we don't see too many messages when environment is running
+    #     set_log_level_warning()
+
+    #     # run the simulation
+    #     env.run()
+
+    #     # set the log level back to DEBUG
+    #     set_log_level_debug()
+
+    #     # write simulated output to mzML file
+    #     filename = 'topN_excluding_controller_simulated_chems_no_noise.mzML'
+    #     out_file = os.path.join(out_dir, filename)
+    #     env.write_mzML(out_dir, filename)
+    #     self.assertTrue(os.path.exists(out_file))
+
+    #     # create a simulated mass spec with noise and Top-N controller
+    #     logger.info('With noise')
+    #     mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True)
+    #     controller = ExcludingTopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift = test_shift)
+
+    #     # create an environment to run both the mass spec and controller
+    #     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+
+    #     # set the log level to WARNING so we don't see too many messages when environment is running
+    #     set_log_level_warning()
+
+    #     # run the simulation
+    #     env.run()
+
+    #     # set the log level back to DEBUG
+    #     set_log_level_debug()
+
+    #     # write simulated output to mzML file
+    #     filename = 'topN_excluding_controller_simulated_chems_with_noise.mzML'
+    #     out_file = os.path.join(out_dir, filename)
+    #     env.write_mzML(out_dir, filename)
+    #     self.assertTrue(os.path.exists(out_file))
+    #     print()
+
+    def test_TopN_excluding_controller_with_beer_chems(self):
+
+        test_shift = 0
+
+        logger.info('Testing excluding Top-N controller with QC beer chemicals')
+
+        isolation_width = 1
+        N = 10
+    
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        exclusion_t_0 = 15.0
+        rt_tol = 120
+
+        min_rt = 500
+        max_rt = 600
+        
+        scan_duration_dict = {1:0.2,2:0.1}
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False,scan_duration_dict = scan_duration_dict)
+        controller = ExcludingTopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, 
+                                                ms1_shift = test_shift, 
+                                                exclusion_t_0 = exclusion_t_0,
+                                                log_intensity = True)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+
+        # set the log level back to DEBUG
+        set_log_level_debug()
+
+        # write simulated output to mzML file
+        filename = 'topN_excluding_shifted_controller_qcbeer_chems_no_noise.mzML'
         out_file = os.path.join(out_dir, filename)
         env.write_mzML(out_dir, filename)
         self.assertTrue(os.path.exists(out_file))

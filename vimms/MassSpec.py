@@ -213,6 +213,12 @@ class ExclusionItem(object):
     def __repr__(self):
         return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
+    def __lt__(self,other):
+        if self.from_mz <= other.from_mz:
+            return True
+        else:
+            return False
+
 
 class IndependentMassSpectrometer(object):
     """

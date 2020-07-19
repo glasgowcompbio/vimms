@@ -532,7 +532,9 @@ class TestDIAControllers(unittest.TestCase):
 
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
+        #mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False)
+  
         controller = AIF(min_mz,max_mz)
         
         # create an environment to run both the mass spec and controller
@@ -556,7 +558,9 @@ class TestDIAControllers(unittest.TestCase):
         # create a simulated mass spec with noise and Top-N controller
         logger.info('With noise')
         
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True, scan_duration_dict = scan_time_dict)
+        #mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True, scan_duration_dict = scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True)
+  
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller
@@ -577,7 +581,7 @@ class TestDIAControllers(unittest.TestCase):
         env.write_mzML(out_dir, filename)
         self.assertTrue(os.path.exists(out_file))
         print()
-
+    @unittest.skip("demonstrating skipping")
     def test_AIF_controller_with_beer_chems(self):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -593,8 +597,9 @@ class TestDIAControllers(unittest.TestCase):
         max_rt = 500 
 
         # create a simulated mass spec without noise and Top-N controller
-        scan_time_dict = {1:0.12}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
+        #scan_time_dict = {1:0.12}
+        #mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False)
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller

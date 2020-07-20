@@ -35,7 +35,9 @@ class AIF(Controller):
 
     # method required by super-class
     def update_state_after_scan(self, last_scan):
-        pass
+        idx = len(self.scans[2])
+        if idx > 0:
+            self.scans[2][idx-1].ms_level = 1
 
     # method required by super-class
     def reset(self):

@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import pylab as plt
 from loguru import logger
-from ms2_matching import load_picked_boxes
 
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \

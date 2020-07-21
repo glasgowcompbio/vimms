@@ -11,6 +11,8 @@ from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_
     DEFAULT_MS2_ORBITRAP_RESOLUTION, INITIAL_SCAN_ID
 from vimms.MassSpec import ScanParameters, ExclusionItem
 
+from mass_spec_utils.data_import.mzmine import load_picked_boxes
+
 
 class Controller(object):
     def __init__(self):

@@ -1,5 +1,6 @@
 from vimms.Roi import make_roi
-from ms2_matching import MZMLFile, load_picked_boxes, map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from loguru import logger
 
 def picked_peaks_evaluation(mzml_file, picked_peaks_file):

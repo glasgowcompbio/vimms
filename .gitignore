@@ -126,3 +126,4 @@ scripts/*.bat
 vimms/.idea/
 tests/integration/results/
 experimental/results
+.Rproj.user

@@ -213,6 +213,12 @@ class ExclusionItem(object):
     def __repr__(self):
         return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
+    def __lt__(self,other):
+        if self.from_mz <= other.from_mz:
+            return True
+        else:
+            return False
+
 
 class IndependentMassSpectrometer(object):
     """
@@ -237,7 +243,7 @@ class IndependentMassSpectrometer(object):
         """
 
         # current scan index and internal time
-        self.idx = 0
+        self.idx = 100000 # same as the real mass spec
         self.time = 0
 
         # current task queue
@@ -347,7 +353,7 @@ class IndependentMassSpectrometer(object):
         """
         self.clear_events()
         self.time = 0
-        self.idx = 0
+        self.idx = 100000 # same as the real mass spec
         self.processing_queue = []
         self.current_N = 0
         self.current_DEW = 0

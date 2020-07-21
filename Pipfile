@@ -27,10 +27,13 @@ jupyter = "*"
 pyzmq = "==18.1.1"
 xlrd = "*"
 statsmodels = "*"
+mass-spec-utils = "*"
 tabulate = "*"
 
 [dev-packages]
 pipenv-setup = "*"
+flake8 = "*"
+pytest = "*"
 
 [requires]
 python_version = "3"

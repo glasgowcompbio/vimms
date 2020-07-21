@@ -441,7 +441,12 @@ class IndependentMassSpectrometer(object):
             current_scan_duration = self._sample_scan_duration(current_DEW, current_N,
                                                            current_level, next_level)
         else:
-            current_scan_duration = self.scan_duration_dict[current_level]
+            val = self.scan_duration_dict[current_level]
+            if callable(val): # is it a function, or a value?
+                tt = val()
+            else:
+                tt = val
+            current_scan_duration = tt
 
         self.time += current_scan_duration
         logger.debug('Time %f Len(queue)=%d' % (self.time, len(self.processing_queue)))

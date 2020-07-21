@@ -13,13 +13,16 @@ from vimms.Common import *
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 
+
+import traceback
+
 class RoiController(TopNController):
     """
     An ROI based controller with multiple options
     """
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                 ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -29,9 +32,9 @@ class RoiController(TopNController):
                 ms2_max_it = DEFAULT_MS2_MAXIT,
                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_agc_target,
-                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
-                         ms2_collision_energy, ms2_orbitrap_resolution)
+        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift,
+                         ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target,
+                         ms2_max_it, ms2_collision_energy, ms2_orbitrap_resolution)
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity
@@ -48,28 +51,31 @@ class RoiController(TopNController):
         self.live_roi_last_rt = []  # last fragmentation time of ROI
 
     def _process_scan(self, scan):
-        # keep growing ROIs if we encounter a new ms1 scan
-        self._update_roi(scan)
-
         # if there's a previous ms1 scan to process
         new_tasks = []
-        if self.last_ms1_scan is not None:
+        ms2_tasks = []
+        fragmented_count = 0
+        if self.scan_to_process is not None:
+            # keep growing ROIs if we encounter a new ms1 scan
+            self._update_roi(scan)
+
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
 
-            # FIXME: only the 'scans' mode seems to work on the real mass spec, why??
+            # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":
                 self.current_roi_length = np.array([roi.n for roi in self.live_roi])
             else:
                 self.current_roi_length = np.array([roi.length_in_seconds for roi in self.live_roi])
 
-            rt = self.last_ms1_scan.rt
+            rt = self.scan_to_process.rt
 
             # loop over points in decreasing score
-            # t0 = time()
             scores = self._get_scores()
-            # logger.debug(time()-t0)
             idx = np.argsort(scores)[::-1]
+
+            done_ms1 = False
+
             for i in idx:
                 mz = self.current_roi_mzs[i]
                 intensity = self.current_roi_intensities[i]
@@ -84,17 +90,47 @@ class RoiController(TopNController):
                 self.live_roi_last_rt[i] = rt
 
                 # create a new ms2 scan parameter to be sent to the mass spec
-                precursor_scan_id = self.last_ms1_scan.scan_id
+                precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                       self.isolation_width, self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
+                fragmented_count += 1
+                self.current_task_id += 1
 
-            # an MS1 is added here, as we no longer send MS1s as default
-            ms1_scan_params = self.environment.get_default_scan_params()
-            new_tasks.append(ms1_scan_params)
+                # add an ms1 here
+                if fragmented_count == self.N - self.ms1_shift:
+                    ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                               max_it=self.ms1_max_it,
+                                                                               collision_energy=self.ms1_collision_energy,
+                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution)
+                    self.current_task_id += 1
+                    self.next_processed_scan_id = self.current_task_id
+                    logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+
+                    new_tasks.append(ms1_scan_params)
+                    done_ms1 = True
+
+            # if no ms1 has been added, then add at the end
+            # if fragmented_count < self.N - self.ms1_shift:
+            if not done_ms1:
+                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                           max_it=self.ms1_max_it,
+                                                                           collision_energy=self.ms1_collision_energy,
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+                self.current_task_id += 1
+                self.next_processed_scan_id = self.current_task_id
+                logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+                new_tasks.append(ms1_scan_params)
+
+            # create temp exclusion items
+            # tasks = new_tasks[
+            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
+            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
-            self.last_ms1_scan = None
+            self.scan_to_process = None
         return new_tasks
 
     def update_state_after_scan(self, last_scan):
@@ -155,10 +191,10 @@ class RoiController(TopNController):
 
     def _get_dda_scores(self):
         scores = np.log(self.current_roi_intensities)  # log intensities
-        scores *= (np.log(self.current_roi_intensities) > np.log(self.min_ms1_intensity))  # intensity filter
+        scores *= (np.array(self.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
         time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
         time_filter[time_filter == 0] = (
-                (self.last_ms1_scan.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
+                (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
         scores *= time_filter
         scores *= (self.current_roi_length >= self.min_roi_length_for_fragmentation)
         return scores
@@ -171,9 +207,9 @@ class RoiController(TopNController):
 
 class SmartRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
+                 min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans",
-                 drop_perc=0.01,
+                 drop_perc=0.01, ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -184,25 +220,28 @@ class SmartRoiController(RoiController):
                  ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_agc_target,
-                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
+                         ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.reset_length_seconds = reset_length_seconds
         self.intensity_increase_factor = intensity_increase_factor
         self.drop_perc = drop_perc
 
     def _process_scan(self, scan):
-        # keep growing ROIs if we encounter a new ms1 scan
-        self._update_roi(scan)
 
         # if there's a previous ms1 scan to process
         new_tasks = []
-        if self.last_ms1_scan is not None:
+        fragmented_count = 0
+        if self.scan_to_process is not None:
+
+            # keep growing ROIs if we encounter a new ms1 scan
+            self._update_roi(scan)
+            logger.debug("Updated rois, currently %d rois" % (len(self.live_roi)))
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
-            self.current_rt = self.last_ms1_scan.rt
+            self.current_rt = self.scan_to_process.rt
 
-            # FIXME: only the 'scans' mode seems to work on the real mass spec, why??
+            # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":
                 self.current_roi_length = np.array([roi.n for roi in self.live_roi])
             else:
@@ -211,13 +250,17 @@ class SmartRoiController(RoiController):
             # loop over points in decreasing score
             scores = self._get_scores()
             idx = np.argsort(scores)[::-1]
+
+            done_ms1 = False
+            ms2_tasks = []
+
             for i in idx:
                 mz = self.current_roi_mzs[i]
                 intensity = self.current_roi_intensities[i]
 
                 # stopping criteria is done based on the scores
                 if scores[i] <= 0:
-                    logger.debug('Time %f Top-%d ions have been selected' % (self.current_rt, self.N))
+                    logger.debug('Time %f, %d ions have been selected' % (self.current_rt, len(ms2_tasks)))
                     break
 
                 # updated fragmented list and times
@@ -225,18 +268,49 @@ class SmartRoiController(RoiController):
                 self.live_roi_last_rt[i] = self.current_rt
 
                 # create a new ms2 scan parameter to be sent to the mass spec
-                precursor_scan_id = self.last_ms1_scan.scan_id
+                precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                       self.isolation_width, self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
                 self.live_roi[i].fragmented()
+                fragmented_count += 1
+                self.current_task_id += 1
 
-            # an MS1 is added here, as we no longer send MS1s as default
-            ms1_scan_params = self.environment.get_default_scan_params()
-            new_tasks.append(ms1_scan_params)
+                # add an ms1 here
+                if fragmented_count == self.N - self.ms1_shift:
+                    ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                               max_it=self.ms1_max_it,
+                                                                               collision_energy=self.ms1_collision_energy,
+                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution)
+                    self.current_task_id += 1
+                    self.next_processed_scan_id = self.current_task_id
+                    logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+
+                    new_tasks.append(ms1_scan_params)
+                    done_ms1 = True
+
+            # if no ms1 has been added, then add at the end
+            # if fragmented_count < self.N - self.ms1_shift:
+            if not done_ms1:
+                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                           max_it=self.ms1_max_it,
+                                                                           collision_energy=self.ms1_collision_energy,
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+                self.current_task_id += 1
+                self.next_processed_scan_id = self.current_task_id
+                logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+
+                new_tasks.append(ms1_scan_params)
+
+            # create temp exclusion items
+            # tasks = new_tasks[
+            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
+            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
+            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
-            self.last_ms1_scan = None
+            self.scan_to_process = None
         return new_tasks
 
     def _update_roi(self, new_scan):
@@ -252,15 +326,15 @@ class SmartRoiController(RoiController):
                 mz = new_scan.mzs[idx]
                 if intensity >= self.min_roi_intensity:
                     match_roi = match(SmartRoi(mz, 0, 0, self.min_roi_length_for_fragmentation,
-                                               self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
-                                      self.live_roi, self.mz_tol, mz_units=self.mz_units)
+                                            self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
+                                    self.live_roi, self.mz_tol, mz_units=self.mz_units)
                     if match_roi:
                         match_roi.add(mz, current_ms1_scan_rt, intensity)
                         if match_roi in not_grew:
                             not_grew.remove(match_roi)
                     else:
                         new_roi = SmartRoi(mz, current_ms1_scan_rt, intensity, self.min_roi_length_for_fragmentation,
-                                           self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol, drop_perc = self.drop_perc)
+                                        self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol, drop_perc = self.drop_perc)
                         bisect.insort_right(self.live_roi, new_roi)
                         self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
                         self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
@@ -284,7 +358,7 @@ class SmartRoiController(RoiController):
 
     def _get_dda_scores(self):
         scores = np.log(self.current_roi_intensities)  # log intensities
-        scores *= (np.log(self.current_roi_intensities) > np.log(self.min_ms1_intensity))  # intensity filter
+        scores *= (np.array(self.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
         scores *= ([roi.get_can_fragment() for roi in self.live_roi])
         return scores
 
@@ -297,7 +371,7 @@ class SmartRoiController(RoiController):
 class TopN_SmartRoiController(SmartRoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
-                 reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
+                 reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01, ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -309,7 +383,7 @@ class TopN_SmartRoiController(SmartRoiController):
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol, min_roi_length_for_fragmentation,
-                         reset_length_seconds, intensity_increase_factor, length_units, drop_perc,
+                         reset_length_seconds, intensity_increase_factor, length_units, drop_perc, ms1_shift,
                          ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target,
                          ms2_max_it, ms2_collision_energy, ms2_orbitrap_resolution)
 
@@ -321,7 +395,7 @@ class TopN_SmartRoiController(SmartRoiController):
 
 class TopN_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -332,7 +406,7 @@ class TopN_RoiController(RoiController):
                  ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
 
@@ -345,7 +419,7 @@ class TopN_RoiController(RoiController):
 class DsDA_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 peak_df=None, peak_scores=None,
+                 peak_df=None, peak_scores=None, ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -356,7 +430,7 @@ class DsDA_RoiController(RoiController):
                  ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.peak_df = peak_df
@@ -376,7 +450,7 @@ class DsDA_RoiController(RoiController):
 class Probability_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  probability_method, model_params,  # controller specific parameters
-                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -387,7 +461,7 @@ class Probability_RoiController(RoiController):
                  ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.probability_method = probability_method
@@ -415,7 +489,7 @@ class Probability_RoiController(RoiController):
 class LocalModel_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  model_input_len, score_params,  # controller specific parameters
-                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -426,7 +500,7 @@ class LocalModel_RoiController(RoiController):
                  ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.model = linear_model.LinearRegression(fit_intercept=False)
@@ -461,6 +535,7 @@ class Repeated_SmartRoiController(SmartRoiController):
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
                  peak_boxes=[], peak_box_scores=[], box_increase_factor=2, box_decrease_factor=0, box_mz_tol=10,
+                 ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -472,7 +547,7 @@ class Repeated_SmartRoiController(SmartRoiController):
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol, min_roi_length_for_fragmentation,reset_length_seconds,
-                       intensity_increase_factor, length_units, drop_perc, ms1_agc_target, ms1_max_it,
+                       intensity_increase_factor, length_units, drop_perc, ms1_shift, ms1_agc_target, ms1_max_it,
                        ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it, ms2_collision_energy,
                        ms2_orbitrap_resolution)
         self.peak_boxes = peak_boxes
@@ -507,7 +582,7 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
                  peak_boxes=[], peak_box_scores=[], box_increase_factor=2, box_decrease_factor=0, box_mz_tol=10,
-                 coef_scale=1, model_scores=None,
+                 coef_scale=1, model_scores=None, ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
@@ -520,7 +595,7 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation,reset_length_seconds,
                         intensity_increase_factor, length_units, drop_perc, peak_boxes, peak_box_scores,
-                        box_increase_factor, box_decrease_factor, box_mz_tol, ms1_agc_target, ms1_max_it,
+                        box_increase_factor, box_decrease_factor, box_mz_tol, ms1_shift, ms1_agc_target, ms1_max_it,
                         ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it, ms2_collision_energy,
                         ms2_orbitrap_resolution)
         self.coef_scale = coef_scale
@@ -553,7 +628,7 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
 class Classifier_RoiController(RoiController):  # TODO: Needs properly implementing, but working roughly in principle
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  roi_picking_model, roi_param_dict,  # controller specific parameters
-                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it = DEFAULT_MS1_MAXIT,
@@ -564,7 +639,7 @@ class Classifier_RoiController(RoiController):  # TODO: Needs properly implement
                  ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.roi_picking_model = roi_picking_model

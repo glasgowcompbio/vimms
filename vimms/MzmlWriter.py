@@ -3,7 +3,7 @@ import os
 import numpy as np
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 
-from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, create_if_not_exist
+from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, create_if_not_exist, INITIAL_SCAN_ID
 
 
 class MzmlWriter(object):
@@ -73,9 +73,10 @@ class MzmlWriter(object):
         })
         out.data_processing_list({'id': 'VMS'})
 
-    def sort_filter(self, all_scans):
+    def sort_filter(self, all_scans, min_scan_id):
         all_scans = sorted(all_scans, key=lambda x: x.rt)
         all_scans = [x for x in all_scans if x.num_peaks > 0]
+        all_scans = list(filter(lambda x: x.scan_id >= min_scan_id,all_scans))
 
         # FIXME: why do we need to do this???!!
         # add a single peak to empty scans
@@ -86,14 +87,14 @@ class MzmlWriter(object):
         #     scan.num_peaks = 1
         return all_scans
 
-    def _write_spectra(self, writer, scans, precursor_information):
+    def _write_spectra(self, writer, scans, precursor_information, min_scan_id = INITIAL_SCAN_ID):
         assert len(scans) <= 3  # NOTE: we only support writing up to ms2 scans for now
 
         # get all scans across different ms_levels and sort them by scan_id
         all_scans = []
         for ms_level in scans:
             all_scans.extend(scans[ms_level])
-        all_scans = self.sort_filter(all_scans)
+        all_scans = self.sort_filter(all_scans, min_scan_id)
         spectrum_count = len(all_scans)
 
         # get precursor information for each scan, if available

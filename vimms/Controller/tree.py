@@ -28,7 +28,7 @@ class TreeController(Controller):
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
-        if self.last_ms1_scan is not None:
+        if self.scan_to_process is not None:
 
             rt = self.last_ms1_scan.rt
 
@@ -47,4 +47,6 @@ class TreeController(Controller):
 
             # set this ms1 scan as has been processed
             self.last_ms1_scan = None
+            num_scans = (len(self.scans[1]) + len(self.scans[2]) + len(locations))
+            self.next_processed_scan_id = num_scans
         return new_tasks

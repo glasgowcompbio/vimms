@@ -100,8 +100,14 @@ class SmartRoi(Roi):
     def __init__(self, mz, rt, intensity, initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, dew=15, drop_perc = 0.01):
         super().__init__(mz, rt, intensity)
-        self.status = INITIAL_WAITING
-        self.set_can_fragment(False)
+
+        if initial_length_seconds > 0:
+            self.status = INITIAL_WAITING
+            self.set_can_fragment(False)
+        else:
+            self.status = CAN_FRAGMENT
+            self.set_can_fragment(True)
+
         self.min_frag_intensity = None
 
         self.initial_length_seconds = initial_length_seconds

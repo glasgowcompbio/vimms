@@ -65,7 +65,7 @@ class AIF(Controller):
         
         # make the MS2 scan
         dda_scan_params = ScanParameters()
-        dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
+        dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
         isolation_windows = [[[self.min_mz,self.max_mz]]] # why tripple brackets needed?
         dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, isolation_windows)
         dda_scan_params.set(ScanParameters.COLLISION_ENERGY,self.ms2_collision_energy)

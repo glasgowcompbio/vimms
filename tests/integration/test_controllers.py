@@ -528,7 +528,7 @@ class TestDIAControllers(unittest.TestCase):
         min_rt = 0
         max_rt = 400 
 
-        scan_time_dict = {1:0.12}
+        scan_time_dict = {1:0.12, 2:0.06}
 
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')

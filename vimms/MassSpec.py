@@ -5,7 +5,7 @@ import scipy
 from events import Events
 from loguru import logger
 
-from vimms.Common import adduct_transformation, DEFAULT_MS1_SCAN_WINDOW
+from vimms.Common import adduct_transformation, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_SCAN_TIME_DICT
 
 
 class Peak(object):
@@ -232,7 +232,7 @@ class IndependentMassSpectrometer(object):
     STATE_CHANGED = 'StateChanged'
 
     def __init__(self, ionisation_mode, chemicals, peak_sampler, add_noise=False,
-                 isolation_transition_window='rectangular', isolation_transition_window_params=None,scan_duration_dict = None):
+                 isolation_transition_window='rectangular', isolation_transition_window_params=None,scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
         """
         Creates a mass spec object.
         :param ionisation_mode: POSITIVE or NEGATIVE

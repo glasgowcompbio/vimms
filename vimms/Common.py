@@ -44,6 +44,9 @@ PROTON_MASS = 1.00727645199076
 
 INITIAL_SCAN_ID = 100000
 
+
+DEFAULT_SCAN_TIME_DICT = {1: 0.4, 2: 0.2}
+
 def create_if_not_exist(out_dir):
     if not os.path.exists(out_dir) and len(out_dir) > 0:
         logger.info('Created %s' % out_dir)

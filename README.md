@@ -47,7 +47,8 @@ To use the latest bleeding-edge ViMMS code in this repository, follow the steps 
 Example Notebooks
 --------
 
-Notebooks that demonstrate how to use ViMMS are available in the [examples](https://github.com/sdrogers/vimms/tree/master/examples) folder of this repository.
+Notebooks that demonstrate how to use ViMMS are available in the [demo](https://github.com/sdrogers/vimms/tree/master/demo) folder of this repository.
+Notebooks to replicate the results in the papers related to ViMMS are available in [examples](https://github.com/sdrogers/vimms/tree/master/examples) folder of this repository.
 
 Test Cases
 --------

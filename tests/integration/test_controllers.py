@@ -206,6 +206,31 @@ class TestTopNController:
         filename = 'topN_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    def test_TopN_controller_with_beer_chems_and_scan_duration_dict(self, fragscan_ps):
+        logger.info('Testing Top-N controller with QC beer chemicals passing in the scan durations')
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        ps = None
+        scan_duration_dict = {1: 0.2, 2: 0.1}
+
+        # create a simulated mass spec without noise and Top-N controller and passing in the scan_duration dict
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, ps, add_noise=False,
+                                                scan_duration_dict=scan_duration_dict)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # write simulated output to mzML file
+        filename = 'topN_controller_qcbeer_chems_no_noise_with_scan_duration.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
 
 class TestPurityController:
     """

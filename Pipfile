@@ -29,6 +29,7 @@ xlrd = "*"
 statsmodels = "*"
 mass-spec-utils = "*"
 tabulate = "*"
+pytest = "*"
 
 [dev-packages]
 pipenv-setup = "*"

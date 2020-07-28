@@ -164,17 +164,21 @@ class VimmsSequenceManager(BaseSequenceManager):
         if controller_name + '.mzML' not in [os.path.basename(file) for file in mzml_files]:
             controller, ms_params = super().run_experiment(idx)
             # load data and set up MS
-            dataset = load_obj(self.controller_schedule['Dataset'][idx])
-            mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'],
-                                                    ms_params['add_noise'], ms_params['isolation_transition_window'],
-                                                    ms_params['isolation_transition_window_params'])
-            # Run sample
-            env = Environment(mass_spec, controller, self.rt_range[0][0],
-                              self.rt_range[0][1], progress_bar=self.progress_bar)
-            env.run()
-            env.write_mzML(self.base_dir, controller_name + '.mzML')
-            if self.write_env:
-                save_obj(controller, os.path.join(self.base_dir, controller_name + '.p'))
+            logger.info(self.controller_schedule.iloc[[idx]].to_dict())
+            method = self.controller_schedule['Controller Method'][idx]
+            dataset = self.controller_schedule['Dataset'][idx]
+            if method is not None and dataset is not None:
+                dataset = load_obj(self.controller_schedule['Dataset'][idx])
+                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'],
+                                                        ms_params['add_noise'], ms_params['isolation_transition_window'],
+                                                        ms_params['isolation_transition_window_params'])
+                # Run sample
+                env = Environment(mass_spec, controller, self.rt_range[0][0],
+                                  self.rt_range[0][1], progress_bar=self.progress_bar)
+                env.run()
+                env.write_mzML(self.base_dir, controller_name + '.mzML')
+                if self.write_env:
+                    save_obj(controller, os.path.join(self.base_dir, controller_name + '.p'))
         else:
             logger.info('Experiment already completed. Skipping...')
         mzml_file = os.path.join(self.base_dir, controller_name + '.mzML')

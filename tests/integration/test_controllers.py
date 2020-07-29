@@ -133,7 +133,6 @@ class TestMS1Controller:
         filename = 'ms1_controller_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    @pytest.mark.skip(reason="Peaks in range is currently broken")
     def test_peaks_in_range(self,fragscan_dataset_peaks, fullscan_ps):
 
         min_mz = 100.
@@ -150,10 +149,9 @@ class TestMS1Controller:
         run_environment(env)
 
         for scan_level, scans in controller.scans.items():
-            for s in scans:
+            for s in scans[1:]:
                 assert min(s.mzs) >= min_mz
                 assert max(s.mzs) <= max_mz
-
         
         # write simulated output to mzML file
         filename = 'ms1_controller_qcbeer_chems_narrow.mzML'

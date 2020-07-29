@@ -6,7 +6,7 @@ from vimms.MassSpec import ScanParameters
 from vimms.Controller import Controller
 
 class AIF(Controller):
-    def __init__(self,min_mz,max_mz,make_all_scans_ms1=True,
+    def __init__(self,min_mz,max_mz,
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
                  ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
@@ -33,12 +33,9 @@ class AIF(Controller):
 
         self.scan_number = self.initial_scan_id
 
-        self.make_all_scans_ms1= make_all_scans_ms1 #flag to control if ms2 to ms1 for all ion fragmentation
-
     # method required by super-class
     def update_state_after_scan(self, last_scan):
-        if self.make_all_scans_ms1 == True and last_scan.ms_level == 2: #do ms2 to ms1 hack if flag on
-            last_scan.ms_level = 1
+        pass
 
     # method required by super-class
     def reset(self):

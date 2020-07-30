@@ -58,12 +58,15 @@ Additionally unit tests that demonstrate how simulations can be run are availabl
 
 To run individual test classes you can use:
 
-`pipenv run python -m unittest <module>.<class>`
+`python -m pytest <module>::<class>`
 
 For example:
 
-`pipenv run python -m unittest tests.integration.test_controllers.TestSMARTROIController`
+`python -m pytest tests/integration/test_controllers.py::TestSMARTROIController`
 
+To see test output, add the `-s` switch, e.g.:
+
+`python -m pytest -s tests/integration/test_controllers.py::TestSMARTROIController`
 
 Binder
 --------

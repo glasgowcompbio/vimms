@@ -134,6 +134,30 @@ class TestMS1Controller:
         filename = 'ms1_controller_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    def test_peaks_in_range(self,fragscan_dataset_peaks, fullscan_ps):
+
+        min_mz = 100.
+        max_mz = 200.
+
+        logger.info('Testing MS1 controller with narrow m/z range')
+
+        # create a simulated mass spec and MS1 controller
+        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fullscan_ps)
+        controller = SimpleMs1Controller(default_ms1_scan_window=(min_mz, max_mz))
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        for scan_level, scans in controller.scans.items():
+            for s in scans[1:]:
+                assert min(s.mzs) >= min_mz
+                assert max(s.mzs) <= max_mz
+        
+        # write simulated output to mzML file
+        filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
+        check_mzML(env, OUT_DIR, filename)
+        
 
 class TestTopNController:
     """

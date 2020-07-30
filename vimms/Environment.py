@@ -184,7 +184,8 @@ class Environment(object):
 
     def get_default_scan_params(self, agc_target=DEFAULT_MS1_AGC_TARGET, max_it=DEFAULT_MS1_MAXIT,
                  collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION):
+                 orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW):
         """
         Gets the default method scan parameters. Now it's set to do MS1 scan only.
         :return: the default scan parameters
@@ -198,8 +199,8 @@ class Environment(object):
         default_scan_params.set(ScanParameters.AGC_TARGET, agc_target)
         default_scan_params.set(ScanParameters.MAX_IT, max_it)
         default_scan_params.set(ScanParameters.POLARITY, self.mass_spec.ionisation_mode)
-        default_scan_params.set(ScanParameters.FIRST_MASS, DEFAULT_MS1_SCAN_WINDOW[0])
-        default_scan_params.set(ScanParameters.LAST_MASS, DEFAULT_MS1_SCAN_WINDOW[1])
+        default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
+        default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
         return default_scan_params
 
     def get_dda_scan_param(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,

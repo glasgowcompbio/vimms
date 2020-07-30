@@ -525,11 +525,15 @@ class IndependentMassSpectrometer(object):
             mzs = self._get_all_mz_peaks(chemical, scan_time, ms_level, isolation_windows)
 
             peaks = []
+
+            min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
+            max_measurement_mz = params.get(ScanParameters.LAST_MASS)
+            
             if mzs is not None:
                 chem_mzs = []
                 chem_intensities = []
                 for peak_mz, peak_intensity in mzs:
-                    if peak_intensity > 0:
+                    if peak_mz >= min_measurement_mz and peak_mz <= max_measurement_mz and peak_intensity > 0:
                         chem_mzs.append(peak_mz)
                         chem_intensities.append(peak_intensity)
                         p = Peak(peak_mz, scan_time, peak_intensity, ms_level)
@@ -537,7 +541,6 @@ class IndependentMassSpectrometer(object):
 
                 scan_mzs.extend(chem_mzs)
                 scan_intensities.extend(chem_intensities)
-
             # for benchmarking purpose
             if len(peaks) > 0:
                 frag = FragmentationEvent(chemical, scan_time, ms_level, peaks, scan_id)

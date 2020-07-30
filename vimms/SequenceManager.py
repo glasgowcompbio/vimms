@@ -20,7 +20,7 @@ from vimms.PythonMzmine import pick_peaks
 from vimms.Scoring import picked_peaks_evaluation, roi_scoring
 from vimms.BOMAS import mzml2chems
 
-from alignment import BoxJoinAligner
+from mass_spec_utils.data_processing.alignment import BoxJoinAligner
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 

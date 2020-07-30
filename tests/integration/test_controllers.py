@@ -9,6 +9,7 @@ from vimms.Controller import SimpleMs1Controller, TopNController, PurityControll
     TopN_SmartRoiController, ExcludingTopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Noise import GaussianPeakNoise
 
 ### define some useful constants ###
 
@@ -173,7 +174,8 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, add_noise=True)
+        peak_noise = GaussianPeakNoise(0.1, 1000)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, peak_noise=peak_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 

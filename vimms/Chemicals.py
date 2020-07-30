@@ -602,20 +602,3 @@ class MultiSampleCreator(object):
         if noisy_intensity < 0:
             logger.warning("Warning: Negative Intensities have been created")
         return noisy_intensity
-
-
-def RestrictedChemicalCreator(N, ps, prop_ms2_mass=0.7, mz_range=[(0, 1000)]):
-    dataset = []
-    chrom = EmpiricalChromatogram(np.array([0, 20]), np.array([0, 0]), np.array([1, 1]))
-    for i in range(N):
-        mz = ps.get_peak(1, 1, mz_range[0][0], mz_range[0][1])[0].mz
-        chem = UnknownChemical(mz, 0, 1E5, chrom, children=None)
-        n_children = int(ps.n_peaks(2, 1))
-        parent_mass_prop = [1 / n_children for k in range(n_children)]
-        children = []
-        for j in range(n_children):
-            mz = ps.get_peak(2, 1)[0].mz
-            children.append(MSN(mz, 2, prop_ms2_mass, parent_mass_prop[j], None, chem))
-        chem.children = children
-        dataset.append(chem)
-    return dataset

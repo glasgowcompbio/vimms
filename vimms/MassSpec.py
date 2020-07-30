@@ -232,7 +232,7 @@ class IndependentMassSpectrometer(object):
     ACQUISITION_STREAM_CLOSED = 'AcquisitionStreamClosing'
     STATE_CHANGED = 'StateChanged'
 
-    def __init__(self, ionisation_mode, chemicals, peak_sampler, peak_noise=NoPeakNoise,
+    def __init__(self, ionisation_mode, chemicals, peak_sampler, peak_noise=None,
                  isolation_transition_window='rectangular', isolation_transition_window_params=None, scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
         """
         Creates a mass spec object.
@@ -276,7 +276,11 @@ class IndependentMassSpectrometer(object):
         self.current_N = 0
         self.current_DEW = 0
 
-        self.peak_noise = peak_noise  # whether to add noise to the generated fragment peaks
+        # whether to add noise to the generated peaks, the default is no noise
+        self.peak_noise = peak_noise
+        if self.peak_noise is None:
+            self.peak_noise = NoPeakNoise()
+
         self.fragmentation_events = []  # which chemicals produce which peaks
 
         self.isolation_transition_window = isolation_transition_window

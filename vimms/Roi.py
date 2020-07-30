@@ -10,9 +10,9 @@ import pymzml
 from loguru import logger
 from scipy.stats import pearsonr
 
-from vimms.Chemicals import ChemicalCreator, UnknownChemical, GET_MS2_BY_PEAKS
+from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import PROTON_MASS, CHEM_NOISE, save_obj
+from vimms.Common import PROTON_MASS, CHEM_NOISE, save_obj, GET_MS2_BY_PEAKS
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)

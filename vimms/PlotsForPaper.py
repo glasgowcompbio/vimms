@@ -9,7 +9,7 @@ import pymzml
 import seaborn as sns
 from loguru import logger
 
-from vimms.Chemicals import UnknownChemical, get_absolute_intensity
+from vimms.Chemicals import UnknownChemical
 from vimms.Common import load_obj, PROTON_MASS, find_nearest_index_in_array
 from vimms.MassSpec import FragmentationEvent
 from vimms.Roi import make_roi, RoiToChemicalCreator
@@ -647,7 +647,7 @@ def get_chem_to_frag_events(chemicals, ms1_df):
         scan_id = row['ms2_scan_id']
 
         chem = None
-        #idx = _get_chem_indices(query_mz, query_rt, min_mzs, max_mzs, min_rts, max_rts)
+        # idx = _get_chem_indices(query_mz, query_rt, min_mzs, max_mzs, min_rts, max_rts)
         idx = None
         if len(idx) == 1:  # single match
             chem = chemicals[idx][0]
@@ -718,3 +718,7 @@ def evaluate_parallel(all_params, pushed_dict=None):
     results = dview.map_sync(calculate_performance, all_params)
     result_df = pd.DataFrame(results, columns=['N', 'rt_tol', 'scenario', 'TP', 'FP', 'FN', 'Prec', 'Rec', 'F1'])
     return result_df
+
+
+def get_absolute_intensity(chem, query_rt):
+    return chem.max_intensity * chem.chromatogram.get_relative_intensity(query_rt - chem.rt)

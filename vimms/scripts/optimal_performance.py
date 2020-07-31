@@ -160,6 +160,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_rt',dest='min_rt',default=0.0,type=float)
     parser.add_argument('--max_rt',dest='max_rt',default=26.0*60.0,type=float)
     parser.add_argument('--min_ms1_intensity',dest='min_ms1_intensity',default=5e3,type=float)
+    parser.add_argument('--time_factor',dest='time_factor',default=1,type=float)
     args = parser.parse_args()
     
     print("ARGUMENTS:")
@@ -180,6 +181,15 @@ if __name__ == '__main__':
         for ms_level in [1,2]:
             time_dict[ms_level] = np.array(times[ms_level]).mean()
         print("MS1 time = {}, MS2 time = {}".format(time_dict[1],time_dict[2]))
+
+
+    if not args.time_factor == 1.:
+        print("Changing times by factor {}".format(args.time_factor))
+        for ms_level in time_dict:
+            time_dict[ms_level] *= args.time_factor
+        print("MS1 time = {}, MS2 time = {}".format(time_dict[1],time_dict[2]))
+
+
 
 
     print()

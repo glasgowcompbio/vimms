@@ -5,16 +5,13 @@ from scipy.optimize import minimize
 from itertools import product
 
 from pyDOE import *
-from pathlib import Path
-import pandas as pd
 import itertools as it
 
+from vimms.Chemicals import mzml2chems
 from vimms.Controller import *
 from vimms.PythonMzmine import pick_peaks, controller_score
 from vimms.Common import *
-from vimms.Roi import make_roi, RoiToChemicalCreator
 import os
-from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Environment import *
 from vimms.PythonMzmine import peak_scoring
 
@@ -57,25 +54,6 @@ MADELEINE_TOP_N_CONTROLLER_PARAM_DICT = {"ionisation_mode": POSITIVE,
 QCB_SCORE_PARAM_DICT = {'min_ms1_intensity': 1.75E5,
                         'matching_mz_tol': 30,
                         'matching_rt_tol': 10}
-
-
-
-def mzml2chems(mzml_file, ps, param_dict=QCB_MZML2CHEMS_DICT, output_dir = True, n_peaks=1):
-    good_roi, junk = make_roi(mzml_file, mz_tol=param_dict['mz_tol'], mz_units=param_dict['mz_units'],
-                              min_length=param_dict['min_length'], min_intensity=param_dict['min_intensity'],
-                              start_rt=param_dict['start_rt'], stop_rt=param_dict['stop_rt'])
-    all_roi = good_roi + junk
-    keep = []
-    for roi in all_roi:
-        if np.count_nonzero(np.array(roi.intensity_list) > param_dict['min_ms1_intensity']) > 0:
-            keep.append(roi)
-    all_roi = keep
-    rtcc = RoiToChemicalCreator(ps, all_roi, n_peaks)
-    dataset = rtcc.chemicals
-    if output_dir is True:
-        dataset_name = os.path.splitext(mzml_file)[0] + '.p'
-        save_obj(dataset, dataset_name)
-    return dataset
 
 
 class BaseOptimiser(object):

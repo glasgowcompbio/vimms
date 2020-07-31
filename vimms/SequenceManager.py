@@ -18,7 +18,7 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Scoring import picked_peaks_evaluation, roi_scoring
-from vimms.BOMAS import mzml2chems
+from vimms.Chemicals import mzml2chems
 
 from alignment import BoxJoinAligner
 from mass_spec_utils.data_import.mzml import MZMLFile

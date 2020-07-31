@@ -1,5 +1,6 @@
 import copy
 import math
+import os
 import random
 import re
 from pathlib import Path
@@ -10,8 +11,9 @@ import scipy.stats
 from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
-from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj
+from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
+    DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS
+from vimms.Roi import make_roi, RoiToChemicalCreator
 
 
 class DatabaseCompound(object):
@@ -602,3 +604,21 @@ class MultiSampleCreator(object):
         if noisy_intensity < 0:
             logger.warning("Warning: Negative Intensities have been created")
         return noisy_intensity
+
+
+def mzml2chems(mzml_file, ps, param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, output_dir=True, n_peaks=1):
+    good_roi, junk = make_roi(mzml_file, mz_tol=param_dict['mz_tol'], mz_units=param_dict['mz_units'],
+                              min_length=param_dict['min_length'], min_intensity=param_dict['min_intensity'],
+                              start_rt=param_dict['start_rt'], stop_rt=param_dict['stop_rt'])
+    all_roi = good_roi + junk
+    keep = []
+    for roi in all_roi:
+        if np.count_nonzero(np.array(roi.intensity_list) > param_dict['min_ms1_intensity']) > 0:
+            keep.append(roi)
+    all_roi = keep
+    rtcc = RoiToChemicalCreator(ps, all_roi, n_peaks)
+    dataset = rtcc.chemicals
+    if output_dir is True:
+        dataset_name = os.path.splitext(mzml_file)[0] + '.p'
+        save_obj(dataset, dataset_name)
+    return dataset

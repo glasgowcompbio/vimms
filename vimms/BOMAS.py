@@ -7,7 +7,7 @@ from itertools import product
 from pyDOE import *
 import itertools as it
 
-from vimms.Chemicals import mzml2chems
+from vimms.FeatureExtraction import mzml2chems
 from vimms.Controller import *
 from vimms.PythonMzmine import pick_peaks, controller_score
 from vimms.Common import *

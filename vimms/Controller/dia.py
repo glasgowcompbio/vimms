@@ -69,7 +69,7 @@ class AIF(Controller):
 
 
             scans.append(dda_scan_params)
-            #self.scan_number += 1
+            self.scan_number += 1 # increase every time we make a scan
 
             # make the MS1 scan
             task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
@@ -81,8 +81,7 @@ class AIF(Controller):
             # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
 
             scans.append(task)
-            #self.scan_number += 1 # increase every time we make a scan
-            #self.next_processed_scan_id = self.scan_number
+            self.scan_number += 1
             self.next_processed_scan_id += 2
 
 

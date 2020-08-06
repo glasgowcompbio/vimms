@@ -538,13 +538,12 @@ class IndependentMassSpectrometer(object):
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
-        #added condition for checking collision energy of scan
-        #collision energy>0, specify and no isolation, return MS2 data in an MS1 scan
+        #added condition for checking collision energy of scan & return MS2 data in an MS1 scan
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
         if params.get(ScanParameters.ISOLATION_WINDOWS) is None:
-            specified_iso_windows = False #MS2 scan: pick a precursor m/z and isolation window
+            specified_iso_windows = False
         else:
-            specified_iso_windows = True #MS1 fragmentation scan: specified m/z range to measure fragments e.g. AIF
+            specified_iso_windows = True
         
         if collision_energy > 0 and specified_iso_windows == True and ms_level == 2:
             sc= Scan(scan_id, scan_mzs, scan_intensities, 1, scan_time, scan_duration=None, scan_params=params)

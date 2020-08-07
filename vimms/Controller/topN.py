@@ -487,7 +487,7 @@ class ExcludingTopNController(TopNController):
     that are not excluded
     """
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
-                exclusion_t_0=15,log_intensity = False,
+                exclusion_t_0=15,log_intensity=False,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
@@ -497,15 +497,15 @@ class ExcludingTopNController(TopNController):
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__(ionisation_mode,N,isolation_width,mz_tol,rt_tol,min_ms1_intensity,ms1_shift=ms1_shift,
-                        ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                        ms1_max_it=DEFAULT_MS1_MAXIT,
-                        ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                        ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                        ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                        ms2_max_it=DEFAULT_MS2_MAXIT,
-                        ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                        ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION)
+        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
+                        ms1_agc_target=ms1_agc_target,
+                        ms1_max_it=ms1_max_it,
+                        ms1_collision_energy=ms1_collision_energy,
+                        ms1_orbitrap_resolution=ms1_orbitrap_resolution,
+                        ms2_agc_target=ms2_agc_target,
+                        ms2_max_it=ms2_max_it,
+                        ms2_collision_energy=ms2_collision_energy,
+                        ms2_orbitrap_resolution=ms2_orbitrap_resolution)
         
         self.exclusion_t_0 = exclusion_t_0
         self.log_intensity = log_intensity

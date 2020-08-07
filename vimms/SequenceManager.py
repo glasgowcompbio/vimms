@@ -709,12 +709,21 @@ def create_controller(controller_method, param_dict):
                                       param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
                                       param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
                                       param_dict['ms2_orbitrap_resolution'])
+    elif controller_method == 'WeightedDewController':
+        controller = ExcludingTopNController(param_dict['ionisation_mode'], param_dict['N'],
+                                             param_dict['isolation_width'], param_dict['mz_tol'], param_dict['rt_tol'],
+                                             param_dict['min_ms1_intensity'], param_dict['ms1_shift'],
+                                             param_dict['exclusion_t_0'], param_dict['log_intensity'],
+                                             param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                             param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
+                                             param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
+                                             param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
     else:
         logger.warning('Invalid controller_method')
     return controller
 
 
-
 def Heatmap_GridSearch(GridSearch_object, outcome_name, X_name, Y_name):
     results = GridSearch_object.results.pivot(X_name, Y_name, outcome_name)
     ax = sns.heatmap(results)
+

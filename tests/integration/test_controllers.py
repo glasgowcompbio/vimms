@@ -3,12 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from vimms.Chemicals import ChemicalCreator, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA
+from vimms.Chemicals import ChemicalCreator
 from vimms.Common import *
 from vimms.Controller import SimpleMs1Controller, TopNController, PurityController, TopN_RoiController, \
     TopN_SmartRoiController, ExcludingTopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Noise import GaussianPeakNoise
 
 ### define some useful constants ###
 
@@ -174,7 +175,7 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, add_noise=False)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 
@@ -197,7 +198,8 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, add_noise=True)
+        peak_noise = GaussianPeakNoise(0.1, 1000)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, peak_noise=peak_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 
@@ -219,7 +221,7 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, add_noise=False)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
@@ -243,8 +245,7 @@ class TestTopNController:
         scan_duration_dict = {1: 0.2, 2: 0.1}
 
         # create a simulated mass spec without noise and Top-N controller and passing in the scan_duration dict
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, ps, add_noise=False,
-                                                scan_duration_dict=scan_duration_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, ps, scan_duration_dict=scan_duration_dict)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
@@ -274,7 +275,7 @@ class TestPurityController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and purity controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, add_noise=True)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
         controller = PurityController(ionisation_mode, N, scan_param_changepoints, isolation_widths, mz_tol, rt_tol,
                                       MIN_MS1_INTENSITY)
 
@@ -307,7 +308,7 @@ class TestPurityController:
         purity_add_ms1 = True  # this seems to be the broken bit
         purity_randomise = True
 
-        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fragscan_ps, add_noise=True,
+        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fragscan_ps,
                                                 isolation_transition_window=isolation_transition_window,
                                                 isolation_transition_window_params=isolation_transition_window_params)
         controller = PurityController(mass_spec, N, scan_param_changepoints, isolation_window, mz_tol, rt_tol,
@@ -342,7 +343,7 @@ class TestROIController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps, add_noise=True)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps)
         controller = TopN_RoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                         min_roi_intensity, min_roi_length, N, rt_tol)
 
@@ -367,7 +368,7 @@ class TestROIController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, add_noise=True)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
         controller = TopN_RoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                         min_roi_intensity, min_roi_length, N, rt_tol)
 
@@ -399,7 +400,7 @@ class TestSMARTROIController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps, add_noise=True)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps)
         controller = TopN_SmartRoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                              min_roi_intensity, min_roi_length, N, rt_tol)
 
@@ -424,7 +425,7 @@ class TestSMARTROIController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, add_noise=True)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
         controller = TopN_SmartRoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                              min_roi_intensity, min_roi_length, N, rt_tol)
 
@@ -454,7 +455,7 @@ class TestTopNShiftedController:
         scan_duration_dict = {1: 0.2, 2: 0.1}
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, add_noise=False,
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_duration_dict)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                     ms1_shift=test_shift)
@@ -485,7 +486,7 @@ class TestTopNExcludingShiftedController:
         scan_duration_dict = {1: 0.2, 2: 0.1}
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, add_noise=False,
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_duration_dict)
         controller = ExcludingTopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                              ms1_shift=test_shift,

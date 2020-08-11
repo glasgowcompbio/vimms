@@ -1,28 +1,22 @@
 import glob
 import inspect
 import itertools
-import os
 import time
 from os.path import dirname, abspath
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-from loguru import logger
 import seaborn as sns
+from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_processing.alignment import BoxJoinAligner
 from sklearn.linear_model import LogisticRegression
 
-from vimms.Common import *
 from vimms.Controller import *
 from vimms.Environment import Environment
+from vimms.FeatureExtraction import extract_roi
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Scoring import picked_peaks_evaluation, roi_scoring
-from vimms.BOMAS import mzml2chems
-
-from mass_spec_utils.data_processing.alignment import BoxJoinAligner
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 
 parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')
@@ -232,7 +226,9 @@ class BasicExperiment(Experiment):
     def add_dataset_files(self, sequence_manager, mzml_file_list):
         for i in range(len(sequence_manager.controller_schedule['Dataset'])):
             if mzml_file_list[sequence_manager.schedule_idx[i]] is not None:
-                dataset = mzml2chems(mzml_file_list[sequence_manager.schedule_idx[i]], self.ps, self.mzml2chems_dict, n_peaks=None)
+                mzml_file = mzml_file_list[sequence_manager.schedule_idx[i]]
+                datasets = extract_roi([mzml_file], None, None, None, self.ps, param_dict=self.mzml2chems_dict)
+                dataset = datasets[0]
                 dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file_list[sequence_manager.schedule_idx[i]]).stem + '.p')
                 save_obj(dataset, dataset_name)
                 sequence_manager.controller_schedule['Dataset'][i] = dataset_name
@@ -318,7 +314,7 @@ class GridSearchExperiment(BasicExperiment):
         self.dataset_file = dataset_file
         self.mzml_file = mzml_file
         if self.dataset_file is None:
-            dataset = mzml2chems(self.mzml_file, ps, MZML2CHEMS_DICT, n_peaks=None)
+            dataset = extract_roi([self.mzml_file], None, None, None, ps, param_dict=MZML2CHEMS_DICT)
             dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
             save_obj(dataset, dataset_name)
             self.dataset_file = dataset_name

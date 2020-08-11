@@ -6,6 +6,7 @@ from events import Events
 from loguru import logger
 
 from vimms.Common import adduct_transformation, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_SCAN_TIME_DICT
+from vimms.Noise import NoPeakNoise
 
 
 class Peak(object):
@@ -231,8 +232,8 @@ class IndependentMassSpectrometer(object):
     ACQUISITION_STREAM_CLOSED = 'AcquisitionStreamClosing'
     STATE_CHANGED = 'StateChanged'
 
-    def __init__(self, ionisation_mode, chemicals, peak_sampler, add_noise=False,
-                 isolation_transition_window='rectangular', isolation_transition_window_params=None,scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
+    def __init__(self, ionisation_mode, chemicals, peak_sampler, peak_noise=None,
+                 isolation_transition_window='rectangular', isolation_transition_window_params=None, scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
         """
         Creates a mass spec object.
         :param ionisation_mode: POSITIVE or NEGATIVE
@@ -275,7 +276,11 @@ class IndependentMassSpectrometer(object):
         self.current_N = 0
         self.current_DEW = 0
 
-        self.add_noise = add_noise  # whether to add noise to the generated fragment peaks
+        # whether to add noise to the generated peaks, the default is no noise
+        self.peak_noise = peak_noise
+        if self.peak_noise is None:
+            self.peak_noise = NoPeakNoise()
+
         self.fragmentation_events = []  # which chemicals produce which peaks
 
         self.isolation_transition_window = isolation_transition_window
@@ -517,10 +522,7 @@ class IndependentMassSpectrometer(object):
             chemical = self.chemicals[i]
 
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
-            if self.add_noise:
-                mzs = self._get_all_mz_peaks_noisy(chemical, scan_time, ms_level, isolation_windows)
-            else:
-                mzs = self._get_all_mz_peaks(chemical, scan_time, ms_level, isolation_windows)
+            mzs = self._get_all_mz_peaks(chemical, scan_time, ms_level, isolation_windows)
 
             peaks = []
 
@@ -571,17 +573,29 @@ class IndependentMassSpectrometer(object):
         return noisy_mz_peaks
 
     def _get_all_mz_peaks(self, chemical, query_rt, ms_level, isolation_windows):
+        # check if the chemical RT matches the current query RT
         if not self._rt_match(chemical, query_rt):
             return None
+
+        # if yes, then gather all the peaks from all the isotopes and adduct of this chemical
         mz_peaks = []
         for which_isotope in range(len(chemical.isotopes)):
             for which_adduct in range(len(self._get_adducts(chemical))):
-                mz_peaks.extend(
-                    self._get_mz_peaks(chemical, query_rt, ms_level, isolation_windows, which_isotope, which_adduct))
-        if mz_peaks == []:
+                peaks = self._get_mz_peaks(chemical, query_rt, ms_level, isolation_windows, which_isotope, which_adduct)
+                mz_peaks.extend(peaks)
+
+        # if no peaks generated, then just return None
+        if len(mz_peaks) == 0:
             return None
-        else:
-            return mz_peaks
+
+        # apply noise if any
+        noisy_mz_peaks = []
+        for i in range(len(mz_peaks)):
+            original_mz, original_intensity = mz_peaks[i]
+            noisy_mz = self.peak_noise.get_mz(original_mz, query_rt, original_intensity, ms_level)
+            noisy_intensity = self.peak_noise.get_intensity(original_mz, query_rt, original_intensity, ms_level)
+            noisy_mz_peaks.append((noisy_mz, noisy_intensity))
+        return noisy_mz_peaks
 
     def _get_mz_peaks(self, chemical, query_rt, ms_level, isolation_windows, which_isotope, which_adduct):
         # EXAMPLE OF USE OF DEFINITION: if we wants to do an ms2 scan on a chemical. we would first have ms_level=2 and the chemicals

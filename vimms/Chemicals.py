@@ -10,11 +10,7 @@ import scipy.stats
 from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
-from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, load_obj, save_obj
-
-GET_MS2_BY_PEAKS = "sample"
-GET_MS2_BY_SPECTRA = "spectra"
+from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj
 
 
 class DatabaseCompound(object):
@@ -167,13 +163,20 @@ class UnknownChemical(Chemical):
         return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
             self.isotopes[0][0], self.rt, self.max_intensity)
 
+    def get_key(self):
+        """
+        Turns a chemical object into (mz, rt, intensity) tuples for equal comparison
+        :return: a tuple of the three values
+        """
+        return (tuple(self.isotopes), self.rt, self.max_intensity)
+
     def __eq__(self, other):
         if not isinstance(other, UnknownChemical):
             return False
-        return get_key(self) == get_key(other)
+        return self.get_key() == other.get_key()
 
     def __hash__(self):
-        return hash(get_key(self))
+        return hash(self.get_key())
 
 
 class KnownChemical(Chemical):
@@ -267,7 +270,8 @@ class ChemicalCreator(object):
 
         # sample from kernel densities
         if self.ms_levels > 2:
-            logger.warning("Warning ms_level > 3 not implemented properly yet. Uses scaled ms_level = 2 information for now")
+            logger.warning(
+                "Warning ms_level > 3 not implemented properly yet. Uses scaled ms_level = 2 information for now")
         n_ms1 = self._get_n(1)
         logger.debug("{} chemicals to be created.".format(n_ms1))
         sampled_peaks = self.peak_sampler.get_peak(1, n_ms1, self.mz_range[0][0], self.mz_range[0][1],
@@ -597,33 +601,3 @@ class MultiSampleCreator(object):
         if noisy_intensity < 0:
             logger.warning("Warning: Negative Intensities have been created")
         return noisy_intensity
-
-
-def get_absolute_intensity(chem, query_rt):
-    return chem.max_intensity * chem.chromatogram.get_relative_intensity(query_rt - chem.rt)
-
-
-def get_key(chem):
-    '''
-    Turns a chemical object into (mz, rt, intensity) tuples for equal comparison
-    :param chem: A chemical object
-    :return: a tuple of the three values
-    '''
-    return (tuple(chem.isotopes), chem.rt, chem.max_intensity)
-
-
-def RestrictedChemicalCreator(N, ps, prop_ms2_mass=0.7, mz_range=[(0, 1000)]):
-    dataset = []
-    chrom = EmpiricalChromatogram(np.array([0, 20]), np.array([0, 0]), np.array([1, 1]))
-    for i in range(N):
-        mz = ps.get_peak(1, 1, mz_range[0][0], mz_range[0][1])[0].mz
-        chem = UnknownChemical(mz, 0, 1E5, chrom, children=None)
-        n_children = int(ps.n_peaks(2, 1))
-        parent_mass_prop = [1 / n_children for k in range(n_children)]
-        children = []
-        for j in range(n_children):
-            mz = ps.get_peak(2, 1)[0].mz
-            children.append(MSN(mz, 2, prop_ms2_mass, parent_mass_prop[j], None, chem))
-        chem.children = children
-        dataset.append(chem)
-    return dataset

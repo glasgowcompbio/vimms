@@ -63,15 +63,14 @@ GET_MS2_BY_SPECTRA = "spectra"
 INITIAL_SCAN_ID = 100000
 DEFAULT_SCAN_TIME_DICT = {1: 0.4, 2: 0.2}
 DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
-    'min_ms1_intensity': 1.75E5,
-    'mz_tol': 2,
+    'min_intensity': 1.75E5,
+    'mz_tol': 10,
     'mz_units': 'ppm',
-    'min_length': 1,
-    'min_intensity': 0,
+    'min_length': 2,
     'start_rt': 0,
-    'stop_rt': 1560
+    'stop_rt': 1440,
+    'n_peaks': 1
 }
-
 
 def create_if_not_exist(out_dir):
     if not os.path.exists(out_dir) and len(out_dir) > 0:

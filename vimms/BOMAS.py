@@ -7,7 +7,7 @@ from itertools import product
 from pyDOE import *
 import itertools as it
 
-from vimms.FeatureExtraction import mzml2chems
+from vimms.FeatureExtraction import extract_roi
 from vimms.Controller import *
 from vimms.PythonMzmine import pick_peaks, controller_score
 from vimms.Common import *
@@ -149,7 +149,8 @@ class BaseOptimiser(object):
     def _get_data(self, ms1_mzml, ms1_picked_peaks_file, dataset_file, ps, chem_param_dict):
         # Load data
         if dataset_file is None:
-            dataset = mzml2chems(ms1_mzml, ps, chem_param_dict)
+            datasets = extract_roi([ms1_mzml], None, None, None, ps, param_dict=chem_param_dict)
+            dataset = datasets[0]
         else:
             dataset = load_obj(dataset_file)
         if ms1_picked_peaks_file is None and self.method_name != 'RepeatedExperiment':

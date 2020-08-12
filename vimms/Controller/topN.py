@@ -1,246 +1,15 @@
+import bisect
 from collections import defaultdict
 
 import numpy as np
-import pandas as pd
-import pylab as plt
 from loguru import logger
+from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION, INITIAL_SCAN_ID, DEFAULT_MS1_SCAN_WINDOW
+    DEFAULT_MS2_ORBITRAP_RESOLUTION
+from vimms.Controller.base import Controller
 from vimms.MassSpec import ScanParameters, ExclusionItem
-
-from mass_spec_utils.data_import.mzmine import load_picked_boxes
-
-
-class Controller(object):
-    def __init__(self):
-        self.scans = defaultdict(list)  # key: ms level, value: list of scans for that level
-        self.make_plot = False
-        self.scan_to_process = None
-        self.environment = None
-        self.next_processed_scan_id = INITIAL_SCAN_ID
-        self.initial_scan_id = INITIAL_SCAN_ID
-        self.current_task_id = self.initial_scan_id
-
-    def set_environment(self, env):
-        self.environment = env
-
-    def handle_scan(self, scan, outgoing_queue_size, pending_tasks_size):
-        # record every scan that we've received
-        logger.debug('Time %f Received %s' % (scan.rt, scan))
-        self.scans[scan.ms_level].append(scan)
-
-        # plot scan if there are peaks
-        if scan.num_peaks > 0:
-            self._plot_scan(scan)
-
-        # we get an ms1 scan and it has some peaks AND all the pending tasks have been sent and processed AND
-        # this ms1 scan is a custom scan we'd sent before (not a method scan)
-        # then store it for fragmentation next time
-        self.last_scan = scan
-        logger.debug(
-            'scan.scan_id = %d, self.next_processed_scan_id = %d' % (scan.scan_id, self.next_processed_scan_id))
-        if scan.scan_id == self.next_processed_scan_id:
-            self.scan_to_process = scan
-            self.pending_tasks = pending_tasks_size
-            logger.debug('next processed scan %d has arrived' % self.next_processed_scan_id)
-        else:
-            self.scan_to_process = None
-
-        logger.debug('outgoing_queue_size = %d, pending_tasks_size = %d' % (outgoing_queue_size, pending_tasks_size))
-        logger.debug('scan.scan_params = %s' % scan.scan_params)
-        logger.debug('scan_to_process = %s' % self.scan_to_process)
-
-        # implemented by subclass
-        new_tasks = self._process_scan(scan)
-        return new_tasks
-
-    def update_state_after_scan(self, last_scan):
-        raise NotImplementedError()
-
-    def reset(self):
-        raise NotImplementedError()
-
-    def _process_scan(self, scan):
-        raise NotImplementedError()
-
-    def _plot_scan(self, scan):
-        if self.make_plot:
-            plt.figure()
-            for i in range(scan.num_peaks):
-                x1 = scan.mzs[i]
-                x2 = scan.mzs[i]
-                y1 = 0
-                y2 = scan.intensities[i]
-                a = [[x1, y1], [x2, y2]]
-                plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
-            plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt, scan.num_peaks))
-            plt.show()
-
-
-class IdleController(Controller):
-    """
-    A controller that doesn't do any controlling.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def _process_scan(self, scan):
-        new_tasks = []
-        return new_tasks
-
-    def update_state_after_scan(self, last_scan):
-        pass
-
-    def reset(self):
-        pass
-
-
-class SimpleMs1Controller(Controller):
-    """
-    A simple MS1 controller which does a full scan of the chemical sample, but no fragmentation
-    """
-
-    def __init__(self,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW):
-        super().__init__()
-        self.ms1_agc_target = ms1_agc_target
-        self.ms1_max_it = ms1_max_it
-        self.ms1_collision_energy = ms1_collision_energy
-        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
-        self.default_ms1_scan_window = default_ms1_scan_window
-
-    def _process_scan(self, scan):
-        task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                        max_it=self.ms1_max_it,
-                                                        collision_energy=self.ms1_collision_energy,
-                                                        orbitrap_resolution=self.ms1_orbitrap_resolution,
-                                                        default_ms1_scan_window=self.default_ms1_scan_window)
-        return [task]
-
-
-    def update_state_after_scan(self, last_scan):
-        pass
-
-    def reset(self):
-        pass
-
-
-class ScanParameterController(SimpleMs1Controller):
-    def __init__(self,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 agc_values = [1e5,2e5,5e5,1e6],
-                 maxit_values = [50,100,250,500]):
-        super().__init__(ms1_agc_target=ms1_agc_target,
-                 ms1_max_it=ms1_max_it,
-                 ms1_collision_energy=ms1_collision_energy,
-                 ms1_orbitrap_resolution=ms1_orbitrap_resolution)
-        self.agc_values = agc_values
-        self.maxit_values = maxit_values
-        self.scan_number = 0
-        self.scan_param_list = []
-        # make a list with all combinations of parameters
-        for a in self.agc_values:
-            for b in self.maxit_values:
-                self.scan_param_list.append((a,b))
-    
-    def _process_scan(self, scan):
-
-        n_scan_params = len(self.scan_param_list)
-        agc,maxit = self.scan_param_list[self.scan_number % n_scan_params]
-
-        task = self.environment.get_default_scan_params(agc_target=agc,
-                                                        max_it=maxit,
-                                                        collision_energy=self.ms1_collision_energy,
-                                                        orbitrap_resolution=self.ms1_orbitrap_resolution)
-        self.scan_number += 1
-        
-        return [task]
-                
-
-class FixedScheduleController(Controller):
-    """
-    A controller which takes a schedule of scans, converts them into tasks in queue
-    """
-
-    def __init__(self, schedule_file, isolation_width, mz_tol, mass_spec_ionisation_mode, N, rt_tol,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__()
-        self.first_scan = True
-        self.isolation_width = isolation_width
-        self.mz_tol = mz_tol
-        self.mass_spec_ionisation_mode = mass_spec_ionisation_mode
-        self.schedule = pd.read_csv(schedule_file, header=None, names=["ms_level", "mz", "time", "box_id", "box_file"])
-        self.schedule = self.schedule.iloc[range(0, self.schedule.shape[0], 2)]
-        self.scheduled_tasks = self._process_schedule()
-        self.N = N
-        self.rt_tol = rt_tol
-
-        # advanced parameters
-        self.ms1_agc_target = ms1_agc_target
-        self.ms1_max_it = ms1_max_it
-        self.ms1_collision_energy = ms1_collision_energy
-        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
-
-        self.ms2_agc_target = ms2_agc_target
-        self.ms2_max_it = ms2_max_it
-        self.ms2_collision_energy = ms2_collision_energy
-        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
-
-    def _process_scan(self, scan):
-        if self.first_scan:
-            self.first_scan = False
-            return self.scheduled_tasks
-        else:
-            return []
-
-    def update_state_after_scan(self, last_scan):
-        pass
-
-    def reset(self):
-        pass
-
-    def _process_schedule(self):
-        # converts schedule into tasks and pushes them to the queue
-        tasks = []
-        for i in range(self.schedule.shape[0]):
-            if self.schedule.iloc[i]['ms_level'] == 'MS1':
-                new_task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                    max_it=self.ms1_max_it,
-                                                                    collision_energy=self.ms1_collision_energy,
-                                                                    orbitrap_resolution=self.ms1_orbitrap_resolution)
-            else:
-                precursor_scan_id = self.scan_to_process.scan_id
-                mz = self.schedule.iloc[i]['mz']
-                intensity = 0
-                rt_tol = 0
-                new_task = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                               self.isolation_width, self.mz_tol, rt_tol,
-                                                               agc_target=self.ms2_agc_target,
-                                                               max_it=self.ms2_max_it,
-                                                               collision_energy=self.ms2_collision_energy,
-                                                               orbitrap_resolution=self.ms2_orbitrap_resolution)
-            tasks.append(new_task)
-        return tasks
 
 
 class TopNController(Controller):
@@ -248,6 +17,7 @@ class TopNController(Controller):
     A Top-N controller. Does an MS1 scan followed by N fragmentation scans of the peaks with the highest intensity
     that are not excluded
     """
+
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
@@ -321,11 +91,11 @@ class TopNController(Controller):
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                               self.isolation_width, self.mz_tol, self.rt_tol,
-                                                               agc_target=self.ms2_agc_target,
-                                                               max_it=self.ms2_max_it,
-                                                               collision_energy=self.ms2_collision_energy,
-                                                               orbitrap_resolution=self.ms2_orbitrap_resolution)
+                                                                      self.isolation_width, self.mz_tol, self.rt_tol,
+                                                                      agc_target=self.ms2_agc_target,
+                                                                      max_it=self.ms2_max_it,
+                                                                      collision_energy=self.ms2_collision_energy,
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -344,7 +114,7 @@ class TopNController(Controller):
 
             # if no ms1 has been added, then add at the end
             if not done_ms1:
-            # if fragmented_count < self.N - self.ms1_shift:
+                # if fragmented_count < self.N - self.ms1_shift:
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
@@ -435,7 +205,6 @@ class TopNController(Controller):
             # TODO: we need to add a repeat count too, i.e. how many times we've seen a fragment peak before
             #  it gets excluded (now it's basically 1)
 
-
             # TODO: check if already excluded and, if so, just move the time
             mz = precursor.precursor_mz
             mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
@@ -474,24 +243,30 @@ class TopNController(Controller):
 
 
 class ScanItem(object):
-    def __init__(self,mz,intensity,weight=1):
+    """
+    Represents a scan item object. Used by the WeightedDEW controller.
+    """
+
+    def __init__(self, mz, intensity, weight=1):
         self.mz = mz
         self.intensity = intensity
         self.weight = weight
 
-    def __lt__(self,other):
-        if self.intensity*self.weight <= other.intensity*other.weight:
+    def __lt__(self, other):
+        if self.intensity * self.weight <= other.intensity * other.weight:
             return True
         else:
             return False
 
-class ExcludingTopNController(TopNController):
+
+class WeightedDEWController(TopNController):
     """
     A Top-N controller. Does an MS1 scan followed by N fragmentation scans of the peaks with the highest intensity
     that are not excluded
     """
+
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
-                exclusion_t_0=15,log_intensity=False,
+                 exclusion_t_0=15, log_intensity=False,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
@@ -502,15 +277,15 @@ class ExcludingTopNController(TopNController):
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
-                        ms1_agc_target=ms1_agc_target,
-                        ms1_max_it=ms1_max_it,
-                        ms1_collision_energy=ms1_collision_energy,
-                        ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                        ms2_agc_target=ms2_agc_target,
-                        ms2_max_it=ms2_max_it,
-                        ms2_collision_energy=ms2_collision_energy,
-                        ms2_orbitrap_resolution=ms2_orbitrap_resolution)
-        
+                         ms1_agc_target=ms1_agc_target,
+                         ms1_max_it=ms1_max_it,
+                         ms1_collision_energy=ms1_collision_energy,
+                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
+                         ms2_agc_target=ms2_agc_target,
+                         ms2_max_it=ms2_max_it,
+                         ms2_collision_energy=ms2_collision_energy,
+                         ms2_orbitrap_resolution=ms2_orbitrap_resolution)
+
         self.exclusion_t_0 = exclusion_t_0
         self.log_intensity = log_intensity
         assert self.exclusion_t_0 <= self.rt_tol
@@ -524,20 +299,19 @@ class ExcludingTopNController(TopNController):
             intensities = self.scan_to_process.intensities
             rt = self.scan_to_process.rt
 
-
-
             if not self.log_intensity:
-                mzi = [ScanItem(mz,intensities[i]) for i,mz in enumerate(mzs) if intensities[i] >= self.min_ms1_intensity]
+                mzi = [ScanItem(mz, intensities[i]) for i, mz in enumerate(mzs) if
+                       intensities[i] >= self.min_ms1_intensity]
             else:
                 # take log of intensities for peak scoring
-                mzi = [ScanItem(mz,np.log(intensities[i])) for i,mz in enumerate(mzs) if intensities[i] >= self.min_ms1_intensity]
-            
-            
+                mzi = [ScanItem(mz, np.log(intensities[i])) for i, mz in enumerate(mzs) if
+                       intensities[i] >= self.min_ms1_intensity]
+
             for si in mzi:
-                is_exc,weight = self._is_excluded(si.mz,rt)
+                is_exc, weight = self._is_excluded(si.mz, rt)
                 si.weight = weight
-            
-            mzi.sort(reverse = True)
+
+            mzi.sort(reverse=True)
 
             done_ms1 = False
             ms2_tasks = []
@@ -548,10 +322,10 @@ class ExcludingTopNController(TopNController):
                 if fragmented_count >= self.N:
                     logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
                     break
-                
+
                 mz = mzi[i].mz
                 if not self.log_intensity:
-                    intensity =  mzi[i].intensity
+                    intensity = mzi[i].intensity
                 else:
                     intensity = np.exp(mzi[i].intensity)
 
@@ -564,15 +338,14 @@ class ExcludingTopNController(TopNController):
                             rt, intensity, fragmented_count))
                     break
 
-                
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                               self.isolation_width, self.mz_tol, self.rt_tol,
-                                                               agc_target=self.ms2_agc_target,
-                                                               max_it=self.ms2_max_it,
-                                                               collision_energy=self.ms2_collision_energy,
-                                                               orbitrap_resolution=self.ms2_orbitrap_resolution)
+                                                                      self.isolation_width, self.mz_tol, self.rt_tol,
+                                                                      agc_target=self.ms2_agc_target,
+                                                                      max_it=self.ms2_max_it,
+                                                                      collision_energy=self.ms2_collision_energy,
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -591,7 +364,7 @@ class ExcludingTopNController(TopNController):
 
             # if no ms1 has been added, then add at the end
             if not done_ms1:
-            # if fragmented_count < self.N - self.ms1_shift:
+                # if fragmented_count < self.N - self.ms1_shift:
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
@@ -609,7 +382,6 @@ class ExcludingTopNController(TopNController):
             self.scan_to_process = None
         return new_tasks
 
-    
     def _manage_dynamic_exclusion_list(self, scan):
         # self.exclusion_list = set(self.exclusion_list)
         # for ei in self.remove_exclusion_items:
@@ -617,8 +389,6 @@ class ExcludingTopNController(TopNController):
         #         self.exclusion_list.remove(ei)
         # self.exclusion_list = list(self.exclusion_list)
         super()._manage_dynamic_exclusion_list(scan)
-
-        
 
     def _is_excluded(self, mz, rt):
         """
@@ -629,7 +399,7 @@ class ExcludingTopNController(TopNController):
         """
         # TODO: make this faster?
         exclusion_list = self.exclusion_list + self.temp_exclusion_list
-        exclusion_list.sort(key = lambda x: x.from_rt,reverse = True)
+        exclusion_list.sort(key=lambda x: x.from_rt, reverse=True)
         for x in exclusion_list:
             exclude_mz = x.from_mz <= mz <= x.to_mz
             exclude_rt = x.from_rt <= rt <= x.to_rt
@@ -637,57 +407,13 @@ class ExcludingTopNController(TopNController):
                 logger.debug(
                     'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
                 if rt <= x.from_rt + self.exclusion_t_0:
-                    return True,0.0
+                    return True, 0.0
                 else:
-                    weight = (rt - (self.exclusion_t_0 + x.from_rt))/(self.rt_tol - self.exclusion_t_0)
-                    assert weight <= 1,weight
+                    weight = (rt - (self.exclusion_t_0 + x.from_rt)) / (self.rt_tol - self.exclusion_t_0)
+                    assert weight <= 1, weight
                     # self.remove_exclusion_items.append(x)
-                    return True,weight
-        return False,1
-
-
-
-def box_match(mzi, boxes):
-    # mzi and boxes are sorted by mz
-    import bisect
-    # loop over the mzi
-    mzib = []
-    lower_boxes = [b.mz_range[0] for b in boxes]
-    for this_mzi in mzi:
-        # find the possible boxes
-        left_pos = bisect.bisect_right(lower_boxes, this_mzi[0])
-        if left_pos < len(boxes):
-            left_pos -= 1  # this is the first possible box
-            if left_pos == -1:  # peak is lower in mz than all boxes
-                continue
-            if this_mzi[0] < boxes[left_pos].mz_range[1]:
-                # found a match
-                # compute time proportion left in the peak
-                matching_box = boxes[left_pos]
-                mzib.append((this_mzi[0], this_mzi[1], matching_box))
-                del boxes[left_pos]
-                del lower_boxes[left_pos]
-            else:
-                # no match found
-                pass
-        else:
-            # no match found
-            pass
-    return mzib
-
-
-def score_peak_boxes(mzib, current_rt, score='intensity'):
-    # mzib = (mz,intensity,box) tuple
-    if score == 'intensity':
-        # simplest: score = intensity
-        scores = [(mz, i, b, i) for mz, i, b in mzib]
-    elif score == 'urgency':
-        scores = [(mz, i, b, -(b.rt_range_in_seconds[1] - current_rt)) for mz, i, b in mzib]
-    elif score == 'apex':
-        scores = [(mz, i, b, current_rt - b.rt_in_seconds) for mz, i, b in mzib]
-    elif score == 'random':
-        scores = [(mz, i, b, np.random.rand()) for mz, i, b in mzib]
-    return scores
+                    return True, weight
+        return False, 1
 
 
 class OptimalTopNController(TopNController):
@@ -735,12 +461,12 @@ class OptimalTopNController(TopNController):
             # sort by mz for matching with the boxes
             mzi.sort(key=lambda x: x[0])
             sub_boxes.sort(key=lambda x: x.mz_range[0])
-            mzib = box_match(mzi, sub_boxes)  # (mz,intensity,box)
+            mzib = self.box_match(mzi, sub_boxes)  # (mz,intensity,box)
 
             # If there are things to fragment, schedule the scans...
             if len(mzib) > 0:
                 # compute the scores
-                mzibs = score_peak_boxes(mzib, rt, score=self.score_method)
+                mzibs = self.score_peak_boxes(mzib, rt, score=self.score_method)
                 # loop over points in decreasing score
                 fragmented_count = 0
                 # idx = np.argsort(intensities)[::-1]
@@ -797,6 +523,46 @@ class OptimalTopNController(TopNController):
             # set this ms1 scan as has been processed
             self.scan_to_process = None
         return new_tasks
+
+    def _box_match(self, mzi, boxes):
+        # mzi and boxes are sorted by mz
+        # loop over the mzi
+        mzib = []
+        lower_boxes = [b.mz_range[0] for b in boxes]
+        for this_mzi in mzi:
+            # find the possible boxes
+            left_pos = bisect.bisect_right(lower_boxes, this_mzi[0])
+            if left_pos < len(boxes):
+                left_pos -= 1  # this is the first possible box
+                if left_pos == -1:  # peak is lower in mz than all boxes
+                    continue
+                if this_mzi[0] < boxes[left_pos].mz_range[1]:
+                    # found a match
+                    # compute time proportion left in the peak
+                    matching_box = boxes[left_pos]
+                    mzib.append((this_mzi[0], this_mzi[1], matching_box))
+                    del boxes[left_pos]
+                    del lower_boxes[left_pos]
+                else:
+                    # no match found
+                    pass
+            else:
+                # no match found
+                pass
+        return mzib
+
+    def _score_peak_boxes(self, mzib, current_rt, score='intensity'):
+        # mzib = (mz,intensity,box) tuple
+        if score == 'intensity':
+            # simplest: score = intensity
+            scores = [(mz, i, b, i) for mz, i, b in mzib]
+        elif score == 'urgency':
+            scores = [(mz, i, b, -(b.rt_range_in_seconds[1] - current_rt)) for mz, i, b in mzib]
+        elif score == 'apex':
+            scores = [(mz, i, b, current_rt - b.rt_in_seconds) for mz, i, b in mzib]
+        elif score == 'random':
+            scores = [(mz, i, b, np.random.rand()) for mz, i, b in mzib]
+        return scores
 
 
 class PurityController(TopNController):

@@ -1,20 +1,14 @@
 import bisect
 
-import numpy as np
-from loguru import logger
+from mass_spec_utils.data_import.mzml import MZMLFile
 from sklearn import linear_model
 from sklearn.preprocessing import PolynomialFeatures
 
+from vimms.Common import *
 from vimms.Controller import TopNController
 from vimms.PeakDetector import calculate_window_change
 from vimms.Roi import match, Roi, SmartRoi
-from vimms.Common import *
 
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
-
-
-import traceback
 
 class RoiController(TopNController):
     """
@@ -24,14 +18,14 @@ class RoiController(TopNController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
                  # advanced parameters
-                ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                ms1_max_it = DEFAULT_MS1_MAXIT,
-                ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                ms2_max_it = DEFAULT_MS2_MAXIT,
-                ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift,
                          ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target,
                          ms2_max_it, ms2_collision_energy, ms2_orbitrap_resolution)
@@ -211,17 +205,18 @@ class SmartRoiController(RoiController):
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans",
                  drop_perc=0.01, ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
-                         ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
+                         ms1_agc_target, ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target,
+                         ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.reset_length_seconds = reset_length_seconds
         self.intensity_increase_factor = intensity_increase_factor
@@ -326,15 +321,16 @@ class SmartRoiController(RoiController):
                 mz = new_scan.mzs[idx]
                 if intensity >= self.min_roi_intensity:
                     match_roi = match(SmartRoi(mz, 0, 0, self.min_roi_length_for_fragmentation,
-                                            self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
-                                    self.live_roi, self.mz_tol, mz_units=self.mz_units)
+                                               self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
+                                      self.live_roi, self.mz_tol, mz_units=self.mz_units)
                     if match_roi:
                         match_roi.add(mz, current_ms1_scan_rt, intensity)
                         if match_roi in not_grew:
                             not_grew.remove(match_roi)
                     else:
                         new_roi = SmartRoi(mz, current_ms1_scan_rt, intensity, self.min_roi_length_for_fragmentation,
-                                        self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol, drop_perc = self.drop_perc)
+                                           self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol,
+                                           drop_perc=self.drop_perc)
                         bisect.insort_right(self.live_roi, new_roi)
                         self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
                         self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
@@ -371,16 +367,17 @@ class SmartRoiController(RoiController):
 class TopN_SmartRoiController(SmartRoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
-                 reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01, ms1_shift=0,
+                 reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
+                 ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol, min_roi_length_for_fragmentation,
                          reset_length_seconds, intensity_increase_factor, length_units, drop_perc, ms1_shift,
@@ -395,18 +392,20 @@ class TopN_SmartRoiController(SmartRoiController):
 
 class TopN_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
+                         ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
 
@@ -421,16 +420,17 @@ class DsDA_RoiController(RoiController):
                  min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  peak_df=None, peak_scores=None, ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
+                         ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.peak_df = peak_df
@@ -450,18 +450,20 @@ class DsDA_RoiController(RoiController):
 class Probability_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  probability_method, model_params,  # controller specific parameters
-                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
+                         ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.probability_method = probability_method
@@ -489,18 +491,20 @@ class Probability_RoiController(RoiController):
 class LocalModel_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  model_input_len, score_params,  # controller specific parameters
-                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
+                         ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.model = linear_model.LinearRegression(fit_intercept=False)
@@ -537,19 +541,20 @@ class Repeated_SmartRoiController(SmartRoiController):
                  peak_boxes=[], peak_box_scores=[], box_increase_factor=2, box_decrease_factor=0, box_mz_tol=10,
                  ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N, rt_tol, min_roi_length_for_fragmentation,reset_length_seconds,
-                       intensity_increase_factor, length_units, drop_perc, ms1_shift, ms1_agc_target, ms1_max_it,
-                       ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it, ms2_collision_energy,
-                       ms2_orbitrap_resolution)
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, reset_length_seconds,
+                         intensity_increase_factor, length_units, drop_perc, ms1_shift, ms1_agc_target, ms1_max_it,
+                         ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
+                         ms2_collision_energy,
+                         ms2_orbitrap_resolution)
         self.peak_boxes = peak_boxes
         self.peak_box_scores = peak_box_scores
         self.box_increase_factor = box_increase_factor
@@ -593,11 +598,12 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                        min_roi_length, N, rt_tol, min_roi_length_for_fragmentation,reset_length_seconds,
-                        intensity_increase_factor, length_units, drop_perc, peak_boxes, peak_box_scores,
-                        box_increase_factor, box_decrease_factor, box_mz_tol, ms1_shift, ms1_agc_target, ms1_max_it,
-                        ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it, ms2_collision_energy,
-                        ms2_orbitrap_resolution)
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, reset_length_seconds,
+                         intensity_increase_factor, length_units, drop_perc, peak_boxes, peak_box_scores,
+                         box_increase_factor, box_decrease_factor, box_mz_tol, ms1_shift, ms1_agc_target, ms1_max_it,
+                         ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
+                         ms2_collision_energy,
+                         ms2_orbitrap_resolution)
         self.coef_scale = coef_scale
         self.model_scores = model_scores
 
@@ -628,18 +634,20 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
 class Classifier_RoiController(RoiController):  # TODO: Needs properly implementing, but working roughly in principle
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  roi_picking_model, roi_param_dict,  # controller specific parameters
-                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 ms1_shift=0,
                  # advanced parameters
-                 ms1_agc_target = DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it = DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy = DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution = DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target = DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it = DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy = DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution = DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift, ms1_agc_target,
+                         min_roi_length, N, rt_tol, min_roi_length_for_fragmentation, length_units, ms1_shift,
+                         ms1_agc_target,
                          ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
                          ms2_collision_energy, ms2_orbitrap_resolution)
         self.roi_picking_model = roi_picking_model
@@ -662,6 +670,7 @@ class Classifier_RoiController(RoiController):  # TODO: Needs properly implement
     #     initial_scores *= self._get_roi_scores()
     #     scores = self._get_top_N_scores(initial_scores)
     #     return scoresó
+
 
 ########################################################################################################################
 # Other Functions
@@ -703,7 +712,8 @@ def get_box_intensity(mzml_file, boxes):
         if scan.ms_level == 2:
             continue
         rt = scan.rt_in_seconds
-        zipped_boxes = list(filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <= x[0].rt_range_in_seconds[1], zip(boxes, box_ids)))
+        zipped_boxes = list(
+            filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <= x[0].rt_range_in_seconds[1], zip(boxes, box_ids)))
         if not zipped_boxes:
             continue
         for mzint in scan.peaks:
@@ -717,4 +727,3 @@ def get_box_intensity(mzml_file, boxes):
                     intensities[box[1]] = intensity
                     mzs[box[1]] = mz
     return intensities, mzs
-

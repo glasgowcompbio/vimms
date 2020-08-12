@@ -580,7 +580,7 @@ POSSIBLE_CONTROLLER_DICT = {'TopN_RoiController': TopNController,
                             'TopN_SmartRoiController': TopN_SmartRoiController,
                             'Repeated_SmartRoiController': Repeated_SmartRoiController,
                             'CaseControl_SmartRoiController': CaseControl_SmartRoiController,
-                            'WeightedDewController': ExcludingTopNController}
+                            'WeightedDewController': WeightedDEWController}
 
 
 def merge_controller_param_dict(dict1, dict2, method, possible_controller_dict=POSSIBLE_CONTROLLER_DICT):
@@ -709,14 +709,14 @@ def create_controller(controller_method, param_dict):
                                       param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
                                       param_dict['ms2_orbitrap_resolution'])
     elif controller_method == 'WeightedDewController':
-        controller = ExcludingTopNController(param_dict['ionisation_mode'], param_dict['N'],
-                                             param_dict['isolation_width'], param_dict['mz_tol'], param_dict['rt_tol'],
-                                             param_dict['min_ms1_intensity'], param_dict['ms1_shift'],
-                                             param_dict['exclusion_t_0'], param_dict['log_intensity'],
-                                             param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                             param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
-                                             param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
-                                             param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
+        controller = WeightedDEWController(param_dict['ionisation_mode'], param_dict['N'],
+                                           param_dict['isolation_width'], param_dict['mz_tol'], param_dict['rt_tol'],
+                                           param_dict['min_ms1_intensity'], param_dict['ms1_shift'],
+                                           param_dict['exclusion_t_0'], param_dict['log_intensity'],
+                                           param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                           param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
+                                           param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
+                                           param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
     else:
         logger.warning('Invalid controller_method')
     return controller

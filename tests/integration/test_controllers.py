@@ -5,8 +5,9 @@ import pytest
 
 from vimms.Chemicals import ChemicalCreator
 from vimms.Common import *
-from vimms.Controller import SimpleMs1Controller, TopNController, PurityController, TopN_RoiController, \
-    TopN_SmartRoiController, ExcludingTopNController
+from vimms.Controller import TopNController, PurityController, TopN_RoiController, \
+    TopN_SmartRoiController, WeightedDEWController
+from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import GaussianPeakNoise
@@ -488,10 +489,10 @@ class TestTopNExcludingShiftedController:
         # create a simulated mass spec without noise and Top-N controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_duration_dict)
-        controller = ExcludingTopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
-                                             ms1_shift=test_shift,
-                                             exclusion_t_0=exclusion_t_0,
-                                             log_intensity=True)
+        controller = WeightedDEWController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
+                                           ms1_shift=test_shift,
+                                           exclusion_t_0=exclusion_t_0,
+                                           log_intensity=True)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)

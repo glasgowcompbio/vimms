@@ -6,7 +6,8 @@ from tqdm import tqdm
 from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_ISOLATION_WIDTH, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, POSITIVE, DEFAULT_MSN_SCAN_WINDOW
-from vimms.Controller import TopNController, PurityController, FixedScheduleController
+from vimms.Controller import TopNController, PurityController
+from vimms.Controller.misc import FixedScheduleController
 from vimms.MassSpec import ScanParameters, IndependentMassSpectrometer, Precursor
 from vimms.MzmlWriter import MzmlWriter
 

@@ -6,10 +6,6 @@ from vimms.DIA import DiaWindows
 from vimms.MassSpec import ScanParameters
 
 
-########################################################################################################################
-# DIA Controllers
-########################################################################################################################
-
 class TreeController(Controller):
     def __init__(self, dia_design, window_type, kaufmann_design, extra_bins, num_windows=None):
         super().__init__()

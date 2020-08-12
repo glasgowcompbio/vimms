@@ -82,7 +82,7 @@ class AIF(Controller):
 
             scans.append(task)
             self.scan_number += 1
-            self.next_processed_scan_id += 2
+            self.next_processed_scan_id = self.scan_number
 
 
             # set this ms1 scan as has been processed

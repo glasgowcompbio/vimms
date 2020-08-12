@@ -461,12 +461,12 @@ class OptimalTopNController(TopNController):
             # sort by mz for matching with the boxes
             mzi.sort(key=lambda x: x[0])
             sub_boxes.sort(key=lambda x: x.mz_range[0])
-            mzib = self.box_match(mzi, sub_boxes)  # (mz,intensity,box)
+            mzib = self._box_match(mzi, sub_boxes)  # (mz,intensity,box)
 
             # If there are things to fragment, schedule the scans...
             if len(mzib) > 0:
                 # compute the scores
-                mzibs = self.score_peak_boxes(mzib, rt, score=self.score_method)
+                mzibs = self._score_peak_boxes(mzib, rt, score=self.score_method)
                 # loop over points in decreasing score
                 fragmented_count = 0
                 # idx = np.argsort(intensities)[::-1]

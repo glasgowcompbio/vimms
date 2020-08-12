@@ -446,6 +446,7 @@ class OptimalTopNController(TopNController):
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
+        ms2_tasks = []
         if self.scan_to_process is not None:
 
             mzs = self.scan_to_process.mzs
@@ -511,13 +512,17 @@ class OptimalTopNController(TopNController):
                                                                           self.isolation_width, self.mz_tol,
                                                                           self.rt_tol)
                     new_tasks.append(dda_scan_params)
+                    ms2_tasks.append(dda_scan_params)
                     fragmented_count += 1
+                    self.current_task_id += 1
 
                     pos = self.boxes.index(matched_box)
                     del self.boxes[pos]
 
             # an MS1 is added here, as we no longer send MS1s as default
             ms1_scan_params = self.environment.get_default_scan_params()
+            self.current_task_id += 1
+            self.next_processed_scan_id = self.current_task_id
             new_tasks.append(ms1_scan_params)
 
             # set this ms1 scan as has been processed

@@ -109,10 +109,17 @@ class Isotopes(object):
 
 
 class Adducts(object):
-    def __init__(self, formula, adduct_proportion_cutoff=0.05):
-        self.adduct_names = list(POS_TRANSFORMATIONS.keys())
+    def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
+        if adduct_prior_dict is None:
+            self.adduct_names = list(POS_TRANSFORMATIONS.keys())
+            self.adduct_prior = np.ones(len(self.adduct_names)) * 0.1
+            self.adduct_prior[0] = 1.0 # give more weight to the first one, i.e. M+H
+        else:
+            self.adduct_names = list(adduct_prior_dict.keys())
+            self.adduct_prior = np.array(list(adduct_prior_dict.values()))
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
+
 
     def get_adducts(self):
         adducts = []
@@ -124,11 +131,9 @@ class Adducts(object):
 
     def _get_adduct_proportions(self):
         # TODO: replace this with something proper
-        prior = np.ones(len(self.adduct_names)) * 0.1
-        prior[0] = 1.0  # give more weight to the first one, i.e. M+H
-        proportions = np.random.dirichlet(prior)
+        proportions = np.random.dirichlet(self.adduct_prior)
         while max(proportions) < 0.2:
-            proportions = np.random.dirichlet(prior)
+            proportions = np.random.dirichlet(self.adduct_prior)
         proportions[np.where(proportions < self.adduct_proportion_cutoff)] = 0
         proportions = proportions / max(proportions)
         proportions.tolist()
@@ -247,7 +252,7 @@ class ChemicalCreator(object):
 
     def sample(self, mz_range, rt_range, min_ms1_intensity, n_ms1_peaks, ms_levels, alpha=math.inf,
                fixed_mz=False, adduct_proportion_cutoff=0.05, roi_rt_range=None, include_adducts_isotopes=True,
-               get_children_method=GET_MS2_BY_PEAKS):
+               get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=None):
         self.mz_range = mz_range
         self.rt_range = rt_range
         self.min_ms1_intensity = min_ms1_intensity
@@ -258,6 +263,7 @@ class ChemicalCreator(object):
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
         self.include_adducts_isotopes = include_adducts_isotopes
         self.get_children_method = get_children_method
+        self.adduct_prior_dict = adduct_prior_dict
 
         # set up some counters
         self.crp_samples = [[] for i in range(self.ms_levels)]
@@ -457,7 +463,7 @@ class ChemicalCreator(object):
         intensity = sampled_peak.intensity
         formula = Formula(formula)
         isotopes = Isotopes(formula)
-        adducts = Adducts(formula, self.adduct_proportion_cutoff)
+        adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
         return KnownChemical(formula, isotopes, adducts, adjusted_rt, intensity, ROI.chromatogram, None,
                              include_adducts_isotopes)
 

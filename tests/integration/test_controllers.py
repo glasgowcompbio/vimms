@@ -86,6 +86,13 @@ def fragscan_dataset_peaks(fragscan_ps):
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
                         get_children_method=GET_MS2_BY_PEAKS)
 
+@pytest.fixture(scope="module")
+def fragscan_dataset_peaks_onlyMH(fragscan_ps):
+    chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
+    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
+                        get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=ADDUCT_DICT_POS_MH)
+
+
 
 @pytest.fixture(scope="module")
 def fragscan_dataset_spectra(fragscan_ps):
@@ -256,6 +263,30 @@ class TestTopNController:
         # write simulated output to mzML file
         filename = 'topN_controller_qcbeer_chems_no_noise_with_scan_duration.mzML'
         check_mzML(env, OUT_DIR, filename)
+
+    def test_TopN_controller_with_simulated_chems_onlyMH(self, fragscan_dataset_peaks_onlyMH, fragscan_ps):
+        logger.info('Testing Top-N controller with simulated chemicals -- no noise, only MH adducts')
+        assert len(fragscan_dataset_peaks_onlyMH) == N_CHEMS
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks_onlyMH, fragscan_ps)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks_onlyMH, CENTRE_RANGE)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        run_environment(env)
+
+        # write simulated output to mzML file
+        filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
 
 
 class TestPurityController:

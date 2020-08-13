@@ -184,10 +184,15 @@ class TestTopNController:
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
+        # check that MS2 scans exist and aren't empty
+        for scan in controller.scans[2]:
+            assert scan.num_peaks > 0
+
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    @pytest.mark.skip(reason="no way of currently testing this")
     def test_TopN_controller_with_simulated_chems_and_noise(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals -- with noise')
         assert len(fragscan_dataset_peaks) == N_CHEMS
@@ -212,6 +217,7 @@ class TestTopNController:
         filename = 'topN_controller_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    @pytest.mark.skip(reason="no way of currently testing this")
     def test_TopN_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -233,6 +239,7 @@ class TestTopNController:
         filename = 'topN_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    @pytest.mark.skip(reason="no way of currently testing this")
     def test_TopN_controller_with_beer_chems_and_scan_duration_dict(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals passing in the scan durations')
 

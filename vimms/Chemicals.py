@@ -10,7 +10,7 @@ import scipy.stats
 from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
-from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj
+from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES
 
 
 class DatabaseCompound(object):
@@ -26,7 +26,7 @@ class DatabaseCompound(object):
 class Formula(object):
     def __init__(self, formula_string):
         self.formula_string = formula_string
-        self.atom_names = ['C', 'H', 'N', 'O', 'P', 'S', 'Cl', 'I', 'Br', 'Si', 'F', 'D']
+        self.atom_names = ATOM_NAMES
         self.atoms = {}
         for atom in self.atom_names:
             self.atoms[atom] = self._get_n_element(atom)
@@ -37,12 +37,12 @@ class Formula(object):
 
     def _get_n_element(self, atom_name):
         # Do some regex matching to find the numbers of the important atoms
-        ex = atom_name + '(?![a-z])' + '\d*'
+        ex = atom_name + '(?![a-z])' + '\\d*'
         m = re.search(ex, self.formula_string)
         if m == None:
             return 0
         else:
-            ex = atom_name + '(?![a-z])' + '(\d*)'
+            ex = atom_name + '(?![a-z])' + '(\\d*)'
             m2 = re.findall(ex, self.formula_string)
             total = 0
             for a in m2:
@@ -53,9 +53,7 @@ class Formula(object):
             return total
 
     def compute_exact_mass(self):
-        masses = {'C': 12.00000000000, 'H': 1.00782503214, 'O': 15.99491462210, 'N': 14.00307400524,
-                  'P': 30.97376151200, 'S': 31.97207069000, 'Cl': 34.96885271000, 'I': 126.904468, 'Br': 78.9183376,
-                  'Si': 27.9769265327, 'F': 18.99840320500, 'D': 2.01410177800}
+        masses = ATOM_MASSES
         exact_mass = 0.0
         for a in self.atoms:
             exact_mass += masses[a] * self.atoms[a]

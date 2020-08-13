@@ -90,7 +90,7 @@ def fragscan_dataset_peaks(fragscan_ps):
 @pytest.fixture(scope="module")
 def fragscan_dataset_spectra(fragscan_ps):
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
+    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_SPECTRA)
 
 

@@ -61,6 +61,12 @@ def check_mzML(env, out_dir, filename):
     logger.info('Done')
     assert os.path.exists(out_file)
 
+def check_non_empty_MS2(controller):
+    non_empty = 0
+    for scan in controller.scans[2]:
+        if scan.num_peaks > 0:
+            non_empty += 1
+    assert non_empty > 0
 
 ### define some useful test fixtures ###
 
@@ -185,17 +191,12 @@ class TestTopNController:
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
-        non_empty = 0
-        for scan in controller.scans[2]:
-            if scan.num_peaks > 0:
-                non_empty += 1
-        assert non_empty > 0
+        check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    @pytest.mark.skip(reason="no way of currently testing this")
     def test_TopN_controller_with_simulated_chems_and_noise(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals -- with noise')
         assert len(fragscan_dataset_peaks) == N_CHEMS
@@ -216,11 +217,15 @@ class TestTopNController:
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    @pytest.mark.skip(reason="no way of currently testing this")
     def test_TopN_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -238,11 +243,13 @@ class TestTopNController:
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
 
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
         # write simulated output to mzML file
         filename = 'topN_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    @pytest.mark.skip(reason="no way of currently testing this")
     def test_TopN_controller_with_beer_chems_and_scan_duration_dict(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals passing in the scan durations')
 
@@ -262,6 +269,9 @@ class TestTopNController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
         filename = 'topN_controller_qcbeer_chems_no_noise_with_scan_duration.mzML'

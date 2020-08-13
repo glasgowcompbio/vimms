@@ -470,7 +470,12 @@ class IndependentMassSpectrometer(object):
         else:  # for (1, 2), (2, 1) and (2, 2)
             current_scan_duration = self.peak_sampler.scan_durations(current_level, next_level, 1,
                                                                      N=current_N, DEW=current_DEW)
-        current_scan_duration = current_scan_duration.flatten()[0]
+        
+        try:
+            current_scan_duration = current_scan_duration.flatten()[0]
+        except:
+            print("Failed to sample, current level =  {}, next level = {}".format(current_level,next_level))
+            current_scan_duration =  0.1
         return current_scan_duration
 
     def _store_next_N_DEW(self, next_scan_param):
@@ -547,10 +552,21 @@ class IndependentMassSpectrometer(object):
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
+        #added condition for checking collision energy of scan & return MS2 data in an MS1 scan
+        collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
+        if params.get(ScanParameters.ISOLATION_WINDOWS) is None:
+            specified_iso_windows = False
+        else:
+            specified_iso_windows = True
+        
+        if collision_energy > 0 and specified_iso_windows == True and ms_level == 2:
+            sc= Scan(scan_id, scan_mzs, scan_intensities, 1, scan_time, scan_duration=None, scan_params=params)
+        else:
+            sc= Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
+
         # Note: at this point, the scan duration is not set yet because we don't know what the next scan is going to be
         # We will set it later in the get_next_scan() method after we've notified the controller that this scan is produced.
-        return Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time,
-                    scan_duration=None, scan_params=params)
+        return sc
 
     def _get_chem_indices(self, query_rt):
         rtmin_check = self.chrom_min_rts <= query_rt

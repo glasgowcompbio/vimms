@@ -83,7 +83,7 @@ def fragscan_ps():
 @pytest.fixture(scope="module")
 def fragscan_dataset_peaks(fragscan_ps):
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
+    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_PEAKS)
 
 
@@ -184,9 +184,12 @@ class TestTopNController:
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
-        # check that MS2 scans exist and aren't empty
+        # check that there is at least one non-empty MS2 scan
+        non_empty = 0
         for scan in controller.scans[2]:
-            assert scan.num_peaks > 0
+            if scan.num_peaks > 0:
+                non_empty += 1
+        assert non_empty > 0
 
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_no_noise.mzML'

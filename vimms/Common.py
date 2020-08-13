@@ -56,7 +56,11 @@ POS_TRANSFORMATIONS['[M+DMSO]+H'] = lambda mz: (mz + 79.02122)
 POS_TRANSFORMATIONS['[M+2ACN]+H'] = lambda mz: (mz + 83.060370)
 POS_TRANSFORMATIONS['2M+H'] = lambda mz: (mz * 2) + 1.007276
 POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
-POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.033823
+POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.
+
+# example prior dictionary to be passed when creating an 
+# adducts object to only get M+H adducts out
+ADDUCT_DICT_POS_MH = {'M+H':1.0}
 
 GET_MS2_BY_PEAKS = "sample"
 GET_MS2_BY_SPECTRA = "spectra"

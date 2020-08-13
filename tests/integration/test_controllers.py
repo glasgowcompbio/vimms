@@ -581,23 +581,16 @@ class TestTopNExcludingShiftedController:
         check_mzML(env, OUT_DIR, filename)
 
 
-class TestDIAControllers(unittest.TestCase):
+class TestDIAControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
 
-    def setUp(self):
-        self.ps = load_obj(Path(base_dir, 'peak_sampler_mz_rt_int_beerqcb_fragmentation.p'))
-        self.ms_level = 1
-
-    def test_AIF_controller_with_simulated_chems(self):
+    def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals')
 
-        # create some chemical objects
-        chems = ChemicalCreator(self.ps, ROI_Sources, hmdb)
-        dataset = chems.sample(mz_range, rt_range, min_ms1_intensity, n_chems, self.ms_level,
-                               get_children_method=GET_MS2_BY_PEAKS)
-        self.assertEqual(len(dataset), n_chems)
+        # create some chemical object
+        assert len(fragscan_dataset_peaks) == N_CHEMS
 
         isolation_width = 1
         N = 10
@@ -616,11 +609,12 @@ class TestDIAControllers(unittest.TestCase):
 
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict)
         controller = AIF(min_mz,max_mz)
         
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
 
         # set the log level to WARNING so we don't see too many messages when environment is running
         set_log_level_warning()
@@ -633,18 +627,17 @@ class TestDIAControllers(unittest.TestCase):
 
         # write simulated output to mzML file
         filename = 'AIF_simulated_chems_no_noise.mzML'
-        out_file = os.path.join(out_dir, filename)
-        env.write_mzML(out_dir, filename)
-        self.assertTrue(os.path.exists(out_file))
+        check_mzML(env, OUT_DIR, filename)
 
         # create a simulated mass spec with noise and Top-N controller
         logger.info('With noise')
-        
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, self.ps, add_noise=True, scan_duration_dict = scan_time_dict)
+        peak_noise = GaussianPeakNoise(0.1, 1000)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict, peak_noise=peak_noise)
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
 
         # set the log level to WARNING so we don't see too many messages when environment is running
         set_log_level_warning()
@@ -657,12 +650,10 @@ class TestDIAControllers(unittest.TestCase):
 
         # write simulated output to mzML file
         filename = 'AIF_simulated_chems_with_noise.mzML'
-        out_file = os.path.join(out_dir, filename)
-        env.write_mzML(out_dir, filename)
-        self.assertTrue(os.path.exists(out_file))
-        print()
+        check_mzML(env, OUT_DIR, filename)
 
-    def test_AIF_controller_with_beer_chems(self):
+
+    def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
         isolation_width = 1
@@ -678,11 +669,11 @@ class TestDIAControllers(unittest.TestCase):
 
         # create a simulated mass spec without noise and Top-N controller
         scan_time_dict = {1:0.124,2:0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, beer_chems, self.ps, add_noise=False, scan_duration_dict = scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, scan_duration_dict = scan_time_dict)
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
 
         # set the log level to WARNING so we don't see too many messages when environment is running
         set_log_level_warning()
@@ -695,11 +686,7 @@ class TestDIAControllers(unittest.TestCase):
 
         # write simulated output to mzML file
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
-        out_file = os.path.join(out_dir, filename)
-        env.write_mzML(out_dir, filename)
-        self.assertTrue(os.path.exists(out_file))
-        print()
-
+        check_mzML(env, OUT_DIR, filename)
 
 
 

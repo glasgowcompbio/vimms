@@ -51,6 +51,7 @@ class AIF(Controller):
         # we make a new block
         # each block is an MS1 scan followed by an MS2 scan where the MS2 fragmens everything
         scans = []
+
         if self.scan_to_process is not None:
             
             # make the MS2 scan
@@ -87,5 +88,6 @@ class AIF(Controller):
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
+
         return scans
         

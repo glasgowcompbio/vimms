@@ -430,6 +430,9 @@ class TestSMARTROIController:
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
         # write simulated output to mzML file
         filename = 'smart_roi_controller_simulated_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
@@ -453,6 +456,9 @@ class TestSMARTROIController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
         filename = 'smart_controller_qcbeer_chems.mzML'
@@ -484,6 +490,10 @@ class TestTopNShiftedController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
 
         # write simulated output to mzML file
         filename = 'topN_shifted_controller_qcbeer_chems_no_noise.mzML'
@@ -517,6 +527,10 @@ class TestTopNExcludingShiftedController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
 
         # write simulated output to mzML file
         filename = 'topN_excluding_shifted_controller_qcbeer_chems_no_noise.mzML'

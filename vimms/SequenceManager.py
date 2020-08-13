@@ -1,25 +1,22 @@
 import glob
 import inspect
 import itertools
-import os
 import time
 from os.path import dirname, abspath
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-from loguru import logger
+import seaborn as sns
+from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_processing.alignment import BoxJoinAligner
 from sklearn.linear_model import LogisticRegression
 
-from vimms.Common import *
 from vimms.Controller import *
 from vimms.Environment import Environment
+from vimms.FeatureExtraction import extract_roi
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Scoring import picked_peaks_evaluation, roi_scoring
-
-from alignment import BoxJoinAligner
-from ms2_matching import MZMLFile, load_picked_boxes, map_boxes_to_scans
 
 parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')
@@ -97,15 +94,20 @@ class BaseSequenceManager(object):
         scores_dict = dict(mzmine_peaks_dict.items() | roi_score_dict.items())
         return scores_dict
 
-    def pick_peaks(self, mzml_file, controller_name):
-        ms2_picked_peaks_file = self.base_dir + '\\' + controller_name + '_pp.csv'
-        pickle_pp = glob.glob(os.path.join(self.base_dir, '*.csv'))
-        if os.path.basename(controller_name) + '_pp.csv' not in [os.path.basename(file) for file in pickle_pp]:
-            pick_peaks([mzml_file], xml_template=self.xml_template_ms2, output_dir=self.base_dir,
+    def pick_peaks(self, mzml_file, controller_name, ms_level):
+        if ms_level == 1:
+            picked_peaks_file = os.path.join(self.base_dir, Path(mzml_file).stem + '_pp.csv')
+            pick_peaks([mzml_file], xml_template=self.xml_template_ms1, output_dir=self.base_dir,
                        mzmine_command=self.mzmine_command)
         else:
-            logger.info('Found picked peaks file. Skipping...')
-        return ms2_picked_peaks_file
+            picked_peaks_file = self.base_dir + '\\' + controller_name + '_pp.csv'
+            pickle_pp = glob.glob(os.path.join(self.base_dir, '*.csv'))
+            if os.path.basename(controller_name) + '_pp.csv' not in [os.path.basename(file) for file in pickle_pp]:
+                pick_peaks([mzml_file], xml_template=self.xml_template_ms2, output_dir=self.base_dir,
+                           mzmine_command=self.mzmine_command)
+            else:
+                logger.info('Found picked peaks file. Skipping...')
+        return picked_peaks_file
 
     def update_aligned_scores(self):
         NotImplementedError()
@@ -127,9 +129,6 @@ class BaseSequenceManager(object):
         return results_df
 
 
-
-
-
 class VimmsSequenceManager(BaseSequenceManager):
     def __init__(self, controller_schedule, evaluation_methods, base_dir,
                  evaluaton_min_ms1_intensity=1.75E5,
@@ -149,6 +148,7 @@ class VimmsSequenceManager(BaseSequenceManager):
         if self.controller_schedule is not None:
             # filter controller_schedule to remove blank and calibration samples
             # in this case, we set the Controller Method to None in the schedule file
+            self.schedule_idx = np.where(np.array(controller_schedule['Controller Method']) != None)[0]
             self.controller_schedule = controller_schedule[
                 controller_schedule['Controller Method'].values != None].reset_index(drop=True)
 
@@ -158,17 +158,21 @@ class VimmsSequenceManager(BaseSequenceManager):
         if controller_name + '.mzML' not in [os.path.basename(file) for file in mzml_files]:
             controller, ms_params = super().run_experiment(idx)
             # load data and set up MS
-            dataset = load_obj(self.controller_schedule['Dataset'][idx])
-            mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'],
-                                                    ms_params['add_noise'], ms_params['isolation_transition_window'],
-                                                    ms_params['isolation_transition_window_params'])
-            # Run sample
-            env = Environment(mass_spec, controller, self.rt_range[0][0],
-                              self.rt_range[0][1], progress_bar=self.progress_bar)
-            env.run()
-            env.write_mzML(self.base_dir, controller_name + '.mzML')
-            if self.write_env:
-                save_obj(controller, os.path.join(self.base_dir, controller_name + '.p'))
+            logger.info(self.controller_schedule.iloc[[idx]].to_dict())
+            method = self.controller_schedule['Controller Method'][idx]
+            dataset = self.controller_schedule['Dataset'][idx]
+            if method is not None and dataset is not None:
+                dataset = load_obj(self.controller_schedule['Dataset'][idx])
+                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'],
+                                                        ms_params['add_noise'], ms_params['isolation_transition_window'],
+                                                        ms_params['isolation_transition_window_params'])
+                # Run sample
+                env = Environment(mass_spec, controller, self.rt_range[0][0],
+                                  self.rt_range[0][1], progress_bar=self.progress_bar)
+                env.run()
+                env.write_mzML(self.base_dir, controller_name + '.mzML')
+                if self.write_env:
+                    save_obj(controller, os.path.join(self.base_dir, controller_name + '.p'))
         else:
             logger.info('Experiment already completed. Skipping...')
         mzml_file = os.path.join(self.base_dir, controller_name + '.mzML')
@@ -198,7 +202,7 @@ class Experiment(object):
 
     def run_peak_picking(self, idx, current_mzml_file, controller_name):
         logger.info('Started Peak Picking: ' + self.sequence_manager.controller_schedule['Sample ID'][idx])
-        ms2_picked_peaks_file = self.sequence_manager.pick_peaks(current_mzml_file, controller_name)
+        ms2_picked_peaks_file = self.sequence_manager.pick_peaks(current_mzml_file, controller_name, 2)
         logger.info('Completed Peak Picking: ' + self.sequence_manager.controller_schedule['Sample ID'][idx])
         return ms2_picked_peaks_file
 
@@ -210,10 +214,25 @@ class Experiment(object):
 
 
 class BasicExperiment(Experiment):
-    def __init__(self, sequence_manager, parallel=False):
-        # TODO: change parallel to True once working
+    def __init__(self, sequence_manager, parallel=True, mzml_file_list=None, MZML2CHEMS_DICT=None, ps=None):
         self.parallel = parallel
+        self.mzml2chems_dict = MZML2CHEMS_DICT
+        self.ps = ps
+        sequence_manager = self.add_defaults_controller_params(sequence_manager)
+        if mzml_file_list is not None and all(np.array(sequence_manager.controller_schedule['Dataset']) == None):
+            sequence_manager = self.add_dataset_files(sequence_manager, mzml_file_list)
         super().__init__(sequence_manager)
+
+    def add_dataset_files(self, sequence_manager, mzml_file_list):
+        for i in range(len(sequence_manager.controller_schedule['Dataset'])):
+            if mzml_file_list[sequence_manager.schedule_idx[i]] is not None:
+                mzml_file = mzml_file_list[sequence_manager.schedule_idx[i]]
+                datasets = extract_roi([mzml_file], None, None, None, self.ps, param_dict=self.mzml2chems_dict)
+                dataset = datasets[0]
+                dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file_list[sequence_manager.schedule_idx[i]]).stem + '.p')
+                save_obj(dataset, dataset_name)
+                sequence_manager.controller_schedule['Dataset'][i] = dataset_name
+        return sequence_manager
 
     def run(self):
         if self.parallel:
@@ -257,6 +276,15 @@ class BasicExperiment(Experiment):
                 self.results.loc[idx, score_name] = results_df[score_name]
             logger.info('Finished %d' % idx)
 
+    def add_defaults_controller_params(self, sequence_manager):
+        for i in range(len(sequence_manager.controller_schedule['Controller Params'])):
+            if sequence_manager.controller_schedule['Controller Params'][i] is not None:
+                new_dict = merge_controller_param_dict(sequence_manager.controller_schedule['Controller Params'][i],
+                                                       dict(),
+                                                       sequence_manager.controller_schedule['Controller Method'][i])
+                sequence_manager.controller_schedule['Controller Params'][i] = new_dict
+        return sequence_manager
+
 
 def run_single(params):
     idx = params['idx']
@@ -277,19 +305,25 @@ def run_single(params):
 
 class GridSearchExperiment(BasicExperiment):
     def __init__(self, sequence_manager, controller_method, mass_spec_param_dict, dataset_file, variable_params_dict,
-                 base_params_dict,
-                 parallel=True):
-        # TODO: change parallel to True once working
+                 base_params_dict, mzml_file=None, MZML2CHEMS_DICT=None, ps=None, parallel=True):
+
         self.sequence_manager = sequence_manager
         self.parallel = parallel
         self.controller_method = controller_method
         self.mass_spec_param_dict = mass_spec_param_dict
         self.dataset_file = dataset_file
+        self.mzml_file = mzml_file
+        if self.dataset_file is None:
+            dataset = extract_roi([self.mzml_file], None, None, None, ps, param_dict=MZML2CHEMS_DICT)
+            dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
+            save_obj(dataset, dataset_name)
+            self.dataset_file = dataset_name
+            if self.sequence_manager.ms1_picked_peaks_file is None:
+                self.sequence_manager.ms1_picked_peaks_file = self.sequence_manager.pick_peaks(self.mzml_file, None, 1)
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
-        self.sequence_manager.controller_schedule = self._generate_controller_schedule()
-        self.results = self.sequence_manager.create_results_df()
-        self.run()
+        sequence_manager.controller_schedule = self._generate_controller_schedule()
+        super().__init__(sequence_manager, self.parallel)
 
     def run(self):
         super().run()
@@ -545,7 +579,8 @@ POSSIBLE_CONTROLLER_DICT = {'TopN_RoiController': TopNController,
                             'PurityController': PurityController,
                             'TopN_SmartRoiController': TopN_SmartRoiController,
                             'Repeated_SmartRoiController': Repeated_SmartRoiController,
-                            'CaseControl_SmartRoiController': CaseControl_SmartRoiController}
+                            'CaseControl_SmartRoiController': CaseControl_SmartRoiController,
+                            'WeightedDewController': WeightedDEWController}
 
 
 def merge_controller_param_dict(dict1, dict2, method, possible_controller_dict=POSSIBLE_CONTROLLER_DICT):
@@ -573,11 +608,11 @@ def create_controller(controller_method, param_dict):
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
                                         param_dict['min_roi_intensity'], param_dict['min_roi_length'], param_dict['N'],
                                         param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
-                                        param_dict['length_units'], param_dict['ms1_agc_target'],
-                                        param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
-                                        param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
-                                        param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
-                                        param_dict['ms2_orbitrap_resolution'])
+                                        param_dict['length_units'], param_dict['ms1_shift'],
+                                        param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                        param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
+                                        param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
+                                        param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
 
     if controller_method == 'TopN_SmartRoiController':
         controller = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -587,11 +622,11 @@ def create_controller(controller_method, param_dict):
                                              param_dict['min_roi_length_for_fragmentation'],
                                              param_dict['reset_length_seconds'],
                                              param_dict['intensity_increase_factor'], param_dict['length_units'],
-                                             param_dict['drop_perc'], param_dict['ms1_agc_target'],
-                                             param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
-                                             param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
-                                             param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
-                                             param_dict['ms2_orbitrap_resolution'])
+                                             param_dict['drop_perc'], param_dict['ms1_shift'],
+                                             param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                             param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
+                                             param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
+                                             param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
 
     elif controller_method == "Repeated_SmartRoiController":
         controller = Repeated_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -604,8 +639,8 @@ def create_controller(controller_method, param_dict):
                                                  param_dict['drop_perc'], param_dict['peak_boxes'],
                                                  param_dict['peak_box_scores'], param_dict['box_increase_factor'],
                                                  param_dict['box_decrease_factor'], param_dict['box_mz_tol'],
-                                                 param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                                 param_dict['ms1_collision_energy'],
+                                                 param_dict['ms1_shift'], param_dict['ms1_agc_target'],
+                                                 param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
                                                  param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
                                                  param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
                                                  param_dict['ms2_orbitrap_resolution'])
@@ -622,8 +657,8 @@ def create_controller(controller_method, param_dict):
                                                     param_dict['peak_box_scores'], param_dict['box_increase_factor'],
                                                     param_dict['box_decrease_factor'], param_dict['box_mz_tol'],
                                                     param_dict['coef_scale'], param_dict['model_scores'],
-                                                    param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                                    param_dict['ms1_collision_energy'],
+                                                    param_dict['ms1_shift'], param_dict['ms1_agc_target'],
+                                                    param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
                                                     param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
                                                     param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
                                                     param_dict['ms2_orbitrap_resolution'])
@@ -634,6 +669,7 @@ def create_controller(controller_method, param_dict):
                                         param_dict['min_roi_intensity'], param_dict['dsda_scoring_df'],
                                         param_dict['min_roi_length'], param_dict['N'], param_dict['rt_tol'],
                                         param_dict['min_roi_length_for_fragmentation'], param_dict['length_units'],
+                                        param_dict['peak_df'], param_dict['peak_scores'], param_dict['ms1_shift'],
                                         param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
                                         param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
                                         param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
@@ -646,8 +682,9 @@ def create_controller(controller_method, param_dict):
                                                param_dict['model_params'], param_dict['min_roi_length'],
                                                param_dict['N'], param_dict['rt_tol'],
                                                param_dict['min_roi_length_for_fragmentation'],
-                                               param_dict['length_units'], param_dict['ms1_agc_target'],
-                                               param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
+                                               param_dict['length_units'], param_dict['ms1_shift'],
+                                               param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                               param_dict['ms1_collision_energy'],
                                                param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
                                                param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
                                                param_dict['ms2_orbitrap_resolution'])
@@ -655,7 +692,7 @@ def create_controller(controller_method, param_dict):
     elif controller_method == 'TopNController':
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                                     param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
-                                    param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                    param_dict['ms1_shift'], param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
                                     param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
                                     param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
                                     param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
@@ -671,6 +708,21 @@ def create_controller(controller_method, param_dict):
                                       param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
                                       param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
                                       param_dict['ms2_orbitrap_resolution'])
+    elif controller_method == 'WeightedDewController':
+        controller = WeightedDEWController(param_dict['ionisation_mode'], param_dict['N'],
+                                           param_dict['isolation_width'], param_dict['mz_tol'], param_dict['rt_tol'],
+                                           param_dict['min_ms1_intensity'], param_dict['ms1_shift'],
+                                           param_dict['exclusion_t_0'], param_dict['log_intensity'],
+                                           param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                           param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
+                                           param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
+                                           param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
     else:
         logger.warning('Invalid controller_method')
     return controller
+
+
+def Heatmap_GridSearch(GridSearch_object, outcome_name, X_name, Y_name):
+    results = GridSearch_object.results.pivot(X_name, Y_name, outcome_name)
+    ax = sns.heatmap(results)
+

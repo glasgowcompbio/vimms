@@ -1,6 +1,5 @@
 import bisect
 import math
-import os
 from collections import OrderedDict
 import pandas as pd
 
@@ -10,9 +9,9 @@ import pymzml
 from loguru import logger
 from scipy.stats import pearsonr
 
-from vimms.Chemicals import ChemicalCreator, UnknownChemical, GET_MS2_BY_PEAKS
+from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import PROTON_MASS, CHEM_NOISE, save_obj
+from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
@@ -100,8 +99,14 @@ class SmartRoi(Roi):
     def __init__(self, mz, rt, intensity, initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, dew=15, drop_perc = 0.01):
         super().__init__(mz, rt, intensity)
-        self.status = INITIAL_WAITING
-        self.set_can_fragment(False)
+
+        if initial_length_seconds > 0:
+            self.status = INITIAL_WAITING
+            self.set_can_fragment(False)
+        else:
+            self.status = CAN_FRAGMENT
+            self.set_can_fragment(True)
+
         self.min_frag_intensity = None
 
         self.initial_length_seconds = initial_length_seconds
@@ -436,26 +441,6 @@ class RoiToChemicalCreator(ChemicalCreator):
             chrom = c.chromatogram
             plt.plot(chrom.raw_rts, chrom.raw_intensities)
             plt.show()
-
-
-def extract_roi(file_names, out_dir, pattern, mzml_path, ps, roi_mz_tol=10, roi_min_length=2, roi_min_intensity=1.75E5,
-                roi_start_rt=0,
-                roi_stop_rt=1440):
-    for i in range(len(file_names)):  # for all mzML files in file_names
-        # extract ROI
-        mzml_file = os.path.join(mzml_path, file_names[i])
-        good_roi, junk = make_roi(mzml_file, mz_tol=roi_mz_tol, mz_units='ppm', min_length=roi_min_length,
-                                  min_intensity=roi_min_intensity, start_rt=roi_start_rt, stop_rt=roi_stop_rt)
-        all_roi = good_roi
-
-        # turn ROI to chemicals
-        rtcc = RoiToChemicalCreator(ps, all_roi)
-        data = rtcc.chemicals
-
-        # save extracted chemicals
-        basename = os.path.basename(file_names[i])
-        out_name = pattern % int(basename.split('_')[2])
-        save_obj(data, os.path.join(out_dir, out_name))
 
 
 def plot_roi(roi, statuses=None, log=False):

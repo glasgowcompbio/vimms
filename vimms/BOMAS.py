@@ -3,19 +3,15 @@ from sklearn.gaussian_process.kernels import ConstantKernel, Matern
 from scipy.stats import norm
 from scipy.optimize import minimize
 from itertools import product
-import seaborn as sns
 
 from pyDOE import *
-from pathlib import Path
-import pandas as pd
 import itertools as it
 
+from vimms.FeatureExtraction import extract_roi
 from vimms.Controller import *
 from vimms.PythonMzmine import pick_peaks, controller_score
 from vimms.Common import *
-from vimms.Roi import make_roi, RoiToChemicalCreator
 import os
-from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Environment import *
 from vimms.PythonMzmine import peak_scoring
 
@@ -58,25 +54,6 @@ MADELEINE_TOP_N_CONTROLLER_PARAM_DICT = {"ionisation_mode": POSITIVE,
 QCB_SCORE_PARAM_DICT = {'min_ms1_intensity': 1.75E5,
                         'matching_mz_tol': 30,
                         'matching_rt_tol': 10}
-
-
-
-def mzml2chems(mzml_file, ps, param_dict=QCB_MZML2CHEMS_DICT, output_dir = True, n_peaks=1):
-    good_roi, junk = make_roi(mzml_file, mz_tol=param_dict['mz_tol'], mz_units=param_dict['mz_units'],
-                              min_length=param_dict['min_length'], min_intensity=param_dict['min_intensity'],
-                              start_rt=param_dict['start_rt'], stop_rt=param_dict['stop_rt'])
-    all_roi = good_roi + junk
-    keep = []
-    for roi in all_roi:
-        if np.count_nonzero(np.array(roi.intensity_list) > param_dict['min_ms1_intensity']) > 0:
-            keep.append(roi)
-    all_roi = keep
-    rtcc = RoiToChemicalCreator(ps, all_roi, n_peaks)
-    dataset = rtcc.chemicals
-    if output_dir is True:
-        dataset_name = os.path.splitext(mzml_file)[0] + '.p'
-        save_obj(dataset, dataset_name)
-    return dataset
 
 
 class BaseOptimiser(object):
@@ -172,10 +149,11 @@ class BaseOptimiser(object):
     def _get_data(self, ms1_mzml, ms1_picked_peaks_file, dataset_file, ps, chem_param_dict):
         # Load data
         if dataset_file is None:
-            dataset = mzml2chems(ms1_mzml, ps, chem_param_dict)
+            datasets = extract_roi([ms1_mzml], None, None, None, ps, param_dict=chem_param_dict)
+            dataset = datasets[0]
         else:
             dataset = load_obj(dataset_file)
-        if ms1_picked_peaks_file is None and self.method_name is not 'RepeatedExperiment':
+        if ms1_picked_peaks_file is None and self.method_name != 'RepeatedExperiment':
             pick_peaks([ms1_mzml], xml_template=self.xml_template_ms1, output_dir=self.picked_peaks_dir,
                        mzmine_command=self.mzmine_command)
             ms1_picked_peaks_file = self.picked_peaks_dir + '\\' + self.base_name + '.csv'
@@ -343,11 +321,6 @@ def create_controller(controller_method, search_param_dict, base_param_dict):
     # TODO: make this function create the relevant controller based on the inputs
     # Can be used in the parallel and non parallel version of the controllers
     NotImplementedError()
-
-
-def Heatmap_GridSearch(GridSearch_object, outcome_name, X_name, Y_name):
-    results = GridSearch_object.results.pivot(X_name, Y_name, outcome_name)
-    ax = sns.heatmap(results)
 
 
 def Heatmap_GP(BOMAS_object): # TODO: allow you to specify the columns

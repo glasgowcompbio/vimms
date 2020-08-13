@@ -3,7 +3,8 @@ import os
 import numpy as np
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 
-from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, create_if_not_exist
+from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, INITIAL_SCAN_ID, DEFAULT_ACTIVATION_TYPE, create_if_not_exist
+from vimms.MassSpec import ScanParameters
 
 
 class MzmlWriter(object):
@@ -73,9 +74,10 @@ class MzmlWriter(object):
         })
         out.data_processing_list({'id': 'VMS'})
 
-    def sort_filter(self, all_scans):
+    def sort_filter(self, all_scans, min_scan_id):
         all_scans = sorted(all_scans, key=lambda x: x.rt)
         all_scans = [x for x in all_scans if x.num_peaks > 0]
+        all_scans = list(filter(lambda x: x.scan_id >= min_scan_id, all_scans))
 
         # FIXME: why do we need to do this???!!
         # add a single peak to empty scans
@@ -86,14 +88,14 @@ class MzmlWriter(object):
         #     scan.num_peaks = 1
         return all_scans
 
-    def _write_spectra(self, writer, scans, precursor_information):
+    def _write_spectra(self, writer, scans, precursor_information, min_scan_id=INITIAL_SCAN_ID):
         assert len(scans) <= 3  # NOTE: we only support writing up to ms2 scans for now
 
         # get all scans across different ms_levels and sort them by scan_id
         all_scans = []
         for ms_level in scans:
             all_scans.extend(scans[ms_level])
-        all_scans = self.sort_filter(all_scans)
+        all_scans = self.sort_filter(all_scans, min_scan_id)
         spectrum_count = len(all_scans)
 
         # get precursor information for each scan, if available
@@ -117,12 +119,13 @@ class MzmlWriter(object):
         label = 'MS1 Spectrum' if scan.ms_level == 1 else 'MSn Spectrum'
         precursor_information = None
         if precursor is not None:
+            collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
             precursor_information = {
                 "mz": precursor.precursor_mz,
                 "intensity": precursor.precursor_intensity,
                 "charge": precursor.precursor_charge,
                 "spectrum_reference": precursor.precursor_scan_id,
-                "activation": ["HCD", {"collision energy": 25.0}]
+                "activation": [DEFAULT_ACTIVATION_TYPE, {"collision energy": collision_energy}]
             }
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)
@@ -131,12 +134,14 @@ class MzmlWriter(object):
         bp_mz = scan.mzs[bp_pos]
         scan_id = scan.scan_id
 
+        first_mz = scan.scan_params.get(ScanParameters.FIRST_MASS)
+        last_mz = scan.scan_params.get(ScanParameters.LAST_MASS)
         out.write_spectrum(
             scan.mzs, scan.intensities,
             id=scan_id,
             centroided=True,
             scan_start_time=scan.rt / 60.0,
-            scan_window_list=[DEFAULT_MS1_SCAN_WINDOW],
+            scan_window_list=[(first_mz, last_mz)],
             params=[
                 {label: ''},
                 {'ms level': scan.ms_level},

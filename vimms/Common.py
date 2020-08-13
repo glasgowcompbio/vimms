@@ -30,19 +30,52 @@ CHEM_NOISE = 'noise'
 
 DEFAULT_MS1_COLLISION_ENERGY = 0
 DEFAULT_MS2_COLLISION_ENERGY = 25
-
 DEFAULT_MS1_ORBITRAP_RESOLUTION = 120000
 DEFAULT_MS2_ORBITRAP_RESOLUTION = 7500
-
 DEFAULT_MS1_AGC_TARGET = 200000
 DEFAULT_MS2_AGC_TARGET = 30000
-
 DEFAULT_MS1_MAXIT = 250
 DEFAULT_MS2_MAXIT = 100
+DEFAULT_ACTIVATION_TYPE = "HCD" # note: in FusionBridge.cs, the activation type is also hardcoded to 'HCD'
 
 PROTON_MASS = 1.00727645199076
 
+# Note: M+H should come first in this dict because of the prior specification
+POS_TRANSFORMATIONS = collections.OrderedDict()
+POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
+POS_TRANSFORMATIONS['[M+ACN]+H'] = lambda mz: (mz + 42.033823)
+POS_TRANSFORMATIONS['[M+CH3OH]+H'] = lambda mz: (mz + 33.033489)
+POS_TRANSFORMATIONS['[M+NH3]+H'] = lambda mz: (mz + 18.033823)
+POS_TRANSFORMATIONS['M+Na'] = lambda mz: (mz + 22.989218)
+POS_TRANSFORMATIONS['M+K'] = lambda mz: (mz + 38.963158)
+POS_TRANSFORMATIONS['M+2Na-H'] = lambda mz: (mz + 44.971160)
+POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
+POS_TRANSFORMATIONS['M+2Na-H'] = lambda mz: (mz + 44.971160)
+POS_TRANSFORMATIONS['M+2K+H'] = lambda mz: (mz + 76.919040)
+POS_TRANSFORMATIONS['[M+DMSO]+H'] = lambda mz: (mz + 79.02122)
+POS_TRANSFORMATIONS['[M+2ACN]+H'] = lambda mz: (mz + 83.060370)
+POS_TRANSFORMATIONS['2M+H'] = lambda mz: (mz * 2) + 1.007276
+POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
+POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.
+
+# example prior dictionary to be passed when creating an 
+# adducts object to only get M+H adducts out
+ADDUCT_DICT_POS_MH = {'M+H':1.0}
+
+GET_MS2_BY_PEAKS = "sample"
+GET_MS2_BY_SPECTRA = "spectra"
+
 INITIAL_SCAN_ID = 100000
+DEFAULT_SCAN_TIME_DICT = {1: 0.4, 2: 0.2}
+DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
+    'min_intensity': 1.75E5,
+    'mz_tol': 10,
+    'mz_units': 'ppm',
+    'min_length': 2,
+    'start_rt': 0,
+    'stop_rt': 1440,
+    'n_peaks': 1
+}
 
 def create_if_not_exist(out_dir):
     if not os.path.exists(out_dir) and len(out_dir) > 0:
@@ -87,25 +120,6 @@ def chromatogramDensityNormalisation(rts, intensities):
         area += ((intensities[rt_index] + intensities[rt_index + 1]) / 2) / (rts[rt_index + 1] - rts[rt_index])
     new_intensities = [x * (1 / area) for x in intensities]
     return new_intensities
-
-
-# Note: M+H should come first in this dict because of the prior specification
-POS_TRANSFORMATIONS = collections.OrderedDict()
-POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
-POS_TRANSFORMATIONS['[M+ACN]+H'] = lambda mz: (mz + 42.033823)
-POS_TRANSFORMATIONS['[M+CH3OH]+H'] = lambda mz: (mz + 33.033489)
-POS_TRANSFORMATIONS['[M+NH3]+H'] = lambda mz: (mz + 18.033823)
-POS_TRANSFORMATIONS['M+Na'] = lambda mz: (mz + 22.989218)
-POS_TRANSFORMATIONS['M+K'] = lambda mz: (mz + 38.963158)
-POS_TRANSFORMATIONS['M+2Na-H'] = lambda mz: (mz + 44.971160)
-POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
-POS_TRANSFORMATIONS['M+2Na-H'] = lambda mz: (mz + 44.971160)
-POS_TRANSFORMATIONS['M+2K+H'] = lambda mz: (mz + 76.919040)
-POS_TRANSFORMATIONS['[M+DMSO]+H'] = lambda mz: (mz + 79.02122)
-POS_TRANSFORMATIONS['[M+2ACN]+H'] = lambda mz: (mz + 83.060370)
-POS_TRANSFORMATIONS['2M+H'] = lambda mz: (mz * 2) + 1.007276
-POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
-POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.033823
 
 
 def adduct_transformation(mz, adduct):

@@ -518,6 +518,7 @@ class IndependentMassSpectrometer(object):
 
         # for all chemicals that come out from the column coupled to the mass spec
         idx = self._get_chem_indices(scan_time)
+        print(idx)
         for i in idx:
             chemical = self.chemicals[i]
 

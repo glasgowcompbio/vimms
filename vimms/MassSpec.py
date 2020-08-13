@@ -520,15 +520,13 @@ class IndependentMassSpectrometer(object):
         idx = self._get_chem_indices(scan_time)
         for i in idx:
             chemical = self.chemicals[i]
-
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
             mzs = self._get_all_mz_peaks(chemical, scan_time, ms_level, isolation_windows)
-
             peaks = []
 
             min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
             max_measurement_mz = params.get(ScanParameters.LAST_MASS)
-            
+        
             if mzs is not None:
                 chem_mzs = []
                 chem_intensities = []

@@ -384,7 +384,6 @@ class ChemicalCreator(object):
 
         spectra = self.peak_sampler.get_ms2_spectra()[0]
         kids = []
-        return kids
         intensity_props = self._get_msn_proportions(None, None, spectra.intensities)
         parent_mass_prop = self.peak_sampler.get_parent_intensity_proportion()
         for i in range(len(spectra.mzs)):

@@ -232,8 +232,9 @@ class IndependentMassSpectrometer(object):
     ACQUISITION_STREAM_CLOSED = 'AcquisitionStreamClosing'
     STATE_CHANGED = 'StateChanged'
 
-    def __init__(self, ionisation_mode, chemicals, peak_sampler, peak_noise=None,
-                 isolation_transition_window='rectangular', isolation_transition_window_params=None, scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
+    def __init__(self, ionisation_mode, chemicals, peak_sampler, mz_noise=None, intensity_noise=None,
+                 isolation_transition_window='rectangular', isolation_transition_window_params=None, 
+                 scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
         """
         Creates a mass spec object.
         :param ionisation_mode: POSITIVE or NEGATIVE
@@ -277,9 +278,12 @@ class IndependentMassSpectrometer(object):
         self.current_DEW = 0
 
         # whether to add noise to the generated peaks, the default is no noise
-        self.peak_noise = peak_noise
-        if self.peak_noise is None:
-            self.peak_noise = NoPeakNoise()
+        self.mz_noise = mz_noise
+        self.intensity_noise = intensity_noise
+        if self.mz_noise is None:
+            self.mz_noise = NoPeakNoise()
+        if self.intensity_noise is None:
+            self.intensity_noise = NoPeakNoise()
 
         self.fragmentation_events = []  # which chemicals produce which peaks
 
@@ -574,18 +578,6 @@ class IndependentMassSpectrometer(object):
         idx = np.nonzero(rtmin_check & rtmax_check)[0]
         return idx
 
-    def _get_all_mz_peaks_noisy(self, chemical, query_rt, ms_level, isolation_windows):
-        mz_peaks = self._get_all_mz_peaks(chemical, query_rt, ms_level, isolation_windows)
-        if self.peak_sampler is None:
-            return mz_peaks
-        if mz_peaks is not None:
-            noisy_mz_peaks = [(mz_peaks[i][0], self.peak_sampler.get_msn_noisy_intensity(mz_peaks[i][1], ms_level)) for
-                              i in range(len(mz_peaks))]
-        else:
-            noisy_mz_peaks = []
-        noisy_mz_peaks += self.peak_sampler.get_noise_sample()
-        return noisy_mz_peaks
-
     def _get_all_mz_peaks(self, chemical, query_rt, ms_level, isolation_windows):
         # check if the chemical RT matches the current query RT
         if not self._rt_match(chemical, query_rt):
@@ -606,8 +598,8 @@ class IndependentMassSpectrometer(object):
         noisy_mz_peaks = []
         for i in range(len(mz_peaks)):
             original_mz, original_intensity = mz_peaks[i]
-            noisy_mz = self.peak_noise.get_mz(original_mz, query_rt, original_intensity, ms_level)
-            noisy_intensity = self.peak_noise.get_intensity(original_mz, query_rt, original_intensity, ms_level)
+            noisy_mz = self.mz_noise.get(original_mz, ms_level)
+            noisy_intensity = self.intensity_noise.get(original_intensity, ms_level)
             noisy_mz_peaks.append((noisy_mz, noisy_intensity))
         return noisy_mz_peaks
 

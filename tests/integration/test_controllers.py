@@ -13,7 +13,7 @@ from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Common import *
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Noise import GaussianPeakNoise
+from vimms.Noise import *
 
 ### define some useful constants ###
 
@@ -250,8 +250,9 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and Top-N controller
-        peak_noise = GaussianPeakNoise(0.1, 1000)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, peak_noise=peak_noise)
+        mz_noise = GaussianPeakNoise(0.1)
+        intensity_noise = GaussianPeakNoise(1000.)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, mz_noise=mz_noise, intensity_noise=intensity_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 
@@ -664,8 +665,9 @@ class TestDIAControllers:
 
         # create a simulated mass spec with noise and Top-N controller
         logger.info('With noise')
-        peak_noise = GaussianPeakNoise(0.1, 1000)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict, peak_noise=peak_noise)
+        mz_noise = GaussianPeakNoiseLevelSpecific({2:0.01})
+        intensity_noise = GaussianPeakNoiseLevelSpecific({2:1000.})
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict, mz_noise=mz_noise, intensity_noise=intensity_noise)
         controller = AIF(min_mz,max_mz)
 
         # create an environment to run both the mass spec and controller

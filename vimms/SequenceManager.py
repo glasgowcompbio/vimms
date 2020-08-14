@@ -23,18 +23,16 @@ batch_file_dir = os.path.join(parent_dir, 'batch_files')
 QCB_XML_TEMPLATE_MS1 = os.path.join(batch_file_dir, 'QCB_mzmine_batch_ms1.xml')
 QCB_XML_TEMPLATE_MS2 = os.path.join(batch_file_dir, 'QCB_mzmine_batch_ms2.xml')
 
-MZMINE_COMMAND = 'C:\\Users\\joewa\\Work\\git\\MZmine-2.40.1\\startMZmine_Windows.bat'
 
 
 class BaseSequenceManager(object):
-    def __init__(self, controller_schedule, evaluation_methods, base_dir,
+    def __init__(self, controller_schedule, evaluation_methods, base_dir, mzmine_command,
                  evaluaton_min_ms1_intensity=1.75E5,
                  evaluation_params=None,
                  ms1_picked_peaks_file=None,
                  align_peaks=False,
                  xml_template_ms1=QCB_XML_TEMPLATE_MS1,
                  xml_template_ms2=QCB_XML_TEMPLATE_MS2,
-                 mzmine_command=MZMINE_COMMAND,
                  progress_bar=False,
                  write_env=False,
                  rt_range=[(0, 1440)]):
@@ -130,14 +128,13 @@ class BaseSequenceManager(object):
 
 
 class VimmsSequenceManager(BaseSequenceManager):
-    def __init__(self, controller_schedule, evaluation_methods, base_dir,
+    def __init__(self, controller_schedule, evaluation_methods, base_dir, mzmine_command, 
                  evaluaton_min_ms1_intensity=1.75E5,
                  evaluation_params=None,
                  ms1_picked_peaks_file=None,
                  align_peaks=False,
                  xml_template_ms1=QCB_XML_TEMPLATE_MS1,
                  xml_template_ms2=QCB_XML_TEMPLATE_MS2,
-                 mzmine_command=MZMINE_COMMAND,
                  progress_bar=False,
                  write_env=False,
                  rt_range=[(0, 1440)]):

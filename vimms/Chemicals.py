@@ -10,7 +10,7 @@ import scipy.stats
 from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
-from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj
+from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES
 
 
 class DatabaseCompound(object):
@@ -26,7 +26,7 @@ class DatabaseCompound(object):
 class Formula(object):
     def __init__(self, formula_string):
         self.formula_string = formula_string
-        self.atom_names = ['C', 'H', 'N', 'O', 'P', 'S', 'Cl', 'I', 'Br', 'Si', 'F', 'D']
+        self.atom_names = ATOM_NAMES
         self.atoms = {}
         for atom in self.atom_names:
             self.atoms[atom] = self._get_n_element(atom)
@@ -37,12 +37,12 @@ class Formula(object):
 
     def _get_n_element(self, atom_name):
         # Do some regex matching to find the numbers of the important atoms
-        ex = atom_name + '(?![a-z])' + '\d*'
+        ex = atom_name + '(?![a-z])' + '\\d*'
         m = re.search(ex, self.formula_string)
         if m == None:
             return 0
         else:
-            ex = atom_name + '(?![a-z])' + '(\d*)'
+            ex = atom_name + '(?![a-z])' + '(\\d*)'
             m2 = re.findall(ex, self.formula_string)
             total = 0
             for a in m2:
@@ -53,9 +53,7 @@ class Formula(object):
             return total
 
     def compute_exact_mass(self):
-        masses = {'C': 12.00000000000, 'H': 1.00782503214, 'O': 15.99491462210, 'N': 14.00307400524,
-                  'P': 30.97376151200, 'S': 31.97207069000, 'Cl': 34.96885271000, 'I': 126.904468, 'Br': 78.9183376,
-                  'Si': 27.9769265327, 'F': 18.99840320500, 'D': 2.01410177800}
+        masses = ATOM_MASSES
         exact_mass = 0.0
         for a in self.atoms:
             exact_mass += masses[a] * self.atoms[a]
@@ -109,10 +107,17 @@ class Isotopes(object):
 
 
 class Adducts(object):
-    def __init__(self, formula, adduct_proportion_cutoff=0.05):
-        self.adduct_names = list(POS_TRANSFORMATIONS.keys())
+    def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
+        if adduct_prior_dict is None:
+            self.adduct_names = list(POS_TRANSFORMATIONS.keys())
+            self.adduct_prior = np.ones(len(self.adduct_names)) * 0.1
+            self.adduct_prior[0] = 1.0 # give more weight to the first one, i.e. M+H
+        else:
+            self.adduct_names = list(adduct_prior_dict.keys())
+            self.adduct_prior = np.array(list(adduct_prior_dict.values()))
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
+
 
     def get_adducts(self):
         adducts = []
@@ -124,11 +129,9 @@ class Adducts(object):
 
     def _get_adduct_proportions(self):
         # TODO: replace this with something proper
-        prior = np.ones(len(self.adduct_names)) * 0.1
-        prior[0] = 1.0  # give more weight to the first one, i.e. M+H
-        proportions = np.random.dirichlet(prior)
+        proportions = np.random.dirichlet(self.adduct_prior)
         while max(proportions) < 0.2:
-            proportions = np.random.dirichlet(prior)
+            proportions = np.random.dirichlet(self.adduct_prior)
         proportions[np.where(proportions < self.adduct_proportion_cutoff)] = 0
         proportions = proportions / max(proportions)
         proportions.tolist()
@@ -247,7 +250,7 @@ class ChemicalCreator(object):
 
     def sample(self, mz_range, rt_range, min_ms1_intensity, n_ms1_peaks, ms_levels, alpha=math.inf,
                fixed_mz=False, adduct_proportion_cutoff=0.05, roi_rt_range=None, include_adducts_isotopes=True,
-               get_children_method=GET_MS2_BY_PEAKS):
+               get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=None):
         self.mz_range = mz_range
         self.rt_range = rt_range
         self.min_ms1_intensity = min_ms1_intensity
@@ -258,6 +261,7 @@ class ChemicalCreator(object):
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
         self.include_adducts_isotopes = include_adducts_isotopes
         self.get_children_method = get_children_method
+        self.adduct_prior_dict = adduct_prior_dict
 
         # set up some counters
         self.crp_samples = [[] for i in range(self.ms_levels)]
@@ -380,7 +384,6 @@ class ChemicalCreator(object):
 
         spectra = self.peak_sampler.get_ms2_spectra()[0]
         kids = []
-        return kids
         intensity_props = self._get_msn_proportions(None, None, spectra.intensities)
         parent_mass_prop = self.peak_sampler.get_parent_intensity_proportion()
         for i in range(len(spectra.mzs)):
@@ -457,7 +460,7 @@ class ChemicalCreator(object):
         intensity = sampled_peak.intensity
         formula = Formula(formula)
         isotopes = Isotopes(formula)
-        adducts = Adducts(formula, self.adduct_proportion_cutoff)
+        adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
         return KnownChemical(formula, isotopes, adducts, adjusted_rt, intensity, ROI.chromatogram, None,
                              include_adducts_isotopes)
 

@@ -3,14 +3,17 @@ from pathlib import Path
 
 import pytest
 
-from vimms.Chemicals import ChemicalCreator
-from vimms.Common import *
-from vimms.Controller import TopNController, PurityController, TopN_RoiController, \
-    TopN_SmartRoiController, WeightedDEWController
+
+
+from vimms.Chemicals import ChemicalCreator, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA
+from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
+                            TopN_SmartRoiController, WeightedDEWController
 from vimms.Controller.fullscan import SimpleMs1Controller
+
+from vimms.Common import *
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Noise import GaussianPeakNoise
+from vimms.Noise import *
 
 ### define some useful constants ###
 
@@ -61,6 +64,12 @@ def check_mzML(env, out_dir, filename):
     logger.info('Done')
     assert os.path.exists(out_file)
 
+def check_non_empty_MS2(controller):
+    non_empty = 0
+    for scan in controller.scans[2]:
+        if scan.num_peaks > 0:
+            non_empty += 1
+    assert non_empty > 0
 
 ### define some useful test fixtures ###
 
@@ -83,14 +92,21 @@ def fragscan_ps():
 @pytest.fixture(scope="module")
 def fragscan_dataset_peaks(fragscan_ps):
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
+    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_PEAKS)
+
+@pytest.fixture(scope="module")
+def fragscan_dataset_peaks_onlyMH(fragscan_ps):
+    chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
+    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
+                        get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=ADDUCT_DICT_POS_MH)
+
 
 
 @pytest.fixture(scope="module")
 def fragscan_dataset_spectra(fragscan_ps):
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
+    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_SPECTRA)
 
 
@@ -160,6 +176,39 @@ class TestMS1Controller:
         check_mzML(env, OUT_DIR, filename)
         
 
+class TestTopNControllerSpectra:
+    """
+    Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
+    Fragment spectra are generated via the "spectra" method
+    """
+
+    def test_TopN_controller_with_simulated_chems(self, fragscan_dataset_spectra, fragscan_ps):
+        logger.info('Testing Top-N controller with simulated chemicals -- no noise')
+        assert len(fragscan_dataset_spectra) == N_CHEMS
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_spectra, CENTRE_RANGE)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        filename = 'topN_controller_simulated_chems_no_noise_spectra.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
+
 class TestTopNController:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
@@ -184,7 +233,9 @@ class TestTopNController:
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
-        # write simulated output to mzML file
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
         filename = 'topN_controller_simulated_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
@@ -199,14 +250,20 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and Top-N controller
-        peak_noise = GaussianPeakNoise(0.1, 1000)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, peak_noise=peak_noise)
+        mz_noise = GaussianPeakNoise(0.1)
+        intensity_noise = GaussianPeakNoise(1000.)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, mz_noise=mz_noise, intensity_noise=intensity_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
+
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
 
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_with_noise.mzML'
@@ -228,6 +285,9 @@ class TestTopNController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
         filename = 'topN_controller_qcbeer_chems_no_noise.mzML'
@@ -253,9 +313,36 @@ class TestTopNController:
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
 
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
         # write simulated output to mzML file
         filename = 'topN_controller_qcbeer_chems_no_noise_with_scan_duration.mzML'
         check_mzML(env, OUT_DIR, filename)
+
+    def test_TopN_controller_with_simulated_chems_onlyMH(self, fragscan_dataset_peaks_onlyMH, fragscan_ps):
+        logger.info('Testing Top-N controller with simulated chemicals -- no noise, only MH adducts')
+        assert len(fragscan_dataset_peaks_onlyMH) == N_CHEMS
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks_onlyMH, fragscan_ps)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks_onlyMH, CENTRE_RANGE)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        run_environment(env)
+
+        # write simulated output to mzML file
+        filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
 
 
 class TestPurityController:
@@ -331,9 +418,9 @@ class TestROIController:
     (rather than the top-N most intense peaks)
     """
 
-    def test_roi_controller_with_simulated_chems(self, fragscan_dataset_spectra, fragscan_ps):
+    def test_roi_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing ROI controller with simulated chemicals')
-        assert len(fragscan_dataset_spectra) == N_CHEMS
+        assert len(fragscan_dataset_peaks) == N_CHEMS
 
         isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
         N = 10
@@ -344,14 +431,18 @@ class TestROIController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
         controller = TopN_RoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                         min_roi_intensity, min_roi_length, N, rt_tol)
 
         # create an environment to run both the mass spec and controller
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_spectra, CENTRE_RANGE)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
 
         # write simulated output to mzML file
         filename = 'roi_controller_simulated_chems.mzML'
@@ -377,6 +468,10 @@ class TestROIController:
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
 
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+
         # write simulated output to mzML file
         filename = 'roi_controller_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
@@ -388,27 +483,33 @@ class TestSMARTROIController:
     (rather than the top-N most intense peaks)
     """
 
-    def test_smart_roi_controller_with_simulated_chems(self, fragscan_dataset_spectra, fragscan_ps):
+    def test_smart_roi_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing ROI controller with simulated chemicals')
-        len(fragscan_dataset_spectra) == N_CHEMS
+        assert len(fragscan_dataset_peaks) == N_CHEMS
 
         isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
         N = 10
         rt_tol = 15
         mz_tol = 10
-        min_roi_intensity = 5000
-        min_roi_length = 10
+        min_roi_intensity = 50
+        min_roi_length = 0
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
         controller = TopN_SmartRoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
-                                             min_roi_intensity, min_roi_length, N, rt_tol)
+                                             min_roi_intensity, min_roi_length, N, rt_tol, min_roi_length_for_fragmentation=0)
 
         # create an environment to run both the mass spec and controller
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_spectra, CENTRE_RANGE)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
+
+        assert len(controller.scans[2])>0
+
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
         filename = 'smart_roi_controller_simulated_chems.mzML'
@@ -433,6 +534,9 @@ class TestSMARTROIController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
         filename = 'smart_controller_qcbeer_chems.mzML'
@@ -464,6 +568,10 @@ class TestTopNShiftedController:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
 
         # write simulated output to mzML file
         filename = 'topN_shifted_controller_qcbeer_chems_no_noise.mzML'
@@ -498,9 +606,123 @@ class TestTopNExcludingShiftedController:
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
 
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+
         # write simulated output to mzML file
         filename = 'topN_excluding_shifted_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
+
+
+class TestDIAControllers:
+    """
+    Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
+    """
+
+    def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
+        logger.info('Testing Top-N controller with simulated chemicals')
+
+        # create some chemical object
+        assert len(fragscan_dataset_peaks) == N_CHEMS
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        min_mz = 100
+        max_mz = 500
+
+        # shorten  the rt range for quicker tests
+        min_rt = 0
+        max_rt = 400 
+
+        scan_time_dict = {1:0.12, 2:0.06}
+
+        # create a simulated mass spec without noise and Top-N controller
+        logger.info('Without noise')
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict)
+        controller = AIF(min_mz,max_mz)
+        
+        # create an environment to run both the mass spec and controller
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+
+        # set the log level back to DEBUG
+        set_log_level_debug()
+
+        # write simulated output to mzML file
+        filename = 'AIF_simulated_chems_no_noise.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+        # create a simulated mass spec with noise and Top-N controller
+        logger.info('With noise')
+        mz_noise = GaussianPeakNoiseLevelSpecific({2:0.01})
+        intensity_noise = GaussianPeakNoiseLevelSpecific({2:1000.})
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict, mz_noise=mz_noise, intensity_noise=intensity_noise)
+        controller = AIF(min_mz,max_mz)
+
+        # create an environment to run both the mass spec and controller
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+
+        # set the log level back to DEBUG
+        set_log_level_debug()
+
+        # write simulated output to mzML file
+        filename = 'AIF_simulated_chems_with_noise.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
+    def test_AIF_controller_with_beer_chems(self, fragscan_ps):
+        logger.info('Testing Top-N controller with QC beer chemicals')
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+        min_mz = 100
+        max_mz = 500
+
+        min_rt = 0 
+        max_rt = 500 
+
+        # create a simulated mass spec without noise and Top-N controller
+        scan_time_dict = {1:0.124,2:0.124}
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, scan_duration_dict = scan_time_dict)
+        controller = AIF(min_mz,max_mz)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+
+        # set the log level back to DEBUG
+        set_log_level_debug()
+
+        # write simulated output to mzML file
+        filename = 'AIF_qcbeer_chems_no_noise.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
 
 
 if __name__ == '__main__':

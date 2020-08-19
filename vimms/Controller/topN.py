@@ -2,6 +2,7 @@ import bisect
 from collections import defaultdict
 
 import numpy as np
+import pandas as pd
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
@@ -719,3 +720,78 @@ class PurityController(TopNController):
         current_N = self.N[idx]
         current_rt_tol = self.rt_tols[idx]
         return current_N, current_rt_tol, idx
+
+
+class FixedScheduleController(Controller):
+    """
+    A controller which takes a schedule of scans, converts them into tasks in queue
+    """
+
+    def __init__(self, schedule_file, isolation_width, mz_tol, mass_spec_ionisation_mode, N, rt_tol,
+                 # advanced parameters
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
+        super().__init__()
+        self.first_scan = True
+        self.isolation_width = isolation_width
+        self.mz_tol = mz_tol
+        self.mass_spec_ionisation_mode = mass_spec_ionisation_mode
+        self.schedule = pd.read_csv(schedule_file, header=None, names=["ms_level", "mz", "time", "box_id", "box_file"])
+        self.schedule = self.schedule.iloc[range(0, self.schedule.shape[0], 2)]
+        self.scheduled_tasks = self._process_schedule()
+        self.N = N
+        self.rt_tol = rt_tol
+
+        # advanced parameters
+        self.ms1_agc_target = ms1_agc_target
+        self.ms1_max_it = ms1_max_it
+        self.ms1_collision_energy = ms1_collision_energy
+        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
+
+        self.ms2_agc_target = ms2_agc_target
+        self.ms2_max_it = ms2_max_it
+        self.ms2_collision_energy = ms2_collision_energy
+        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
+
+    def _process_scan(self, scan):
+        if self.first_scan:
+            self.first_scan = False
+            return self.scheduled_tasks
+        else:
+            return []
+
+    def update_state_after_scan(self, last_scan):
+        pass
+
+    def reset(self):
+        pass
+
+    def _process_schedule(self):
+        # converts schedule into tasks and pushes them to the queue
+        tasks = []
+        for i in range(self.schedule.shape[0]):
+            if self.schedule.iloc[i]['ms_level'] == 'MS1':
+                new_task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                    max_it=self.ms1_max_it,
+                                                                    collision_energy=self.ms1_collision_energy,
+                                                                    orbitrap_resolution=self.ms1_orbitrap_resolution)
+            else:
+                precursor_scan_id = self.last_ms1_scan.scan_id
+                mz = self.schedule.iloc[i]['mz']
+                intensity = 0
+                rt_tol = 0
+                new_task = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
+                                                               self.isolation_width, self.mz_tol, rt_tol,
+                                                               agc_target=self.ms2_agc_target,
+                                                               max_it=self.ms2_max_it,
+                                                               collision_energy=self.ms2_collision_energy,
+                                                               orbitrap_resolution=self.ms2_orbitrap_resolution)
+            tasks.append(new_task)
+        return tasks
+

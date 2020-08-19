@@ -722,12 +722,12 @@ class PurityController(TopNController):
         return current_N, current_rt_tol, idx
 
 
-class FixedScheduleController(Controller):
+class FixedScansController(TopNController):
     """
     A controller which takes a schedule of scans, converts them into tasks in queue
     """
 
-    def __init__(self, schedule_file, isolation_width, mz_tol, mass_spec_ionisation_mode, N, rt_tol,
+    def __init__(self, ionisation_mode, schedule,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
@@ -737,61 +737,34 @@ class FixedScheduleController(Controller):
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__()
-        self.first_scan = True
-        self.isolation_width = isolation_width
-        self.mz_tol = mz_tol
-        self.mass_spec_ionisation_mode = mass_spec_ionisation_mode
-        self.schedule = pd.read_csv(schedule_file, header=None, names=["ms_level", "mz", "time", "box_id", "box_file"])
-        self.schedule = self.schedule.iloc[range(0, self.schedule.shape[0], 2)]
-        self.scheduled_tasks = self._process_schedule()
-        self.N = N
-        self.rt_tol = rt_tol
-
-        # advanced parameters
-        self.ms1_agc_target = ms1_agc_target
-        self.ms1_max_it = ms1_max_it
-        self.ms1_collision_energy = ms1_collision_energy
-        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
-
-        self.ms2_agc_target = ms2_agc_target
-        self.ms2_max_it = ms2_max_it
-        self.ms2_collision_energy = ms2_collision_energy
-        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
+        super().__init__(ionisation_mode, 0, 0, 0, 0, 0, 0, ms1_agc_target,
+                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
+                         ms2_collision_energy, ms2_orbitrap_resolution)
+        self.schedule = schedule
+        self.schedule_idx = 0
+        self.last_ms1_id = None
 
     def _process_scan(self, scan):
-        if self.first_scan:
-            self.first_scan = False
-            return self.scheduled_tasks
-        else:
-            return []
-
-    def update_state_after_scan(self, last_scan):
-        pass
-
-    def reset(self):
-        pass
-
-    def _process_schedule(self):
-        # converts schedule into tasks and pushes them to the queue
-        tasks = []
-        for i in range(self.schedule.shape[0]):
-            if self.schedule.iloc[i]['ms_level'] == 'MS1':
-                new_task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                    max_it=self.ms1_max_it,
-                                                                    collision_energy=self.ms1_collision_energy,
-                                                                    orbitrap_resolution=self.ms1_orbitrap_resolution)
+        new_tasks = []
+        if self.scan_to_process is not None and len(self.schedule) > self.schedule_idx:
+            if self.schedule['ms_level'][self.schedule_idx] == 1:
+                self.last_ms1_id = self.current_task_id
+                ms1_scan_params = self.environment.get_default_scan_params()
+                new_tasks.append(ms1_scan_params)
+                self.current_task_id += 1
             else:
-                precursor_scan_id = self.last_ms1_scan.scan_id
-                mz = self.schedule.iloc[i]['mz']
-                intensity = 0
-                rt_tol = 0
-                new_task = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                               self.isolation_width, self.mz_tol, rt_tol,
-                                                               agc_target=self.ms2_agc_target,
-                                                               max_it=self.ms2_max_it,
-                                                               collision_energy=self.ms2_collision_energy,
-                                                               orbitrap_resolution=self.ms2_orbitrap_resolution)
-            tasks.append(new_task)
-        return tasks
+                precursor_scan_id = self.last_ms1_id
+                dda_scan_params = self.environment.get_dda_scan_param(self.schedule['mz'][self.schedule_idx], 100,
+                                                                      precursor_scan_id,
+                                                                      self.isolation_width, self.mz_tol, self.rt_tol,
+                                                                      agc_target=self.ms2_agc_target,
+                                                                      max_it=self.ms2_max_it,
+                                                                      collision_energy=self.ms2_collision_energy,
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution)
+                new_tasks.append(dda_scan_params)
+                self.current_task_id += 1
 
+            self.schedule_idx += 1
+            self.next_processed_scan_id += 1
+            self.scan_to_process = None
+        return new_tasks

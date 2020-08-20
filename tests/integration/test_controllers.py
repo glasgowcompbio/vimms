@@ -15,6 +15,9 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import *
 
+import numpy as np
+np.random.seed(1)
+
 ### define some useful constants ###
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))

@@ -6,6 +6,10 @@ from vimms.Chemicals import Formula
 
 import pytest
 
+import numpy as np
+np.random.seed(1)
+
+
 class TestFormula:
     def test_atom_counts(self):
         formula_string = 'Cl'

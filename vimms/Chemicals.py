@@ -1,6 +1,5 @@
 import copy
 import math
-import random
 import re
 from pathlib import Path
 
@@ -549,7 +548,9 @@ class MultiSampleCreator(object):
                 new_missing = list(np.where(np.random.binomial(1, self.dropout_probabilities[len(missing)],
                                                                len(self.original_dataset)))[0])
             if self.dropout_probabilities is None and self.dropout_numbers is not None:
-                new_missing = random.sample(range(0, len(self.original_dataset)), self.dropout_numbers)
+                # new_missing = random.sample(range(0, len(self.original_dataset)), self.dropout_numbers)
+                #  CHANGED BY SR, no testing. 
+                new_missing = list(np.random.choice(range(0, len(self.original_dataset)), self.dropout_numbers))
             missing.append(new_missing)
             missing = [list(x) for x in set(tuple(sorted(x)) for x in missing)]
         return missing

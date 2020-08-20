@@ -874,29 +874,49 @@ class FixedScansController(TopNController):
     def _process_scan(self, scan):
         new_tasks = []
         if self.scan_to_process is not None and len(self.schedule) > self.schedule_idx:
-            if self.schedule['ms_level'][self.schedule_idx] == 1:
+            row = self.schedule.iloc[self.schedule_idx]
+            if row['ms_level'] == 1:
                 self.last_ms1_id = self.current_task_id
-                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                           max_it=self.ms1_max_it,
-                                                                           collision_energy=self.ms1_collision_energy,
-                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution,
-                                                                           activation_type=self.ms1_activation_type,
-                                                                           mass_analyser=self.ms1_mass_analyser,
-                                                                           isolation_mode=self.ms1_isolation_mode)
+                agc_target = self._get_value_or_default(row, 'agc_target', self.ms1_agc_target)
+                max_it = self._get_value_or_default(row, 'max_it', self.ms1_max_it)
+                collision_energy = self._get_value_or_default(row, 'collision_energy', self.ms1_collision_energy)
+                orbitrap_resolution = self._get_value_or_default(row, 'orbitrap_resolution',
+                                                                 self.ms1_orbitrap_resolution)
+                activation_type = self._get_value_or_default(row, 'activation_type', self.ms1_activation_type)
+                mass_analyser = self._get_value_or_default(row, 'mass_analyser', self.ms1_mass_analyser)
+                isolation_mode = self._get_value_or_default(row, 'isolation_mode', self.ms1_isolation_mode)
+                ms1_scan_params = self.environment.get_default_scan_params(agc_target=agc_target,
+                                                                           max_it=max_it,
+                                                                           collision_energy=collision_energy,
+                                                                           orbitrap_resolution=orbitrap_resolution,
+                                                                           activation_type=activation_type,
+                                                                           mass_analyser=mass_analyser,
+                                                                           isolation_mode=isolation_mode)
                 new_tasks.append(ms1_scan_params)
                 self.current_task_id += 1
             else:
                 precursor_scan_id = self.last_ms1_id
-                dda_scan_params = self.environment.get_dda_scan_param(self.schedule['mz'][self.schedule_idx], 100,
+                precursor_mz = row['precursor_mz']
+                precursor_intensity = 100
+                isolation_width = self._get_value_or_default(row, 'isolation_width', self.isolation_width)
+                agc_target = self._get_value_or_default(row, 'agc_target', self.ms2_agc_target)
+                max_it = self._get_value_or_default(row, 'max_it', self.ms2_max_it)
+                collision_energy = self._get_value_or_default(row, 'collision_energy', self.ms2_collision_energy)
+                orbitrap_resolution = self._get_value_or_default(row, 'orbitrap_resolution',
+                                                                 self.ms2_orbitrap_resolution)
+                activation_type = self._get_value_or_default(row, 'activation_type', self.ms2_activation_type)
+                mass_analyser = self._get_value_or_default(row, 'mass_analyser', self.ms2_mass_analyser)
+                isolation_mode = self._get_value_or_default(row, 'isolation_mode', self.ms2_isolation_mode)
+                dda_scan_params = self.environment.get_dda_scan_param(precursor_mz, precursor_intensity,
                                                                       precursor_scan_id,
-                                                                      self.isolation_width, self.mz_tol, self.rt_tol,
-                                                                      agc_target=self.ms2_agc_target,
-                                                                      max_it=self.ms2_max_it,
-                                                                      collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                                      activation_type=self.ms2_activation_type,
-                                                                      mass_analyser=self.ms2_mass_analyser,
-                                                                      isolation_mode=self.ms2_isolation_mode)
+                                                                      isolation_width, 0, 0,
+                                                                      agc_target=agc_target,
+                                                                      max_it=max_it,
+                                                                      collision_energy=collision_energy,
+                                                                      orbitrap_resolution=orbitrap_resolution,
+                                                                      activation_type=activation_type,
+                                                                      mass_analyser=mass_analyser,
+                                                                      isolation_mode=isolation_mode)
                 new_tasks.append(dda_scan_params)
                 self.current_task_id += 1
 
@@ -904,3 +924,11 @@ class FixedScansController(TopNController):
             self.next_processed_scan_id += 1
             self.scan_to_process = None
         return new_tasks
+
+    def _get_value_or_default(self, row, key, default):
+        try:
+            value = row[key]
+        except KeyError:
+            value = default
+        return value
+

@@ -2,6 +2,7 @@ import bisect
 from collections import defaultdict
 
 import numpy as np
+import pandas as pd
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
@@ -932,3 +933,54 @@ class FixedScansController(TopNController):
             value = default
         return value
 
+
+class ScheduleGenerator(object):
+    """
+    A class to generate scheduled tasks as a dataframe for FixedScansController
+    """
+
+    def __init__(self, initial_ms1, end_ms1, precursor_mz, num_topN_blocks, N,
+                 ms1_mass_analyser, ms2_mass_analyser,
+                 activation_type, isolation_mode):
+        self.schedule = self._generate_schedule(initial_ms1, end_ms1, precursor_mz, num_topN_blocks, N,
+                                                ms1_mass_analyser, ms2_mass_analyser,
+                                                activation_type, isolation_mode)
+
+    def estimate_max_time(self):
+        # assume ms1 scans will take 0.4 seconds, ms2 scans will take 0.2 seconds
+        ms1_scan_time = 0.4
+        ms2_scan_time = 0.2
+        count_ms1_scan = np.sum(self.schedule['ms_level'] == 1)
+        count_ms2_scan = np.sum(self.schedule['ms_level'] == 2)
+        max_time = count_ms1_scan * ms1_scan_time + count_ms2_scan * ms2_scan_time
+        max_time = max_time + 30
+        return max_time
+
+    def _generate_schedule(self, initial_ms1, end_ms1, precursor_mz, num_topN_blocks, N,
+                           ms1_mass_analyser, ms2_mass_analyser,
+                           activation_type, isolation_mode):
+        # generate the initial MS1 scans
+        initial_ms1_tasks = self._generate_ms1_tasks(initial_ms1, ms1_mass_analyser, activation_type, isolation_mode)
+
+        # generate num_topN_blocks of Top-N blocks
+        ms2_blocks = self._generate_TopN_tasks(precursor_mz, num_topN_blocks, N, ms1_mass_analyser, ms2_mass_analyser,
+                                               activation_type, isolation_mode)
+
+        # generate the ending MS1 tasks
+        end_ms1_tasks = self._generate_ms1_tasks(end_ms1, ms1_mass_analyser, activation_type, isolation_mode)
+
+        # convert to pandas dataframe
+        data = initial_ms1_tasks + ms2_blocks + end_ms1_tasks
+        schedule = pd.DataFrame(data,
+                                columns=['ms_level', 'precursor_mz', 'mass_analyser', 'activation_type',
+                                         'isolation_mode'])
+        return schedule
+
+    def _generate_ms1_tasks(self, repeat, ms1_mass_analyser, activation_type, isolation_mode):
+        return [(1, None, ms1_mass_analyser, activation_type, isolation_mode)] * repeat
+
+    def _generate_TopN_tasks(self, precursor_mz, num_topN_blocks, N, ms1_mass_analyser, ms2_mass_analyser,
+                             activation_type, isolation_mode):
+        ms1_task = self._generate_ms1_tasks(1, ms1_mass_analyser, activation_type, isolation_mode)
+        ms2_tasks = [(2, precursor_mz, ms2_mass_analyser, activation_type, isolation_mode)] * N
+        return (ms1_task + ms2_tasks) * num_topN_blocks

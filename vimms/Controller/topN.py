@@ -2,13 +2,13 @@ import bisect
 from collections import defaultdict
 
 import numpy as np
-import pandas as pd
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION
+    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS1_ACTIVATION_TYPE, DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ISOLATION_MODE, \
+    DEFAULT_MS2_ACTIVATION_TYPE, DEFAULT_MS2_MASS_ANALYSER, DEFAULT_MS2_ISOLATION_MODE
 from vimms.Controller.base import Controller
 from vimms.MassSpec import ScanParameters, ExclusionItem
 
@@ -25,10 +25,16 @@ class TopNController(Controller):
                  ms1_max_it=DEFAULT_MS1_MAXIT,
                  ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__()
         self.ionisation_mode = ionisation_mode
         self.N = N
@@ -50,11 +56,17 @@ class TopNController(Controller):
         self.ms1_max_it = ms1_max_it
         self.ms1_collision_energy = ms1_collision_energy
         self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
+        self.ms1_activation_type = ms1_activation_type
+        self.ms1_mass_analyser = ms1_mass_analyser
+        self.ms1_isolation_mode = ms1_isolation_mode
 
         self.ms2_agc_target = ms2_agc_target
         self.ms2_max_it = ms2_max_it
         self.ms2_collision_energy = ms2_collision_energy
         self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
+        self.ms2_activation_type = ms2_activation_type
+        self.ms2_mass_analyser = ms2_mass_analyser
+        self.ms2_isolation_mode = ms2_isolation_mode
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -96,7 +108,10 @@ class TopNController(Controller):
                                                                       agc_target=self.ms2_agc_target,
                                                                       max_it=self.ms2_max_it,
                                                                       collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution)
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                      activation_type=self.ms2_activation_type,
+                                                                      mass_analyser=self.ms2_mass_analyser,
+                                                                      isolation_mode=self.ms2_isolation_mode)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -107,7 +122,10 @@ class TopNController(Controller):
                     ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                                max_it=self.ms1_max_it,
                                                                                collision_energy=self.ms1_collision_energy,
-                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution)
+                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                               activation_type=self.ms1_activation_type,
+                                                                               mass_analyser=self.ms1_mass_analyser,
+                                                                               isolation_mode=self.ms1_isolation_mode)
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
@@ -119,7 +137,10 @@ class TopNController(Controller):
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
-                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                           activation_type=self.ms1_activation_type,
+                                                                           mass_analyser=self.ms1_mass_analyser,
+                                                                           isolation_mode=self.ms1_isolation_mode)
                 self.current_task_id += 1
                 self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
@@ -273,20 +294,31 @@ class WeightedDEWController(TopNController):
                  ms1_max_it=DEFAULT_MS1_MAXIT,
                  ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
                          ms1_collision_energy=ms1_collision_energy,
                          ms1_orbitrap_resolution=ms1_orbitrap_resolution,
+                         ms1_activation_type=ms1_activation_type,
+                         ms1_mass_analyser=ms1_mass_analyser,
+                         ms1_isolation_mode=ms1_isolation_mode,
                          ms2_agc_target=ms2_agc_target,
                          ms2_max_it=ms2_max_it,
                          ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution)
-
+                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
+                         ms2_activation_type=ms2_activation_type,
+                         ms2_mass_analyser=ms2_mass_analyser,
+                         ms2_isolation_mode=ms2_isolation_mode)
         self.exclusion_t_0 = exclusion_t_0
         self.log_intensity = log_intensity
         assert self.exclusion_t_0 <= self.rt_tol
@@ -346,7 +378,10 @@ class WeightedDEWController(TopNController):
                                                                       agc_target=self.ms2_agc_target,
                                                                       max_it=self.ms2_max_it,
                                                                       collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution)
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                      activation_type=self.ms2_activation_type,
+                                                                      mass_analyser=self.ms2_mass_analyser,
+                                                                      isolation_mode=self.ms2_isolation_mode)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -357,7 +392,10 @@ class WeightedDEWController(TopNController):
                     ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                                max_it=self.ms1_max_it,
                                                                                collision_energy=self.ms1_collision_energy,
-                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution)
+                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                               activation_type=self.ms1_activation_type,
+                                                                               mass_analyser=self.ms1_mass_analyser,
+                                                                               isolation_mode=self.ms1_isolation_mode)
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
@@ -369,7 +407,10 @@ class WeightedDEWController(TopNController):
                 ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                                            max_it=self.ms1_max_it,
                                                                            collision_energy=self.ms1_collision_energy,
-                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                           activation_type=self.ms1_activation_type,
+                                                                           mass_analyser=self.ms1_mass_analyser,
+                                                                           isolation_mode=self.ms1_isolation_mode)
                 self.current_task_id += 1
                 self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
@@ -425,13 +466,31 @@ class OptimalTopNController(TopNController):
                  ms1_max_it=DEFAULT_MS1_MAXIT,
                  ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__(ionisation_mode, N, isolation_widths, mz_tols, rt_tols, min_ms1_intensity, ms1_agc_target,
-                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
-                         ms2_collision_energy, ms2_orbitrap_resolution)
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+        super().__init__(ionisation_mode, N, isolation_widths, mz_tols, rt_tols, min_ms1_intensity, ms1_shift=0,
+                         ms1_agc_target=ms1_agc_target,
+                         ms1_max_it=ms1_max_it,
+                         ms1_collision_energy=ms1_collision_energy,
+                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
+                         ms1_activation_type=ms1_activation_type,
+                         ms1_mass_analyser=ms1_mass_analyser,
+                         ms1_isolation_mode=ms1_isolation_mode,
+                         ms2_agc_target=ms2_agc_target,
+                         ms2_max_it=ms2_max_it,
+                         ms2_collision_energy=ms2_collision_energy,
+                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
+                         ms2_activation_type=ms2_activation_type,
+                         ms2_mass_analyser=ms2_mass_analyser,
+                         ms2_isolation_mode=ms2_isolation_mode)
         if type(box_file) == str:
             self.box_file = box_file
             self._load_boxes()
@@ -511,7 +570,14 @@ class OptimalTopNController(TopNController):
                     precursor_scan_id = self.scan_to_process.scan_id
                     dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                           self.isolation_width, self.mz_tol,
-                                                                          self.rt_tol)
+                                                                          self.rt_tol,
+                                                                          agc_target=self.ms2_agc_target,
+                                                                          max_it=self.ms2_max_it,
+                                                                          collision_energy=self.ms2_collision_energy,
+                                                                          orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                          activation_type=self.ms2_activation_type,
+                                                                          mass_analyser=self.ms2_mass_analyser,
+                                                                          isolation_mode=self.ms2_isolation_mode)
                     new_tasks.append(dda_scan_params)
                     ms2_tasks.append(dda_scan_params)
                     fragmented_count += 1
@@ -521,7 +587,13 @@ class OptimalTopNController(TopNController):
                     del self.boxes[pos]
 
             # an MS1 is added here, as we no longer send MS1s as default
-            ms1_scan_params = self.environment.get_default_scan_params()
+            ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                       max_it=self.ms1_max_it,
+                                                                       collision_energy=self.ms1_collision_energy,
+                                                                       orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                       activation_type=self.ms1_activation_type,
+                                                                       mass_analyser=self.ms1_mass_analyser,
+                                                                       isolation_mode=self.ms1_isolation_mode)
             self.current_task_id += 1
             self.next_processed_scan_id = self.current_task_id
             new_tasks.append(ms1_scan_params)
@@ -575,20 +647,37 @@ class PurityController(TopNController):
     def __init__(self, ionisation_mode, N, scan_param_changepoints,
                  isolation_widths, mz_tols, rt_tols, min_ms1_intensity,
                  n_purity_scans=None, purity_shift=None, purity_threshold=0, purity_randomise=True,
-                 purity_add_ms1=True,
+                 purity_add_ms1=True, ms1_shift=0,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
                  ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION
-                 ):
-        super().__init__(ionisation_mode, N, isolation_widths, mz_tols, rt_tols, min_ms1_intensity, 0, ms1_agc_target,
-                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
-                         ms2_collision_energy, ms2_orbitrap_resolution)
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+        super().__init__(ionisation_mode, N, isolation_widths, mz_tols, rt_tols, min_ms1_intensity, ms1_shift=0,
+                         ms1_agc_target=ms1_agc_target,
+                         ms1_max_it=ms1_max_it,
+                         ms1_collision_energy=ms1_collision_energy,
+                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
+                         ms1_activation_type=ms1_activation_type,
+                         ms1_mass_analyser=ms1_mass_analyser,
+                         ms1_isolation_mode=ms1_isolation_mode,
+                         ms2_agc_target=ms2_agc_target,
+                         ms2_max_it=ms2_max_it,
+                         ms2_collision_energy=ms2_collision_energy,
+                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
+                         ms2_activation_type=ms2_activation_type,
+                         ms2_mass_analyser=ms2_mass_analyser,
+                         ms2_isolation_mode=ms2_isolation_mode)
 
         # make sure these are stored as numpy arrays
         self.N = np.array(N)
@@ -677,7 +766,14 @@ class PurityController(TopNController):
                         dda_scan_params = self.environment.get_dda_scan_param(mz + purity_shift_amounts[purity_idx],
                                                                               intensity, precursor_scan_id,
                                                                               current_isolation_width, current_mz_tol,
-                                                                              current_rt_tol)
+                                                                              current_rt_tol,
+                                                                              agc_target=self.ms2_agc_target,
+                                                                              max_it=self.ms2_max_it,
+                                                                              collision_energy=self.ms2_collision_energy,
+                                                                              orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                              activation_type=self.ms2_activation_type,
+                                                                              mass_analyser=self.ms2_mass_analyser,
+                                                                              isolation_mode=self.ms2_isolation_mode)
                         new_tasks.append(dda_scan_params)
                         ms2_tasks.append(dda_scan_params)
                         self.current_task_id += 1
@@ -691,13 +787,26 @@ class PurityController(TopNController):
                     precursor_scan_id = self.scan_to_process.scan_id
                     dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                           current_isolation_width, current_mz_tol,
-                                                                          current_rt_tol)
+                                                                          current_rt_tol,
+                                                                          agc_target=self.ms2_agc_target,
+                                                                          max_it=self.ms2_max_it,
+                                                                          collision_energy=self.ms2_collision_energy,
+                                                                          orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                          activation_type=self.ms2_activation_type,
+                                                                          mass_analyser=self.ms2_mass_analyser,
+                                                                          isolation_mode=self.ms2_isolation_mode)
                     self.current_task_id += 1
                     new_tasks.append(dda_scan_params)
                     fragmented_count += 1
 
             # an MS1 is added here, as we no longer send MS1s as default
-            ms1_scan_params = self.environment.get_default_scan_params()
+            ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                       max_it=self.ms1_max_it,
+                                                                       collision_energy=self.ms1_collision_energy,
+                                                                       orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                       activation_type=self.ms1_activation_type,
+                                                                       mass_analyser=self.ms1_mass_analyser,
+                                                                       isolation_mode=self.ms1_isolation_mode)
             new_tasks.append(ms1_scan_params)
             self.current_task_id += 1
             self.next_processed_scan_id = self.current_task_id
@@ -733,13 +842,31 @@ class FixedScansController(TopNController):
                  ms1_max_it=DEFAULT_MS1_MAXIT,
                  ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__(ionisation_mode, 0, 0, 0, 0, 0, 0, ms1_agc_target,
-                         ms1_max_it, ms1_collision_energy, ms1_orbitrap_resolution, ms2_agc_target, ms2_max_it,
-                         ms2_collision_energy, ms2_orbitrap_resolution)
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+        super().__init__(ionisation_mode, 0, 0, 0, 0, 0, ms1_shift=0,
+                         ms1_agc_target=ms1_agc_target,
+                         ms1_max_it=ms1_max_it,
+                         ms1_collision_energy=ms1_collision_energy,
+                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
+                         ms1_activation_type=ms1_activation_type,
+                         ms1_mass_analyser=ms1_mass_analyser,
+                         ms1_isolation_mode=ms1_isolation_mode,
+                         ms2_agc_target=ms2_agc_target,
+                         ms2_max_it=ms2_max_it,
+                         ms2_collision_energy=ms2_collision_energy,
+                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
+                         ms2_activation_type=ms2_activation_type,
+                         ms2_mass_analyser=ms2_mass_analyser,
+                         ms2_isolation_mode=ms2_isolation_mode)
         self.schedule = schedule
         self.schedule_idx = 0
         self.last_ms1_id = None
@@ -749,7 +876,13 @@ class FixedScansController(TopNController):
         if self.scan_to_process is not None and len(self.schedule) > self.schedule_idx:
             if self.schedule['ms_level'][self.schedule_idx] == 1:
                 self.last_ms1_id = self.current_task_id
-                ms1_scan_params = self.environment.get_default_scan_params()
+                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
+                                                                           max_it=self.ms1_max_it,
+                                                                           collision_energy=self.ms1_collision_energy,
+                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution,
+                                                                           activation_type=self.ms1_activation_type,
+                                                                           mass_analyser=self.ms1_mass_analyser,
+                                                                           isolation_mode=self.ms1_isolation_mode)
                 new_tasks.append(ms1_scan_params)
                 self.current_task_id += 1
             else:
@@ -760,7 +893,10 @@ class FixedScansController(TopNController):
                                                                       agc_target=self.ms2_agc_target,
                                                                       max_it=self.ms2_max_it,
                                                                       collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution)
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                      activation_type=self.ms2_activation_type,
+                                                                      mass_analyser=self.ms2_mass_analyser,
+                                                                      isolation_mode=self.ms2_isolation_mode)
                 new_tasks.append(dda_scan_params)
                 self.current_task_id += 1
 

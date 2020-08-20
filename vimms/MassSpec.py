@@ -93,6 +93,9 @@ class ScanParameters(object):
     ORBITRAP_RESOLUTION = 'orbitrap_resolution'
     AGC_TARGET = 'agc_target'
     MAX_IT = 'max_it'
+    MASS_ANALYSER = 'analyzer'
+    ACTIVATION_TYPE = 'activation_type'
+    ISOLATION_MODE = 'isolation_mode'
 
     # this is used for DIA-based controllers to specify which windows to fragment
     ISOLATION_WINDOWS = 'isolation_windows'

@@ -3,7 +3,7 @@ import os
 import numpy as np
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 
-from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, INITIAL_SCAN_ID, DEFAULT_ACTIVATION_TYPE, create_if_not_exist
+from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist
 from vimms.MassSpec import ScanParameters
 
 
@@ -120,12 +120,13 @@ class MzmlWriter(object):
         precursor_information = None
         if precursor is not None:
             collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
+            activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
             precursor_information = {
                 "mz": precursor.precursor_mz,
                 "intensity": precursor.precursor_intensity,
                 "charge": precursor.precursor_charge,
                 "spectrum_reference": precursor.precursor_scan_id,
-                "activation": [DEFAULT_ACTIVATION_TYPE, {"collision energy": collision_energy}]
+                "activation": [activation_type, {"collision energy": collision_energy}]
             }
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)

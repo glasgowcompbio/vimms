@@ -36,7 +36,12 @@ DEFAULT_MS1_AGC_TARGET = 200000
 DEFAULT_MS2_AGC_TARGET = 30000
 DEFAULT_MS1_MAXIT = 250
 DEFAULT_MS2_MAXIT = 100
-DEFAULT_ACTIVATION_TYPE = "HCD" # note: in FusionBridge.cs, the activation type is also hardcoded to 'HCD'
+DEFAULT_MS1_ACTIVATION_TYPE = 'HCD'         # CID, HCD
+DEFAULT_MS2_ACTIVATION_TYPE = 'HCD'         # CID, HCD
+DEFAULT_MS1_MASS_ANALYSER = 'Orbitrap'      # IonTrap, Orbitrap
+DEFAULT_MS2_MASS_ANALYSER = 'Orbitrap'      # IonTrap, Orbitrap
+DEFAULT_MS1_ISOLATION_MODE = 'Quadupole'    # None, Quadupole, IonTrap
+DEFAULT_MS2_ISOLATION_MODE = 'Quadupole'    # None, Quadupole, IonTrap
 
 PROTON_MASS = 1.00727645199076
 

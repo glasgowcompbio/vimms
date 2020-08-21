@@ -138,9 +138,9 @@ class VimmsSequenceManager(BaseSequenceManager):
                  progress_bar=False,
                  write_env=False,
                  rt_range=[(0, 1440)]):
-        super().__init__(controller_schedule, evaluation_methods, base_dir, evaluaton_min_ms1_intensity,
+        super().__init__(controller_schedule, evaluation_methods, base_dir, mzmine_command, evaluaton_min_ms1_intensity,
                          evaluation_params, ms1_picked_peaks_file, align_peaks, xml_template_ms1,
-                         xml_template_ms2, mzmine_command, progress_bar, write_env, rt_range)
+                         xml_template_ms2, progress_bar, write_env, rt_range)
 
         if self.controller_schedule is not None:
             # filter controller_schedule to remove blank and calibration samples
@@ -160,9 +160,7 @@ class VimmsSequenceManager(BaseSequenceManager):
             dataset = self.controller_schedule['Dataset'][idx]
             if method is not None and dataset is not None:
                 dataset = load_obj(self.controller_schedule['Dataset'][idx])
-                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'],
-                                                        ms_params['add_noise'], ms_params['isolation_transition_window'],
-                                                        ms_params['isolation_transition_window_params'])
+                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'])
                 # Run sample
                 env = Environment(mass_spec, controller, self.rt_range[0][0],
                                   self.rt_range[0][1], progress_bar=self.progress_bar)
@@ -289,7 +287,9 @@ def run_single(params):
 
     current_mzml_file, controller_name = self.run_controller(idx)
     # TODO: add skip if calibration run
+    print(self.sequence_manager.align_peaks)
     if self.sequence_manager.align_peaks:
+        print('here')
         ms2_picked_peaks_file = self.run_peak_picking(idx, current_mzml_file, controller_name)
     else:
         ms2_picked_peaks_file = None
@@ -584,7 +584,7 @@ def merge_controller_param_dict(dict1, dict2, method, possible_controller_dict=P
     possible_params = inspect.getfullargspec(possible_controller_dict[method]).args[1:]
     defaults = inspect.getfullargspec(possible_controller_dict[method]).defaults
     if defaults is not None:
-        all_defaults = np.array([np.nan for i in range(len(possible_params) - len(defaults))] + list(defaults))
+        all_defaults = [np.nan for i in range(len(possible_params) - len(defaults))] + list(defaults)
     # create blank dictionary
     param_dict = {}
     for param_idx in range(len(possible_params)):
@@ -592,7 +592,7 @@ def merge_controller_param_dict(dict1, dict2, method, possible_controller_dict=P
             param_dict[possible_params[param_idx]] = dict1[possible_params[param_idx]]
         elif possible_params[param_idx] in dict2:
             param_dict[possible_params[param_idx]] = dict2[possible_params[param_idx]]
-        elif not np.isnan(all_defaults[param_idx]):
+        elif all_defaults[param_idx] != 'nan':
             param_dict[possible_params[param_idx]] = all_defaults[param_idx]
         else:
             logger.warning('Not all parameters provided')

@@ -40,8 +40,8 @@ DEFAULT_MS1_ACTIVATION_TYPE = 'HCD'         # CID, HCD
 DEFAULT_MS2_ACTIVATION_TYPE = 'HCD'         # CID, HCD
 DEFAULT_MS1_MASS_ANALYSER = 'Orbitrap'      # IonTrap, Orbitrap
 DEFAULT_MS2_MASS_ANALYSER = 'Orbitrap'      # IonTrap, Orbitrap
-DEFAULT_MS1_ISOLATION_MODE = 'Quadupole'    # None, Quadupole, IonTrap
-DEFAULT_MS2_ISOLATION_MODE = 'Quadupole'    # None, Quadupole, IonTrap
+DEFAULT_MS1_ISOLATION_MODE = 'Quadrupole'    # None, Quadrupole, IonTrap
+DEFAULT_MS2_ISOLATION_MODE = 'Quadrupole'    # None, Quadrupole, IonTrap
 
 PROTON_MASS = 1.00727645199076
 

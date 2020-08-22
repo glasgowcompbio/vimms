@@ -1,21 +1,18 @@
 import unittest
 from pathlib import Path
 
+import numpy as np
 import pytest
 
-
-
-from vimms.Chemicals import ChemicalCreator, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA
-from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
-                            TopN_SmartRoiController, WeightedDEWController
-from vimms.Controller.fullscan import SimpleMs1Controller
-
+from vimms.Chemicals import ChemicalCreator
 from vimms.Common import *
+from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
+    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController
+from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import *
 
-import numpy as np
 np.random.seed(1)
 
 ### define some useful constants ###
@@ -67,9 +64,15 @@ def check_mzML(env, out_dir, filename):
     logger.info('Done')
     assert os.path.exists(out_file)
 
+def check_non_empty_MS1(controller):
+    return check_non_empty(controller, 1)
+
 def check_non_empty_MS2(controller):
+    return check_non_empty(controller, 2)
+
+def check_non_empty(controller, ms_level):
     non_empty = 0
-    for scan in controller.scans[2]:
+    for scan in controller.scans[ms_level]:
         if scan.num_peaks > 0:
             non_empty += 1
     assert non_empty > 0
@@ -726,6 +729,54 @@ class TestDIAControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+
+class TestFixedScansController:
+    """
+    Tests the FixedScansController that sends a scheduled number of scans
+    """
+
+    def test_FixedScansController(self, fragscan_dataset_peaks, fragscan_ps):
+        logger.info('Testing FixedScansController')
+        assert len(fragscan_dataset_peaks) == N_CHEMS
+
+        ionisation_mode = POSITIVE
+        initial_ms1 = 100
+        end_ms1 = 100
+        num_topN_blocks = 100
+        N = 10
+        # precursor_mz = 74.0970
+        precursor_mz = 128.9536
+        ms1_mass_analyser = 'Orbitrap'
+        ms2_mass_analyser = 'Orbitrap'
+        activation_type = 'HCD'
+        isolation_mode = 'Quadrupole'
+
+        gen = ScheduleGenerator(initial_ms1, end_ms1, precursor_mz, num_topN_blocks, N, ms1_mass_analyser,
+                                ms2_mass_analyser, activation_type, isolation_mode)
+        schedule = gen.schedule
+        expected = initial_ms1 + ((N+1) * num_topN_blocks) + end_ms1
+        assert len(schedule) == expected
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
+        controller = FixedScansController(ionisation_mode, schedule)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        # max_bound = min_bound + gen.estimate_max_time() + 60
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS1
+        check_non_empty_MS1(controller)
+
+        # check that there is at least one MS2 scan -- could be empty
+        # a bit difficult to test the non-empty case
+        # check_non_empty_MS2(controller)
+        assert len(controller.scans[2]) > 0
+
+        filename = 'fixedScansController.mzML'
+        check_mzML(env, OUT_DIR, filename)
 
 
 if __name__ == '__main__':

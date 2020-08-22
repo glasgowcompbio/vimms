@@ -16,6 +16,13 @@ class Controller(object):
         self.initial_scan_id = INITIAL_SCAN_ID
         self.current_task_id = self.initial_scan_id
 
+    def get_initial_tasks(self):
+        """
+        Gets the initial tasks to load immediately into the mass spec (before acquisition starts)
+        :return: an empty list of tasks, unless overridden by subclass
+        """
+        return []
+
     def set_environment(self, env):
         self.environment = env
 

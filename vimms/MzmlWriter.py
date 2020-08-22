@@ -3,7 +3,7 @@ import os
 import numpy as np
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 
-from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist
+from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW
 from vimms.MassSpec import ScanParameters
 
 
@@ -135,8 +135,12 @@ class MzmlWriter(object):
         bp_mz = scan.mzs[bp_pos]
         scan_id = scan.scan_id
 
-        first_mz = scan.scan_params.get(ScanParameters.FIRST_MASS)
-        last_mz = scan.scan_params.get(ScanParameters.LAST_MASS)
+        try:
+            first_mz = scan.scan_params.get(ScanParameters.FIRST_MASS)
+            last_mz = scan.scan_params.get(ScanParameters.LAST_MASS)
+        except AttributeError: # if it's a method scan (not a custom scan), there's no scan_params to get first_mz and last_mz
+            first_mz, last_mz = DEFAULT_MS1_SCAN_WINDOW
+
         out.write_spectrum(
             scan.mzs, scan.intensities,
             id=scan_id,

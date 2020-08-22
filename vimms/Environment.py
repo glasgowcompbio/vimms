@@ -177,6 +177,7 @@ class Environment(object):
         self.controller.set_environment(self)
         self.mass_spec.set_environment(self)
         self.mass_spec.time = self.min_time
+        self.add_tasks(self.controller.get_initial_tasks()) # add the initial tasks from the controller
 
         N, DEW = self._get_N_DEW(self.mass_spec.time)
         if N is not None:

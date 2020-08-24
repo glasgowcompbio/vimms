@@ -50,7 +50,7 @@ class TopNController(Controller):
             self.exclusion_list = list(initial_exclusion_list)
 
         self.temp_exclusion_list = [] # to deal with ms1_shift
-        self.all_exclusion_items = set() # keep track of all exclusion items through the whole run
+        self.all_exclusion_items = [] # keep track of all exclusion items through the whole run
 
         # stores the mapping between precursor peak to ms2 scans
         self.precursor_information = defaultdict(list)  # key: Precursor object, value: ms2 scans
@@ -244,7 +244,7 @@ class TopNController(Controller):
                 x.from_mz, x.to_mz, x.from_rt, x.to_rt
             ))
             self.exclusion_list.append(x)
-            self.all_exclusion_items.add(x)
+            self.all_exclusion_items.append(x)
 
         # remove expired items from dynamic exclusion list
         self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))

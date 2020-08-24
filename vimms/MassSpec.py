@@ -217,22 +217,12 @@ class ExclusionItem(object):
     def __repr__(self):
         return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
-    def __lt__(self, other):
+    def __lt__(self,other):
         if self.from_mz <= other.from_mz:
             return True
         else:
             return False
 
-    def __eq__(self, other):
-        if not isinstance(other, ExclusionItem):
-            return NotImplemented
-        return self.from_mz == other.from_mz and \
-               self.to_mz == other.to_mz and \
-               self.from_rt == other.to_rt and \
-               self.to_rt and other.to_rt
-
-    def __hash__(self):
-        return hash((self.from_mz, self.to_mz, self.from_rt, self.to_rt))
 
 class IndependentMassSpectrometer(object):
     """

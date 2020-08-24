@@ -369,7 +369,7 @@ class TestTopNController:
 
             if initial_exclusion_list is None:
                 initial_exclusion_list = []
-            initial_exclusion_list = initial_exclusion_list + list(controller.all_exclusion_items)
+            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
 
             # check that there is at least one non-empty MS2 scan
             check_non_empty_MS2(controller)

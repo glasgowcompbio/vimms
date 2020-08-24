@@ -167,7 +167,7 @@ class TopNController(Controller):
             rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
             mz_lower = mz * (1 - mz_tol / 1e6)
             mz_upper = mz * (1 + mz_tol / 1e6)
-            rt_lower = rt
+            rt_lower = rt - rt_tol
             rt_upper = rt + rt_tol
             x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper)
             logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
@@ -236,7 +236,7 @@ class TopNController(Controller):
             rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
             mz_lower = mz * (1 - mz_tol / 1e6)
             mz_upper = mz * (1 + mz_tol / 1e6)
-            rt_lower = current_time
+            rt_lower = current_time - rt_tol
             rt_upper = current_time + rt_tol
             x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper)
             logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(

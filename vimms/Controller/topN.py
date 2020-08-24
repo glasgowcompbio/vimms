@@ -19,7 +19,8 @@ class TopNController(Controller):
     that are not excluded
     """
 
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
+                 ms1_shift=0, initial_exclusion_list=None,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
@@ -44,9 +45,12 @@ class TopNController(Controller):
         self.min_ms1_intensity = min_ms1_intensity  # minimum ms1 intensity to fragment
         self.ms1_shift = ms1_shift  # number of scans to move ms1 scan forward in list of new_tasks
 
-        # for dynamic exclusion window
-        self.exclusion_list = []  # a list of ExclusionItem
-        self.temp_exclusion_list = []
+        self.exclusion_list = []
+        if initial_exclusion_list is not None: # copy initial list, if provided
+            self.exclusion_list = list(initial_exclusion_list)
+
+        self.temp_exclusion_list = [] # to deal with ms1_shift
+        self.all_exclusion_items = set() # keep track of all exclusion items through the whole run
 
         # stores the mapping between precursor peak to ms2 scans
         self.precursor_information = defaultdict(list)  # key: Precursor object, value: ms2 scans
@@ -180,7 +184,6 @@ class TopNController(Controller):
         self._manage_dynamic_exclusion_list(last_scan)
 
     def reset(self):
-        self.exclusion_list = []
         self.precursor_information = defaultdict(list)
 
     def _add_precursor_info(self, scan):
@@ -241,6 +244,7 @@ class TopNController(Controller):
                 x.from_mz, x.to_mz, x.from_rt, x.to_rt
             ))
             self.exclusion_list.append(x)
+            self.all_exclusion_items.add(x)
 
         # remove expired items from dynamic exclusion list
         self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))

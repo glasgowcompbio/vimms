@@ -349,6 +349,34 @@ class TestTopNController:
         filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    def test_TopN_controller_with_beer_chems_and_initial_exclusion_list(self, fragscan_ps):
+        logger.info('Testing Top-N controller with QC beer chemicals and an initial exclusion list')
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        initial_exclusion_list = None
+        for i in range(3):
+            mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+            controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
+                                        initial_exclusion_list=initial_exclusion_list)
+            print('exclude = %d' % len(controller.exclusion_list))
+            env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+            run_environment(env)
+
+            if initial_exclusion_list is None:
+                initial_exclusion_list = []
+            initial_exclusion_list = initial_exclusion_list + list(controller.all_exclusion_items)
+
+            # check that there is at least one non-empty MS2 scan
+            check_non_empty_MS2(controller)
+
+            # write simulated output to mzML file
+            filename = 'topN_controller_qcbeer_exclusion_%d.mzML' % i
+            check_mzML(env, OUT_DIR, filename)
 
 
 class TestPurityController:

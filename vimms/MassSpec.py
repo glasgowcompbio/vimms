@@ -217,12 +217,22 @@ class ExclusionItem(object):
     def __repr__(self):
         return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
-    def __lt__(self,other):
+    def __lt__(self, other):
         if self.from_mz <= other.from_mz:
             return True
         else:
             return False
 
+    def __eq__(self, other):
+        if not isinstance(other, ExclusionItem):
+            return NotImplemented
+        return self.from_mz == other.from_mz and \
+               self.to_mz == other.to_mz and \
+               self.from_rt == other.to_rt and \
+               self.to_rt and other.to_rt
+
+    def __hash__(self):
+        return hash((self.from_mz, self.to_mz, self.from_rt, self.to_rt))
 
 class IndependentMassSpectrometer(object):
     """
@@ -236,8 +246,8 @@ class IndependentMassSpectrometer(object):
     STATE_CHANGED = 'StateChanged'
 
     def __init__(self, ionisation_mode, chemicals, peak_sampler, mz_noise=None, intensity_noise=None,
-                 isolation_transition_window='rectangular', isolation_transition_window_params=None, 
-                 scan_duration_dict = DEFAULT_SCAN_TIME_DICT):
+                 isolation_transition_window='rectangular', isolation_transition_window_params=None,
+                 scan_duration_dict=DEFAULT_SCAN_TIME_DICT):
         """
         Creates a mass spec object.
         :param ionisation_mode: POSITIVE or NEGATIVE
@@ -248,7 +258,7 @@ class IndependentMassSpectrometer(object):
         """
 
         # current scan index and internal time
-        self.idx = 100000 # same as the real mass spec
+        self.idx = 100000  # same as the real mass spec
         self.time = 0
 
         # current task queue
@@ -292,7 +302,6 @@ class IndependentMassSpectrometer(object):
 
         self.isolation_transition_window = isolation_transition_window
         self.isolation_transition_window_params = isolation_transition_window_params
-
 
         self.scan_duration_dict = scan_duration_dict
 
@@ -365,7 +374,7 @@ class IndependentMassSpectrometer(object):
         """
         self.clear_events()
         self.time = 0
-        self.idx = 100000 # same as the real mass spec
+        self.idx = 100000  # same as the real mass spec
         self.processing_queue = []
         self.current_N = 0
         self.current_DEW = 0
@@ -451,10 +460,10 @@ class IndependentMassSpectrometer(object):
         # sample current scan duration based on current_DEW, current_N, current_level and next_level
         if self.scan_duration_dict == None:
             current_scan_duration = self._sample_scan_duration(current_DEW, current_N,
-                                                           current_level, next_level)
+                                                               current_level, next_level)
         else:
             val = self.scan_duration_dict[current_level]
-            if callable(val): # is it a function, or a value?
+            if callable(val):  # is it a function, or a value?
                 tt = val()
             else:
                 tt = val
@@ -477,12 +486,12 @@ class IndependentMassSpectrometer(object):
         else:  # for (1, 2), (2, 1) and (2, 2)
             current_scan_duration = self.peak_sampler.scan_durations(current_level, next_level, 1,
                                                                      N=current_N, DEW=current_DEW)
-        
+
         try:
             current_scan_duration = current_scan_duration.flatten()[0]
         except:
-            print("Failed to sample, current level =  {}, next level = {}".format(current_level,next_level))
-            current_scan_duration =  0.1
+            print("Failed to sample, current level =  {}, next level = {}".format(current_level, next_level))
+            current_scan_duration = 0.1
         return current_scan_duration
 
     def _store_next_N_DEW(self, next_scan_param):
@@ -538,7 +547,7 @@ class IndependentMassSpectrometer(object):
 
             min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
             max_measurement_mz = params.get(ScanParameters.LAST_MASS)
-        
+
             if mzs is not None:
                 chem_mzs = []
                 chem_intensities = []
@@ -559,17 +568,17 @@ class IndependentMassSpectrometer(object):
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
-        #added condition for checking collision energy of scan & return MS2 data in an MS1 scan
+        # added condition for checking collision energy of scan & return MS2 data in an MS1 scan
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
         if params.get(ScanParameters.ISOLATION_WINDOWS) is None:
             specified_iso_windows = False
         else:
             specified_iso_windows = True
-        
+
         if collision_energy > 0 and specified_iso_windows == True and ms_level == 2:
-            sc= Scan(scan_id, scan_mzs, scan_intensities, 1, scan_time, scan_duration=None, scan_params=params)
+            sc = Scan(scan_id, scan_mzs, scan_intensities, 1, scan_time, scan_duration=None, scan_params=params)
         else:
-            sc= Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
+            sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
 
         # Note: at this point, the scan duration is not set yet because we don't know what the next scan is going to be
         # We will set it later in the get_next_scan() method after we've notified the controller that this scan is produced.
@@ -683,5 +692,3 @@ class IndependentMassSpectrometer(object):
             if window[0] < self._get_mz(chemical, query_rt, which_isotope, which_adduct) <= window[1]:
                 return True
         return False
-
-

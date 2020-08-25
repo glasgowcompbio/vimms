@@ -169,7 +169,7 @@ class TopNController(Controller):
             mz_upper = mz * (1 + mz_tol / 1e6)
             rt_lower = rt - rt_tol
             rt_upper = rt + rt_tol
-            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper)
+            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=rt)
             logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
                 rt,
                 x.from_mz, x.to_mz, x.from_rt, x.to_rt
@@ -238,7 +238,7 @@ class TopNController(Controller):
             mz_upper = mz * (1 + mz_tol / 1e6)
             rt_lower = current_time - rt_tol
             rt_upper = current_time + rt_tol
-            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper)
+            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=current_time)
             logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
                 current_time,
                 x.from_mz, x.to_mz, x.from_rt, x.to_rt
@@ -452,10 +452,10 @@ class WeightedDEWController(TopNController):
             if exclude_mz and exclude_rt:
                 logger.debug(
                     'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                if rt <= x.from_rt + self.exclusion_t_0:
+                if rt <= x.frag_at + self.exclusion_t_0:
                     return True, 0.0
                 else:
-                    weight = (rt - (self.exclusion_t_0 + x.from_rt)) / (self.rt_tol - self.exclusion_t_0)
+                    weight = (rt - (self.exclusion_t_0 + x.frag_at)) / (self.rt_tol - self.exclusion_t_0)
                     assert weight <= 1, weight
                     # self.remove_exclusion_items.append(x)
                     return True, weight

@@ -201,7 +201,7 @@ class ExclusionItem(object):
     A class to store the item to exclude when computing dynamic exclusion window
     """
 
-    def __init__(self, from_mz, to_mz, from_rt, to_rt):
+    def __init__(self, from_mz, to_mz, from_rt, to_rt, frag_at):
         """
         Creates a dynamic exclusion item
         :param from_mz: m/z lower bounding box
@@ -213,6 +213,7 @@ class ExclusionItem(object):
         self.to_mz = to_mz
         self.from_rt = from_rt
         self.to_rt = to_rt
+        self.frag_at = frag_at
 
     def __repr__(self):
         return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)

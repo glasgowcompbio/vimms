@@ -27,7 +27,7 @@ jupyter = "*"
 pyzmq = "==18.1.1"
 xlrd = "*"
 statsmodels = "*"
-mass-spec-utils = "==0.0.9"
+mass-spec-utils = "*"
 tabulate = "*"
 pytest = "*"
 

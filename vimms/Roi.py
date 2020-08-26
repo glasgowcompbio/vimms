@@ -273,7 +273,7 @@ def cosine_score(u, v):
 # Make the RoI from an input file
 # mz_units = Da for Daltons
 # mz_units = ppm for ppm
-def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,length_units = "scans"):
+def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,length_units = "scans", ms_level=1):
     # input_file = 'Beer_multibeers_1_fullscan1.mzML'
 
     if not mz_units == 'Da' and not mz_units == 'ppm':
@@ -290,7 +290,7 @@ def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensi
 
     for spectrum in run:
         # print spectrum['centroid_peaks']
-        if spectrum['ms level'] == 1:
+        if spectrum['ms level'] == ms_level:
             live_roi.sort()
             # current_ms1_scan_rt, units = spectrum['scan start time'] # this no longer works
             current_ms1_scan_rt, units = spectrum.scan_time

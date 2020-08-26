@@ -236,7 +236,7 @@ class IndependentMassSpectrometer(object):
     ACQUISITION_STREAM_CLOSED = 'AcquisitionStreamClosing'
     STATE_CHANGED = 'StateChanged'
 
-    def __init__(self, ionisation_mode, chemicals, peak_sampler, mz_noise=None, intensity_noise=None,
+    def __init__(self, ionisation_mode, chemicals, peak_sampler, mz_noise=None, intensity_noise=None, spike_noise=None,
                  isolation_transition_window='rectangular', isolation_transition_window_params=None,
                  scan_duration_dict=DEFAULT_SCAN_TIME_DICT):
         """
@@ -288,6 +288,7 @@ class IndependentMassSpectrometer(object):
             self.mz_noise = NoPeakNoise()
         if self.intensity_noise is None:
             self.intensity_noise = NoPeakNoise()
+        self.spike_noise = spike_noise
 
         self.fragmentation_events = []  # which chemicals produce which peaks
 
@@ -530,14 +531,16 @@ class IndependentMassSpectrometer(object):
 
         # for all chemicals that come out from the column coupled to the mass spec
         idx = self._get_chem_indices(scan_time)
+
+        min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
+        max_measurement_mz = params.get(ScanParameters.LAST_MASS)
+
         for i in idx:
             chemical = self.chemicals[i]
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
             mzs = self._get_all_mz_peaks(chemical, scan_time, ms_level, isolation_windows)
             peaks = []
 
-            min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
-            max_measurement_mz = params.get(ScanParameters.LAST_MASS)
 
             if mzs is not None:
                 chem_mzs = []
@@ -556,8 +559,15 @@ class IndependentMassSpectrometer(object):
                 frag = FragmentationEvent(chemical, scan_time, ms_level, peaks, scan_id)
                 self.fragmentation_events.append(frag)
 
+
+        if self.spike_noise is not None:
+            spike_mzs, spike_intensities = self.spike_noise.sample(min_measurement_mz,max_measurement_mz)
+            scan_mzs.extend(spike_mzs)
+            scan_intensities.extend(spike_intensities)
+
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
+
 
         # added condition for checking collision energy of scan & return MS2 data in an MS1 scan
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)

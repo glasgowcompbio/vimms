@@ -10,7 +10,9 @@ from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES
-
+from vimms.Chromatograms import FunctionalChromatogram
+from vimms.Noise import  uniform_list
+from vimms.ChemicalSamplers import rUniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 
 class DatabaseCompound(object):
     def __init__(self, name, chemical_formula, monisotopic_molecular_weight, smiles, inchi, inchikey):
@@ -608,3 +610,74 @@ class MultiSampleCreator(object):
         if noisy_intensity < 0:
             logger.warning("Warning: Negative Intensities have been created")
         return noisy_intensity
+
+class ChemicalMixtureCreator(object):
+    # class to create a list of known chemical objects
+    # using simplified, cleaned methods
+    def __init__(self, database,
+                        rt_and_intensity_sampler = UniformRTAndIntensitySampler(),
+                        chromatogram_sampler = GaussianChromatogramSampler(),
+                        ms2_sampler = UniformMS2Sampler(),
+                        adduct_proportion_cutoff=0.05,
+                        adduct_prior_dict=None):
+        self.database = database
+        self.rt_and_intensity_sampler = rt_and_intensity_sampler
+        self.chromatogram_sampler  =  chromatogram_sampler
+        self.ms2_sampler= ms2_sampler
+        self.adduct_proportion_cutoff = 0.05
+        self.adduct_prior_dict = adduct_prior_dict
+
+
+        if self.database is not None:
+            logger.debug('Sorting database compounds by masses')
+            self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
+
+
+    def sample(self, mz_range, rt_range, n_chemicals, ms_levels, include_adducts_isotopes=True):
+        formula_list = self._sample_formulas(mz_range,n_chemicals)
+        rt_list = []
+        intensity_list = []
+        chromatogram_list = []
+        for formula in formula_list:
+            rt,intensity = self.rt_and_intensity_sampler.sample(formula)
+            rt_list.append(rt)
+            intensity_list.append(intensity)
+            chromatogram_list.append(self.chromatogram_sampler.sample(formula, rt, intensity))
+        logger.debug('Sampled rt and intensity values and chromatograms')
+
+        # make into known chemical objects
+        chemicals = []
+        for i,formula in enumerate( formula_list):
+            rt = rt_list[i]
+            max_intensity = intensity_list[i]
+            chromatogram = chromatogram_list[i]
+            isotopes = Isotopes(formula)
+            adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
+
+            chemicals.append(KnownChemical(formula, isotopes, adducts, rt, max_intensity, chromatogram,
+                                          include_adducts_isotopes=include_adducts_isotopes))
+            if ms_levels == 2:
+                parent = chemicals[-1]
+                child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(formula)
+
+                children = []
+                for mz,intensity in zip(child_mz,child_intensity):
+                    child = MSN(mz, 2, intensity, parent_proportion, None, parent)
+                    children.append(child)
+                children.sort(key = lambda x: x.isotopes[0])
+                parent.children = children
+
+                
+        return chemicals
+
+
+    def _sample_formulas(self, mz_range, n_chemicals):
+        # filter HMDB to witin mz_range
+        offset = 20 # to ensure that we have room for at least M+H
+        formulas = list(set([x.chemical_formula for x in self.database]))
+        sub_formulas = list(filter(lambda x: Formula(x).mass  >= mz_range[0][0] and Formula(x).mass <= mz_range[0][1] - offset,formulas))
+        logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
+        chosen_formulas = np.random.choice(sub_formulas, size=n_chemicals, replace=False)
+        logger.debug('Sampled formulas')
+        return [Formula(f) for f in chosen_formulas]
+        

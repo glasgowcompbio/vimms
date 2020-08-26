@@ -1,7 +1,9 @@
 # Sampling classes for ChemicalMixtureCreator
 import numpy as np
-
+import bisect
 from loguru import logger
+
+from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chromatograms import FunctionalChromatogram
 from vimms.Common import Formula, DummyFormula
@@ -116,4 +118,51 @@ class CRPMS2Sampler(MS2Sampler):
 
     def _base_sample(self,max_mz):
         return np.random.rand()*(max_mz - self.min_mz) + self.min_mz
+
+
+class MGFMS2Sampler(MS2Sampler):
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False):
+        self.mgf_file = mgf_file
+        self.min_proportion = min_proportion
+        self.max_proportion = max_proportion
+        self.replace = replace # sample with replacement
+
+        # load the mgf
+        spectra_dict = load_mgf(self.mgf_file)
+        
+        # turn into a list where the last item is the number of times this one has been sampled
+        self.spectra_list = [[s.precursor_mz,s,0] for s in spectra_dict.values()]
+
+        # filter to remove those with more than  max_peaks (if max_peaks > 0)
+        if max_peaks > 0:
+            self.spectra_list = list(filter(lambda x: len(x[1].peaks) <= max_peaks, self.spectra_list))
+        
+        # sort by precursor mz
+        self.spectra_list.sort(key = lambda x: x[0])
+        logger.debug("Loaded {} spectra from {}".format(len(self.spectra_list),self.mgf_file))
+    
+    def sample(self, formula):
+        formula_mz = formula.mass
+        sub_spec = list(filter(lambda x: x[0] < formula_mz,self.spectra_list))
+        if len(sub_spec) == 0:
+            sub_spec = self.spectra_list # if there aren't any smaller than the mz, we just take any one
+
+        # sample one. If replace == True we take any, if not we only those that have not been sampled before
+        found_permissable = False
+        while not found_permissable:
+            spec = np.random.choice(len(sub_spec))
+            if self.replace == True or sub_spec[spec][2] == 0:
+                found_permissable = True
+
+        sub_spec[spec][2] += 1 # add one to the count
+        spectrum = sub_spec[spec][1]
+        mz_list,intensity_list = zip(*spectrum.peaks)
+        s = sum(intensity_list)
+        intensity_list = [i/s for i in intensity_list]
+        
+        parent_proportion = np.random.rand()*(self.max_proportion - self.min_proportion) + self.min_proportion
+
+        return mz_list, intensity_list, parent_proportion
+
+        
 

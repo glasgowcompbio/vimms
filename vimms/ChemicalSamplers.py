@@ -32,6 +32,10 @@ class UniformMZFormulaSampler(FormulaSampler):
         mz_list = np.random.rand(n_formulas) * (max_mz - min_mz) + min_mz
         return [DummyFormula(m) for m in  mz_list]
 
+class PickEverythingFormulaSampler(DatabaseFormulaSampler):
+    def sample(self,n_formulas):
+        pass # will just take everything from the database
+
 
 class RTAndIntensitySampler(object):
     def sample(self,formula):

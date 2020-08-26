@@ -1,6 +1,5 @@
 import copy
 import math
-import re
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +8,7 @@ import scipy.stats
 from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
-from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES
+from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES, Formula, DummyFormula
 from vimms.Chromatograms import FunctionalChromatogram
 from vimms.Noise import  uniform_list, GaussianPeakNoise
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
@@ -23,48 +22,6 @@ class DatabaseCompound(object):
         self.inchi = inchi
         self.inchikey = inchikey
 
-
-class Formula(object):
-    def __init__(self, formula_string):
-        self.formula_string = formula_string
-        self.atom_names = ATOM_NAMES
-        self.atoms = {}
-        for atom in self.atom_names:
-            self.atoms[atom] = self._get_n_element(atom)
-        self.mass = self._get_mz()
-
-    def _get_mz(self):
-        return self.compute_exact_mass()
-
-    def _get_n_element(self, atom_name):
-        # Do some regex matching to find the numbers of the important atoms
-        ex = atom_name + '(?![a-z])' + '\\d*'
-        m = re.search(ex, self.formula_string)
-        if m == None:
-            return 0
-        else:
-            ex = atom_name + '(?![a-z])' + '(\\d*)'
-            m2 = re.findall(ex, self.formula_string)
-            total = 0
-            for a in m2:
-                if len(a) == 0:
-                    total += 1
-                else:
-                    total += int(a)
-            return total
-
-    def compute_exact_mass(self):
-        masses = ATOM_MASSES
-        exact_mass = 0.0
-        for a in self.atoms:
-            exact_mass += masses[a] * self.atoms[a]
-        return exact_mass
-
-    def __repr__(self):
-        return self.formula_string
-
-    def __str__(self):
-        return self.formula_string
 
 
 class Isotopes(object):
@@ -611,16 +568,17 @@ class MultiSampleCreator(object):
             logger.warning("Warning: Negative Intensities have been created")
         return noisy_intensity
 
+
 class ChemicalMixtureCreator(object):
     # class to create a list of known chemical objects
     # using simplified, cleaned methods
-    def __init__(self, database,
+    def __init__(self,  formula_sampler,
                         rt_and_intensity_sampler = UniformRTAndIntensitySampler(),
                         chromatogram_sampler = GaussianChromatogramSampler(),
                         ms2_sampler = UniformMS2Sampler(),
                         adduct_proportion_cutoff=0.05,
                         adduct_prior_dict=None):
-        self.database = database
+        self.formula_sampler = formula_sampler
         self.rt_and_intensity_sampler = rt_and_intensity_sampler
         self.chromatogram_sampler  =  chromatogram_sampler
         self.ms2_sampler= ms2_sampler
@@ -628,13 +586,13 @@ class ChemicalMixtureCreator(object):
         self.adduct_prior_dict = adduct_prior_dict
 
 
-        if self.database is not None:
-            logger.debug('Sorting database compounds by masses')
-            self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
+        # if self.database is not None:
+        #     logger.debug('Sorting database compounds by masses')
+        #     self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
 
 
     def sample(self, mz_range, rt_range, n_chemicals, ms_levels, include_adducts_isotopes=True):
-        formula_list = self._sample_formulas(mz_range,n_chemicals)
+        formula_list = self.formula_sampler.sample(n_chemicals,mz_range[0][0],mz_range[0][1])
         rt_list = []
         intensity_list = []
         chromatogram_list = []
@@ -647,15 +605,21 @@ class ChemicalMixtureCreator(object):
 
         # make into known chemical objects
         chemicals = []
-        for i,formula in enumerate( formula_list):
+        for i,formula in enumerate(formula_list):
             rt = rt_list[i]
             max_intensity = intensity_list[i]
             chromatogram = chromatogram_list[i]
-            isotopes = Isotopes(formula)
-            adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
+            if isinstance(formula,Formula):
+                isotopes = Isotopes(formula)
+                adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
 
-            chemicals.append(KnownChemical(formula, isotopes, adducts, rt, max_intensity, chromatogram,
-                                          include_adducts_isotopes=include_adducts_isotopes))
+                chemicals.append(KnownChemical(formula, isotopes, adducts, rt, max_intensity, chromatogram,
+                                            include_adducts_isotopes=include_adducts_isotopes))
+            elif isinstance(formula,DummyFormula):
+                chemicals.append(UnknownChemical(formula.mass, rt, max_intensity, chromatogram))
+            else:
+                logger.warning("Unkwown formula object: {}".format(type(formula)))
+
             if ms_levels == 2:
                 parent = chemicals[-1]
                 child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(formula)
@@ -671,15 +635,15 @@ class ChemicalMixtureCreator(object):
         return chemicals
 
 
-    def _sample_formulas(self, mz_range, n_chemicals):
-        # filter HMDB to witin mz_range
-        offset = 20 # to ensure that we have room for at least M+H
-        formulas = list(set([x.chemical_formula for x in self.database]))
-        sub_formulas = list(filter(lambda x: Formula(x).mass  >= mz_range[0][0] and Formula(x).mass <= mz_range[0][1] - offset,formulas))
-        logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
-        chosen_formulas = np.random.choice(sub_formulas, size=n_chemicals, replace=False)
-        logger.debug('Sampled formulas')
-        return [Formula(f) for f in chosen_formulas]
+    # def _sample_formulas(self, mz_range, n_chemicals):
+    #     # filter HMDB to witin mz_range
+    #     offset = 20 # to ensure that we have room for at least M+H
+    #     formulas = list(set([x.chemical_formula for x in self.database]))
+    #     sub_formulas = list(filter(lambda x: Formula(x).mass  >= mz_range[0][0] and Formula(x).mass <= mz_range[0][1] - offset,formulas))
+    #     logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
+    #     chosen_formulas = np.random.choice(sub_formulas, size=n_chemicals, replace=False)
+    #     logger.debug('Sampled formulas')
+    #     return [Formula(f) for f in chosen_formulas]
         
 class MultipleMixtureCreator(object):
     def __init__(self,master_chemical_list,group_list,group_dict,intensity_noise=GaussianPeakNoise(sigma=0.001,log_space=True),overall_missing_probability=0.0):

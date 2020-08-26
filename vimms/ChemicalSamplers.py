@@ -1,7 +1,34 @@
 # Sampling classes for ChemicalMixtureCreator
 import numpy as np
 
+from loguru import logger
+
 from vimms.Chromatograms import FunctionalChromatogram
+from vimms.Common import Formula, DummyFormula
+
+class FormulaSampler(object):
+    def sample(self,n_formulas,min_mz=50,max_mz=1000):
+        raise NotImplementedError
+
+class DatabaseFormulaSampler(FormulaSampler):
+    def __init__(self, database):
+        self.database = database
+
+    def sample(self,n_formulas,min_mz=50,max_mz=1000):
+        # filter HMDB to witin mz_range
+        offset = 20 # to ensure that we have room for at least M+H
+        formulas = list(set([x.chemical_formula for x in self.database]))
+        sub_formulas = list(filter(lambda x: Formula(x).mass  >= min_mz and Formula(x).mass <= max_mz - offset,formulas))
+        logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
+        chosen_formulas = np.random.choice(sub_formulas, size=n_formulas, replace=False)
+        logger.debug('Sampled formulas')
+        return [Formula(f) for f in chosen_formulas]
+
+class UniformMZFormulaSampler(FormulaSampler):
+    def sample(self,n_formulas,min_mz=50,max_mz=1000):
+        offset = 20
+        mz_list = np.random.rand(n_formulas) * (max_mz - min_mz) + min_mz
+        return [DummyFormula(m) for m in  mz_list]
 
 
 class RTAndIntensitySampler(object):
@@ -14,7 +41,7 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
         self.max_rt = max_rt
         self.min_log_intensity = min_log_intensity
         self.max_log_intensity = max_log_intensity
-    def sample(self,formula): #maybe parameterise by mz?
+    def sample(self,formula): 
         rt = np.random.rand() * (self.max_rt - self.min_rt) + self.min_rt
         log_intensity = np.random.rand() * (self.max_log_intensity - self.min_log_intensity) + self.min_log_intensity
         return rt, np.exp(log_intensity)
@@ -23,7 +50,7 @@ class ChromatogramSampler(object):
     def sample(self,formula,rt,intensity):
         raise NotImplementedError
 
-class GaussianChromatogramSampler(ChrmoatogramSampler):
+class GaussianChromatogramSampler(ChromatogramSampler):
     def __init__(self, sigma = 10):
         self.sigma = sigma
     def sample(self, formula, rt, intensity):

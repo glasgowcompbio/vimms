@@ -7,6 +7,7 @@ import pathlib
 import pickle
 import sys
 import zipfile
+import re
 from bisect import bisect_left
 
 import numpy as np
@@ -86,6 +87,57 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
     'stop_rt': 1440,
     'n_peaks': 1
 }
+
+class Formula(object):
+    def __init__(self, formula_string):
+        self.formula_string = formula_string
+        self.atom_names = ATOM_NAMES
+        self.atoms = {}
+        for atom in self.atom_names:
+            self.atoms[atom] = self._get_n_element(atom)
+        self.mass = self._get_mz()
+
+    def _get_mz(self):
+        return self.compute_exact_mass()
+
+    def _get_n_element(self, atom_name):
+        # Do some regex matching to find the numbers of the important atoms
+        ex = atom_name + '(?![a-z])' + '\\d*'
+        m = re.search(ex, self.formula_string)
+        if m == None:
+            return 0
+        else:
+            ex = atom_name + '(?![a-z])' + '(\\d*)'
+            m2 = re.findall(ex, self.formula_string)
+            total = 0
+            for a in m2:
+                if len(a) == 0:
+                    total += 1
+                else:
+                    total += int(a)
+            return total
+
+    def compute_exact_mass(self):
+        masses = ATOM_MASSES
+        exact_mass = 0.0
+        for a in self.atoms:
+            exact_mass += masses[a] * self.atoms[a]
+        return exact_mass
+
+    def __repr__(self):
+        return self.formula_string
+
+    def __str__(self):
+        return self.formula_string
+
+class DummyFormula(object):
+    # wrapper to store an mz as a 'formula'
+    def __init__(self,mz):
+        self.mass = mz
+    def compute_exact_mass(self):
+        return self.mass
+
+
 
 def create_if_not_exist(out_dir):
     if not os.path.exists(out_dir) and len(out_dir) > 0:

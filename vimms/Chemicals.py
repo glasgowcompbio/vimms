@@ -663,7 +663,6 @@ class MultipleMixtureCreator(object):
     def _generate_changes(self):
         self.group_multipliers = {}
         for group in self.group_dict:
-            print(group)
             self.group_multipliers[group]  = {}
             missing_probability = self.group_dict[group]['missing_probability']
             changing_probability = self.group_dict[group]['changing_probability']

@@ -380,8 +380,11 @@ class ChemicalCreator(object):
 
     def _get_children_spectra(self, parent):
         # spectra is a list containing one MassSpec.Scan object
-
-        spectra = self.peak_sampler.get_ms2_spectra()[0]
+        found_permissable = False # reject spectra that comtain no peaks
+        while not found_permissable:
+            spectra = self.peak_sampler.get_ms2_spectra()[0]
+            if len(spectra.intensities) > 0:
+                found_permissable = True
         kids = []
         intensity_props = self._get_msn_proportions(None, None, spectra.intensities)
         parent_mass_prop = self.peak_sampler.get_parent_intensity_proportion()

@@ -4,7 +4,11 @@ import numpy as np
 from vimms.Chromatograms import FunctionalChromatogram
 
 
-class UniformRTAndIntensitySampler(object):
+class RTAndIntensitySampler(object):
+    def sample(self,formula):
+        raise NotImplementedError
+
+class UniformRTAndIntensitySampler(RTAndIntensitySampler):
     def __init__(self,min_rt = 0, max_rt = 1600, min_log_intensity = np.log(1e4), max_log_intensity = np.log(1e7)):
         self.min_rt = min_rt
         self.max_rt = max_rt
@@ -15,13 +19,22 @@ class UniformRTAndIntensitySampler(object):
         log_intensity = np.random.rand() * (self.max_log_intensity - self.min_log_intensity) + self.min_log_intensity
         return rt, np.exp(log_intensity)
 
-class GaussianChromatogramSampler(object):
+class ChromatogramSampler(object):
+    def sample(self,formula,rt,intensity):
+        raise NotImplementedError
+
+class GaussianChromatogramSampler(ChrmoatogramSampler):
     def __init__(self, sigma = 10):
         self.sigma = sigma
     def sample(self, formula, rt, intensity):
         return FunctionalChromatogram('normal',[0,self.sigma])
 
-class UniformMS2Sampler(object):
+
+class MS2Sampler(object):
+    def sample(self,formula):
+        raise NotImplementedError
+
+class UniformMS2Sampler(MS2Sampler):
     def __init__(self,poiss_peak_mean=10, min_mz=50, min_proportion=0.1, max_proportion=0.8):
         self.poiss_peak_mean = poiss_peak_mean
         self.min_mz = min_mz
@@ -40,7 +53,7 @@ class UniformMS2Sampler(object):
         return mz_list, intensity_list, parent_proportion
 
 
-class CRPMS2Sampler(object):
+class CRPMS2Sampler(MS2Sampler):
     def __init__(self,n_draws=1000, min_mz=50, min_proportion=0.1, max_proportion=0.8, alpha=1, base='uniform'):
         self.n_draws = n_draws
         self.min_mz = min_mz

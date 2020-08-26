@@ -11,8 +11,8 @@ from loguru import logger
 from vimms.ChineseRestaurantProcess import Restricted_Crp
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES
 from vimms.Chromatograms import FunctionalChromatogram
-from vimms.Noise import  uniform_list
-from vimms.ChemicalSamplers import rUniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
+from vimms.Noise import  uniform_list, GaussianPeakNoise
+from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 
 class DatabaseCompound(object):
     def __init__(self, name, chemical_formula, monisotopic_molecular_weight, smiles, inchi, inchikey):
@@ -681,3 +681,53 @@ class ChemicalMixtureCreator(object):
         logger.debug('Sampled formulas')
         return [Formula(f) for f in chosen_formulas]
         
+class MultipleMixtureCreator(object):
+    def __init__(self,master_chemical_list,group_list,group_dict,intensity_noise=GaussianPeakNoise(sigma=0.001,log_space=True),overall_missing_probability=0.0):
+        self.master_chemical_list = master_chemical_list
+        self.group_list = group_list
+        self.group_dict = group_dict
+        self.intensity_noise = intensity_noise
+        self.overall_missing_probability = overall_missing_probability
+
+        if not 'control' in self.group_dict:
+            self.group_dict['control'] = {}
+            self.group_dict['control']['missing_probability'] = 0.0
+            self.group_dict['control']['changing_probability'] = 0.0
+
+        self._generate_changes()
+
+    def _generate_changes(self):
+        self.group_multipliers = {}
+        for group in self.group_dict:
+            print(group)
+            self.group_multipliers[group]  = {}
+            missing_probability = self.group_dict[group]['missing_probability']
+            changing_probability = self.group_dict[group]['changing_probability']
+            for chemical in self.master_chemical_list:
+                self.group_multipliers[group][chemical] = 1.0 # default is no change
+                if np.random.rand() <= changing_probability:
+                    self.group_multipliers[group][chemical] = np.exp(np.random.rand()*(np.log(5)-np.log(0.2) + np.log(0.2))) # uniform between doubling and halving
+                if np.random.rand() <= missing_probability:
+                    self.group_multipliers[group][chemical] = 0.0
+            
+
+    def generate_chemical_lists(self):
+        chemical_lists = []
+        for group in self.group_list:
+            new_list = []
+            for chemical in self.master_chemical_list:
+                if np.random.rand() < self.overall_missing_probability:
+                    continue # chemical is missing overall
+                new_intensity = chemical.max_intensity * self.group_multipliers[group][chemical]
+                new_intensity = self.intensity_noise.get(new_intensity,1)
+
+                # make a new known chemical
+                new_chemical = copy.deepcopy(chemical)
+                new_chemical.max_intensity = new_intensity
+                new_chemical.original_chemical = chemical
+                new_list.append(new_chemical)
+            chemical_lists.append(new_list)
+        return chemical_lists
+
+
+            

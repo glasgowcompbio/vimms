@@ -169,4 +169,5 @@ class MGFMS2Sampler(MS2Sampler):
 class ExactMatchMS2Sampler(MS2Sampler):
     # to be completed. Where we have particular formulas and we
     # have a particular spectrum for each exact formula...
-
+    def __init__():
+        pass

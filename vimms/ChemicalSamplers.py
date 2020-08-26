@@ -149,9 +149,11 @@ class MGFMS2Sampler(MS2Sampler):
 
         # sample one. If replace == True we take any, if not we only those that have not been sampled before
         found_permissable = False
+        n_attempts = 0
         while not found_permissable:
+            n_attempts += 1
             spec = np.random.choice(len(sub_spec))
-            if self.replace == True or sub_spec[spec][2] == 0:
+            if self.replace == True or sub_spec[spec][2] == 0 or n_attempts > 100:
                 found_permissable = True
 
         sub_spec[spec][2] += 1 # add one to the count
@@ -164,5 +166,7 @@ class MGFMS2Sampler(MS2Sampler):
 
         return mz_list, intensity_list, parent_proportion
 
-        
+class ExactMatchMS2Sampler(MS2Sampler):
+    # to be completed. Where we have particular formulas and we
+    # have a particular spectrum for each exact formula...
 

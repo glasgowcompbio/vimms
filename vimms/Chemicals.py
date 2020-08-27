@@ -8,9 +8,10 @@ import scipy.stats
 from loguru import logger
 
 from vimms.ChineseRestaurantProcess import Restricted_Crp
-from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, ATOM_NAMES, ATOM_MASSES, Formula, DummyFormula
+from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
+    ATOM_NAMES, ATOM_MASSES, Formula, DummyFormula, uniform_list
 from vimms.Chromatograms import FunctionalChromatogram
-from vimms.Noise import  uniform_list, GaussianPeakNoise
+from vimms.Noise import GaussianPeakNoise
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 
 class DatabaseCompound(object):

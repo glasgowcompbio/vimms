@@ -120,6 +120,7 @@ class UnknownChemical(Chemical):
         self.children = children
         self.ms_level = 1
         self.mz_diff = 0
+        self.mass = mz
 
     def __repr__(self):
         return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
@@ -162,6 +163,7 @@ class KnownChemical(Chemical):
         self.chromatogram = chromatogram
         self.children = children
         self.ms_level = 1
+        self.mass = self.formula.mass
 
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
@@ -593,6 +595,10 @@ class ChemicalMixtureCreator(object):
 
 
     def sample(self, mz_range, rt_range, n_chemicals, ms_levels, include_adducts_isotopes=True):
+        
+        self.rt_and_intensity_sampler.min_rt = rt_range[0][0]
+        self.rt_and_intensity_sampler.max_rt = rt_range[0][1]
+
         formula_list = self.formula_sampler.sample(n_chemicals,mz_range[0][0],mz_range[0][1])
         rt_list = []
         intensity_list = []

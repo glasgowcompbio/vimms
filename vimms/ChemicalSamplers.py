@@ -74,7 +74,7 @@ class UniformMZFormulaSampler(FormulaSampler):
 
 class PickEverythingFormulaSampler(DatabaseFormulaSampler):
     """
-    A sampler that doesn't do anything and just return everything in the database
+    A sampler that returns everything in the database
     """
 
     def __init__(self, database):
@@ -90,7 +90,7 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         :param n_formulas: ignored?
         :return: all formulae from the database
         """
-        return list(self.database)
+        return [Formula(x.chemical_formula) for x in self.database]
 
 
 ###############################################################################################################
@@ -158,6 +158,7 @@ class GaussianChromatogramSampler(ChromatogramSampler):
     """
 
     def __init__(self, sigma=10):
+        assert sigma > 0
         self.sigma = sigma
 
     def sample(self, formula, rt, intensity):
@@ -235,10 +236,11 @@ class CRPMS2Sampler(MS2Sampler):
         self.min_proportion = min_proportion
         self.max_proportion = max_proportion
         self.alpha = alpha
+        assert self.alpha > 0
         self.base = base
+        assert self.base == 'uniform'
 
     def sample(self, formula):
-        assert self.base == 'uniform'
         max_mz = formula.compute_exact_mass()
         unique_vals = [self._base_sample(max_mz)]
         counts = [1]

@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from vimms.Common import *
 from vimms.ChemicalSamplers import *
-from vimms.Chemicals import ChemicalMixtureCreator
-
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator
+from vimms.Noise import NoPeakNoise
 np.random.seed(1)
 
 ### define some useful constants ###
@@ -66,3 +66,61 @@ class TestDatabaseCreation:
         cc = ChemicalMixtureCreator(hf, ms2_sampler=cs)
         d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
         check_chems(d)
+
+    def test_multiple_chems(self):
+        hf = DatabaseFormulaSampler(HMDB)
+        cc = ChemicalMixtureCreator(hf)
+        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        
+
+        group_list = ['control', 'control', 'case', 'case']
+        group_dict = {'case': {'missing_probability': 0,
+                                'changing_probability': 0}}
+
+        # missing noise
+        peak_noise = NoPeakNoise()
+
+        mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
+
+        cl = mm.generate_chemical_lists()
+
+        for c in cl:
+            check_chems(c)
+            # with these settings all chemicals should be in all lists with identical intensities
+            originals = [f.original_chemical for f in c]
+            assert len(set(originals)) == len(d)
+            for f in c:
+                assert f.max_intensity == f.original_chemical.max_intensity
+        
+        
+        group_dict = {'case': {'missing_probability': 1.,'changing_probability': 0}}
+
+        mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
+
+        cl = mm.generate_chemical_lists()
+        for i,c in enumerate(cl):
+            if group_list[i] == 'case':
+                assert len(c) == 0
+
+        # test the case that if the missing probability is 1 all are missing
+        group_dict = {'case': {'missing_probability': 1.,'changing_probability': 0}}
+
+        mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
+
+        cl = mm.generate_chemical_lists()
+        for i,c in enumerate(cl):
+            if group_list[i] == 'case':
+                assert len(c) == 0
+
+        # test the case that changing probablity is 1 changes everything
+        group_dict = {'case': {'missing_probability': 0.,'changing_probability': 1.}}
+
+        mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
+
+        cl = mm.generate_chemical_lists()
+        for i,c in enumerate(cl):
+            if group_list[i] == 'case':
+                for f in c:
+                    assert not f.max_intensity == f.original_chemical.max_intensity
+        
+        

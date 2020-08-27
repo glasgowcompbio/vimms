@@ -686,7 +686,7 @@ class MultipleMixtureCreator(object):
         for group in self.group_list:
             new_list = []
             for chemical in self.master_chemical_list:
-                if np.random.rand() < self.overall_missing_probability:
+                if np.random.rand() < self.overall_missing_probability or self.group_multipliers[group][chemical] == 0.:
                     continue # chemical is missing overall
                 new_intensity = chemical.max_intensity * self.group_multipliers[group][chemical]
                 new_intensity = self.intensity_noise.get(new_intensity,1)

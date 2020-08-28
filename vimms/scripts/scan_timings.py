@@ -21,6 +21,12 @@ def get_times(mzml_object):
         current_level = s.ms_level
         next_level = next_scan.ms_level
         times[(current_level,next_level)].append((current_scan.rt_in_seconds,delta_t))
+    to_remove = set()
+    for key in times:
+        if len(times[key]) == 0:
+            to_remove.add(key)
+    for key in to_remove:
+        del times[key]
     return times
 
 

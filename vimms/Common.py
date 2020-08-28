@@ -5,6 +5,7 @@ import math
 import os
 import pathlib
 import pickle
+import re
 import sys
 import zipfile
 from bisect import bisect_left
@@ -36,12 +37,12 @@ DEFAULT_MS1_AGC_TARGET = 200000
 DEFAULT_MS2_AGC_TARGET = 30000
 DEFAULT_MS1_MAXIT = 250
 DEFAULT_MS2_MAXIT = 100
-DEFAULT_MS1_ACTIVATION_TYPE = 'HCD'         # CID, HCD
-DEFAULT_MS2_ACTIVATION_TYPE = 'HCD'         # CID, HCD
-DEFAULT_MS1_MASS_ANALYSER = 'Orbitrap'      # IonTrap, Orbitrap
-DEFAULT_MS2_MASS_ANALYSER = 'Orbitrap'      # IonTrap, Orbitrap
-DEFAULT_MS1_ISOLATION_MODE = 'Quadrupole'    # None, Quadrupole, IonTrap
-DEFAULT_MS2_ISOLATION_MODE = 'Quadrupole'    # None, Quadrupole, IonTrap
+DEFAULT_MS1_ACTIVATION_TYPE = 'HCD'  # CID, HCD
+DEFAULT_MS2_ACTIVATION_TYPE = 'HCD'  # CID, HCD
+DEFAULT_MS1_MASS_ANALYSER = 'Orbitrap'  # IonTrap, Orbitrap
+DEFAULT_MS2_MASS_ANALYSER = 'Orbitrap'  # IonTrap, Orbitrap
+DEFAULT_MS1_ISOLATION_MODE = 'Quadrupole'  # None, Quadrupole, IonTrap
+DEFAULT_MS2_ISOLATION_MODE = 'Quadrupole'  # None, Quadrupole, IonTrap
 
 PROTON_MASS = 1.00727645199076
 
@@ -65,12 +66,12 @@ POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.
 
 # example prior dictionary to be passed when creating an 
 # adducts object to only get M+H adducts out
-ADDUCT_DICT_POS_MH = {'M+H':1.0}
+ADDUCT_DICT_POS_MH = {'M+H': 1.0}
 
 ATOM_NAMES = ['C', 'H', 'N', 'O', 'P', 'S', 'Cl', 'I', 'Br', 'Si', 'F', 'D']
 ATOM_MASSES = {'C': 12.00000000000, 'H': 1.00782503214, 'O': 15.99491462210, 'N': 14.00307400524,
-                  'P': 30.97376151200, 'S': 31.97207069000, 'Cl': 34.96885271000, 'I': 126.904468, 'Br': 78.9183376,
-                  'Si': 27.9769265327, 'F': 18.99840320500, 'D': 2.01410177800}
+               'P': 30.97376151200, 'S': 31.97207069000, 'Cl': 34.96885271000, 'I': 126.904468, 'Br': 78.9183376,
+               'Si': 27.9769265327, 'F': 18.99840320500, 'D': 2.01410177800}
 
 GET_MS2_BY_PEAKS = "sample"
 GET_MS2_BY_SPECTRA = "spectra"
@@ -86,6 +87,59 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
     'stop_rt': 1440,
     'n_peaks': 1
 }
+
+
+class Formula(object):
+    def __init__(self, formula_string):
+        self.formula_string = formula_string
+        self.atom_names = ATOM_NAMES
+        self.atoms = {}
+        for atom in self.atom_names:
+            self.atoms[atom] = self._get_n_element(atom)
+        self.mass = self._get_mz()
+
+    def _get_mz(self):
+        return self.compute_exact_mass()
+
+    def _get_n_element(self, atom_name):
+        # Do some regex matching to find the numbers of the important atoms
+        ex = atom_name + '(?![a-z])' + '\\d*'
+        m = re.search(ex, self.formula_string)
+        if m == None:
+            return 0
+        else:
+            ex = atom_name + '(?![a-z])' + '(\\d*)'
+            m2 = re.findall(ex, self.formula_string)
+            total = 0
+            for a in m2:
+                if len(a) == 0:
+                    total += 1
+                else:
+                    total += int(a)
+            return total
+
+    def compute_exact_mass(self):
+        masses = ATOM_MASSES
+        exact_mass = 0.0
+        for a in self.atoms:
+            exact_mass += masses[a] * self.atoms[a]
+        return exact_mass
+
+    def __repr__(self):
+        return self.formula_string
+
+    def __str__(self):
+        return self.formula_string
+
+
+class DummyFormula(object):
+    # wrapper to store an mz as a 'formula'
+    def __init__(self, mz):
+        self.mass = mz
+
+    def compute_exact_mass(self):
+        return self.mass
+
 
 def create_if_not_exist(out_dir):
     if not os.path.exists(out_dir) and len(out_dir) > 0:
@@ -222,3 +276,7 @@ def extract_zip_file(in_file, delete=True):
     if delete:
         logger.info('Deleting %s' % in_file)
         os.remove(in_file)
+
+
+def uniform_list(N, min_val, max_val):
+    return list(np.random.rand(N) * (max_val - min_val) + min_val)

@@ -19,7 +19,8 @@ class TopNController(Controller):
     that are not excluded
     """
 
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
+                 ms1_shift=0, initial_exclusion_list=None,
                  # advanced parameters
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                  ms1_max_it=DEFAULT_MS1_MAXIT,
@@ -44,9 +45,12 @@ class TopNController(Controller):
         self.min_ms1_intensity = min_ms1_intensity  # minimum ms1 intensity to fragment
         self.ms1_shift = ms1_shift  # number of scans to move ms1 scan forward in list of new_tasks
 
-        # for dynamic exclusion window
-        self.exclusion_list = []  # a list of ExclusionItem
-        self.temp_exclusion_list = []
+        self.exclusion_list = []
+        if initial_exclusion_list is not None: # copy initial list, if provided
+            self.exclusion_list = list(initial_exclusion_list)
+
+        self.temp_exclusion_list = [] # to deal with ms1_shift
+        self.all_exclusion_items = [] # keep track of all exclusion items through the whole run
 
         # advanced parameters
         self.ms1_agc_target = ms1_agc_target
@@ -160,9 +164,9 @@ class TopNController(Controller):
             rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
             mz_lower = mz * (1 - mz_tol / 1e6)
             mz_upper = mz * (1 + mz_tol / 1e6)
-            rt_lower = rt
+            rt_lower = rt - rt_tol
             rt_upper = rt + rt_tol
-            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper)
+            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=rt)
             logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
                 rt,
                 x.from_mz, x.to_mz, x.from_rt, x.to_rt
@@ -175,7 +179,7 @@ class TopNController(Controller):
         self._manage_dynamic_exclusion_list(last_scan)
 
     def reset(self):
-        self.exclusion_list = []
+        pass
 
     def _manage_dynamic_exclusion_list(self, scan):
         """
@@ -207,14 +211,15 @@ class TopNController(Controller):
             rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
             mz_lower = mz * (1 - mz_tol / 1e6)
             mz_upper = mz * (1 + mz_tol / 1e6)
-            rt_lower = current_time
+            rt_lower = current_time - rt_tol
             rt_upper = current_time + rt_tol
-            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper)
+            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=current_time)
             logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
                 current_time,
                 x.from_mz, x.to_mz, x.from_rt, x.to_rt
             ))
             self.exclusion_list.append(x)
+            self.all_exclusion_items.append(x)
 
         # remove expired items from dynamic exclusion list
         self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))
@@ -422,10 +427,10 @@ class WeightedDEWController(TopNController):
             if exclude_mz and exclude_rt:
                 logger.debug(
                     'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                if rt <= x.from_rt + self.exclusion_t_0:
+                if rt <= x.frag_at + self.exclusion_t_0:
                     return True, 0.0
                 else:
-                    weight = (rt - (self.exclusion_t_0 + x.from_rt)) / (self.rt_tol - self.exclusion_t_0)
+                    weight = (rt - (self.exclusion_t_0 + x.frag_at)) / (self.rt_tol - self.exclusion_t_0)
                     assert weight <= 1, weight
                     # self.remove_exclusion_items.append(x)
                     return True, weight

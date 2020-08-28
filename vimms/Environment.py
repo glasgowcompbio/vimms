@@ -192,6 +192,7 @@ class Environment(object):
         """
         default_scan_params = ScanParameters()
         default_scan_params.set(ScanParameters.MS_LEVEL, 1)
+        default_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[DEFAULT_MS1_SCAN_WINDOW]])
         default_scan_params.set(ScanParameters.ISOLATION_WIDTH, DEFAULT_ISOLATION_WIDTH)
         default_scan_params.set(ScanParameters.COLLISION_ENERGY, collision_energy)
         default_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, orbitrap_resolution)

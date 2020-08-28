@@ -520,6 +520,7 @@ class IndependentMassSpectrometer(object):
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
+        
 
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
 
@@ -528,7 +529,12 @@ class IndependentMassSpectrometer(object):
         scan_intensities = []  # all the intensity values in this scan
         ms_level = params.get(ScanParameters.MS_LEVEL)
         if ms_level == 1:  # if ms1 then we scan the whole range of m/z
-            isolation_windows = [[(min_measurement_mz, max_measurement_mz)]]
+            isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
+            if isolation_windows is None:
+                isolation_windows = [[(min_measurement_mz, max_measurement_mz)]]
+            if not isolation_windows[0][0][0] == min_measurement_mz or not isolation_windows[0][0][1] == max_measurement_mz:
+                logger.warning("MS1 scan: MS1 isolation window and measurement mz range mismatch")
+            
         else:  # if ms2 then we check if the isolation window parameter is specified
             # isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
             # if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
@@ -540,7 +546,7 @@ class IndependentMassSpectrometer(object):
         idx = self._get_chem_indices(scan_time)
 
 
-
+        # the following is to ensure we generate fragment data when we have a collision energe >0
         use_ms_level = ms_level
         if ms_level == 1 and collision_energy > 0:
             use_ms_level = 2

@@ -4,13 +4,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from vimms.Chemicals import ChemicalCreator
+from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
+from vimms.ChemicalSamplers import *
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
-from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
 from vimms.Noise import *
 
 np.random.seed(1)
@@ -75,6 +76,9 @@ def check_non_empty(controller, ms_level):
     for scan in controller.scans[ms_level]:
         if scan.num_peaks > 0:
             non_empty += 1
+        if scan.ms_level == 2:
+            assert scan.scan_params is not None
+            assert scan.scan_params.get(ScanParameters.PRECURSOR_MZ) is not None
     assert non_empty > 0
 
 ### define some useful test fixtures ###
@@ -115,6 +119,14 @@ def fragscan_dataset_spectra(fragscan_ps):
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_SPECTRA)
 
+
+@pytest.fixture(scope="module")
+def simple_dataset():
+    um = UniformMZFormulaSampler()
+    ri = UniformRTAndIntensitySampler(min_rt=150, max_rt=160)
+    cs = GaussianChromatogramSampler(sigma=100)
+    cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample([[515,516]],[[150,160]],1,2)
 
 ### tests starts from here ###
 
@@ -763,17 +775,16 @@ class TestFixedScansController:
     Tests the FixedScansController that sends a scheduled number of scans
     """
 
-    def test_FixedScansController(self, fragscan_dataset_peaks, fragscan_ps):
+    def test_FixedScansController(self, simple_dataset, fragscan_ps):
         logger.info('Testing FixedScansController')
-        assert len(fragscan_dataset_peaks) == N_CHEMS
+        # assert len(fragscan_dataset_peaks) == N_CHEMS
 
         ionisation_mode = POSITIVE
-        initial_ms1 = 100
-        end_ms1 = 100
-        num_topN_blocks = 100
+        initial_ms1 = 10
+        end_ms1 = 10
+        num_topN_blocks = 2
         N = 10
-        # precursor_mz = 74.0970
-        precursor_mz = 128.9536
+        precursor_mz = 515.4821
         ms1_mass_analyser = 'Orbitrap'
         ms2_mass_analyser = 'Orbitrap'
         activation_type = 'HCD'
@@ -786,22 +797,19 @@ class TestFixedScansController:
         assert len(schedule) == expected
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
-        controller = FixedScansController(ionisation_mode, schedule)
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
-        # max_bound = min_bound + gen.estimate_max_time() + 60
+        # mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps)
+        controller = FixedScansController(ionisation_mode, schedule, isolation_width=1000)
+        min_bound = 200
+        max_bound = 210
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
-        # check that there is at least one non-empty MS1
+        # check that there is at least one non-empty MS1 and MS2 scans
         check_non_empty_MS1(controller)
-
-        # check that there is at least one MS2 scan -- could be empty
-        # a bit difficult to test the non-empty case
-        # check_non_empty_MS2(controller)
-        assert len(controller.scans[2]) > 0
+        check_non_empty_MS2(controller)
 
         filename = 'fixedScansController.mzML'
         check_mzML(env, OUT_DIR, filename)

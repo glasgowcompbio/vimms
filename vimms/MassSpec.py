@@ -517,28 +517,44 @@ class IndependentMassSpectrometer(object):
         :param scan_time: the timepoint
         :return: a mass spectrometry scan at that time
         """
+
+        min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
+        max_measurement_mz = params.get(ScanParameters.LAST_MASS)
+        
+
+        collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
+
+
         scan_mzs = []  # all the mzs values in this scan
         scan_intensities = []  # all the intensity values in this scan
         ms_level = params.get(ScanParameters.MS_LEVEL)
         if ms_level == 1:  # if ms1 then we scan the whole range of m/z
-            isolation_windows = [[DEFAULT_MS1_SCAN_WINDOW]]
-        else:  # if ms2 then we check if the isolation window parameter is specified
             isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
-            if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
-                isolation_windows = params.compute_isolation_windows()
+            if isolation_windows is None:
+                isolation_windows = [[(min_measurement_mz, max_measurement_mz)]]
+            if not isolation_windows[0][0][0] == min_measurement_mz or not isolation_windows[0][0][1] == max_measurement_mz:
+                logger.warning("MS1 scan: MS1 isolation window and measurement mz range mismatch")
+            
+        else:  # if ms2 then we check if the isolation window parameter is specified
+            # isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
+            # if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
+            isolation_windows = params.compute_isolation_windows()
 
         scan_id = self.idx
 
         # for all chemicals that come out from the column coupled to the mass spec
         idx = self._get_chem_indices(scan_time)
 
-        min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
-        max_measurement_mz = params.get(ScanParameters.LAST_MASS)
+
+        # the following is to ensure we generate fragment data when we have a collision energe >0
+        use_ms_level = ms_level
+        if ms_level == 1 and collision_energy > 0:
+            use_ms_level = 2
 
         for i in idx:
             chemical = self.chemicals[i]
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
-            mzs = self._get_all_mz_peaks(chemical, scan_time, ms_level, isolation_windows)
+            mzs = self._get_all_mz_peaks(chemical, scan_time, use_ms_level, isolation_windows)
             peaks = []
 
 
@@ -549,14 +565,14 @@ class IndependentMassSpectrometer(object):
                     if peak_mz >= min_measurement_mz and peak_mz <= max_measurement_mz and peak_intensity > 0:
                         chem_mzs.append(peak_mz)
                         chem_intensities.append(peak_intensity)
-                        p = Peak(peak_mz, scan_time, peak_intensity, ms_level)
+                        p = Peak(peak_mz, scan_time, peak_intensity, use_ms_level)
                         peaks.append(p)
 
                 scan_mzs.extend(chem_mzs)
                 scan_intensities.extend(chem_intensities)
             # for benchmarking purpose
             if len(peaks) > 0:
-                frag = FragmentationEvent(chemical, scan_time, ms_level, peaks, scan_id)
+                frag = FragmentationEvent(chemical, scan_time, use_ms_level, peaks, scan_id)
                 self.fragmentation_events.append(frag)
 
 
@@ -569,17 +585,7 @@ class IndependentMassSpectrometer(object):
         scan_intensities = np.array(scan_intensities)
 
 
-        # added condition for checking collision energy of scan & return MS2 data in an MS1 scan
-        collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
-        if params.get(ScanParameters.ISOLATION_WINDOWS) is None:
-            specified_iso_windows = False
-        else:
-            specified_iso_windows = True
-
-        if collision_energy > 0 and specified_iso_windows == True and ms_level == 2:
-            sc = Scan(scan_id, scan_mzs, scan_intensities, 1, scan_time, scan_duration=None, scan_params=params)
-        else:
-            sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
+        sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
 
         # Note: at this point, the scan duration is not set yet because we don't know what the next scan is going to be
         # We will set it later in the get_next_scan() method after we've notified the controller that this scan is produced.

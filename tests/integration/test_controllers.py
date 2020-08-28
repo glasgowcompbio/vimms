@@ -8,7 +8,7 @@ from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
 from vimms.ChemicalSamplers import *
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
-    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController
+    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
@@ -128,6 +128,15 @@ def simple_dataset():
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
     return cm.sample([[515,516]],[[150,160]],1,2)
 
+
+@pytest.fixture(scope="module")
+def ten_chems():
+    um = UniformMZFormulaSampler()
+    ri = UniformRTAndIntensitySampler(min_rt=200, max_rt=300)
+    cs = GaussianChromatogramSampler()
+    cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(MZ_RANGE,[[200,300]],10,2)
+    
 ### tests starts from here ###
 
 class TestMS1Controller:
@@ -665,7 +674,7 @@ class TestDIAControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
-
+    @pytest.mark.skip()
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals')
 
@@ -733,7 +742,7 @@ class TestDIAControllers:
         filename = 'AIF_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-
+    
     def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -768,7 +777,34 @@ class TestDIAControllers:
         # write simulated output to mzML file
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
+    
+    @pytest.mark.skip()
+    def test_swath(self,ten_chems):
+        min_mz = 100
+        max_mz = 1000
+        num_windows = 11
+        scan_overlap = 10
 
+        ionisation_mode = POSITIVE
+
+        controller = SWATH(min_mz, max_mz, num_windows=num_windows, scan_overlap=scan_overlap)
+        scan_time_dict = {1:0.124,2:0.124}
+
+        spike_noise = UniformSpikeNoise(0.1,100)
+
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems, None, scan_duration_dict = scan_time_dict, spike_noise=spike_noise)
+
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+
+        set_log_level_warning()
+
+        env.run()
+
+        check_non_empty_MS2(controller)
+
+
+        filename = 'SWATCH_ten_chems.mzML'
+        check_mzML(env,OUT_DIR, filename)
 
 class TestFixedScansController:
     """

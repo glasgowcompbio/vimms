@@ -5,6 +5,11 @@ from vimms.MassSpec import ScanParameters
 
 from vimms.Controller import Controller
 
+from vimms.DIA import DiaWindows
+
+from loguru import logger
+
+
 class AIF(Controller):
     def __init__(self,min_mz,max_mz,
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
@@ -56,9 +61,7 @@ class AIF(Controller):
             
             # make the MS2 scan
             dda_scan_params = ScanParameters()
-            dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
-            isolation_windows = [[[self.min_mz,self.max_mz]]] # why tripple brackets needed?
-            dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, isolation_windows)
+            dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
             dda_scan_params.set(ScanParameters.COLLISION_ENERGY,self.ms2_collision_energy)
             dda_scan_params.set(ScanParameters.AGC_TARGET,self.ms2_agc_target)
             dda_scan_params.set(ScanParameters.MAX_IT,self.ms2_max_it)
@@ -66,7 +69,6 @@ class AIF(Controller):
             dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5*(self.max_mz + self.min_mz))
             dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
             dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
-            # dda_scan_params.set(ScanParameters.CURRENT_TOP_N,10) # time sampling fix see iss18
 
 
             scans.append(dda_scan_params)
@@ -121,13 +123,14 @@ class SWATH(Controller):
         pass
 
     def update_state_after_scan(self, last_scan):
+        pass
         # add noise for those scan wihout peaks, e.g. keep scan in mzML file
-        if last_scan.num_peaks == 0:
-            num_peaks = 10 # create 10 peaks
-            noise_peaks = self._create_noise_peaks(last_scan, num_peaks)
-            self.scans[last_scan.ms_level][-1].mzs = noise_peaks[0]
-            self.scans[last_scan.ms_level][-1].intensities = noise_peaks[1]
-            self.scans[last_scan.ms_level][-1].num_peaks = num_peaks
+        # if last_scan.num_peaks == 0:
+        #     num_peaks = 10 # create 10 peaks
+        #     noise_peaks = self._create_noise_peaks(last_scan, num_peaks)
+        #     self.scans[last_scan.ms_level][-1].mzs = noise_peaks[0]
+        #     self.scans[last_scan.ms_level][-1].intensities = noise_peaks[1]
+        #     self.scans[last_scan.ms_level][-1].num_peaks = num_peaks
 
     def _create_noise_peaks(self, last_scan, num):
         isolation_windows = last_scan.scan_params.get(ScanParameters.ISOLATION_WINDOWS)

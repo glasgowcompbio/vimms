@@ -161,11 +161,7 @@ class Environment(object):
                 mzml_filename = Path(out_dir, out_file)
 
         logger.debug('Writing mzML file to %s' % mzml_filename)
-        try:
-            precursor_information = self.controller.precursor_information
-        except AttributeError:
-            precursor_information = None
-        writer = MzmlWriter('my_analysis', self.controller.scans, precursor_information)
+        writer = MzmlWriter('my_analysis', self.controller.scans)
         writer.write_mzML(mzml_filename)
         logger.debug('mzML file successfully written!')
 

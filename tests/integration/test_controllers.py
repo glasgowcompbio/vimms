@@ -4,7 +4,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from vimms.Chemicals import ChemicalCreator
+from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
+from vimms.ChemicalSamplers import *
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController
@@ -118,6 +119,14 @@ def fragscan_dataset_spectra(fragscan_ps):
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_SPECTRA)
 
+
+@pytest.fixture(scope="module")
+def simple_dataset():
+    um = UniformMZFormulaSampler()
+    ri = UniformRTAndIntensitySampler(min_rt=150, max_rt=160)
+    cs = GaussianChromatogramSampler(sigma=100)
+    cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample([[515,516]],[[150,160]],1,2)
 
 ### tests starts from here ###
 
@@ -766,9 +775,9 @@ class TestFixedScansController:
     Tests the FixedScansController that sends a scheduled number of scans
     """
 
-    def test_FixedScansController(self, fragscan_dataset_peaks, fragscan_ps):
+    def test_FixedScansController(self, simple_dataset, fragscan_ps):
         logger.info('Testing FixedScansController')
-        assert len(fragscan_dataset_peaks) == N_CHEMS
+        # assert len(fragscan_dataset_peaks) == N_CHEMS
 
         ionisation_mode = POSITIVE
         initial_ms1 = 10
@@ -788,7 +797,8 @@ class TestFixedScansController:
         assert len(schedule) == expected
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
+        # mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps)
         controller = FixedScansController(ionisation_mode, schedule, isolation_width=1000)
         min_bound = 200
         max_bound = 210

@@ -159,9 +159,7 @@ class RoiController(TopNController):
         return new_tasks
 
     def update_state_after_scan(self, last_scan):
-        # add precursor info based on the current scan produced
-        # NOT doing the dynamic exclusion window thing
-        self._add_precursor_info(last_scan)
+        pass
 
     def reset(self):
         super().reset()

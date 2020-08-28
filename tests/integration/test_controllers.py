@@ -742,7 +742,6 @@ class TestDIAControllers:
         filename = 'AIF_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    
     def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -778,16 +777,16 @@ class TestDIAControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
     
-    @pytest.mark.skip()
+    
     def test_swath(self,ten_chems):
         min_mz = 100
         max_mz = 1000
-        num_windows = 11
+        width = 100
         scan_overlap = 10
 
         ionisation_mode = POSITIVE
 
-        controller = SWATH(min_mz, max_mz, num_windows=num_windows, scan_overlap=scan_overlap)
+        controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1:0.124,2:0.124}
 
         spike_noise = UniformSpikeNoise(0.1,100)

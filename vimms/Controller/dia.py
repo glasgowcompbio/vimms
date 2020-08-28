@@ -1,6 +1,7 @@
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION, INITIAL_SCAN_ID
+    DEFAULT_MS2_ORBITRAP_RESOLUTION, INITIAL_SCAN_ID, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
+    DEFAULT_MS2_MASS_ANALYSER
 from vimms.MassSpec import ScanParameters
 
 from vimms.Controller import Controller
@@ -96,13 +97,21 @@ class AIF(Controller):
 
 class SWATH(Controller):
     def __init__(self, min_mz, max_mz, 
-                  num_windows=1, scan_overlap=0,
+                  width, scan_overlap=0,
                   ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
                   ms1_max_it=DEFAULT_MS1_MAXIT,
                   ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION):
+                  ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                  ms2_max_it=DEFAULT_MS2_MAXIT,
+                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+                  ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                  ):
         super().__init__()
-        self.num_windows = num_windows
+        self.width = width
         self.scan_overlap = scan_overlap
         self.min_mz = min_mz # scan from this mz
         self.max_mz = max_mz # scan to this mz
@@ -110,6 +119,14 @@ class SWATH(Controller):
         self.ms1_max_it = ms1_max_it
         self.ms1_collision_energy = ms1_collision_energy
         self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
+        self.ms2_agc_target=ms2_agc_target
+        self.ms2_max_it=ms2_max_it
+        self.ms2_collision_energy=ms2_collision_energy
+        self.ms2_orbitrap_resolution=ms2_orbitrap_resolution
+        self.ms2_isolation_mode = ms2_isolation_mode
+        self.ms2_activation_type = ms2_activation_type
+        self.ms2_mass_analyser = ms2_mass_analyser
+
         self.scan_number = self.initial_scan_id
         self.exp_info = [] # experimental information - isolation windows
 
@@ -124,21 +141,7 @@ class SWATH(Controller):
 
     def update_state_after_scan(self, last_scan):
         pass
-        # add noise for those scan wihout peaks, e.g. keep scan in mzML file
-        # if last_scan.num_peaks == 0:
-        #     num_peaks = 10 # create 10 peaks
-        #     noise_peaks = self._create_noise_peaks(last_scan, num_peaks)
-        #     self.scans[last_scan.ms_level][-1].mzs = noise_peaks[0]
-        #     self.scans[last_scan.ms_level][-1].intensities = noise_peaks[1]
-        #     self.scans[last_scan.ms_level][-1].num_peaks = num_peaks
-
-    def _create_noise_peaks(self, last_scan, num):
-        isolation_windows = last_scan.scan_params.get(ScanParameters.ISOLATION_WINDOWS)
-        iso_min = isolation_windows[0][0][0]  # lower bound isolation window, in Da
-        iso_max = isolation_windows[0][0][1]  # upper bound isolation window, in Da
-        scan_mzs = np.random.uniform(iso_min, iso_max, num)
-        scan_intensities = np.random.uniform(5, 100, num)
-        return scan_mzs, scan_intensities
+ 
 
     def _process_scan(self, scan):
         new_tasks = []
@@ -147,33 +150,40 @@ class SWATH(Controller):
             # then get the last ms1 scan, select bin walls and create scan locations
             mzs = self.last_scan.mzs
             default_range = [(self.min_mz, self.max_mz)]
-            locations = DiaWindows(mzs, default_range, "basic", "even", None,
-                                   0, self.num_windows).locations
-            logger.debug('Window locations {}'.format(locations))
-            for i in range(len(locations)):  # define isolation window around the selected precursor ions
-                adjust_min = -self.scan_overlap/2
-                adjust_max = self.scan_overlap/2                
-                if i == 0:
-                    adjust_min = 0
-                elif i == len(locations)-1:
-                    adjust_max = 0
-                isolation_windows = locations[i]
-                assert self.scan_overlap/2 < isolation_windows[0][0][1] - isolation_windows[0][0][0]
-                isowindows_with_offset = [[(isolation_windows[0][0][0] + adjust_min, isolation_windows[0][0][1] + adjust_max)]]
-                logger.info('%d\tSWATH\t%.1f\t%.1f' %(i+1, isowindows_with_offset[0][0][0], isowindows_with_offset[0][0][1]) )
-                if scan.scan_id == self.initial_scan_id:
-                    if i == 0:
-                        fist_mz = isowindows_with_offset[0][0][0]
-                        self.exp_info.append((0,0,0))
-                    if i == len(locations)-1:
-                        self.exp_info[0] = (0, fist_mz, isowindows_with_offset[0][0][1])
-                    self.exp_info.append((i+1, isowindows_with_offset[0][0][0], isowindows_with_offset[0][0][1]))
-                dda_scan_params = ScanParameters()
-                dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
-                dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, isowindows_with_offset)
-                dda_scan_params.set(ScanParameters.COLLISION_ENERGY,DEFAULT_MS2_COLLISION_ENERGY)
-                dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
-                dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
+            precursor_scan_id = self.scan_to_process.scan_id
+
+            start = self.min_mz
+            start_mz = []
+            stop_mz = []
+            while start < self.max_mz:
+                start_mz.append(start)
+                stop_mz.append(start + self.width)
+                start += self.width - self.scan_overlap
+
+            isolation_width = self.width/2.
+
+            precursor_mz_list = []
+            for i,start in enumerate(start_mz):
+                precursor_mz = (stop_mz[i] + start)/2.
+                precursor_mz_list.append(precursor_mz)
+
+            # locations = DiaWindows(mzs, default_range, "basic", "even", None,
+            #                        0, self.num_windows).locations
+            # logger.debug('Window locations {}'.format(locations))
+            mz_tol = 10
+            rt_tol = 15 # these are not used
+
+            for mz in precursor_mz_list:  # define isolation window around the selected precursor ions
+                
+                dda_scan_params = self.environment.get_dda_scan_param(mz, 0, precursor_scan_id,
+                                                                      isolation_width, mz_tol, rt_tol,
+                                                                      agc_target=self.ms2_agc_target,
+                                                                      max_it=self.ms2_max_it,
+                                                                      collision_energy=self.ms2_collision_energy,
+                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                      activation_type=self.ms2_activation_type,
+                                                                      mass_analyser=self.ms2_mass_analyser,
+                                                                      isolation_mode=self.ms2_isolation_mode)
 
                 new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
 
@@ -187,6 +197,6 @@ class SWATH(Controller):
 
             new_tasks.append(task)
 
-            self.scan_number += len(locations) + 1
+            self.scan_number += len(precursor_mz_list) + 1
             self.next_processed_scan_id = self.scan_number
         return new_tasks

@@ -48,9 +48,6 @@ class TopNController(Controller):
         self.exclusion_list = []  # a list of ExclusionItem
         self.temp_exclusion_list = []
 
-        # stores the mapping between precursor peak to ms2 scans
-        self.precursor_information = defaultdict(list)  # key: Precursor object, value: ms2 scans
-
         # advanced parameters
         self.ms1_agc_target = ms1_agc_target
         self.ms1_max_it = ms1_max_it
@@ -174,34 +171,11 @@ class TopNController(Controller):
         return temp_exclusion_list
 
     def update_state_after_scan(self, last_scan):
-        # add precursor and DEW information based on the current scan produced
         # the DEW list update must be done after time has been increased
-        self._add_precursor_info(last_scan)
         self._manage_dynamic_exclusion_list(last_scan)
 
     def reset(self):
         self.exclusion_list = []
-        self.precursor_information = defaultdict(list)
-
-    def _add_precursor_info(self, scan):
-        """
-            Adds precursor ion information.
-            If MS2 and above, and controller tells us which precursor ion the scan is coming from, store it
-        :param param: a scan parameter object
-        :param scan: the newly generated scan
-        :return: None
-        """
-        if scan.ms_level >= 2:  # if ms-level is 2, it's a custom scan and we should always know its scan parameters
-            assert scan.scan_params is not None
-            precursor = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)
-            isolation_windows = scan.scan_params.compute_isolation_windows()
-            iso_min = isolation_windows[0][0][0]  # half-width isolation window, in Da
-            iso_max = isolation_windows[0][0][1]  # half-width isolation window, in Da
-            logger.debug('Time {:.6f} Isolated precursor ion {:.4f} at ({:.4f}, {:.4f})'.format(scan.rt,
-                                                                                                precursor.precursor_mz,
-                                                                                                iso_min,
-                                                                                                iso_max))
-            self.precursor_information[precursor].append(scan)
 
     def _manage_dynamic_exclusion_list(self, scan):
         """

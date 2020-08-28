@@ -10,7 +10,7 @@ from vimms.MassSpec import ScanParameters
 class MzmlWriter(object):
     """A class to write peak data to mzML file"""
 
-    def __init__(self, analysis_name, scans, precursor_information=None):
+    def __init__(self, analysis_name, scans):
         """
         Initialises the mzML writer class.
         :param analysis_name: Name of the analysis.
@@ -19,7 +19,6 @@ class MzmlWriter(object):
         """
         self.analysis_name = analysis_name
         self.scans = scans
-        self.precursor_information = precursor_information
 
     def write_mzML(self, out_file):
         # if directory doesn't exist, create it
@@ -36,7 +35,7 @@ class MzmlWriter(object):
 
             # open the run
             with writer.run(id=self.analysis_name):
-                self._write_spectra(writer, self.scans, self.precursor_information)
+                self._write_spectra(writer, self.scans)
 
                 # open chromatogram list sections
                 with writer.chromatogram_list(count=1):
@@ -88,7 +87,7 @@ class MzmlWriter(object):
         #     scan.num_peaks = 1
         return all_scans
 
-    def _write_spectra(self, writer, scans, precursor_information, min_scan_id=INITIAL_SCAN_ID):
+    def _write_spectra(self, writer, scans, min_scan_id=INITIAL_SCAN_ID):
         assert len(scans) <= 3  # NOTE: we only support writing up to ms2 scans for now
 
         # get all scans across different ms_levels and sort them by scan_id
@@ -98,29 +97,19 @@ class MzmlWriter(object):
         all_scans = self.sort_filter(all_scans, min_scan_id)
         spectrum_count = len(all_scans)
 
-        # get precursor information for each scan, if available
-        scan_precursor = {}
-        if precursor_information is not None:
-            for precursor, ms2_scans in precursor_information.items():
-                assert len(ms2_scans) == 1
-                ms2_scan = ms2_scans[0]
-                scan_precursor[ms2_scan.scan_id] = precursor
-
         # write scans
         with writer.spectrum_list(count=spectrum_count):
             for scan in all_scans:
-                precursor = None
-                if scan.scan_id in scan_precursor:
-                    precursor = scan_precursor[scan.scan_id]
-                self._write_scan(writer, scan, precursor)
+                self._write_scan(writer, scan)
 
-    def _write_scan(self, out, scan, precursor):
+    def _write_scan(self, out, scan):
         assert scan.num_peaks > 0
         label = 'MS1 Spectrum' if scan.ms_level == 1 else 'MSn Spectrum'
         precursor_information = None
-        if precursor is not None:
+        if scan.ms_level == 2:
             collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
             activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
+            precursor = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)
             precursor_information = {
                 "mz": precursor.precursor_mz,
                 "intensity": precursor.precursor_intensity,

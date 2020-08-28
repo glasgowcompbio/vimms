@@ -6,8 +6,6 @@ from vimms.MassSpec import ScanParameters
 
 from vimms.Controller import Controller
 
-from vimms.DIA import DiaWindows
-
 from loguru import logger
 
 
@@ -148,8 +146,7 @@ class SWATH(Controller):
         if self.scan_to_process is not None:
             # if there's a previous ms1 scan to process
             # then get the last ms1 scan, select bin walls and create scan locations
-            mzs = self.last_scan.mzs
-            default_range = [(self.min_mz, self.max_mz)]
+
             precursor_scan_id = self.scan_to_process.scan_id
 
             start = self.min_mz
@@ -167,10 +164,7 @@ class SWATH(Controller):
                 precursor_mz = (stop_mz[i] + start)/2.
                 precursor_mz_list.append(precursor_mz)
 
-            # locations = DiaWindows(mzs, default_range, "basic", "even", None,
-            #                        0, self.num_windows).locations
-            # logger.debug('Window locations {}'.format(locations))
-            mz_tol = 10
+            mz_tol = 10 # not used
             rt_tol = 15 # these are not used
 
             for mz in precursor_mz_list:  # define isolation window around the selected precursor ions

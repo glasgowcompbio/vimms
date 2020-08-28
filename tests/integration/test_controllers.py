@@ -802,7 +802,7 @@ class TestDIAControllers:
         check_non_empty_MS2(controller)
 
 
-        filename = 'SWATCH_ten_chems.mzML'
+        filename = 'SWATH_ten_chems.mzML'
         check_mzML(env,OUT_DIR, filename)
 
 class TestFixedScansController:

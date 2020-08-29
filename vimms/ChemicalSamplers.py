@@ -92,6 +92,20 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         """
         return [Formula(x.chemical_formula) for x in self.database]
 
+class EvenMZFormulaSampler(FormulaSampler):
+    """
+    A sampler that picks mz values evenly spaced, starting from where it left off
+    Useful for test cases
+    """
+    def __init__(self):
+        self.n_sampled = 0
+        self.step = 100
+    def sample(self,n_formulas):
+        mz_list = []
+        for i in range(n_formulas):
+            mz_list.append(self.n_sampled*self.step)
+            self.n_sampled += 1
+        return [DummyFormula(m) for m in mz_list]
 
 ###############################################################################################################
 # Samplers for RT and intensity when initialising a Formula
@@ -171,6 +185,12 @@ class GaussianChromatogramSampler(ChromatogramSampler):
         """
         return FunctionalChromatogram('normal', [0, self.sigma])
 
+class ConstantChromatogramSampler(ChromatogramSampler):
+    """
+    A sampler to return constant chromatograms -- direct infusion
+    """
+    def sample(self, formula, rt, intensity):
+        return 
 
 ###############################################################################################################
 # MS2 samplers

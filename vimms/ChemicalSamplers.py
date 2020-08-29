@@ -18,8 +18,11 @@ class FormulaSampler(object):
     """
     Base class for formula sampler
     """
+    def __init__(self, min_mz=50, max_mz=1000):
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         raise NotImplementedError
 
 
@@ -28,14 +31,16 @@ class DatabaseFormulaSampler(FormulaSampler):
     A sampler to draw formula from a database
     """
 
-    def __init__(self, database):
+    def __init__(self, database, min_mz=50, max_mz=1000):
         """
         Initiliases database formula sampler
         :param database: a list of Formula objects containing chemical formulae from e.g. HMDB
         """
         self.database = database
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         """
         Samples n_formulas from the specified database
         :param n_formulas: the number of formula to draw
@@ -47,7 +52,7 @@ class DatabaseFormulaSampler(FormulaSampler):
         offset = 20  # to ensure that we have room for at least M+H
         formulas = list(set([x.chemical_formula for x in self.database]))
         sub_formulas = list(
-            filter(lambda x: Formula(x).mass >= min_mz and Formula(x).mass <= max_mz - offset, formulas))
+            filter(lambda x: Formula(x).mass >= self.min_mz and Formula(x).mass <= self.max_mz - offset, formulas))
         logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
         chosen_formulas = np.random.choice(sub_formulas, size=n_formulas, replace=False)
         logger.debug('Sampled formulas')
@@ -60,7 +65,7 @@ class UniformMZFormulaSampler(FormulaSampler):
     Resulting in UnknownChemical objects instead of known_chemical ones.
     """
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         """
         Samples n_formulas uniformly between min_mz and max_mz
         :param n_formulas: the number of formula to draw
@@ -68,7 +73,7 @@ class UniformMZFormulaSampler(FormulaSampler):
         :param max_mz: maximum m/z of formula
         :return: a list of Formula objects
         """
-        mz_list = np.random.rand(n_formulas) * (max_mz - min_mz) + min_mz
+        mz_list = np.random.rand(n_formulas) * (self.max_mz - self.min_mz) + self.min_mz
         return [DummyFormula(m) for m in mz_list]
 
 
@@ -77,21 +82,23 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
     A sampler that returns everything in the database
     """
 
-    def __init__(self, database):
+    def __init__(self, database, min_mz=50, max_mz=1000):
         """
         Initiliases database formula sampler
         :param database: a list of Formula objects containing chemical formulae from e.g. HMDB
         """
         self.database = database
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         """
         Just return everything from the database
         :param n_formulas: ignored?
         :return: all formulae from the database
         """
         formula_list = [Formula(x.chemical_formula) for x in self.database]
-        return list(filter(lambda x: x.mass >= min_mz and x.mass <= max_mz, formula_list))
+        return list(filter(lambda x: x.mass >= self.min_mz and x.mass <= self.max_mz, formula_list))
 
 class EvenMZFormulaSampler(FormulaSampler):
     """
@@ -101,12 +108,11 @@ class EvenMZFormulaSampler(FormulaSampler):
     def __init__(self):
         self.n_sampled = 0
         self.step = 100   
-    def sample(self,n_formulas, min_mz=50, max_mz=1000):
+    def sample(self,n_formulas):
         mz_list = []
         for i in range(n_formulas):
             new_mz = (self.n_sampled+1)*self.step
-            if new_mz >= min_mz and new_mz <= max_mz:
-                mz_list.append(new_mz)
+            mz_list.append(new_mz)
             self.n_sampled += 1
         return [DummyFormula(m) for m in mz_list]
 

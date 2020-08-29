@@ -594,12 +594,10 @@ class ChemicalMixtureCreator(object):
         #     self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
 
 
-    def sample(self, mz_range, rt_range, n_chemicals, ms_levels, include_adducts_isotopes=True):
+    def sample(self, n_chemicals, ms_levels, include_adducts_isotopes=True):
         
-        self.rt_and_intensity_sampler.min_rt = rt_range[0][0]
-        self.rt_and_intensity_sampler.max_rt = rt_range[0][1]
 
-        formula_list = self.formula_sampler.sample(n_chemicals,min_mz=mz_range[0][0],max_mz=mz_range[0][1])
+        formula_list = self.formula_sampler.sample(n_chemicals)
         rt_list = []
         intensity_list = []
         chromatogram_list = []

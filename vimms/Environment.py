@@ -214,6 +214,9 @@ class Environment(object):
         dda_scan_params = ScanParameters()
         dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
 
+
+        assert isinstance(mz,list) == isinstance(intensity,list)
+
         # create precursor object, assume it's all singly charged
         precursor_charge = +1 if (self.mass_spec.ionisation_mode == POSITIVE) else -1
         if type(mz) == list:
@@ -232,7 +235,8 @@ class Environment(object):
         else:
             precursor = Precursor(precursor_mz=mz, precursor_intensity=intensity,
                                 precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id)
-            dda_scan_params.set(ScanParameters.PRECURSOR_MZ, [precursor])
+            precursor_list = [precursor]
+            dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
 
             # set the full-width isolation width, in Da
             dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, [isolation_width])
@@ -255,7 +259,8 @@ class Environment(object):
         # dynamically scale the upper mass
         charge = 1
         wiggle_room = 1.1
-        last_mass = precursor.precursor_mz * charge * wiggle_room
+        max_precursor_mz = max([p.precursor_mz for p in precursor_list])
+        last_mass = max_precursor_mz * charge * wiggle_room
         dda_scan_params.set(ScanParameters.LAST_MASS, last_mass)
         return dda_scan_params
 

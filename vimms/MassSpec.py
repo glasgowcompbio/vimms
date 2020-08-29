@@ -545,12 +545,13 @@ class IndependentMassSpectrometer(object):
             # isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
             # if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
             isolation_windows = params.compute_isolation_windows()
+            
+        
 
         scan_id = self.idx
 
         # for all chemicals that come out from the column coupled to the mass spec
         idx = self._get_chem_indices(scan_time)
-
 
         # the following is to ensure we generate fragment data when we have a collision energe >0
         use_ms_level = ms_level

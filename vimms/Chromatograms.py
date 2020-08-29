@@ -100,11 +100,13 @@ class ConstantChromatogram(Chromatogram):
         self.relative_intensity = 1.0
         self.min_rt = 0.0
         self.max_rt = MAX_POSSIBLE_RT
-        
+
     def get_relative_intensity(self,query_rt):
         return self.relative_intensity
     def get_relative_mz(self, query_rt):
         return self.mz
+    def _rt_match(self, query_rt):
+        return True
 
 # Make this more generalisable. Make scipy.stats... as input, However this makes it difficult to do the cutoff
 class FunctionalChromatogram(Chromatogram):

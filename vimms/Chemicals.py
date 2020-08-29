@@ -599,7 +599,7 @@ class ChemicalMixtureCreator(object):
         self.rt_and_intensity_sampler.min_rt = rt_range[0][0]
         self.rt_and_intensity_sampler.max_rt = rt_range[0][1]
 
-        formula_list = self.formula_sampler.sample(n_chemicals,mz_range[0][0],mz_range[0][1])
+        formula_list = self.formula_sampler.sample(n_chemicals,min_mz=mz_range[0][0],max_mz=mz_range[0][1])
         rt_list = []
         intensity_list = []
         chromatogram_list = []

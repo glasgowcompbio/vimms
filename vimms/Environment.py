@@ -216,12 +216,26 @@ class Environment(object):
 
         # create precursor object, assume it's all singly charged
         precursor_charge = +1 if (self.mass_spec.ionisation_mode == POSITIVE) else -1
-        precursor = Precursor(precursor_mz=mz, precursor_intensity=intensity,
-                              precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id)
-        dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor)
+        if type(mz) == list:
+            precursor_list = []
+            for i,m in enumerate(mz):
+                precursor_list.append(Precursor(precursor_mz=m, precursor_intensity=intensity[i],
+                                precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id))
+            dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
+            
+            if type(isolation_width) == list:
+                assert len(isolation_width) == len(precursor_list)
+            else:
+                isolation_width = [isolation_width for m in mz]
+            dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, isolation_width)
 
-        # set the full-width isolation width, in Da
-        dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, isolation_width)
+        else:
+            precursor = Precursor(precursor_mz=mz, precursor_intensity=intensity,
+                                precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id)
+            dda_scan_params.set(ScanParameters.PRECURSOR_MZ, [precursor])
+
+            # set the full-width isolation width, in Da
+            dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, [isolation_width])
 
         # define dynamic exclusion parameters
         dda_scan_params.set(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL, mz_tol)

@@ -84,7 +84,7 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         """
         self.database = database
 
-    def sample(self, n_formulas):
+    def sample(self, n_formulas, min_mz=50, max_mz=1000):
         """
         Just return everything from the database
         :param n_formulas: ignored?
@@ -100,10 +100,10 @@ class EvenMZFormulaSampler(FormulaSampler):
     def __init__(self):
         self.n_sampled = 0
         self.step = 100
-    def sample(self,n_formulas):
+    def sample(self,n_formulas, min_mz=50, max_mz=1000):
         mz_list = []
         for i in range(n_formulas):
-            mz_list.append(self.n_sampled*self.step)
+            mz_list.append((self.n_sampled+1)*self.step)
             self.n_sampled += 1
         return [DummyFormula(m) for m in mz_list]
 

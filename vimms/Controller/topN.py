@@ -159,19 +159,21 @@ class TopNController(Controller):
         temp_exclusion_list = []
         rt = self.scan_to_process.rt
         for task in tasks:
-            mz = task.get('precursor_mz').precursor_mz
-            mz_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
-            rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
-            mz_lower = mz * (1 - mz_tol / 1e6)
-            mz_upper = mz * (1 + mz_tol / 1e6)
-            rt_lower = rt - rt_tol
-            rt_upper = rt + rt_tol
-            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=rt)
-            logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
-                rt,
-                x.from_mz, x.to_mz, x.from_rt, x.to_rt
-            ))
-            temp_exclusion_list.append(x)
+            for precursor in task.get('precursor_mz'):
+                mz = precursor.precursor_mz
+                # mz = task.get('precursor_mz').precursor_mz
+                mz_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
+                rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
+                mz_lower = mz * (1 - mz_tol / 1e6)
+                mz_upper = mz * (1 + mz_tol / 1e6)
+                rt_lower = rt - rt_tol
+                rt_upper = rt + rt_tol
+                x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=rt)
+                logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
+                    rt,
+                    x.from_mz, x.to_mz, x.from_rt, x.to_rt
+                ))
+                temp_exclusion_list.append(x)
         return temp_exclusion_list
 
     def update_state_after_scan(self, last_scan):
@@ -196,30 +198,32 @@ class TopNController(Controller):
 
         if scan.ms_level >= 2:  # if ms-level is 2, it's a custom scan and we should always know its scan parameters
             assert scan.scan_params is not None
-            precursor = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)
+            for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
+                # precursor = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)
 
-            # add dynamic exclusion item to the exclusion list to prevent the same precursor ion being fragmented
-            # multiple times in the same mz and rt window
-            # Note: at this point, fragmentation has occurred and time has been incremented! so the time when
-            # items are checked for dynamic exclusion is the time when MS2 fragmentation occurs
-            # TODO: we need to add a repeat count too, i.e. how many times we've seen a fragment peak before
-            #  it gets excluded (now it's basically 1)
+                # add dynamic exclusion item to the exclusion list to prevent the same precursor ion being fragmented
+                # multiple times in the same mz and rt window
+                # Note: at this point, fragmentation has occurred and time has been incremented! so the time when
+                # items are checked for dynamic exclusion is the time when MS2 fragmentation occurs
+                # TODO: we need to add a repeat count too, i.e. how many times we've seen a fragment peak before
+                #  it gets excluded (now it's basically 1)
 
-            # TODO: check if already excluded and, if so, just move the time
-            mz = precursor.precursor_mz
-            mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
-            rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
-            mz_lower = mz * (1 - mz_tol / 1e6)
-            mz_upper = mz * (1 + mz_tol / 1e6)
-            rt_lower = current_time - rt_tol
-            rt_upper = current_time + rt_tol
-            x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=current_time)
-            logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
-                current_time,
-                x.from_mz, x.to_mz, x.from_rt, x.to_rt
-            ))
-            self.exclusion_list.append(x)
-            self.all_exclusion_items.append(x)
+                # TODO: check if already excluded and, if so, just move the time
+                
+                mz = precursor.precursor_mz
+                mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
+                rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
+                mz_lower = mz * (1 - mz_tol / 1e6)
+                mz_upper = mz * (1 + mz_tol / 1e6)
+                rt_lower = current_time - rt_tol
+                rt_upper = current_time + rt_tol
+                x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=current_time)
+                logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
+                    current_time,
+                    x.from_mz, x.to_mz, x.from_rt, x.to_rt
+                ))
+                self.exclusion_list.append(x)
+                self.all_exclusion_items.append(x)
 
         # remove expired items from dynamic exclusion list
         self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))

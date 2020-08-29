@@ -137,6 +137,15 @@ def ten_chems():
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
     return cm.sample(MZ_RANGE,[[200,300]],10,2)
     
+
+@pytest.fixture(scope="module")
+def two_fixed_chems():
+    em = EvenMZFormulaSampler()
+    ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+    cs = ConstantChromatogramSampler()
+    cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(MZ_RANGE,[[200,300]],2,2)
+    
 ### tests starts from here ###
 
 class TestMS1Controller:
@@ -399,6 +408,14 @@ class TestTopNController:
             filename = 'topN_controller_qcbeer_exclusion_%d.mzML' % i
             check_mzML(env, OUT_DIR, filename)
 
+
+class TestMultipleMS2Windows:
+    def test_data_generation(self,two_fixed_chems):
+        assert len(two_fixed_chems) == 2
+        assert two_fixed_chems[0].mass == 100
+        assert two_fixed_chems[1].mass == 200
+    
+    
 
 class TestPurityController:
     """

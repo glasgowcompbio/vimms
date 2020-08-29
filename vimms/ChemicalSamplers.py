@@ -6,7 +6,7 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.library_matching.gnps import load_mgf
 
-from vimms.Chromatograms import FunctionalChromatogram
+from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram
 from vimms.Common import Formula, DummyFormula, uniform_list
 
 
@@ -190,7 +190,7 @@ class ConstantChromatogramSampler(ChromatogramSampler):
     A sampler to return constant chromatograms -- direct infusion
     """
     def sample(self, formula, rt, intensity):
-        return 
+        return ConstantChromatogram()
 
 ###############################################################################################################
 # MS2 samplers

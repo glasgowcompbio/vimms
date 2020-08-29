@@ -7,8 +7,12 @@ from loguru import logger
 from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram
-from vimms.Common import Formula, DummyFormula, uniform_list
+from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW
 
+
+MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
+MAX_MZ = DEFAULT_MS1_SCAN_WINDOW[1]
+MIN_MZ_MS2 = DEFAULT_MSN_SCAN_WINDOW[0]
 
 ###############################################################################################################
 # Formula samplers
@@ -18,7 +22,7 @@ class FormulaSampler(object):
     """
     Base class for formula sampler
     """
-    def __init__(self, min_mz=50, max_mz=1000):
+    def __init__(self, min_mz=MIN_MZ, max_mz=MAX_MZ):
         self.min_mz = min_mz
         self.max_mz = max_mz
 
@@ -31,7 +35,7 @@ class DatabaseFormulaSampler(FormulaSampler):
     A sampler to draw formula from a database
     """
 
-    def __init__(self, database, min_mz=50, max_mz=1000):
+    def __init__(self, database, min_mz=MIN_MZ, max_mz=MAX_MZ):
         """
         Initiliases database formula sampler
         :param database: a list of Formula objects containing chemical formulae from e.g. HMDB
@@ -82,7 +86,7 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
     A sampler that returns everything in the database
     """
 
-    def __init__(self, database, min_mz=50, max_mz=1000):
+    def __init__(self, database, min_mz=MIN_MZ, max_mz=MAX_MZ):
         """
         Initiliases database formula sampler
         :param database: a list of Formula objects containing chemical formulae from e.g. HMDB
@@ -220,7 +224,7 @@ class UniformMS2Sampler(MS2Sampler):
     A sampler that generates MS2 peaks uniformly between min_mz and the mass of the formula.
     """
 
-    def __init__(self, poiss_peak_mean=10, min_mz=50, min_proportion=0.1, max_proportion=0.8):
+    def __init__(self, poiss_peak_mean=10, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8):
         """
         Initialises uniform MS2 sampler
         :param poiss_peak_mean: the mean of the Poisson distribution used to draw the number of peaks
@@ -259,7 +263,7 @@ class CRPMS2Sampler(MS2Sampler):
     A sampler that generates MS2 peaks following the CRP.
     """
 
-    def __init__(self, n_draws=1000, min_mz=50, min_proportion=0.1, max_proportion=0.8, alpha=1, base='uniform'):
+    def __init__(self, n_draws=1000, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8, alpha=1, base='uniform'):
         self.n_draws = n_draws
         self.min_mz = min_mz
         self.min_proportion = min_proportion

@@ -640,16 +640,7 @@ class ChemicalMixtureCreator(object):
         return chemicals
 
 
-    # def _sample_formulas(self, mz_range, n_chemicals):
-    #     # filter HMDB to witin mz_range
-    #     offset = 20 # to ensure that we have room for at least M+H
-    #     formulas = list(set([x.chemical_formula for x in self.database]))
-    #     sub_formulas = list(filter(lambda x: Formula(x).mass  >= mz_range[0][0] and Formula(x).mass <= mz_range[0][1] - offset,formulas))
-    #     logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
-    #     chosen_formulas = np.random.choice(sub_formulas, size=n_chemicals, replace=False)
-    #     logger.debug('Sampled formulas')
-    #     return [Formula(f) for f in chosen_formulas]
-        
+  
 class MultipleMixtureCreator(object):
     def __init__(self,master_chemical_list,group_list,group_dict,intensity_noise=GaussianPeakNoise(sigma=0.001,log_space=True),overall_missing_probability=0.0):
         self.master_chemical_list = master_chemical_list

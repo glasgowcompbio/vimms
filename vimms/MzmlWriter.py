@@ -110,9 +110,6 @@ class MzmlWriter(object):
             collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
             activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
 
-            # HACK - to be fixed by iss_110
-            # remove the [0] from the next line
-            # and properly handle the list of precursor objects
             precursor_information = []
             for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
                 precursor_information.append({

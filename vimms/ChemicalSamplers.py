@@ -90,7 +90,8 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         :param n_formulas: ignored?
         :return: all formulae from the database
         """
-        return [Formula(x.chemical_formula) for x in self.database]
+        formula_list = [Formula(x.chemical_formula) for x in self.database]
+        return list(filter(lambda x: x.mass >= min_mz and x.mass <= max_mz, formula_list))
 
 class EvenMZFormulaSampler(FormulaSampler):
     """
@@ -99,11 +100,13 @@ class EvenMZFormulaSampler(FormulaSampler):
     """
     def __init__(self):
         self.n_sampled = 0
-        self.step = 100
+        self.step = 100   
     def sample(self,n_formulas, min_mz=50, max_mz=1000):
         mz_list = []
         for i in range(n_formulas):
-            mz_list.append((self.n_sampled+1)*self.step)
+            new_mz = (self.n_sampled+1)*self.step
+            if new_mz >= min_mz and new_mz <= max_mz:
+                mz_list.append(new_mz)
             self.n_sampled += 1
         return [DummyFormula(m) for m in mz_list]
 

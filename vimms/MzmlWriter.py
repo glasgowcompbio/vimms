@@ -113,14 +113,16 @@ class MzmlWriter(object):
             # HACK - to be fixed by iss_110
             # remove the [0] from the next line
             # and properly handle the list of precursor objects
-            precursor = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
-            precursor_information = {
-                "mz": precursor.precursor_mz,
-                "intensity": precursor.precursor_intensity,
-                "charge": precursor.precursor_charge,
-                "spectrum_reference": precursor.precursor_scan_id,
+            precursor_information = []
+            for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
+                precursor_information.append({
+                    "mz": precursor.precursor_mz,
+                    "intensity": precursor.precursor_intensity,
+                    "charge": precursor.precursor_charge,
+                    "spectrum_reference": precursor.precursor_scan_id,
                 "activation": [activation_type, {"collision energy": collision_energy}]
-            }
+                })
+                
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)
         bp_pos = np.argmax(scan.intensities)

@@ -144,8 +144,6 @@ class SWATH(Controller):
     def _process_scan(self, scan):
         new_tasks = []
         if self.scan_to_process is not None:
-            # if there's a previous ms1 scan to process
-            # then get the last ms1 scan, select bin walls and create scan locations
 
             precursor_scan_id = self.scan_to_process.scan_id
 
@@ -167,7 +165,7 @@ class SWATH(Controller):
             mz_tol = 10 # not used
             rt_tol = 15 # these are not used
 
-            for mz in precursor_mz_list:  # define isolation window around the selected precursor ions
+            for mz in precursor_mz_list:  
                 
                 dda_scan_params = self.environment.get_dda_scan_param(mz, 0, precursor_scan_id,
                                                                       isolation_width, mz_tol, rt_tol,
@@ -181,8 +179,6 @@ class SWATH(Controller):
 
                 new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
 
-            # set this ms1 scan as has been processed
-            #self.last_ms1_scan = None
             # make the MS1 scan
             task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
                                                             max_it=self.ms1_max_it,

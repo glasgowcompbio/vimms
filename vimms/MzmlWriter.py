@@ -109,14 +109,17 @@ class MzmlWriter(object):
         if scan.ms_level == 2:
             collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
             activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
-            precursor = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)
-            precursor_information = {
-                "mz": precursor.precursor_mz,
-                "intensity": precursor.precursor_intensity,
-                "charge": precursor.precursor_charge,
-                "spectrum_reference": precursor.precursor_scan_id,
+
+            precursor_information = []
+            for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
+                precursor_information.append({
+                    "mz": precursor.precursor_mz,
+                    "intensity": precursor.precursor_intensity,
+                    "charge": precursor.precursor_charge,
+                    "spectrum_reference": precursor.precursor_scan_id,
                 "activation": [activation_type, {"collision energy": collision_energy}]
-            }
+                })
+                
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)
         bp_pos = np.argmax(scan.intensities)

@@ -45,41 +45,44 @@ def check_chems(chem_list):
 class TestDatabaseCreation:
     def test_hmdb_creation(self):
         
-        
-        hf = DatabaseFormulaSampler(HMDB)
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
+        d = cc.sample(N_CHEMICALS, 2)
 
         check_chems(d)
 
     def test_mz_creation(self):
-
-        hf = UniformMZFormulaSampler()
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+        hf = UniformMZFormulaSampler(min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
+        d = cc.sample(N_CHEMICALS, 2)
 
         check_chems(d)
 
 
     def test_ms2_uniform(self):
         
-        hf = DatabaseFormulaSampler(HMDB)
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = CRPMS2Sampler()
-        cc = ChemicalMixtureCreator(hf, ms2_sampler=cs)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, ms2_sampler=cs)
+        d = cc.sample(N_CHEMICALS, 2)
         check_chems(d)
 
     def test_ms2_mgf(self):
-        hf = DatabaseFormulaSampler(HMDB)
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = MGFMS2Sampler(MGF_FILE)
-        cc = ChemicalMixtureCreator(hf, ms2_sampler=cs)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, ms2_sampler=cs)
+        d = cc.sample(N_CHEMICALS, 2)
         check_chems(d)
 
     def test_multiple_chems(self):
-        hf = DatabaseFormulaSampler(HMDB)
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
+        d = cc.sample(N_CHEMICALS, 2)
         
 
         group_list = ['control', 'control', 'case', 'case']

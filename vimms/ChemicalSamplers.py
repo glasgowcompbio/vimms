@@ -6,9 +6,13 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.library_matching.gnps import load_mgf
 
-from vimms.Chromatograms import FunctionalChromatogram
-from vimms.Common import Formula, DummyFormula, uniform_list
+from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram
+from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW
 
+
+MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
+MAX_MZ = DEFAULT_MS1_SCAN_WINDOW[1]
+MIN_MZ_MS2 = DEFAULT_MSN_SCAN_WINDOW[0]
 
 ###############################################################################################################
 # Formula samplers
@@ -18,8 +22,11 @@ class FormulaSampler(object):
     """
     Base class for formula sampler
     """
+    def __init__(self, min_mz=MIN_MZ, max_mz=MAX_MZ):
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         raise NotImplementedError
 
 
@@ -28,14 +35,16 @@ class DatabaseFormulaSampler(FormulaSampler):
     A sampler to draw formula from a database
     """
 
-    def __init__(self, database):
+    def __init__(self, database, min_mz=MIN_MZ, max_mz=MAX_MZ):
         """
         Initiliases database formula sampler
         :param database: a list of Formula objects containing chemical formulae from e.g. HMDB
         """
         self.database = database
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         """
         Samples n_formulas from the specified database
         :param n_formulas: the number of formula to draw
@@ -47,7 +56,7 @@ class DatabaseFormulaSampler(FormulaSampler):
         offset = 20  # to ensure that we have room for at least M+H
         formulas = list(set([x.chemical_formula for x in self.database]))
         sub_formulas = list(
-            filter(lambda x: Formula(x).mass >= min_mz and Formula(x).mass <= max_mz - offset, formulas))
+            filter(lambda x: Formula(x).mass >= self.min_mz and Formula(x).mass <= self.max_mz - offset, formulas))
         logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
         chosen_formulas = np.random.choice(sub_formulas, size=n_formulas, replace=False)
         logger.debug('Sampled formulas')
@@ -60,7 +69,7 @@ class UniformMZFormulaSampler(FormulaSampler):
     Resulting in UnknownChemical objects instead of known_chemical ones.
     """
 
-    def sample(self, n_formulas, min_mz=50, max_mz=1000):
+    def sample(self, n_formulas):
         """
         Samples n_formulas uniformly between min_mz and max_mz
         :param n_formulas: the number of formula to draw
@@ -68,7 +77,7 @@ class UniformMZFormulaSampler(FormulaSampler):
         :param max_mz: maximum m/z of formula
         :return: a list of Formula objects
         """
-        mz_list = np.random.rand(n_formulas) * (max_mz - min_mz) + min_mz
+        mz_list = np.random.rand(n_formulas) * (self.max_mz - self.min_mz) + self.min_mz
         return [DummyFormula(m) for m in mz_list]
 
 
@@ -77,12 +86,14 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
     A sampler that returns everything in the database
     """
 
-    def __init__(self, database):
+    def __init__(self, database, min_mz=MIN_MZ, max_mz=MAX_MZ):
         """
         Initiliases database formula sampler
         :param database: a list of Formula objects containing chemical formulae from e.g. HMDB
         """
         self.database = database
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
     def sample(self, n_formulas):
         """
@@ -90,8 +101,24 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         :param n_formulas: ignored?
         :return: all formulae from the database
         """
-        return [Formula(x.chemical_formula) for x in self.database]
+        formula_list = [Formula(x.chemical_formula) for x in self.database]
+        return list(filter(lambda x: x.mass >= self.min_mz and x.mass <= self.max_mz, formula_list))
 
+class EvenMZFormulaSampler(FormulaSampler):
+    """
+    A sampler that picks mz values evenly spaced, starting from where it left off
+    Useful for test cases
+    """
+    def __init__(self):
+        self.n_sampled = 0
+        self.step = 100   
+    def sample(self,n_formulas):
+        mz_list = []
+        for i in range(n_formulas):
+            new_mz = (self.n_sampled+1)*self.step
+            mz_list.append(new_mz)
+            self.n_sampled += 1
+        return [DummyFormula(m) for m in mz_list]
 
 ###############################################################################################################
 # Samplers for RT and intensity when initialising a Formula
@@ -171,6 +198,12 @@ class GaussianChromatogramSampler(ChromatogramSampler):
         """
         return FunctionalChromatogram('normal', [0, self.sigma])
 
+class ConstantChromatogramSampler(ChromatogramSampler):
+    """
+    A sampler to return constant chromatograms -- direct infusion
+    """
+    def sample(self, formula, rt, intensity):
+        return ConstantChromatogram()
 
 ###############################################################################################################
 # MS2 samplers
@@ -191,7 +224,7 @@ class UniformMS2Sampler(MS2Sampler):
     A sampler that generates MS2 peaks uniformly between min_mz and the mass of the formula.
     """
 
-    def __init__(self, poiss_peak_mean=10, min_mz=50, min_proportion=0.1, max_proportion=0.8):
+    def __init__(self, poiss_peak_mean=10, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8):
         """
         Initialises uniform MS2 sampler
         :param poiss_peak_mean: the mean of the Poisson distribution used to draw the number of peaks
@@ -230,7 +263,7 @@ class CRPMS2Sampler(MS2Sampler):
     A sampler that generates MS2 peaks following the CRP.
     """
 
-    def __init__(self, n_draws=1000, min_mz=50, min_proportion=0.1, max_proportion=0.8, alpha=1, base='uniform'):
+    def __init__(self, n_draws=1000, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8, alpha=1, base='uniform'):
         self.n_draws = n_draws
         self.min_mz = min_mz
         self.min_proportion = min_proportion

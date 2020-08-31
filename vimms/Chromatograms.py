@@ -14,6 +14,9 @@ class Chromatogram(object):
     def _rt_match(self, rt):
         raise NotImplementedError()
 
+    def get_apex_rt(self):
+        raise NotImplementedError()
+
 
 class EmpiricalChromatogram(Chromatogram):
     """
@@ -42,6 +45,15 @@ class EmpiricalChromatogram(Chromatogram):
 
         self.min_rt = min(self.rts)
         self.max_rt = max(self.rts)
+
+    def get_apex_rt(self):
+        max_pos = 0
+        max_intensity = self.intensities[0]
+        for i,intensity in enumerate(self.intensities):
+            if intensity > max_intensity:
+                max_intensity = intensity
+                max_pos = i
+        return self.rts[max_pos]
 
     def get_relative_intensity(self, query_rt):
         if not self._rt_match(query_rt):
@@ -107,6 +119,8 @@ class ConstantChromatogram(Chromatogram):
         return self.mz
     def _rt_match(self, query_rt):
         return True
+    def get_apex_rt(self):
+        return  self.min_rt
 
 # Make this more generalisable. Make scipy.stats... as input, However this makes it difficult to do the cutoff
 class FunctionalChromatogram(Chromatogram):
@@ -117,7 +131,8 @@ class FunctionalChromatogram(Chromatogram):
     def __init__(self, distribution, parameters, cutoff=0.01):
         self.cutoff = cutoff
         self.mz = 0
-        self.distribution = distribution
+        self.distribution_name = distribution
+        self.parameters = parameters
         if distribution == "normal":
             self.distrib = scipy.stats.norm(parameters[0], parameters[1])
         elif distribution == "gamma":
@@ -146,3 +161,12 @@ class FunctionalChromatogram(Chromatogram):
             return False
         else:
             return True
+        
+    def get_apex_rt(self):
+        if self.distribution_name == 'uniform':
+            return self.min_rt
+        elif self.distribution_name == 'normal':
+            return self.parameters[0]
+        else:
+            raise NotImplementedError()
+

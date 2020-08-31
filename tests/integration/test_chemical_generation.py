@@ -28,9 +28,11 @@ MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
 
 @pytest.fixture(scope="module")
 def simple_dataset():
-        hf = DatabaseFormulaSampler(HMDB)
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+    ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+    hf = DatabaseFormulaSampler(HMDB)
+    cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    d = cc.sample(N_CHEMICALS, 2)
+    return d
 
 
 def check_chems(chem_list):
@@ -135,6 +137,9 @@ class TestDatabaseCreation:
                 for f in c:
                     assert not f.max_intensity == f.original_chemical.max_intensity
         
-    class TestMSPWriting:
+class TestMSPWriting:
 
-        
+    def test_msp_writer(self, simple_dataset):
+        out_file = 'simple_dataset.msp'
+        write_msp(simple_dataset, out_file, out_dir=OUT_DIR)
+

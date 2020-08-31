@@ -1,5 +1,4 @@
 import bisect
-from collections import defaultdict
 
 import numpy as np
 from loguru import logger
@@ -46,11 +45,11 @@ class TopNController(Controller):
         self.ms1_shift = ms1_shift  # number of scans to move ms1 scan forward in list of new_tasks
 
         self.exclusion_list = []
-        if initial_exclusion_list is not None: # copy initial list, if provided
+        if initial_exclusion_list is not None:  # copy initial list, if provided
             self.exclusion_list = list(initial_exclusion_list)
 
-        self.temp_exclusion_list = [] # to deal with ms1_shift
-        self.all_exclusion_items = [] # keep track of all exclusion items through the whole run
+        self.temp_exclusion_list = []  # to deal with ms1_shift
+        self.all_exclusion_items = []  # keep track of all exclusion items through the whole run
 
         # advanced parameters
         self.ms1_agc_target = ms1_agc_target
@@ -209,7 +208,7 @@ class TopNController(Controller):
                 #  it gets excluded (now it's basically 1)
 
                 # TODO: check if already excluded and, if so, just move the time
-                
+
                 mz = precursor.precursor_mz
                 mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
                 rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
@@ -217,7 +216,8 @@ class TopNController(Controller):
                 mz_upper = mz * (1 + mz_tol / 1e6)
                 rt_lower = current_time - rt_tol
                 rt_upper = current_time + rt_tol
-                x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=current_time)
+                x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
+                                  frag_at=current_time)
                 logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
                     current_time,
                     x.from_mz, x.to_mz, x.from_rt, x.to_rt

@@ -1,9 +1,9 @@
 import bisect
 import math
 from collections import OrderedDict
-import pandas as pd
 
 import numpy as np
+import pandas as pd
 import pylab as plt
 import pymzml
 from loguru import logger
@@ -97,7 +97,7 @@ POST_PEAK = 3
 
 class SmartRoi(Roi):
     def __init__(self, mz, rt, intensity, initial_length_seconds=5, reset_length_seconds=100,
-                 intensity_increase_factor=2, dew=15, drop_perc = 0.01):
+                 intensity_increase_factor=2, dew=15, drop_perc=0.01):
         super().__init__(mz, rt, intensity)
 
         if initial_length_seconds > 0:
@@ -118,7 +118,7 @@ class SmartRoi(Roi):
     def fragmented(self):
         self.is_fragmented = True
         self.set_can_fragment(False)
-        self.fragmented_index = len(self.mz_list)-1
+        self.fragmented_index = len(self.mz_list) - 1
         self.status = AFTER_FRAGMENT
 
     def get_status(self):
@@ -137,7 +137,7 @@ class SmartRoi(Roi):
             if self.length_in_seconds >= self.initial_length_seconds:
                 self.status = CAN_FRAGMENT
                 self.set_can_fragment(True)
-        elif self.status == AFTER_FRAGMENT:  
+        elif self.status == AFTER_FRAGMENT:
             # in a period after a fragmentation has happened
             # if enough time has elapsed, reset everything
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.reset_length_seconds:
@@ -148,22 +148,21 @@ class SmartRoi(Roi):
                 # find the min intensity since the frag
                 # check current intensity -- if it is 5* when we fragmented, we can go again
                 min_since_frag = min(self.intensity_list[self.fragmented_index:])
-                if self.intensity_list[-1] > min_since_frag*self.intensity_increase_factor:
+                if self.intensity_list[-1] > min_since_frag * self.intensity_increase_factor:
                     self.status = CAN_FRAGMENT
                     self.set_can_fragment(True)
-                elif self.intensity_list[-1] < self.drop_perc*self.intensity_list[self.fragmented_index]:
+                elif self.intensity_list[-1] < self.drop_perc * self.intensity_list[self.fragmented_index]:
                     # signal has dropped, but ROI still exists.
                     self.status = CAN_FRAGMENT
                     self.set_can_fragment(True)
                     # self.min_frag_intensity = self.intensity_list[-1]*self.intensity_increase_factor
-                    
+
         # code below never happens
         elif self.status == POST_PEAK:
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.dew:
                 if self.intensity_list[-1] > self.min_frag_intensity:
                     self.status = CAN_FRAGMENT
                     self.set_can_fragment(True)
-
 
     def get_can_fragment(self):
         return self.can_fragment
@@ -172,7 +171,8 @@ class SmartRoi(Roi):
         self.can_fragment = status
 
     def get_last_datum(self):
-        return (self.mz_list[-1],self.rt_list[-1],self.intensity_list[-1])
+        return (self.mz_list[-1], self.rt_list[-1], self.intensity_list[-1])
+
 
 # Find the RoI that a particular mz falls into
 # If it falls into nothing, return None
@@ -273,7 +273,8 @@ def cosine_score(u, v):
 # Make the RoI from an input file
 # mz_units = Da for Daltons
 # mz_units = ppm for ppm
-def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,length_units = "scans", ms_level=1, skip=None):
+def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
+             length_units="scans", ms_level=1, skip=None):
     # input_file = 'Beer_multibeers_1_fullscan1.mzML'
 
     if not mz_units == 'Da' and not mz_units == 'ppm':
@@ -288,11 +289,11 @@ def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensi
     dead_roi = []
     junk_roi = []
 
-    for i,spectrum in enumerate(run):
+    for i, spectrum in enumerate(run):
         # print spectrum['centroid_peaks']
-        if skip == 'even' and i%2 == 0:
+        if skip == 'even' and i % 2 == 0:
             continue
-        if skip == 'odd' and i%2 == 1:
+        if skip == 'odd' and i % 2 == 1:
             continue
         if spectrum['ms level'] == ms_level:
             live_roi.sort()
@@ -470,6 +471,3 @@ def plot_roi(roi, statuses=None, log=False):
         plt.scatter(roi.rt_list, intensities)
     plt.xlabel('RT')
     plt.show()
-
-
-

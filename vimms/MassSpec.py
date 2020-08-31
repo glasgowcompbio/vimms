@@ -5,7 +5,7 @@ import scipy
 from events import Events
 from loguru import logger
 
-from vimms.Common import adduct_transformation, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_SCAN_TIME_DICT
+from vimms.Common import adduct_transformation, DEFAULT_SCAN_TIME_DICT
 from vimms.Noise import NoPeakNoise
 
 
@@ -148,12 +148,12 @@ class ScanParameters(object):
         isolation_windows = []
 
         windows = []
-        for i,precursor in enumerate(precursor_list):
+        for i, precursor in enumerate(precursor_list):
             isolation_width = isolation_width_list[i]
             mz_lower = precursor.precursor_mz - (isolation_width / 2)
             mz_upper = precursor.precursor_mz + (isolation_width / 2)
-            windows.append((mz_lower,mz_upper))
-        
+            windows.append((mz_lower, mz_upper))
+
         isolation_windows.append(windows)
         return isolation_windows
 
@@ -224,7 +224,7 @@ class ExclusionItem(object):
     def __repr__(self):
         return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
-    def __lt__(self,other):
+    def __lt__(self, other):
         if self.from_mz <= other.from_mz:
             return True
         else:
@@ -526,10 +526,8 @@ class IndependentMassSpectrometer(object):
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
-        
 
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
-
 
         scan_mzs = []  # all the mzs values in this scan
         scan_intensities = []  # all the intensity values in this scan
@@ -538,15 +536,14 @@ class IndependentMassSpectrometer(object):
             isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
             if isolation_windows is None:
                 isolation_windows = [[(min_measurement_mz, max_measurement_mz)]]
-            if not isolation_windows[0][0][0] == min_measurement_mz or not isolation_windows[0][0][1] == max_measurement_mz:
+            if not isolation_windows[0][0][0] == min_measurement_mz or not isolation_windows[0][0][
+                                                                               1] == max_measurement_mz:
                 logger.warning("MS1 scan: MS1 isolation window and measurement mz range mismatch")
-            
+
         else:  # if ms2 then we check if the isolation window parameter is specified
             # isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
             # if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
             isolation_windows = params.compute_isolation_windows()
-            
-        
 
         scan_id = self.idx
 
@@ -563,7 +560,6 @@ class IndependentMassSpectrometer(object):
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
             mzs = self._get_all_mz_peaks(chemical, scan_time, use_ms_level, isolation_windows)
             peaks = []
-
 
             if mzs is not None:
                 chem_mzs = []
@@ -582,15 +578,13 @@ class IndependentMassSpectrometer(object):
                 frag = FragmentationEvent(chemical, scan_time, use_ms_level, peaks, scan_id)
                 self.fragmentation_events.append(frag)
 
-
         if self.spike_noise is not None:
-            spike_mzs, spike_intensities = self.spike_noise.sample(min_measurement_mz,max_measurement_mz)
+            spike_mzs, spike_intensities = self.spike_noise.sample(min_measurement_mz, max_measurement_mz)
             scan_mzs.extend(spike_mzs)
             scan_intensities.extend(spike_intensities)
 
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
-
 
         sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
 

@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.stats
+
 from vimms.Common import MAX_POSSIBLE_RT
 
 
@@ -49,7 +50,7 @@ class EmpiricalChromatogram(Chromatogram):
     def get_apex_rt(self):
         max_pos = 0
         max_intensity = self.intensities[0]
-        for i,intensity in enumerate(self.intensities):
+        for i, intensity in enumerate(self.intensities):
             if intensity > max_intensity:
                 max_intensity = intensity
                 max_pos = i
@@ -113,14 +114,18 @@ class ConstantChromatogram(Chromatogram):
         self.min_rt = 0.0
         self.max_rt = MAX_POSSIBLE_RT
 
-    def get_relative_intensity(self,query_rt):
+    def get_relative_intensity(self, query_rt):
         return self.relative_intensity
+
     def get_relative_mz(self, query_rt):
         return self.mz
+
     def _rt_match(self, query_rt):
         return True
+
     def get_apex_rt(self):
-        return  self.min_rt
+        return self.min_rt
+
 
 # Make this more generalisable. Make scipy.stats... as input, However this makes it difficult to do the cutoff
 class FunctionalChromatogram(Chromatogram):
@@ -161,7 +166,7 @@ class FunctionalChromatogram(Chromatogram):
             return False
         else:
             return True
-        
+
     def get_apex_rt(self):
         if self.distribution_name == 'uniform':
             return self.min_rt
@@ -169,4 +174,3 @@ class FunctionalChromatogram(Chromatogram):
             return self.parameters[0]
         else:
             raise NotImplementedError()
-

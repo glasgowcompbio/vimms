@@ -1,11 +1,11 @@
-import numpy as np
 import random
 
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 
-from matplotlib import pyplot as plt
-from matplotlib.lines import Line2D
 
 ########################################################################################################################
 # Simple Example Data Classes
@@ -243,7 +243,7 @@ class SimplePeakMatching(PeakMatching):
     def add_new_scans(self, scans, est_drift, est_drift_sd):
         self.match_scans(scans, est_drift, est_drift_sd)
         self.update_xy()
-        saved_dataset = {'X': self.X, 'y':self.y, 't': scans[0].end_time}
+        saved_dataset = {'X': self.X, 'y': self.y, 't': scans[0].end_time}
         return saved_dataset
 
     def match_scans(self, scans, est_drift, est_drift_sd):
@@ -596,4 +596,3 @@ class SimpleMatchingScore(object):
 class VimmsPeakMatching(PeakMatching):
     def __init__(self, covariance, max_match_score):
         super().__init__(covariance, max_match_score)
-

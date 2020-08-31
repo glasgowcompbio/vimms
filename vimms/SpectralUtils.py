@@ -81,7 +81,7 @@ def get_scans(mzml_file, ms_level=None):
                 except KeyError as e:
                     continue  # sometimes we can't find the intensity value precursor['i'] in precursors
 
-    if ms_level is not None: # filter by ms level
+    if ms_level is not None:  # filter by ms level
         scans = [scan for scan in scans if scan.ms_level == ms_level]
     return scans
 

@@ -1,9 +1,10 @@
 # Utils.py - some general utilities
 import os
+import pysmiles
 from pathlib import Path
 
 from vimms.Chemicals import KnownChemical, UnknownChemical
-from vimms.Common import adduct_transformation, create_if_not_exist
+from vimms.Common import adduct_transformation, create_if_not_exist, ATOM_MASSES
 
 # Constants for write_msp
 COLLISION_ENERGY = '25'
@@ -85,3 +86,23 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False, all_isot
     f = open(msp_filename, "w")
     f.writelines(outln)
     f.close()
+
+
+def smiles_to_formula(smiles_string):
+    mol = pysmiles.read_smiles(smiles_string, explicit_hydrogen=True)
+    atom_counts = {g: 0 for g in ATOM_MASSES}
+    for node in mol.nodes(data="element"):
+        atom = node[1]
+        if not atom in atom_counts:
+            return None
+        else:
+            atom_counts[atom] += 1
+    chem_formula = ""
+    for atom, count in atom_counts.items():
+        if count == 0:
+            continue
+        elif count == 1:
+            chem_formula += atom
+        else:
+            chem_formula += "{}{}".format(atom,count)
+    return chem_formula

@@ -2,12 +2,16 @@
 from pathlib import Path
 
 import pytest
+import pysmiles
 
 from vimms.ChemicalSamplers import *
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, DatabaseCompound
 from vimms.Common import *
 from vimms.Noise import NoPeakNoise
-from vimms.Utils import write_msp
+from vimms.Utils import write_msp, smiles_to_formula
+
+from mass_spec_utils.library_matching.gnps import load_mgf
+
 
 np.random.seed(1)
 
@@ -155,3 +159,31 @@ class TestMSPWriting:
         out_file = 'simple_unknown_dataset.msp'
         write_msp(simple_no_database_dataset, out_file, out_dir=OUT_DIR)
         assert (os.path.exists(Path(OUT_DIR, out_file)))
+
+
+class TestLinkedCreation:
+
+    def test_linked_ms1_ms2_creation(self):
+        # make a database from an mgf
+        records = load_mgf(MGF_FILE, id_field='SPECTRUMID')
+        keys = list(records.keys())
+        database = []
+        for key in keys:
+            chemical_formula = smiles_to_formula(records[key].metadata['SMILES'])
+            records[key].metadata['CHEMICAL_FORMULA'] = chemical_formula
+        for key, record in records.items():
+            database.append(DatabaseCompound(record.spectrum_id, record.metadata['CHEMICAL_FORMULA'], None, None, None, key))
+        
+        hd = DatabaseFormulaSampler(database)
+        mm = ExactMatchMS2Sampler(MGF_FILE)
+        cm = ChemicalMixtureCreator(hd, ms2_sampler = mm)
+        dataset = cm.sample(N_CHEMICALS, 2)
+
+        # check each chemical to see if it has the correct number of peaks
+        for chem in dataset:
+            orig_spec = records[chem.database_accession]
+            assert len(chem.children) > 0
+            assert len(orig_spec.peaks) == len(chem.children)
+
+        
+        

@@ -311,14 +311,14 @@ class CRPMS2Sampler(MS2Sampler):
 
 
 class MGFMS2Sampler(MS2Sampler):
-    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False):
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False, id_field="SPECTRUMID"):
         self.mgf_file = mgf_file
         self.min_proportion = min_proportion
         self.max_proportion = max_proportion
         self.replace = replace  # sample with replacement
 
         # load the mgf
-        self.spectra_dict = load_mgf(self.mgf_file, id_field="SPECTRUMID")
+        self.spectra_dict = load_mgf(self.mgf_file, id_field=id_field)
 
         # turn into a list where the last item is the number of times this one has been sampled
         self.spectra_list = [[s.precursor_mz, s, 0] for s in self.spectra_dict.values()]

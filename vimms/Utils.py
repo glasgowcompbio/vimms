@@ -3,7 +3,9 @@ import os
 import pysmiles
 from pathlib import Path
 
-from vimms.Chemicals import KnownChemical, UnknownChemical
+from mass_spec_utils.library_matching.gnps import load_mgf
+
+from vimms.Chemicals import KnownChemical, UnknownChemical, DatabaseCompound
 from vimms.Common import adduct_transformation, create_if_not_exist, ATOM_MASSES
 
 # Constants for write_msp
@@ -106,3 +108,17 @@ def smiles_to_formula(smiles_string):
         else:
             chem_formula += "{}{}".format(atom,count)
     return chem_formula
+
+def mgf_to_database(mgf_file, id_field='SPECTRUMID'):
+    """
+    Load spectra from an mgf file and save as a list of DatabaseCompounds
+    Computes chemimcal formula from SMILES
+    """
+    records = load_mgf(mgf_file, id_field=id_field)
+    database = []
+    for key in records:
+        chemical_formula = smiles_to_formula(records[key].metadata['SMILES'])
+        records[key].metadata['CHEMICAL_FORMULA'] = chemical_formula
+    for key, record in records.items():
+        database.append(DatabaseCompound(record.spectrum_id, record.metadata['CHEMICAL_FORMULA'], None, None, None, key))
+    return database

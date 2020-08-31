@@ -8,7 +8,7 @@ from vimms.ChemicalSamplers import *
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, DatabaseCompound
 from vimms.Common import *
 from vimms.Noise import NoPeakNoise
-from vimms.Utils import write_msp, smiles_to_formula
+from vimms.Utils import write_msp, mgf_to_database
 
 from mass_spec_utils.library_matching.gnps import load_mgf
 
@@ -165,21 +165,16 @@ class TestLinkedCreation:
 
     def test_linked_ms1_ms2_creation(self):
         # make a database from an mgf
-        records = load_mgf(MGF_FILE, id_field='SPECTRUMID')
-        keys = list(records.keys())
-        database = []
-        for key in keys:
-            chemical_formula = smiles_to_formula(records[key].metadata['SMILES'])
-            records[key].metadata['CHEMICAL_FORMULA'] = chemical_formula
-        for key, record in records.items():
-            database.append(DatabaseCompound(record.spectrum_id, record.metadata['CHEMICAL_FORMULA'], None, None, None, key))
-        
+        database = mgf_to_database(MGF_FILE, id_field="SPECTRUMID")
         hd = DatabaseFormulaSampler(database)
-        mm = ExactMatchMS2Sampler(MGF_FILE)
+        # ExactMatchMS2Sampler needs to be given the same mgf file
+        # and both need to use the same field in the MGF as the unique ID
+        mm = ExactMatchMS2Sampler(MGF_FILE, id_field="SPECTRUMID")
         cm = ChemicalMixtureCreator(hd, ms2_sampler = mm)
         dataset = cm.sample(N_CHEMICALS, 2)
 
         # check each chemical to see if it has the correct number of peaks
+        records = load_mgf(MGF_FILE, id_field="SPECTRUMID")
         for chem in dataset:
             orig_spec = records[chem.database_accession]
             assert len(chem.children) > 0

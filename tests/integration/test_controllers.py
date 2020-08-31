@@ -122,20 +122,29 @@ def fragscan_dataset_spectra(fragscan_ps):
 
 @pytest.fixture(scope="module")
 def simple_dataset():
-    um = UniformMZFormulaSampler()
+    um = UniformMZFormulaSampler(min_mz=515, max_mz=516)
     ri = UniformRTAndIntensitySampler(min_rt=150, max_rt=160)
     cs = GaussianChromatogramSampler(sigma=100)
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-    return cm.sample([[515,516]],[[150,160]],1,2)
+    return cm.sample(1,2)
 
 
 @pytest.fixture(scope="module")
 def ten_chems():
-    um = UniformMZFormulaSampler()
+    um = UniformMZFormulaSampler(min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
     ri = UniformRTAndIntensitySampler(min_rt=200, max_rt=300)
     cs = GaussianChromatogramSampler()
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-    return cm.sample(MZ_RANGE,[[200,300]],10,2)
+    return cm.sample(10,2)
+    
+
+@pytest.fixture(scope="module")
+def two_fixed_chems():
+    em = EvenMZFormulaSampler()
+    ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+    cs = ConstantChromatogramSampler()
+    cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(2,2)
     
 ### tests starts from here ###
 
@@ -398,6 +407,61 @@ class TestTopNController:
             # write simulated output to mzML file
             filename = 'topN_controller_qcbeer_exclusion_%d.mzML' % i
             check_mzML(env, OUT_DIR, filename)
+
+
+class TestMultipleMS2Windows:
+    def test_data_generation(self,two_fixed_chems):
+        assert len(two_fixed_chems) == 2
+        assert two_fixed_chems[0].mass == 100
+        assert two_fixed_chems[1].mass == 200
+        assert len(two_fixed_chems[0].children) > 0
+        assert len(two_fixed_chems[1].children) > 0
+    
+    def test_acquisition(self,two_fixed_chems):
+        mz_to_target = [chem.mass+1.0 for chem in two_fixed_chems]
+        schedule = []
+        # env = Environment()
+        isolation_width = DEFAULT_ISOLATION_WIDTH
+        mz_tol = 0.1
+        rt_tol = 15
+
+        min_rt = 110
+        max_rt = 112
+
+        ionisation_mode = POSITIVE
+
+        controller = FixedScansController(ionisation_mode, [])
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
+        env = Environment(mass_spec, controller, min_rt, max_rt)
+
+
+    
+        ms1_scan = env.get_default_scan_params()
+        ms2_scan_1 = env.get_dda_scan_param(mz_to_target[0],0.0,None,isolation_width,mz_tol,rt_tol)
+        ms2_scan_2 = env.get_dda_scan_param(mz_to_target[1],0.0,None,isolation_width,mz_tol,rt_tol)
+        ms2_scan_3 = env.get_dda_scan_param(mz_to_target,[0.0, 0.0],None,isolation_width,mz_tol,rt_tol)
+
+        schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
+
+        controller.schedule = schedule
+        set_log_level_warning()
+        env.run()
+        assert len(controller.scans[2]) == 3
+
+        n_peaks = []
+        for scan in controller.scans[2]:
+            n_peaks.append(scan.num_peaks)
+
+        assert n_peaks[0] > 0
+        assert n_peaks[1] > 0
+        assert n_peaks[2] == n_peaks[0] + n_peaks[1]
+        env.write_mzML(OUT_DIR,'multi_windows.mzML')
+
+
+
+        
+        
+
 
 
 class TestPurityController:
@@ -670,7 +734,7 @@ class TestTopNExcludingShiftedController:
         check_mzML(env, OUT_DIR, filename)
 
 
-class TestDIAControllers:
+class TestAIFControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
@@ -777,7 +841,7 @@ class TestDIAControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
     
-    
+class TestSWATH:
     def test_swath(self,ten_chems):
         min_mz = 100
         max_mz = 1000
@@ -789,7 +853,7 @@ class TestDIAControllers:
         controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1:0.124,2:0.124}
 
-        spike_noise = UniformSpikeNoise(0.1,100)
+        spike_noise = UniformSpikeNoise(0.1,1)
 
         mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems, None, scan_duration_dict = scan_time_dict, spike_noise=spike_noise)
 

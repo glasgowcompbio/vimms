@@ -594,12 +594,10 @@ class ChemicalMixtureCreator(object):
         #     self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
 
 
-    def sample(self, mz_range, rt_range, n_chemicals, ms_levels, include_adducts_isotopes=True):
+    def sample(self, n_chemicals, ms_levels, include_adducts_isotopes=True):
         
-        self.rt_and_intensity_sampler.min_rt = rt_range[0][0]
-        self.rt_and_intensity_sampler.max_rt = rt_range[0][1]
 
-        formula_list = self.formula_sampler.sample(n_chemicals,mz_range[0][0],mz_range[0][1])
+        formula_list = self.formula_sampler.sample(n_chemicals)
         rt_list = []
         intensity_list = []
         chromatogram_list = []
@@ -642,16 +640,7 @@ class ChemicalMixtureCreator(object):
         return chemicals
 
 
-    # def _sample_formulas(self, mz_range, n_chemicals):
-    #     # filter HMDB to witin mz_range
-    #     offset = 20 # to ensure that we have room for at least M+H
-    #     formulas = list(set([x.chemical_formula for x in self.database]))
-    #     sub_formulas = list(filter(lambda x: Formula(x).mass  >= mz_range[0][0] and Formula(x).mass <= mz_range[0][1] - offset,formulas))
-    #     logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
-    #     chosen_formulas = np.random.choice(sub_formulas, size=n_chemicals, replace=False)
-    #     logger.debug('Sampled formulas')
-    #     return [Formula(f) for f in chosen_formulas]
-        
+  
 class MultipleMixtureCreator(object):
     def __init__(self,master_chemical_list,group_list,group_dict,intensity_noise=GaussianPeakNoise(sigma=0.001,log_space=True),overall_missing_probability=0.0):
         self.master_chemical_list = master_chemical_list

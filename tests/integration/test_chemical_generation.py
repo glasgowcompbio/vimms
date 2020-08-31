@@ -1,4 +1,5 @@
 # test chemical generaion
+import os
 import unittest
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from vimms.Common import *
 from vimms.ChemicalSamplers import *
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator
 from vimms.Noise import NoPeakNoise
+from vimms.Utils import write_msp
 np.random.seed(1)
 
 ### define some useful constants ###
@@ -24,6 +26,25 @@ N_CHEMICALS = 10
 
 MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
 
+
+@pytest.fixture(scope="module")
+def simple_dataset():
+    ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+    hf = DatabaseFormulaSampler(HMDB)
+    cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    d = cc.sample(N_CHEMICALS, 2)
+    return d
+
+@pytest.fixture(scope="module")
+def simple_no_database_dataset():
+    ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+    hf = UniformMZFormulaSampler()
+    cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    d = cc.sample(N_CHEMICALS, 2)
+    return d
+
+
+
 def check_chems(chem_list):
     assert len(chem_list) == N_CHEMICALS
     for chem in chem_list:
@@ -36,41 +57,44 @@ def check_chems(chem_list):
 class TestDatabaseCreation:
     def test_hmdb_creation(self):
         
-        
-        hf = DatabaseFormulaSampler(HMDB)
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
+        d = cc.sample(N_CHEMICALS, 2)
 
         check_chems(d)
 
     def test_mz_creation(self):
-
-        hf = UniformMZFormulaSampler()
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+        hf = UniformMZFormulaSampler(min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
+        d = cc.sample(N_CHEMICALS, 2)
 
         check_chems(d)
 
 
     def test_ms2_uniform(self):
         
-        hf = DatabaseFormulaSampler(HMDB)
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = CRPMS2Sampler()
-        cc = ChemicalMixtureCreator(hf, ms2_sampler=cs)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, ms2_sampler=cs)
+        d = cc.sample(N_CHEMICALS, 2)
         check_chems(d)
 
     def test_ms2_mgf(self):
-        hf = DatabaseFormulaSampler(HMDB)
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = MGFMS2Sampler(MGF_FILE)
-        cc = ChemicalMixtureCreator(hf, ms2_sampler=cs)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, ms2_sampler=cs)
+        d = cc.sample(N_CHEMICALS, 2)
         check_chems(d)
 
     def test_multiple_chems(self):
-        hf = DatabaseFormulaSampler(HMDB)
-        cc = ChemicalMixtureCreator(hf)
-        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+        hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
+        ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
+        cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
+        d = cc.sample(N_CHEMICALS, 2)
         
 
         group_list = ['control', 'control', 'case', 'case']
@@ -123,4 +147,18 @@ class TestDatabaseCreation:
                 for f in c:
                     assert not f.max_intensity == f.original_chemical.max_intensity
         
-        
+class TestMSPWriting:
+
+    def test_msp_writer_known_formula(self, simple_dataset):
+        out_file = 'simple_known_dataset.msp'
+        write_msp(simple_dataset, out_file, out_dir=OUT_DIR)
+        assert(os.path.exists(Path(OUT_DIR, out_file)))
+
+
+    def test_msp_writer_unknown_formula(self, simple_no_database_dataset):
+        out_file = 'simple_unknown_dataset.msp'
+        write_msp(simple_no_database_dataset, out_file, out_dir=OUT_DIR)
+        assert(os.path.exists(Path(OUT_DIR, out_file)))
+
+
+

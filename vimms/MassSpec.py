@@ -142,13 +142,19 @@ class ScanParameters(object):
         """
         Gets the full-width (DDA) isolation window around a precursor m/z
         """
-        mz = self.get(ScanParameters.PRECURSOR_MZ).precursor_mz
-        isolation_width = self.get(ScanParameters.ISOLATION_WIDTH)
-        assert mz is not None and isolation_width is not None
+        precursor_list = self.get(ScanParameters.PRECURSOR_MZ)
+        isolation_width_list = self.get(ScanParameters.ISOLATION_WIDTH)
 
-        mz_lower = mz - (isolation_width / 2)  # half-width isolation window, in Da
-        mz_upper = mz + (isolation_width / 2)  # half-width isolation window, in Da
-        isolation_windows = [[(mz_lower, mz_upper)]]
+        isolation_windows = []
+
+        windows = []
+        for i,precursor in enumerate(precursor_list):
+            isolation_width = isolation_width_list[i]
+            mz_lower = precursor.precursor_mz - (isolation_width / 2)
+            mz_upper = precursor.precursor_mz + (isolation_width / 2)
+            windows.append((mz_lower,mz_upper))
+        
+        isolation_windows.append(windows)
         return isolation_windows
 
     def __repr__(self):
@@ -539,12 +545,13 @@ class IndependentMassSpectrometer(object):
             # isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
             # if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
             isolation_windows = params.compute_isolation_windows()
+            
+        
 
         scan_id = self.idx
 
         # for all chemicals that come out from the column coupled to the mass spec
         idx = self._get_chem_indices(scan_time)
-
 
         # the following is to ensure we generate fragment data when we have a collision energe >0
         use_ms_level = ms_level

@@ -62,6 +62,3 @@ class SimpleMs1Controller(Controller):
 
     def update_state_after_scan(self, last_scan):
         pass
-
-    def reset(self):
-        pass

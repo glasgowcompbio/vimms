@@ -39,10 +39,6 @@ class AIF(Controller):
     def update_state_after_scan(self, last_scan):
         pass
 
-    # method required by super-class
-    def reset(self):
-        pass
-
     def _process_scan(self, scan):
         # method called when a scan arrives that requires action
         # normally means that we should schedule some more
@@ -128,9 +124,6 @@ class SWATH(Controller):
 
     def handle_acquisition_closing(self):
         logger.info('Acquisition closing')
-
-    def reset(self):
-        pass
 
     def update_state_after_scan(self, last_scan):
         pass

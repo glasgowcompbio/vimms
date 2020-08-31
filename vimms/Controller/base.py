@@ -59,9 +59,6 @@ class Controller(object):
     def update_state_after_scan(self, last_scan):
         raise NotImplementedError()
 
-    def reset(self):
-        raise NotImplementedError()
-
     def _process_scan(self, scan):
         raise NotImplementedError()
 

@@ -179,9 +179,6 @@ class TopNController(Controller):
         # the DEW list update must be done after time has been increased
         self._manage_dynamic_exclusion_list(last_scan)
 
-    def reset(self):
-        pass
-
     def _manage_dynamic_exclusion_list(self, scan):
         """
         Manages dynamic exclusion list
@@ -803,9 +800,6 @@ class PurityController(TopNController):
 
     def update_state_after_scan(self, last_scan):
         super().update_state_after_scan(last_scan)
-
-    def reset(self):
-        super().reset()
 
     def _get_current_N_DEW(self, time):
         idx = np.nonzero(self.scan_param_changepoints <= time)[0][-1]

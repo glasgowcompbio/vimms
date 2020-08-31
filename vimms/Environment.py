@@ -37,9 +37,7 @@ class Environment(object):
         Runs the mass spec and controller
         :return: None
         """
-        # reset mass spec and set some initial values for each run
-        self.mass_spec.reset()
-        self.controller.reset()
+        # set some initial values for each run
         self._set_initial_values()
 
         # register event handlers from the controller

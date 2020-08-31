@@ -73,6 +73,9 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False, all_isot
     if out_dir is not None:
         msp_filename = Path(out_dir, msp_filename)
 
+    out_dir = os.path.dirname(out_file)
+    create_if_not_exists(out_dir)
+
     f = open(msp_filename, "w")
     f.writelines(outln)
     f.close()

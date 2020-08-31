@@ -173,7 +173,7 @@ class Environment(object):
         self.controller.set_environment(self)
         self.mass_spec.set_environment(self)
         self.mass_spec.time = self.min_time
-        self.add_tasks(self.controller.get_initial_tasks()) # add the initial tasks from the controller
+        self.add_tasks(self.controller.get_initial_tasks())  # add the initial tasks from the controller
 
         N, DEW = self._get_N_DEW(self.mass_spec.time)
         if N is not None:
@@ -184,7 +184,8 @@ class Environment(object):
     def get_default_scan_params(self, agc_target=DEFAULT_MS1_AGC_TARGET, max_it=DEFAULT_MS1_MAXIT,
                                 collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                                 orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                                default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW, mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                                default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
+                                mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
                                 activation_type=DEFAULT_MS1_ACTIVATION_TYPE, isolation_mode=DEFAULT_MS1_ISOLATION_MODE):
         """
         Gets the default method scan parameters. Now it's set to do MS1 scan only.
@@ -214,18 +215,17 @@ class Environment(object):
         dda_scan_params = ScanParameters()
         dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
 
-
-        assert isinstance(mz,list) == isinstance(intensity,list)
+        assert isinstance(mz, list) == isinstance(intensity, list)
 
         # create precursor object, assume it's all singly charged
         precursor_charge = +1 if (self.mass_spec.ionisation_mode == POSITIVE) else -1
         if type(mz) == list:
             precursor_list = []
-            for i,m in enumerate(mz):
+            for i, m in enumerate(mz):
                 precursor_list.append(Precursor(precursor_mz=m, precursor_intensity=intensity[i],
-                                precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id))
+                                                precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id))
             dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
-            
+
             if type(isolation_width) == list:
                 assert len(isolation_width) == len(precursor_list)
             else:
@@ -234,7 +234,7 @@ class Environment(object):
 
         else:
             precursor = Precursor(precursor_mz=mz, precursor_intensity=intensity,
-                                precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id)
+                                  precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id)
             precursor_list = [precursor]
             dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
 
@@ -276,5 +276,3 @@ class Environment(object):
             return self.controller.N, self.controller.rt_tol
         else:
             return None, None
-
-

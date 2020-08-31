@@ -7,7 +7,6 @@ from pathlib import Path
 
 import seaborn as sns
 from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
-from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import BoxJoinAligner
 from sklearn.linear_model import LogisticRegression
 
@@ -22,7 +21,6 @@ parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')
 QCB_XML_TEMPLATE_MS1 = os.path.join(batch_file_dir, 'QCB_mzmine_batch_ms1.xml')
 QCB_XML_TEMPLATE_MS2 = os.path.join(batch_file_dir, 'QCB_mzmine_batch_ms2.xml')
-
 
 
 class BaseSequenceManager(object):
@@ -128,7 +126,7 @@ class BaseSequenceManager(object):
 
 
 class VimmsSequenceManager(BaseSequenceManager):
-    def __init__(self, controller_schedule, evaluation_methods, base_dir, mzmine_command, 
+    def __init__(self, controller_schedule, evaluation_methods, base_dir, mzmine_command,
                  evaluaton_min_ms1_intensity=1.75E5,
                  evaluation_params=None,
                  ms1_picked_peaks_file=None,
@@ -160,7 +158,8 @@ class VimmsSequenceManager(BaseSequenceManager):
             dataset = self.controller_schedule['Dataset'][idx]
             if method is not None and dataset is not None:
                 dataset = load_obj(self.controller_schedule['Dataset'][idx])
-                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset, ms_params['peak_sampler'])
+                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset,
+                                                        ms_params['peak_sampler'])
                 # Run sample
                 env = Environment(mass_spec, controller, self.rt_range[0][0],
                                   self.rt_range[0][1], progress_bar=self.progress_bar)
@@ -224,7 +223,8 @@ class BasicExperiment(Experiment):
                 mzml_file = mzml_file_list[sequence_manager.schedule_idx[i]]
                 datasets = extract_roi([mzml_file], None, None, None, self.ps, param_dict=self.mzml2chems_dict)
                 dataset = datasets[0]
-                dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file_list[sequence_manager.schedule_idx[i]]).stem + '.p')
+                dataset_name = os.path.join(sequence_manager.base_dir,
+                                            Path(mzml_file_list[sequence_manager.schedule_idx[i]]).stem + '.p')
                 save_obj(dataset, dataset_name)
                 sequence_manager.controller_schedule['Dataset'][i] = dataset_name
         return sequence_manager
@@ -426,9 +426,9 @@ class AlignedExperiment(Experiment):
         ms2_picked_peaks_file = self.run_peak_picking(idx, current_mzml_file, controller_name)
         self.aligner = self.run_alignment(self.aligner, ms2_picked_peaks_file)
         self.experiment_scores, self.experiment_ids, self.peak_boxes = self.update_scores(self.aligner,
-                                                                         self.experiment_ids,
-                                                                         self.experiment_scores,
-                                                                         current_mzml_file)
+                                                                                          self.experiment_ids,
+                                                                                          self.experiment_scores,
+                                                                                          current_mzml_file)
 
     def _generate_controller_schedule(self):
         sample_ids = ['sample' + str(i) for i in range(len(self.dataset_files))]
@@ -443,7 +443,6 @@ class AlignedExperiment(Experiment):
                          'Dataset': self.dataset_files}
         controller_schedule = pd.DataFrame(data=schedule_data)
         return controller_schedule
-
 
     def run_alignment(self, aligner, picked_peak_file):
         aligner.add_file(picked_peak_file)
@@ -477,7 +476,7 @@ class AlignedExperiment(Experiment):
         # get cumulative fragmentation and score
         cumulative_score = []
         for i in range(len(experiment_scores)):
-            updated_fragmentation = [max(x) for x in zip(*self.experiment_scores[:i+1])]
+            updated_fragmentation = [max(x) for x in zip(*self.experiment_scores[:i + 1])]
             cumulative_score.append(sum(updated_fragmentation))
         self.cumulative_fragmentation = updated_fragmentation
         self.cumulative_score = cumulative_score
@@ -509,7 +508,8 @@ class OptimalMultiSampleExperiment(AlignedExperiment):
     def run_single(self, idx):
         if idx > 0:
             self.sequence_manager.controller_schedule['Controller Params'][idx]['peak_boxes'] = self.peak_boxes
-            self.sequence_manager.controller_schedule['Controller Params'][idx]['peak_box_scores'] = self.cumulative_fragmentation
+            self.sequence_manager.controller_schedule['Controller Params'][idx][
+                'peak_box_scores'] = self.cumulative_fragmentation
             print(self.cumulative_fragmentation)
         super().run_single(idx)
 
@@ -722,4 +722,3 @@ def create_controller(controller_method, param_dict):
 def Heatmap_GridSearch(GridSearch_object, outcome_name, X_name, Y_name):
     results = GridSearch_object.results.pivot(X_name, Y_name, outcome_name)
     ax = sns.heatmap(results)
-

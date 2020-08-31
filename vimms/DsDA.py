@@ -78,7 +78,8 @@ def fragmentation_performance_aligned(param_dict):
 
     events = np.array([event for event in controller.environment.mass_spec.fragmentation_events if event.ms_level == 2])
     event_query_rts = np.array([event.query_rt for event in events])
-    event_query_mzs = np.array([controller.environment.mass_spec._get_mz(event.chem, event.query_rt, 0, 0) for event in events])
+    event_query_mzs = np.array(
+        [controller.environment.mass_spec._get_mz(event.chem, event.query_rt, 0, 0) for event in events])
 
     chemicals_found = [0 for i in range(n_chemicals_aligned)]
 

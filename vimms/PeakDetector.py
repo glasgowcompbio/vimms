@@ -1,22 +1,22 @@
 import numpy as np
 import pandas as pd
-from loguru import logger
-from vimms.Roi import Roi, make_roi
+
 from vimms.PythonMzmine import get_base_scoring_df
+from vimms.Roi import make_roi
 
 QCB_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
-                  'mz_tol': 2,
-                  'mz_units':'ppm',
-                  'min_length':1,
-                  'min_intensity':0,
-                  'start_rt':0,
-                  'stop_rt':1560}
+                       'mz_tol': 2,
+                       'mz_units': 'ppm',
+                       'min_length': 1,
+                       'min_intensity': 0,
+                       'start_rt': 0,
+                       'stop_rt': 1560}
 
 
 def get_rois(mzml, min_roi_length, mzml2chems_dict=QCB_MZML2CHEMS_DICT):
     good_roi, junk_roi = make_roi(mzml, mz_tol=mzml2chems_dict['mz_tol'], mz_units=mzml2chems_dict['mz_units'],
-                              min_length=min_roi_length, min_intensity=mzml2chems_dict['min_intensity'],
-                              start_rt=mzml2chems_dict['start_rt'], stop_rt=mzml2chems_dict['stop_rt'])
+                                  min_length=min_roi_length, min_intensity=mzml2chems_dict['min_intensity'],
+                                  start_rt=mzml2chems_dict['start_rt'], stop_rt=mzml2chems_dict['stop_rt'])
     return good_roi, junk_roi
 
 
@@ -33,7 +33,7 @@ def mzml2classificationdata(mzmls, mzml_picked_peaks_files, min_roi_length=5, mz
         if i == 0:
             df = df_new
         else:
-            df = pd.concat([df,df_new])
+            df = pd.concat([df, df_new])
     return df, rois
 
 
@@ -56,7 +56,7 @@ class get_prob_classifier(object):
 
 
 def calculate_window_change(intensities, drift_window_len):
-    return sum((np.array(intensities)[-(drift_window_len-1):] - np.array(intensities)[-drift_window_len:-1]) > 0)
+    return sum((np.array(intensities)[-(drift_window_len - 1):] - np.array(intensities)[-drift_window_len:-1]) > 0)
 
 
 def find_possible_peaks(roi, picked_peaks, mz_slack):
@@ -68,7 +68,7 @@ def find_possible_peaks(roi, picked_peaks, mz_slack):
     # logger.debug('rt check ' + rt_check)
     # plus and minus one is just slack for the initial check
     initial_mz_check = (picked_peaks['m/z max'] + 1 >= roi.get_mean_mz()) & (
-                roi.get_mean_mz() >= picked_peaks['m/z min'] - 1)
+            roi.get_mean_mz() >= picked_peaks['m/z min'] - 1)
     # logger.debug('mz len ' + len(initial_mz_check))
     # logger.debug('mz check ' + initial_mz_check)
     possible_peaks = np.where(np.logical_and(rt_check, initial_mz_check))[0]
@@ -81,16 +81,17 @@ def find_possible_peaks(roi, picked_peaks, mz_slack):
             updated_possible_peaks.append(j)
     return updated_possible_peaks
 
-def rois2classificationdata2(rois, picked_peaks, mz_slack=0.01, drift_window_lengths = [5], rt_peak_tol=2,
+
+def rois2classificationdata2(rois, picked_peaks, mz_slack=0.01, drift_window_lengths=[5], rt_peak_tol=2,
                              include_status=True):
     roi_change_list = [[] for i in range(len(drift_window_lengths))]
     rt_status_list = []
     for roi in rois:
         # get drift data
         for window in range(len(drift_window_lengths)):
-            roi_change_list[window].extend([None for i in range(drift_window_lengths[window]-1)])
+            roi_change_list[window].extend([None for i in range(drift_window_lengths[window] - 1)])
             roi_change = [calculate_window_change(roi.intensity_list[:i], drift_window_lengths[window])
-                          for i in range(drift_window_lengths[window], roi.n+1)]
+                          for i in range(drift_window_lengths[window], roi.n + 1)]
             roi_change_list[window].extend(roi_change)
         # get possible peaks
         if include_status:
@@ -103,7 +104,8 @@ def rois2classificationdata2(rois, picked_peaks, mz_slack=0.01, drift_window_len
                 for rt in roi.rt_list:
                     rt_status = 0
                     for j in range(len(possible_peaks_list.index)):
-                        if possible_peaks_list['rt centre'].iloc[j] - rt_peak_tol <= rt <= possible_peaks_list['rt centre'].iloc[j] + rt_peak_tol:
+                        if possible_peaks_list['rt centre'].iloc[j] - rt_peak_tol <= rt <= \
+                                possible_peaks_list['rt centre'].iloc[j] + rt_peak_tol:
                             rt_status = max(3, rt_status)
                         elif possible_peaks_list['rt min'].iloc[j] <= rt <= possible_peaks_list['rt centre'].iloc[j]:
                             rt_status = max(2, rt_status)
@@ -241,5 +243,3 @@ def rois2classificationdata2(rois, picked_peaks, mz_slack=0.01, drift_window_len
 #         for i in range(roi_param_dict['lag_max']):
 #             df['autocorrelation_' + str(i+1)] = [roi.get_autocorrelation(i+1) for roi in rois]
 #     return df
-
-

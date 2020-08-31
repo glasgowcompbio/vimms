@@ -22,7 +22,8 @@ class DiaAnalyser(object):
         self.ms1_scan_times = np.array([scan.rt for scan in self.scans[1]])
         self.ms2_scan_times = np.array([scan.rt for scan in self.scans[2]])
         self.ms1_mzs = [
-            self.controller.environment.mass_spec._get_all_mz_peaks(self.dataset[i], self.dataset[i].rt + 0.01, 1, [[(0, 1000)]])[
+            self.controller.environment.mass_spec._get_all_mz_peaks(self.dataset[i], self.dataset[i].rt + 0.01, 1,
+                                                                    [[(0, 1000)]])[
                 0][0] for i in range(len(self.dataset))]
         self.ms1_start_rt = np.array([data.rt for data in self.dataset])
         self.ms1_end_rt = np.array([data.rt + data.chromatogram.max_rt for data in self.dataset])
@@ -65,7 +66,8 @@ class DiaAnalyser(object):
                 (self.ms1_start_rt[chem_num] < self.ms1_scan_times) & (self.ms1_scan_times < self.ms1_end_rt[chem_num])]
             for time in relevant_times:
                 intensity = \
-                    self.controller.environment.mass_spec._get_all_mz_peaks(self.dataset[chem_num], time, 1, [[(0, 1000)]])[0][
+                    self.controller.environment.mass_spec._get_all_mz_peaks(self.dataset[chem_num], time, 1,
+                                                                            [[(0, 1000)]])[0][
                         1]  # TODO: Make MS1 range more general
                 if intensity > self.min_intensity:
                     first_scans[chem_num] = min(first_scans[chem_num], time)
@@ -94,7 +96,8 @@ class DiaAnalyser(object):
         current_mid_points = mid_points
         for i in range(len(locations)):
             chem_scanned = isinstance(
-                self.controller.environment.mass_spec._get_all_mz_peaks(self.dataset[chem_num], scan_times[i], 2, locations[i]),
+                self.controller.environment.mass_spec._get_all_mz_peaks(self.dataset[chem_num], scan_times[i], 2,
+                                                                        locations[i]),
                 list)
             new_mid_points = []
             for j in range(len(current_mid_points)):

@@ -1,18 +1,18 @@
-from scipy.stats import norm
-from scipy.optimize import minimize
 from pyDOE import *
+from scipy.optimize import minimize
+from scipy.stats import norm
 
 from vimms.BOMAS import GetScaledValues
-
 
 PARAM_RANGE_N0 = [[0, 250]]
 PARAM_RANGE_N1 = [[0, 250], [0, 500], [0, 100], [1, 50]]
 
+
 def MSmixture(theta, y, t, N):
     mean = np.array([theta[0] for i in y])
     if N == 1:
-        mean += (theta[1]**2) * norm.pdf(t, abs(theta[2]), abs(theta[3]))
-    return sum((y-mean)**2)
+        mean += (theta[1] ** 2) * norm.pdf(t, abs(theta[2]), abs(theta[3]))
+    return sum((y - mean) ** 2)
 
 
 def Minimise_MSmixture(y, t, N, param_range_init, method='Nelder-Mead', restarts=10):
@@ -20,7 +20,7 @@ def Minimise_MSmixture(y, t, N, param_range_init, method='Nelder-Mead', restarts
     opt_values = []
     opt_mins = []
     for i in range(restarts):
-        #model_results = minimize(MSmixture, init_values[:, i], args=(y, t, N), method=method)
+        # model_results = minimize(MSmixture, init_values[:, i], args=(y, t, N), method=method)
         model_results = minimize(MSmixture_posterior, init_values[:, i], args=(y, t, N), method=method)
         opt_mins.append(model_results)
         opt_values.append(model_results['fun'])
@@ -39,8 +39,8 @@ def GetPlot_MSmixture(t, theta, N):
 def MSmixture_posterior(theta, y, t, N, sigma=None, prior_mu=None, prior_var=None, neg_like=True):
     mean = np.array([theta[0] for i in y])
     if N == 1:
-        mean += (theta[1]**2) * norm.pdf(t, abs(theta[2]), abs(theta[3]))
-    var = sum((y-mean)**2) / (len(y))
+        mean += (theta[1] ** 2) * norm.pdf(t, abs(theta[2]), abs(theta[3]))
+    var = sum((y - mean) ** 2) / (len(y))
     log_like = sum(np.log(norm.pdf(y, mean, var)))
     if neg_like:
         return -log_like
@@ -86,10 +86,10 @@ class SMC_MSmixture(object):
 
     def _get_weights(self):
         # get posteriors
-        weights = [MSmixture_posterior(self.current_particles[i], self.y, self.t, self.n_mixtures, neg_like=False) for i in
+        weights = [MSmixture_posterior(self.current_particles[i], self.y, self.t, self.n_mixtures, neg_like=False) for i
+                   in
                    range(self.n_particles)]
         updated_weights = np.exp(np.array(weights) - np.array(weights).max())
         # re weight
         normalised_weights = np.exp(updated_weights) / sum(np.exp(updated_weights))
         return normalised_weights
-

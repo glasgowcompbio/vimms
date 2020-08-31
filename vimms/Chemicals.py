@@ -7,12 +7,12 @@ import scipy
 import scipy.stats
 from loguru import logger
 
+from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
-    ATOM_NAMES, ATOM_MASSES, Formula, DummyFormula, uniform_list
-from vimms.Chromatograms import FunctionalChromatogram
+    Formula, DummyFormula
 from vimms.Noise import GaussianPeakNoise
-from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
+
 
 class DatabaseCompound(object):
     def __init__(self, name, chemical_formula, monisotopic_molecular_weight, smiles, inchi, inchikey):
@@ -22,7 +22,6 @@ class DatabaseCompound(object):
         self.smiles = smiles
         self.inchi = inchi
         self.inchikey = inchikey
-
 
 
 class Isotopes(object):
@@ -70,13 +69,12 @@ class Adducts(object):
         if adduct_prior_dict is None:
             self.adduct_names = list(POS_TRANSFORMATIONS.keys())
             self.adduct_prior = np.ones(len(self.adduct_names)) * 0.1
-            self.adduct_prior[0] = 1.0 # give more weight to the first one, i.e. M+H
+            self.adduct_prior[0] = 1.0  # give more weight to the first one, i.e. M+H
         else:
             self.adduct_names = list(adduct_prior_dict.keys())
             self.adduct_prior = np.array(list(adduct_prior_dict.values()))
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
-
 
     def get_adducts(self):
         adducts = []
@@ -342,7 +340,7 @@ class ChemicalCreator(object):
 
     def _get_children_spectra(self, parent):
         # spectra is a list containing one MassSpec.Scan object
-        found_permissable = False # reject spectra that comtain no peaks
+        found_permissable = False  # reject spectra that comtain no peaks
         while not found_permissable:
             spectra = self.peak_sampler.get_ms2_spectra()[0]
             if len(spectra.intensities) > 0:
@@ -575,34 +573,31 @@ class MultiSampleCreator(object):
 class ChemicalMixtureCreator(object):
     # class to create a list of known chemical objects
     # using simplified, cleaned methods
-    def __init__(self,  formula_sampler,
-                        rt_and_intensity_sampler = UniformRTAndIntensitySampler(),
-                        chromatogram_sampler = GaussianChromatogramSampler(),
-                        ms2_sampler = UniformMS2Sampler(),
-                        adduct_proportion_cutoff=0.05,
-                        adduct_prior_dict=None):
+    def __init__(self, formula_sampler,
+                 rt_and_intensity_sampler=UniformRTAndIntensitySampler(),
+                 chromatogram_sampler=GaussianChromatogramSampler(),
+                 ms2_sampler=UniformMS2Sampler(),
+                 adduct_proportion_cutoff=0.05,
+                 adduct_prior_dict=None):
         self.formula_sampler = formula_sampler
         self.rt_and_intensity_sampler = rt_and_intensity_sampler
-        self.chromatogram_sampler  =  chromatogram_sampler
-        self.ms2_sampler= ms2_sampler
+        self.chromatogram_sampler = chromatogram_sampler
+        self.ms2_sampler = ms2_sampler
         self.adduct_proportion_cutoff = 0.05
         self.adduct_prior_dict = adduct_prior_dict
-
 
         # if self.database is not None:
         #     logger.debug('Sorting database compounds by masses')
         #     self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
 
-
     def sample(self, n_chemicals, ms_levels, include_adducts_isotopes=True):
-        
 
         formula_list = self.formula_sampler.sample(n_chemicals)
         rt_list = []
         intensity_list = []
         chromatogram_list = []
         for formula in formula_list:
-            rt,intensity = self.rt_and_intensity_sampler.sample(formula)
+            rt, intensity = self.rt_and_intensity_sampler.sample(formula)
             rt_list.append(rt)
             intensity_list.append(intensity)
             chromatogram_list.append(self.chromatogram_sampler.sample(formula, rt, intensity))
@@ -610,17 +605,17 @@ class ChemicalMixtureCreator(object):
 
         # make into known chemical objects
         chemicals = []
-        for i,formula in enumerate(formula_list):
+        for i, formula in enumerate(formula_list):
             rt = rt_list[i]
             max_intensity = intensity_list[i]
             chromatogram = chromatogram_list[i]
-            if isinstance(formula,Formula):
+            if isinstance(formula, Formula):
                 isotopes = Isotopes(formula)
                 adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
 
                 chemicals.append(KnownChemical(formula, isotopes, adducts, rt, max_intensity, chromatogram,
-                                            include_adducts_isotopes=include_adducts_isotopes))
-            elif isinstance(formula,DummyFormula):
+                                               include_adducts_isotopes=include_adducts_isotopes))
+            elif isinstance(formula, DummyFormula):
                 chemicals.append(UnknownChemical(formula.mass, rt, max_intensity, chromatogram))
             else:
                 logger.warning("Unkwown formula object: {}".format(type(formula)))
@@ -630,19 +625,18 @@ class ChemicalMixtureCreator(object):
                 child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(formula)
 
                 children = []
-                for mz,intensity in zip(child_mz,child_intensity):
+                for mz, intensity in zip(child_mz, child_intensity):
                     child = MSN(mz, 2, intensity, parent_proportion, None, parent)
                     children.append(child)
-                children.sort(key = lambda x: x.isotopes[0])
+                children.sort(key=lambda x: x.isotopes[0])
                 parent.children = children
 
-                
         return chemicals
 
 
-  
 class MultipleMixtureCreator(object):
-    def __init__(self,master_chemical_list,group_list,group_dict,intensity_noise=GaussianPeakNoise(sigma=0.001,log_space=True),overall_missing_probability=0.0):
+    def __init__(self, master_chemical_list, group_list, group_dict,
+                 intensity_noise=GaussianPeakNoise(sigma=0.001, log_space=True), overall_missing_probability=0.0):
         self.master_chemical_list = master_chemical_list
         self.group_list = group_list
         self.group_dict = group_dict
@@ -659,16 +653,16 @@ class MultipleMixtureCreator(object):
     def _generate_changes(self):
         self.group_multipliers = {}
         for group in self.group_dict:
-            self.group_multipliers[group]  = {}
+            self.group_multipliers[group] = {}
             missing_probability = self.group_dict[group]['missing_probability']
             changing_probability = self.group_dict[group]['changing_probability']
             for chemical in self.master_chemical_list:
-                self.group_multipliers[group][chemical] = 1.0 # default is no change
+                self.group_multipliers[group][chemical] = 1.0  # default is no change
                 if np.random.rand() <= changing_probability:
-                    self.group_multipliers[group][chemical] = np.exp(np.random.rand()*(np.log(5)-np.log(0.2) + np.log(0.2))) # uniform between doubling and halving
+                    self.group_multipliers[group][chemical] = np.exp(np.random.rand() * (
+                                np.log(5) - np.log(0.2) + np.log(0.2)))  # uniform between doubling and halving
                 if np.random.rand() <= missing_probability:
                     self.group_multipliers[group][chemical] = 0.0
-            
 
     def generate_chemical_lists(self):
         chemical_lists = []
@@ -676,9 +670,9 @@ class MultipleMixtureCreator(object):
             new_list = []
             for chemical in self.master_chemical_list:
                 if np.random.rand() < self.overall_missing_probability or self.group_multipliers[group][chemical] == 0.:
-                    continue # chemical is missing overall
+                    continue  # chemical is missing overall
                 new_intensity = chemical.max_intensity * self.group_multipliers[group][chemical]
-                new_intensity = self.intensity_noise.get(new_intensity,1)
+                new_intensity = self.intensity_noise.get(new_intensity, 1)
 
                 # make a new known chemical
                 new_chemical = copy.deepcopy(chemical)
@@ -687,6 +681,3 @@ class MultipleMixtureCreator(object):
                 new_list.append(new_chemical)
             chemical_lists.append(new_list)
         return chemical_lists
-
-
-            

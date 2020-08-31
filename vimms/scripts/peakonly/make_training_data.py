@@ -1,25 +1,26 @@
 # make_training_data.py
-import os
-import sys
 import argparse
 import glob
 import json
+import os
+import sys
+from pathlib import Path
+
 import numpy as np
 from tqdm import tqdm
-from pathlib import Path
-import pylab as plt
 
 HOME = str(Path.home())
-DEFAULT_PEAKONLY_PATH = os.path.join(HOME,'peakonly-master')
+DEFAULT_PEAKONLY_PATH = os.path.join(HOME, 'peakonly-master')
 
 
 def load_json(json_file):
-    with open(json_file,'r') as f:
+    with open(json_file, 'r') as f:
         payload = json.loads(f.read())
     return payload
 
+
 def load_all_json(json_file_list):
-    roi_dict = {'no_peaks': [], 'peaks':[]} # sort by presence / absence of peaks
+    roi_dict = {'no_peaks': [], 'peaks': []}  # sort by presence / absence of peaks
     for json_file in tqdm(json_file_list):
         payload = load_json(json_file)
         number_of_peaks = payload['number of peaks']
@@ -28,6 +29,7 @@ def load_all_json(json_file_list):
         else:
             roi_dict['peaks'].append(payload)
     return roi_dict
+
 
 def extract_example(roi, min_length, max_length, label):
     if label:
@@ -42,17 +44,17 @@ def extract_example(roi, min_length, max_length, label):
     if label:
         # remove end points that are *not* in a peak
         for peak_start, peak_stop in roi['borders']:
-            end_points = list(filter(lambda x: x >= peak_start and x < peak_stop, end_points))        
-    # remove points that would leave something too short
+            end_points = list(filter(lambda x: x >= peak_start and x < peak_stop, end_points))
+            # remove points that would leave something too short
     end_points = list(filter(lambda x: x >= min_length, end_points))
     # choose a random point
     if len(end_points) > 0:
         end_point = np.random.choice(end_points)
         # choose a length
-        max_length = min(max_length,end_point)
-        length = np.random.choice(range(min_length,max_length+1))
-        intensity_vals = roi['intensity'][end_point-(length-1):end_point+1]
-        mz_vals = roi['mz'][end_point-(length-1):end_point+1]
+        max_length = min(max_length, end_point)
+        length = np.random.choice(range(min_length, max_length + 1))
+        intensity_vals = roi['intensity'][end_point - (length - 1):end_point + 1]
+        mz_vals = roi['mz'][end_point - (length - 1):end_point + 1]
         return mz_vals, intensity_vals
     else:
         return [], []
@@ -67,10 +69,7 @@ def sample_once(roi_dict, key, label, choice_list, args):
             set(choice_list).remove(roi_idx)
             choice_list = list(choice_list)
     return {'label': label, 'mz_vals': mz_vals, 'intensity_vals': intensity_vals}
-    
 
-    
-            
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='create training data')
@@ -85,30 +84,29 @@ if __name__ == '__main__':
 
     print("ARGUMENTS")
     for arg in vars(args):
-        print(arg,getattr(args,arg))
+        print(arg, getattr(args, arg))
 
     # check that the peakonly training data is downloaded
-    data_root = os.path.join(args.peakonly_path,'data','annotation')
+    data_root = os.path.join(args.peakonly_path, 'data', 'annotation')
     if not os.path.isdir(data_root):
         print("Error: folder {} does not exist. Ensure you've downloaded peakonly annotated data".format(data_root))
         sys.exit(0)
-    
+
     print("Successfully found peakonly annotated data")
 
     # collect all the .json files
     json_files = []
-    data_folders = glob.glob(os.path.join(data_root,'Original*'))
+    data_folders = glob.glob(os.path.join(data_root, 'Original*'))
     print(data_folders)
     for data_folder in data_folders:
-        json_files += glob.glob(os.path.join(data_folder,'*.json'))
+        json_files += glob.glob(os.path.join(data_folder, '*.json'))
     print("Collected {} json files".format(len(json_files)))
 
     print("Loading")
     roi_dict = load_all_json(json_files)
     print("Loaded:")
-    for key,l in roi_dict.items():
-        print('\t',key,len(l))
-
+    for key, l in roi_dict.items():
+        print('\t', key, len(l))
 
     peaks_choice_list = list(range(len(roi_dict['peaks'])))
     no_peaks_choice_list = list(range(len(roi_dict['no_peaks'])))
@@ -118,7 +116,7 @@ if __name__ == '__main__':
     for i in tqdm(range(args.n_pos)):
         new_example = sample_once(roi_dict, 'peaks', True, peaks_choice_list, args)
         sample_set.append(new_example)
-    for i in tqdm(range(args.n_neg)): 
+    for i in tqdm(range(args.n_neg)):
         new_example = sample_once(roi_dict, 'no_peaks', False, no_peaks_choice_list, args)
         sample_set.append(new_example)
 
@@ -127,4 +125,3 @@ if __name__ == '__main__':
         f.write(json.dumps(sample_set))
 
     print("Done")
-    

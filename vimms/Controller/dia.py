@@ -155,7 +155,7 @@ class SWATH(Controller):
                 stop_mz.append(start + self.width)
                 start += self.width - self.scan_overlap
 
-            isolation_width = self.width/2.
+            isolation_width = self.width
 
             precursor_mz_list = []
             for i,start in enumerate(start_mz):

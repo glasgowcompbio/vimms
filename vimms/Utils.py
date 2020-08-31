@@ -1,7 +1,7 @@
 # Utils.py - some general utilities
 import os
 from pathlib import Path
-from vimms.Common import adduct_transformation
+from vimms.Common import adduct_transformation, create_if_not_exist
 from vimms.Chemicals import KnownChemical, UnknownChemical
 # Constants for write_msp
 COLLISION_ENERGY = '25'
@@ -74,7 +74,7 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False, all_isot
     if out_dir is not None:
         msp_filename = Path(out_dir, msp_filename)
 
-    out_dir = os.path.dirname(out_file)
+    out_dir = os.path.dirname(msp_filename)
     create_if_not_exist(out_dir)
 
     f = open(msp_filename, "w")

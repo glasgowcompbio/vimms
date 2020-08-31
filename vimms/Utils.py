@@ -1,4 +1,5 @@
 # Utils.py - some general utilities
+import os
 from pathlib import Path
 from vimms.Common import adduct_transformation
 from vimms.Chemicals import KnownChemical, UnknownChemical

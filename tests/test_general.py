@@ -1,12 +1,9 @@
 # some other more general tests
-import unittest
-from pathlib import Path
+
+import numpy as np
 
 from vimms.Chemicals import Formula
 
-import pytest
-
-import numpy as np
 np.random.seed(1)
 
 
@@ -22,4 +19,3 @@ class TestFormula:
         assert f.atoms['C'] == 13
         assert f.atoms['H'] == 2
         assert f.atoms['O'] == 1
-

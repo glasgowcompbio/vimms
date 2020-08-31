@@ -25,6 +25,7 @@ class NoPeakNoise(object):
     """
     The base peak noise object that doesn't add any noise
     """
+
     def get(self, original, ms_level):
         """
         Get the original value back. No noise if applied.
@@ -39,6 +40,7 @@ class GaussianPeakNoise(NoPeakNoise):
     """
     Adds Gaussian noise to peaks
     """
+
     def __init__(self, sigma, log_space=False):
         """
         Initialises Gaussian peak noise
@@ -66,6 +68,7 @@ class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
     allows noise to be added to oa single level, or
     to all levels with different sigma
     """
+
     def __init__(self, sigma_level_dict, log_space=False):
         self.log_space = log_space
         self.sigma_level_dict = sigma_level_dict

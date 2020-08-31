@@ -9,10 +9,10 @@ from mass_spec_utils.library_matching.gnps import load_mgf
 from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram
 from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW
 
-
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
 MAX_MZ = DEFAULT_MS1_SCAN_WINDOW[1]
 MIN_MZ_MS2 = DEFAULT_MSN_SCAN_WINDOW[0]
+
 
 ###############################################################################################################
 # Formula samplers
@@ -22,6 +22,7 @@ class FormulaSampler(object):
     """
     Base class for formula sampler
     """
+
     def __init__(self, min_mz=MIN_MZ, max_mz=MAX_MZ):
         self.min_mz = min_mz
         self.max_mz = max_mz
@@ -104,21 +105,25 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         formula_list = [Formula(x.chemical_formula) for x in self.database]
         return list(filter(lambda x: x.mass >= self.min_mz and x.mass <= self.max_mz, formula_list))
 
+
 class EvenMZFormulaSampler(FormulaSampler):
     """
     A sampler that picks mz values evenly spaced, starting from where it left off
     Useful for test cases
     """
+
     def __init__(self):
         self.n_sampled = 0
-        self.step = 100   
-    def sample(self,n_formulas):
+        self.step = 100
+
+    def sample(self, n_formulas):
         mz_list = []
         for i in range(n_formulas):
-            new_mz = (self.n_sampled+1)*self.step
+            new_mz = (self.n_sampled + 1) * self.step
             mz_list.append(new_mz)
             self.n_sampled += 1
         return [DummyFormula(m) for m in mz_list]
+
 
 ###############################################################################################################
 # Samplers for RT and intensity when initialising a Formula
@@ -198,12 +203,15 @@ class GaussianChromatogramSampler(ChromatogramSampler):
         """
         return FunctionalChromatogram('normal', [0, self.sigma])
 
+
 class ConstantChromatogramSampler(ChromatogramSampler):
     """
     A sampler to return constant chromatograms -- direct infusion
     """
+
     def sample(self, formula, rt, intensity):
         return ConstantChromatogram()
+
 
 ###############################################################################################################
 # MS2 samplers
@@ -263,7 +271,8 @@ class CRPMS2Sampler(MS2Sampler):
     A sampler that generates MS2 peaks following the CRP.
     """
 
-    def __init__(self, n_draws=1000, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8, alpha=1, base='uniform'):
+    def __init__(self, n_draws=1000, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8, alpha=1,
+                 base='uniform'):
         self.n_draws = n_draws
         self.min_mz = min_mz
         self.min_proportion = min_proportion

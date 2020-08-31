@@ -5,7 +5,7 @@ from sklearn import linear_model
 from sklearn.preprocessing import PolynomialFeatures
 
 from vimms.Common import *
-from vimms.Controller import TopNController
+from vimms.Controller.topN import TopNController
 from vimms.PeakDetector import calculate_window_change
 from vimms.Roi import match, Roi, SmartRoi
 
@@ -249,7 +249,8 @@ class SmartRoiController(RoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
@@ -445,7 +446,8 @@ class TopN_SmartRoiController(SmartRoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          reset_length_seconds=reset_length_seconds, intensity_increase_factor=intensity_increase_factor,
                          length_units=length_units, drop_perc=drop_perc, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
@@ -489,7 +491,8 @@ class TopN_RoiController(RoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
@@ -532,7 +535,8 @@ class DsDA_RoiController(RoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
@@ -583,7 +587,8 @@ class Probability_RoiController(RoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
@@ -642,7 +647,8 @@ class LocalModel_RoiController(RoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
@@ -707,7 +713,8 @@ class Repeated_SmartRoiController(SmartRoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          reset_length_seconds=reset_length_seconds,
                          intensity_increase_factor=intensity_increase_factor, length_units=length_units,
                          drop_perc=drop_perc, ms1_shift=ms1_shift,
@@ -774,10 +781,13 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          reset_length_seconds=reset_length_seconds, intensity_increase_factor=intensity_increase_factor,
-                         length_units=length_units, drop_perc=drop_perc, peak_boxes=peak_boxes, peak_box_scores=peak_box_scores,
-                         box_increase_factor=box_increase_factor, box_decrease_factor=box_decrease_factor, box_mz_tol=box_mz_tol,
+                         length_units=length_units, drop_perc=drop_perc, peak_boxes=peak_boxes,
+                         peak_box_scores=peak_box_scores,
+                         box_increase_factor=box_increase_factor, box_decrease_factor=box_decrease_factor,
+                         box_mz_tol=box_mz_tol,
                          ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,
@@ -842,7 +852,8 @@ class Classifier_RoiController(RoiController):  # TODO: Needs properly implement
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          ms1_agc_target=ms1_agc_target,
                          ms1_max_it=ms1_max_it,

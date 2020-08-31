@@ -1,15 +1,14 @@
 # test chemical generaion
-import os
-import unittest
 from pathlib import Path
 
-import numpy as np
 import pytest
-from vimms.Common import *
+
 from vimms.ChemicalSamplers import *
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator
+from vimms.Common import *
 from vimms.Noise import NoPeakNoise
 from vimms.Utils import write_msp
+
 np.random.seed(1)
 
 ### define some useful constants ###
@@ -19,8 +18,8 @@ BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
 HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
 OUT_DIR = Path(DIR_PATH, 'results')
 
-MZ_RANGE = [(300,600)]
-RT_RANGE = [(300,500)]
+MZ_RANGE = [(300, 600)]
+RT_RANGE = [(300, 500)]
 
 N_CHEMICALS = 10
 
@@ -35,6 +34,7 @@ def simple_dataset():
     d = cc.sample(N_CHEMICALS, 2)
     return d
 
+
 @pytest.fixture(scope="module")
 def simple_no_database_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
@@ -42,7 +42,6 @@ def simple_no_database_dataset():
     cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH)
     d = cc.sample(N_CHEMICALS, 2)
     return d
-
 
 
 def check_chems(chem_list):
@@ -56,7 +55,7 @@ def check_chems(chem_list):
 
 class TestDatabaseCreation:
     def test_hmdb_creation(self):
-        
+
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
@@ -72,9 +71,8 @@ class TestDatabaseCreation:
 
         check_chems(d)
 
-
     def test_ms2_uniform(self):
-        
+
         hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = CRPMS2Sampler()
@@ -95,11 +93,10 @@ class TestDatabaseCreation:
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
         d = cc.sample(N_CHEMICALS, 2)
-        
 
         group_list = ['control', 'control', 'case', 'case']
         group_dict = {'case': {'missing_probability': 0,
-                                'changing_probability': 0}}
+                               'changing_probability': 0}}
 
         # missing noise
         peak_noise = NoPeakNoise()
@@ -115,50 +112,46 @@ class TestDatabaseCreation:
             assert len(set(originals)) == len(d)
             for f in c:
                 assert f.max_intensity == f.original_chemical.max_intensity
-        
-        
-        group_dict = {'case': {'missing_probability': 1.,'changing_probability': 0}}
+
+        group_dict = {'case': {'missing_probability': 1., 'changing_probability': 0}}
 
         mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
 
         cl = mm.generate_chemical_lists()
-        for i,c in enumerate(cl):
+        for i, c in enumerate(cl):
             if group_list[i] == 'case':
                 assert len(c) == 0
 
         # test the case that if the missing probability is 1 all are missing
-        group_dict = {'case': {'missing_probability': 1.,'changing_probability': 0}}
+        group_dict = {'case': {'missing_probability': 1., 'changing_probability': 0}}
 
         mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
 
         cl = mm.generate_chemical_lists()
-        for i,c in enumerate(cl):
+        for i, c in enumerate(cl):
             if group_list[i] == 'case':
                 assert len(c) == 0
 
         # test the case that changing probablity is 1 changes everything
-        group_dict = {'case': {'missing_probability': 0.,'changing_probability': 1.}}
+        group_dict = {'case': {'missing_probability': 0., 'changing_probability': 1.}}
 
         mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
 
         cl = mm.generate_chemical_lists()
-        for i,c in enumerate(cl):
+        for i, c in enumerate(cl):
             if group_list[i] == 'case':
                 for f in c:
                     assert not f.max_intensity == f.original_chemical.max_intensity
-        
+
+
 class TestMSPWriting:
 
     def test_msp_writer_known_formula(self, simple_dataset):
         out_file = 'simple_known_dataset.msp'
         write_msp(simple_dataset, out_file, out_dir=OUT_DIR)
-        assert(os.path.exists(Path(OUT_DIR, out_file)))
-
+        assert (os.path.exists(Path(OUT_DIR, out_file)))
 
     def test_msp_writer_unknown_formula(self, simple_no_database_dataset):
         out_file = 'simple_unknown_dataset.msp'
         write_msp(simple_no_database_dataset, out_file, out_dir=OUT_DIR)
-        assert(os.path.exists(Path(OUT_DIR, out_file)))
-
-
-
+        assert (os.path.exists(Path(OUT_DIR, out_file)))

@@ -1,20 +1,19 @@
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import ConstantKernel, Matern
-from scipy.stats import norm
-from scipy.optimize import minimize
+import itertools as it
+import os
 from itertools import product
 
 from pyDOE import *
-import itertools as it
+from scipy.optimize import minimize
+from scipy.stats import norm
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel, Matern
 
-from vimms.FeatureExtraction import extract_roi
-from vimms.Controller import *
-from vimms.PythonMzmine import pick_peaks, controller_score
 from vimms.Common import *
-import os
+from vimms.Controller import *
 from vimms.Environment import *
+from vimms.FeatureExtraction import extract_roi
 from vimms.PythonMzmine import peak_scoring
-
+from vimms.PythonMzmine import pick_peaks, controller_score
 
 MZMINE_COMMAND = 'C:\\Users\\Vinny\\work\\MZmine-2.40.1\\MZmine-2.40.1\\startMZmine_Windows.bat'
 XML_TEMPLATE_MS1 = 'C:\\Users\\Vinny\\work\\vimms\\batch_files\\mzmine_batch_ms1.xml'
@@ -22,22 +21,21 @@ XML_TEMPLATE_MS2 = 'C:\\Users\\Vinny\\work\\vimms\\batch_files\\mzmine_batch_ms2
 QCB_XML_TEMPLATE_MS1 = 'C:\\Users\\Vinny\\work\\vimms\\batch_files\\QCB_mzmine_batch_ms1.xml'
 QCB_XML_TEMPLATE_MS2 = 'C:\\Users\\Vinny\\work\\vimms\\batch_files\\QCB_mzmine_batch_ms2.xml'
 
-
 QCB_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
-                  'mz_tol': 2,
-                  'mz_units':'ppm',
-                  'min_length':1,
-                  'min_intensity':0,
-                  'start_rt':0,
-                  'stop_rt':1560}
+                       'mz_tol': 2,
+                       'mz_units': 'ppm',
+                       'min_length': 1,
+                       'min_intensity': 0,
+                       'start_rt': 0,
+                       'stop_rt': 1560}
 
 MADELEINE_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
-                  'mz_tol': 10,
-                  'mz_units':'ppm',
-                  'min_length':1,
-                  'min_intensity':0,
-                  'start_rt':0,
-                  'stop_rt':600}
+                             'mz_tol': 10,
+                             'mz_units': 'ppm',
+                             'min_length': 1,
+                             'min_intensity': 0,
+                             'start_rt': 0,
+                             'stop_rt': 600}
 
 QCB_TOP_N_CONTROLLER_PARAM_DICT = {"ionisation_mode": POSITIVE,
                                    "mz_tol": 10,
@@ -58,7 +56,7 @@ QCB_SCORE_PARAM_DICT = {'min_ms1_intensity': 1.75E5,
 
 class BaseOptimiser(object):
     def __init__(self, base_dir, ps,
-                 controller_method = 'TopNController',
+                 controller_method='TopNController',
                  chem_param_dict=QCB_MZML2CHEMS_DICT,
                  controller_param_dict=QCB_TOP_N_CONTROLLER_PARAM_DICT,
                  score_param_dict=QCB_SCORE_PARAM_DICT,
@@ -111,7 +109,8 @@ class BaseOptimiser(object):
             results = self.results
             for idx in range(len(self.initial_params)):
                 next_flex_param_dict = self.initial_params[idx]
-                new_results = self._get_controller_score(self.mass_spec, self.ms1_picked_peaks_file, self.controller_method,
+                new_results = self._get_controller_score(self.mass_spec, self.ms1_picked_peaks_file,
+                                                         self.controller_method,
                                                          self.controller_param_dict, next_flex_param_dict, idx)
                 results.loc[len(self.results)] = new_results
             return results
@@ -164,8 +163,9 @@ class BaseOptimiser(object):
         NotImplementedError()
 
     def _get_controller_score(self, mass_spec, ms1_picked_peaks_file, controller_method,
-                             controller_param_dict, next_flex_param_dict, idx):
-        env, controller_name = self._run_controller(mass_spec, controller_method, controller_param_dict, next_flex_param_dict, idx)
+                              controller_param_dict, next_flex_param_dict, idx):
+        env, controller_name = self._run_controller(mass_spec, controller_method, controller_param_dict,
+                                                    next_flex_param_dict, idx)
         ms2_picked_peaks_file = self.frag_peak_picking(controller_name)
         score = self._get_score(env, ms1_picked_peaks_file, ms2_picked_peaks_file, next_flex_param_dict)
         return score
@@ -201,7 +201,8 @@ class BaseOptimiser(object):
 
     def _get_controller(self, controller_method, controller_param_dict, flex_controller_param_dict):
         if controller_method == 'TopNController':
-            controller = TopNController(controller_param_dict["ionisation_mode"],  # TODO: make this more general so it can find params from either dictionary
+            controller = TopNController(controller_param_dict["ionisation_mode"],
+                                        # TODO: make this more general so it can find params from either dictionary
                                         flex_controller_param_dict['N'],
                                         controller_param_dict["isolation_width"],
                                         controller_param_dict["mz_tol"],
@@ -209,15 +210,15 @@ class BaseOptimiser(object):
                                         controller_param_dict["min_ms1_intensity"])
         elif controller_method == 'Repeated_RoiController':
             controller = Repeated_RoiController(controller_param_dict["ionisation_mode"],
-                                              controller_param_dict["isolation_width"],
-                                              controller_param_dict["mz_tol"],
-                                              controller_param_dict["min_ms1_intensity"],
-                                              controller_param_dict["min_roi_intensity"],
-                                              controller_param_dict["min_roi_length"],
-                                              controller_param_dict["N"],
-                                              controller_param_dict["rt_tol"],
-                                              controller_param_dict["min_roi_length_for_fragmentation"],
-                                              flex_controller_param_dict["peak_df"])
+                                                controller_param_dict["isolation_width"],
+                                                controller_param_dict["mz_tol"],
+                                                controller_param_dict["min_ms1_intensity"],
+                                                controller_param_dict["min_roi_intensity"],
+                                                controller_param_dict["min_roi_length"],
+                                                controller_param_dict["N"],
+                                                controller_param_dict["rt_tol"],
+                                                controller_param_dict["min_roi_length_for_fragmentation"],
+                                                flex_controller_param_dict["peak_df"])
         return controller  # TODO: add more controller options
 
 
@@ -232,7 +233,8 @@ class GridSearch(BaseOptimiser):
         allNames = sorted(self.flex_controller_param_dict)
         combinations = list(it.product(*(self.flex_controller_param_dict[Name] for Name in allNames)))
         dictionaries = [dict(zip(allNames, combinations[i])) for i in range(len(combinations))]
-        col_names = ['Peak Count', 'Log Peak Intensity', 'Precision', 'Recall', 'F1'] + list(dictionaries[0].keys()) # this code is repeated, tryi
+        col_names = ['Peak Count', 'Log Peak Intensity', 'Precision', 'Recall', 'F1'] + list(
+            dictionaries[0].keys())  # this code is repeated, tryi
         df = pd.DataFrame(columns=col_names)
         return dictionaries, df
 
@@ -253,12 +255,13 @@ class BOMAS(BaseOptimiser):
         else:
             sys.exit('Invalid scoring method. Must be Peak Count, Log Peak Intensity, F1')
 
-
     def _get_initial_params(self):
-        theta_array = [list(self.theta_range[list(self.theta_range.keys())[i]][0]) for i in range(len(self.theta_range))]
+        theta_array = [list(self.theta_range[list(self.theta_range.keys())[i]][0]) for i in
+                       range(len(self.theta_range))]
         scaled_theta = lhs(len(theta_array), samples=self.N_init, criterion='center')
         scaled_theta = np.array([(
-        scaled_theta[:, i] * (theta_array[i][1] - theta_array[i][0]) + theta_array[i][0]).tolist()
+                                         scaled_theta[:, i] * (theta_array[i][1] - theta_array[i][0]) + theta_array[i][
+                                     0]).tolist()
                                  for i in range(len(theta_array))])
         if 'N' in self.theta_range.keys():
             which_N = list(np.where(np.array(list(self.theta_range.keys())) == 'N')[0])[0]
@@ -269,14 +272,16 @@ class BOMAS(BaseOptimiser):
         return dictionaries, df
 
     def _get_next_BO_params(self):
-        noise = 0.1 # TODO: set this up properly at the start
-        bounds = np.array([list(self.theta_range[list(self.theta_range.keys())[i]][0]) for i in range(len(self.theta_range))])
+        noise = 0.1  # TODO: set this up properly at the start
+        bounds = np.array(
+            [list(self.theta_range[list(self.theta_range.keys())[i]][0]) for i in range(len(self.theta_range))])
         m52 = ConstantKernel(1.0) * Matern(length_scale=1.0, nu=2.5)
         self.gpr = GaussianProcessRegressor(kernel=m52, alpha=noise ** 2)
         y = self.results[self.scoring_method].values
         theta = self.results[self.results.columns[1:]].values
         self.gpr.fit(theta, y)
-        theta_next = propose_location(expected_improvement, theta, y, self.gpr, bounds)  # TODO: add bounds + other parameters to start
+        theta_next = propose_location(expected_improvement, theta, y, self.gpr,
+                                      bounds)  # TODO: add bounds + other parameters to start
         theta_next_dict = dict(zip(self.theta_range.keys(), theta_next.flatten().tolist()))
         if 'N' in list(self.theta_range.keys()):
             theta_next_dict['N'] = round(theta_next_dict['N'])
@@ -287,7 +292,8 @@ class BOMAS(BaseOptimiser):
         for i in range(self.N_BO):
             idx = self.N_init + i
             next_flex_param_dict = self._get_next_BO_params()
-            new_results = self._get_controller_score(self.mass_spec, self.ms1_picked_peaks_file, self.controller_method, self.controller_param_dict, next_flex_param_dict, idx)
+            new_results = self._get_controller_score(self.mass_spec, self.ms1_picked_peaks_file, self.controller_method,
+                                                     self.controller_param_dict, next_flex_param_dict, idx)
             results.loc[len(self.results)] = new_results
         return results
 
@@ -306,15 +312,12 @@ class BOMAS(BaseOptimiser):
         # return results  # TODO: change to return the results in the right format
 
     # def optimiser_function(self, x):  # TODO: this and function above are the wrong way around
-        # needs to take a vector x and return y
-        # will need to convert x into dictionary format
-        # get idx
-        # new_results = self._get_controller_score(self.mass_spec, self.ms1_picked_peaks_file, self.controller_method,
-        #                                         self.controller_param_dict, next_flex_param_dict, idx)
-        # return right bit of new results
-
-
-
+    # needs to take a vector x and return y
+    # will need to convert x into dictionary format
+    # get idx
+    # new_results = self._get_controller_score(self.mass_spec, self.ms1_picked_peaks_file, self.controller_method,
+    #                                         self.controller_param_dict, next_flex_param_dict, idx)
+    # return right bit of new results
 
 
 def create_controller(controller_method, search_param_dict, base_param_dict):
@@ -323,7 +326,7 @@ def create_controller(controller_method, search_param_dict, base_param_dict):
     NotImplementedError()
 
 
-def Heatmap_GP(BOMAS_object): # TODO: allow you to specify the columns
+def Heatmap_GP(BOMAS_object):  # TODO: allow you to specify the columns
     X = BOMAS_object.results[BOMAS_object.results.columns[1:]].values
     names = list(BOMAS_object.results[BOMAS_object.results.columns[1:]].keys())
 
@@ -353,7 +356,7 @@ def expected_improvement(X, X_sample, Y_sample, gpr, xi=0.01):
     mu, sigma = gpr.predict(X, return_std=True)
     mu_sample = gpr.predict(X_sample)
 
-    #sigma = sigma.reshape(-1, X_sample.shape[1])  # TODO: What is this meant to do?
+    # sigma = sigma.reshape(-1, X_sample.shape[1])  # TODO: What is this meant to do?
 
     # Needed for noise-based model,
     # otherwise use np.max(Y_sample).
@@ -389,16 +392,16 @@ def propose_location(acquisition, X_sample, Y_sample, gpr, bounds, n_restarts=25
     return min_x.reshape(-1, 1)
 
 
-def load_scores(colnames, peak_files,  ms2_dir, dataset_file, ms1_picked_peaks_file, score_param_dict):
+def load_scores(colnames, peak_files, ms2_dir, dataset_file, ms1_picked_peaks_file, score_param_dict):
     dataset = load_obj(dataset_file)  # TODO: this needs updating
     results = pd.DataFrame(columns=colnames)
     for i in range(len(peak_files)):
         ms2_picked_peaks_file = peak_files[i]
         controller = load_obj(ms2_dir + Path(peak_files[i]).stem[:-3] + '.p')
         score = controller_score(controller, dataset, ms1_picked_peaks_file, ms2_picked_peaks_file,
-                                     score_param_dict['min_ms1_intensity'],
-                                     score_param_dict['matching_mz_tol'],
-                                     score_param_dict['matching_rt_tol'])
+                                 score_param_dict['min_ms1_intensity'],
+                                 score_param_dict['matching_mz_tol'],
+                                 score_param_dict['matching_rt_tol'])
         new_entry = [score, controller.N, controller.rt_tol]
         results.loc[len(results)] = new_entry
         logger.debug(i)
@@ -406,8 +409,7 @@ def load_scores(colnames, peak_files,  ms2_dir, dataset_file, ms1_picked_peaks_f
 
 
 def GetScaledValues(n_samples, theta_ranges):
-    values = lhs(len(theta_ranges), samples = n_samples, criterion='center')
+    values = lhs(len(theta_ranges), samples=n_samples, criterion='center')
     scaled_values = np.array([(values[:, i] * (theta_ranges[i][1] - theta_ranges[i][0]) + theta_ranges[i][0]).tolist()
-                             for i in range(len(theta_ranges))])
+                              for i in range(len(theta_ranges))])
     return scaled_values
-

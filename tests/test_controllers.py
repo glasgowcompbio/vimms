@@ -1,18 +1,18 @@
 import unittest
 from pathlib import Path
 
-import numpy as np
 import pytest
 
+from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
+    EvenMZFormulaSampler, ConstantChromatogramSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
-from vimms.ChemicalSamplers import *
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
-from vimms.Noise import *
+from vimms.Noise import GaussianPeakNoise, GaussianPeakNoiseLevelSpecific, UniformSpikeNoise
 
 np.random.seed(1)
 
@@ -65,11 +65,14 @@ def check_mzML(env, out_dir, filename):
     logger.info('Done')
     assert os.path.exists(out_file)
 
+
 def check_non_empty_MS1(controller):
     return check_non_empty(controller, 1)
 
+
 def check_non_empty_MS2(controller):
     return check_non_empty(controller, 2)
+
 
 def check_non_empty(controller, ms_level):
     non_empty = 0
@@ -80,6 +83,7 @@ def check_non_empty(controller, ms_level):
             assert scan.scan_params is not None
             assert scan.scan_params.get(ScanParameters.PRECURSOR_MZ) is not None
     assert non_empty > 0
+
 
 ### define some useful test fixtures ###
 
@@ -105,12 +109,12 @@ def fragscan_dataset_peaks(fragscan_ps):
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_PEAKS)
 
+
 @pytest.fixture(scope="module")
 def fragscan_dataset_peaks_onlyMH(fragscan_ps):
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
                         get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=ADDUCT_DICT_POS_MH)
-
 
 
 @pytest.fixture(scope="module")
@@ -126,7 +130,7 @@ def simple_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=150, max_rt=160)
     cs = GaussianChromatogramSampler(sigma=100)
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-    return cm.sample(1,2)
+    return cm.sample(1, 2)
 
 
 @pytest.fixture(scope="module")
@@ -135,8 +139,8 @@ def ten_chems():
     ri = UniformRTAndIntensitySampler(min_rt=200, max_rt=300)
     cs = GaussianChromatogramSampler()
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-    return cm.sample(10,2)
-    
+    return cm.sample(10, 2)
+
 
 @pytest.fixture(scope="module")
 def two_fixed_chems():
@@ -144,8 +148,9 @@ def two_fixed_chems():
     ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
     cs = ConstantChromatogramSampler()
     cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-    return cm.sample(2,2)
-    
+    return cm.sample(2, 2)
+
+
 ### tests starts from here ###
 
 class TestMS1Controller:
@@ -187,7 +192,7 @@ class TestMS1Controller:
         filename = 'ms1_controller_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    def test_peaks_in_range(self,fragscan_dataset_peaks, fullscan_ps):
+    def test_peaks_in_range(self, fragscan_dataset_peaks, fullscan_ps):
 
         min_mz = 100.
         max_mz = 200.
@@ -206,11 +211,11 @@ class TestMS1Controller:
             for s in scans[1:]:
                 assert min(s.mzs) >= min_mz
                 assert max(s.mzs) <= max_mz
-        
+
         # write simulated output to mzML file
         filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
         check_mzML(env, OUT_DIR, filename)
-        
+
 
 class TestTopNControllerSpectra:
     """
@@ -242,7 +247,6 @@ class TestTopNControllerSpectra:
 
         filename = 'topN_controller_simulated_chems_no_noise_spectra.mzML'
         check_mzML(env, OUT_DIR, filename)
-
 
 
 class TestTopNController:
@@ -288,7 +292,8 @@ class TestTopNController:
         # create a simulated mass spec with noise and Top-N controller
         mz_noise = GaussianPeakNoise(0.1)
         intensity_noise = GaussianPeakNoise(1000.)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, mz_noise=mz_noise, intensity_noise=intensity_noise)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, mz_noise=mz_noise,
+                                                intensity_noise=intensity_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 
@@ -296,10 +301,8 @@ class TestTopNController:
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
-
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
-
 
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_with_noise.mzML'
@@ -410,15 +413,15 @@ class TestTopNController:
 
 
 class TestMultipleMS2Windows:
-    def test_data_generation(self,two_fixed_chems):
+    def test_data_generation(self, two_fixed_chems):
         assert len(two_fixed_chems) == 2
         assert two_fixed_chems[0].mass == 100
         assert two_fixed_chems[1].mass == 200
         assert len(two_fixed_chems[0].children) > 0
         assert len(two_fixed_chems[1].children) > 0
-    
-    def test_acquisition(self,two_fixed_chems):
-        mz_to_target = [chem.mass+1.0 for chem in two_fixed_chems]
+
+    def test_acquisition(self, two_fixed_chems):
+        mz_to_target = [chem.mass + 1.0 for chem in two_fixed_chems]
         schedule = []
         # env = Environment()
         isolation_width = DEFAULT_ISOLATION_WIDTH
@@ -434,12 +437,10 @@ class TestMultipleMS2Windows:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
-
-    
         ms1_scan = env.get_default_scan_params()
-        ms2_scan_1 = env.get_dda_scan_param(mz_to_target[0],0.0,None,isolation_width,mz_tol,rt_tol)
-        ms2_scan_2 = env.get_dda_scan_param(mz_to_target[1],0.0,None,isolation_width,mz_tol,rt_tol)
-        ms2_scan_3 = env.get_dda_scan_param(mz_to_target,[0.0, 0.0],None,isolation_width,mz_tol,rt_tol)
+        ms2_scan_1 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
+        ms2_scan_2 = env.get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol, rt_tol)
+        ms2_scan_3 = env.get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol)
 
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
 
@@ -455,13 +456,7 @@ class TestMultipleMS2Windows:
         assert n_peaks[0] > 0
         assert n_peaks[1] > 0
         assert n_peaks[2] == n_peaks[0] + n_peaks[1]
-        env.write_mzML(OUT_DIR,'multi_windows.mzML')
-
-
-
-        
-        
-
+        env.write_mzML(OUT_DIR, 'multi_windows.mzML')
 
 
 class TestPurityController:
@@ -562,7 +557,6 @@ class TestROIController:
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
 
-
         # write simulated output to mzML file
         filename = 'roi_controller_simulated_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
@@ -590,7 +584,6 @@ class TestROIController:
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
 
-
         # write simulated output to mzML file
         filename = 'roi_controller_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
@@ -617,15 +610,15 @@ class TestSMARTROIController:
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
         controller = TopN_SmartRoiController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
-                                             min_roi_intensity, min_roi_length, N, rt_tol, min_roi_length_for_fragmentation=0)
+                                             min_roi_intensity, min_roi_length, N, rt_tol,
+                                             min_roi_length_for_fragmentation=0)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
         run_environment(env)
 
-        assert len(controller.scans[2])>0
-
+        assert len(controller.scans[2]) > 0
 
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
@@ -691,7 +684,6 @@ class TestTopNShiftedController:
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
 
-
         # write simulated output to mzML file
         filename = 'topN_shifted_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
@@ -728,7 +720,6 @@ class TestTopNExcludingShiftedController:
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
 
-
         # write simulated output to mzML file
         filename = 'topN_excluding_shifted_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
@@ -756,15 +747,16 @@ class TestAIFControllers:
 
         # shorten  the rt range for quicker tests
         min_rt = 0
-        max_rt = 400 
+        max_rt = 400
 
-        scan_time_dict = {1:0.12, 2:0.06}
+        scan_time_dict = {1: 0.12, 2: 0.06}
 
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict)
-        controller = AIF(min_mz,max_mz)
-        
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict)
+        controller = AIF(min_mz, max_mz)
+
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
@@ -784,10 +776,12 @@ class TestAIFControllers:
 
         # create a simulated mass spec with noise and Top-N controller
         logger.info('With noise')
-        mz_noise = GaussianPeakNoiseLevelSpecific({2:0.01})
-        intensity_noise = GaussianPeakNoiseLevelSpecific({2:1000.})
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, scan_duration_dict = scan_time_dict, mz_noise=mz_noise, intensity_noise=intensity_noise)
-        controller = AIF(min_mz,max_mz)
+        mz_noise = GaussianPeakNoiseLevelSpecific({2: 0.01})
+        intensity_noise = GaussianPeakNoiseLevelSpecific({2: 1000.})
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict, mz_noise=mz_noise,
+                                                intensity_noise=intensity_noise)
+        controller = AIF(min_mz, max_mz)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -817,13 +811,14 @@ class TestAIFControllers:
         min_mz = 100
         max_mz = 500
 
-        min_rt = 0 
-        max_rt = 500 
+        min_rt = 0
+        max_rt = 500
 
         # create a simulated mass spec without noise and Top-N controller
-        scan_time_dict = {1:0.124,2:0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, scan_duration_dict = scan_time_dict)
-        controller = AIF(min_mz,max_mz)
+        scan_time_dict = {1: 0.124, 2: 0.124}
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict)
+        controller = AIF(min_mz, max_mz)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -840,9 +835,10 @@ class TestAIFControllers:
         # write simulated output to mzML file
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
-    
+
+
 class TestSWATH:
-    def test_swath(self,ten_chems):
+    def test_swath(self, ten_chems):
         min_mz = 100
         max_mz = 1000
         width = 100
@@ -851,11 +847,12 @@ class TestSWATH:
         ionisation_mode = POSITIVE
 
         controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
-        scan_time_dict = {1:0.124,2:0.124}
+        scan_time_dict = {1: 0.124, 2: 0.124}
 
-        spike_noise = UniformSpikeNoise(0.1,1)
+        spike_noise = UniformSpikeNoise(0.1, 1)
 
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems, None, scan_duration_dict = scan_time_dict, spike_noise=spike_noise)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems, None, scan_duration_dict=scan_time_dict,
+                                                spike_noise=spike_noise)
 
         env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
 
@@ -865,9 +862,9 @@ class TestSWATH:
 
         check_non_empty_MS2(controller)
 
-
         filename = 'SWATH_ten_chems.mzML'
-        check_mzML(env,OUT_DIR, filename)
+        check_mzML(env, OUT_DIR, filename)
+
 
 class TestFixedScansController:
     """
@@ -892,7 +889,7 @@ class TestFixedScansController:
         gen = ScheduleGenerator(initial_ms1, end_ms1, precursor_mz, num_topN_blocks, N, ms1_mass_analyser,
                                 ms2_mass_analyser, activation_type, isolation_mode)
         schedule = gen.schedule
-        expected = initial_ms1 + ((N+1) * num_topN_blocks) + end_ms1
+        expected = initial_ms1 + ((N + 1) * num_topN_blocks) + end_ms1
         assert len(schedule) == expected
 
         # create a simulated mass spec without noise and Top-N controller

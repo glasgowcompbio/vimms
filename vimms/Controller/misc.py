@@ -55,7 +55,7 @@ class FixedScansController(Controller):
         self.ms2_isolation_mode = ms2_isolation_mode
 
     def get_initial_tasks(self):
-        if isinstance(self.schedule,list): # allows sending list of tasks
+        if isinstance(self.schedule, list):  # allows sending list of tasks
             tasks = self.schedule
         else:
             tasks = self._load_tasks(self.schedule)

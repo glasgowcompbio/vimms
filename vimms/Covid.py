@@ -1,9 +1,8 @@
-import numpy as np
-from scipy.stats import skewnorm
 import matplotlib.pyplot as plt
-import random
-from vimms.MassSpec import *
+from scipy.stats import skewnorm
+
 from vimms.Common import *
+from vimms.MassSpec import *
 
 
 class Person(object):
@@ -28,7 +27,7 @@ class Person(object):
         self.observed_viral_disease_status = [viral_disease_status]
         self.observed_covid_status = [covid_status]
 
-    def update(self, t, test_params, covid_params, viral_params, do_test=False, ms_level = 1):
+    def update(self, t, test_params, covid_params, viral_params, do_test=False, ms_level=1):
         self.time_measurements.append(t)
         self._update_covid(covid_params)
         self._update_viral_disease(viral_params)
@@ -36,7 +35,7 @@ class Person(object):
         self.symptoms_level.append(symptoms)
         if ms_level == 2 and do_test:
             test_result = covid_test(self.covid_status[-1], self.covid_level[-1], test_params['sensitivity'],
-                       test_params['specificity'])
+                                     test_params['specificity'])
             self.test_results.append(test_result)
         else:
             self.test_results.append(None)
@@ -192,9 +191,6 @@ class Disease2(object):
             return 0
 
 
-
-
-
 class PopulationModel(object):
     def __init__(self, N, test_params, covid_params, viral_params, covid_model):
         self.population = create_population(N)
@@ -284,9 +280,10 @@ class CovidMassSpectrometer(IndependentMassSpectrometer):
         if ms_level == 1:
             scan_mzs = np.array([p.id for p in self.population_model.population])
             scan_intensities = np.array([p.symptoms_level[-1] for p in self.population_model.population])
-            scan = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
+            scan = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None,
+                        scan_params=params)
         # get results for ms2 scan
         if ms_level == 2:
-            scan = Scan(scan_id, np.array([100]), np.array([100]), ms_level, scan_time, scan_duration=None, scan_params=params)
+            scan = Scan(scan_id, np.array([100]), np.array([100]), ms_level, scan_time, scan_duration=None,
+                        scan_params=params)
         return scan
-

@@ -117,9 +117,9 @@ class MzmlWriter(object):
                     "intensity": precursor.precursor_intensity,
                     "charge": precursor.precursor_charge,
                     "spectrum_reference": precursor.precursor_scan_id,
-                "activation": [activation_type, {"collision energy": collision_energy}]
+                    "activation": [activation_type, {"collision energy": collision_energy}]
                 })
-                
+
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)
         bp_pos = np.argmax(scan.intensities)
@@ -130,7 +130,7 @@ class MzmlWriter(object):
         try:
             first_mz = scan.scan_params.get(ScanParameters.FIRST_MASS)
             last_mz = scan.scan_params.get(ScanParameters.LAST_MASS)
-        except AttributeError: # if it's a method scan (not a custom scan), there's no scan_params to get first_mz and last_mz
+        except AttributeError:  # if it's a method scan (not a custom scan), there's no scan_params to get first_mz and last_mz
             first_mz, last_mz = DEFAULT_MS1_SCAN_WINDOW
 
         out.write_spectrum(

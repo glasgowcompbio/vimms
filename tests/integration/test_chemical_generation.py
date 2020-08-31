@@ -8,6 +8,7 @@ from vimms.Common import *
 from vimms.ChemicalSamplers import *
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator
 from vimms.Noise import NoPeakNoise
+from vimms.Utils import write_msp
 np.random.seed(1)
 
 ### define some useful constants ###
@@ -23,6 +24,14 @@ RT_RANGE = [(300,500)]
 N_CHEMICALS = 10
 
 MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
+
+
+@pytest.fixture(scope="module")
+def simple_dataset():
+        hf = DatabaseFormulaSampler(HMDB)
+        cc = ChemicalMixtureCreator(hf)
+        d = cc.sample(MZ_RANGE, RT_RANGE, N_CHEMICALS, 2)
+
 
 def check_chems(chem_list):
     assert len(chem_list) == N_CHEMICALS
@@ -123,4 +132,6 @@ class TestDatabaseCreation:
                 for f in c:
                     assert not f.max_intensity == f.original_chemical.max_intensity
         
+    class TestMSPWriting:
+
         

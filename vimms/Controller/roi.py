@@ -161,14 +161,6 @@ class RoiController(TopNController):
     def update_state_after_scan(self, last_scan):
         pass
 
-    def reset(self):
-        super().reset()
-        self.live_roi = []
-        self.dead_roi = []
-        self.junk_roi = []
-        self.live_roi_fragmented = []
-        self.live_roi_last_rt = []  # last fragmentation time of ROI
-
     def _update_roi(self, new_scan):
         if new_scan.ms_level == 1:
             order = np.argsort(self.live_roi)

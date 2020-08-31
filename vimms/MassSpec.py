@@ -365,19 +365,6 @@ class IndependentMassSpectrometer(object):
         """
         self.processing_queue.append(param)
 
-    def reset(self):
-        """
-        Resets the mass spec state so we can reuse it again
-        :return: None
-        """
-        self.clear_events()
-        self.time = 0
-        self.idx = 100000  # same as the real mass spec
-        self.processing_queue = []
-        self.current_N = 0
-        self.current_DEW = 0
-        self.fragmentation_events = []
-
     def fire_event(self, event_name, arg=None):
         """
         Simulates sending an event

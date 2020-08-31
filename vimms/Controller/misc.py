@@ -71,9 +71,6 @@ class FixedScansController(Controller):
     def update_state_after_scan(self, last_scan):
         pass
 
-    def reset(self):
-        pass
-
     def _load_tasks(self, schedule):
         """
         Converts schedule to tasks

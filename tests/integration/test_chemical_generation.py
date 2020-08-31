@@ -1,4 +1,5 @@
 # test chemical generaion
+import os
 import unittest
 from pathlib import Path
 
@@ -151,10 +152,13 @@ class TestMSPWriting:
     def test_msp_writer_known_formula(self, simple_dataset):
         out_file = 'simple_known_dataset.msp'
         write_msp(simple_dataset, out_file, out_dir=OUT_DIR)
+        assert(os.path.exists(Path(OUT_DIR, out_file)))
+
 
     def test_msp_writer_unknown_formula(self, simple_no_database_dataset):
         out_file = 'simple_unknown_dataset.msp'
         write_msp(simple_no_database_dataset, out_file, out_dir=OUT_DIR)
+        assert(os.path.exists(Path(OUT_DIR, out_file)))
 
 
 

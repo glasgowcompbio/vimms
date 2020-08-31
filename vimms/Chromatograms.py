@@ -147,6 +147,9 @@ class FunctionalChromatogram(Chromatogram):
     def get_relative_intensity(self, query_rt):
         if self._rt_match(query_rt) == False:
             return None
+        elif self.distribution_name == 'normal':
+            rv = np.exp((-0.5*(query_rt + self.distrib.ppf(self.cutoff / 2) - self.parameters[0])**2)/self.parameters[1]**2)
+            return rv 
         else:
             return (self.distrib.pdf(query_rt + self.distrib.ppf(self.cutoff / 2)) * (1 / (1 - self.cutoff)))
 

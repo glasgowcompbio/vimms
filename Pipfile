@@ -27,9 +27,10 @@ jupyter = "*"
 pyzmq = "==18.1.1"
 xlrd = "*"
 statsmodels = "*"
-mass-spec-utils = "*"
+mass-spec-utils = "==0.0.10"
 tabulate = "*"
 pytest = "*"
+pysmiles = "*"
 
 [dev-packages]
 pipenv-setup = "*"

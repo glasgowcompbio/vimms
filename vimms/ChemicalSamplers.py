@@ -55,13 +55,13 @@ class DatabaseFormulaSampler(FormulaSampler):
         """
         # filter database formulae to be within mz_range
         offset = 20  # to ensure that we have room for at least M+H
-        formulas = list(set([x.chemical_formula for x in self.database]))
+        formulas = list(set([(x.chemical_formula, x.name) for x in self.database]))
         sub_formulas = list(
-            filter(lambda x: Formula(x).mass >= self.min_mz and Formula(x).mass <= self.max_mz - offset, formulas))
+            filter(lambda x: Formula(x[0]).mass >= self.min_mz and Formula(x[0]).mass <= self.max_mz - offset, formulas))
         logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
-        chosen_formulas = np.random.choice(sub_formulas, size=n_formulas, replace=False)
+        chosen_formula_positions = np.random.choice(len(sub_formulas), size=n_formulas, replace=False)
         logger.debug('Sampled formulas')
-        return [Formula(f) for f in chosen_formulas]
+        return [(Formula(sub_formulas[f][0]), sub_formulas[f][1]) for f in chosen_formula_positions]
 
 
 class UniformMZFormulaSampler(FormulaSampler):
@@ -79,7 +79,7 @@ class UniformMZFormulaSampler(FormulaSampler):
         :return: a list of Formula objects
         """
         mz_list = np.random.rand(n_formulas) * (self.max_mz - self.min_mz) + self.min_mz
-        return [DummyFormula(m) for m in mz_list]
+        return [(DummyFormula(m), None) for m in mz_list]
 
 
 class PickEverythingFormulaSampler(DatabaseFormulaSampler):
@@ -102,8 +102,8 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         :param n_formulas: ignored?
         :return: all formulae from the database
         """
-        formula_list = [Formula(x.chemical_formula) for x in self.database]
-        return list(filter(lambda x: x.mass >= self.min_mz and x.mass <= self.max_mz, formula_list))
+        formula_list = [(Formula(x.chemical_formula), x.name) for x in self.database]
+        return list(filter(lambda x: x[0].mass >= self.min_mz and x[0].mass <= self.max_mz, formula_list))
 
 
 class EvenMZFormulaSampler(FormulaSampler):
@@ -122,7 +122,7 @@ class EvenMZFormulaSampler(FormulaSampler):
             new_mz = (self.n_sampled + 1) * self.step
             mz_list.append(new_mz)
             self.n_sampled += 1
-        return [DummyFormula(m) for m in mz_list]
+        return [(DummyFormula(m), None) for m in mz_list]
 
 
 ###############################################################################################################
@@ -245,7 +245,7 @@ class UniformMS2Sampler(MS2Sampler):
         self.min_proportion = min_proportion  # proportion of parent intensity shared by MS2
         self.max_proportion = max_proportion
 
-    def sample(self, formula):
+    def sample(self, chemical):
         """
         Samples n_peaks of MS2 peaks uniformly between min_mz and the exact mass of the formula.
         The intensity is also randomly sampled between between min_proportion and max_proportion of the parent
@@ -254,7 +254,7 @@ class UniformMS2Sampler(MS2Sampler):
         :return: a tuple of (mz_list, intensity_list, parent_proportion)
         """
         n_peaks = np.random.poisson(self.poiss_peak_mean)
-        max_mz = formula.compute_exact_mass()
+        max_mz = chemical.mass
         mz_list = uniform_list(n_peaks, self.min_mz, max_mz)
         intensity_list = uniform_list(n_peaks, 0, 1)
 
@@ -282,8 +282,8 @@ class CRPMS2Sampler(MS2Sampler):
         self.base = base
         assert self.base == 'uniform'
 
-    def sample(self, formula):
-        max_mz = formula.compute_exact_mass()
+    def sample(self, chemical):
+        max_mz = chemical.mass
         unique_vals = [self._base_sample(max_mz)]
         counts = [1]
         for i in range(self.n_draws - 1):
@@ -311,17 +311,17 @@ class CRPMS2Sampler(MS2Sampler):
 
 
 class MGFMS2Sampler(MS2Sampler):
-    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False):
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False, id_field="SPECTRUMID"):
         self.mgf_file = mgf_file
         self.min_proportion = min_proportion
         self.max_proportion = max_proportion
         self.replace = replace  # sample with replacement
 
         # load the mgf
-        spectra_dict = load_mgf(self.mgf_file)
+        self.spectra_dict = load_mgf(self.mgf_file, id_field=id_field)
 
         # turn into a list where the last item is the number of times this one has been sampled
-        self.spectra_list = [[s.precursor_mz, s, 0] for s in spectra_dict.values()]
+        self.spectra_list = [[s.precursor_mz, s, 0] for s in self.spectra_dict.values()]
 
         # filter to remove those with more than  max_peaks (if max_peaks > 0)
         if max_peaks > 0:
@@ -331,8 +331,8 @@ class MGFMS2Sampler(MS2Sampler):
         self.spectra_list.sort(key=lambda x: x[0])
         logger.debug("Loaded {} spectra from {}".format(len(self.spectra_list), self.mgf_file))
 
-    def sample(self, formula):
-        formula_mz = formula.mass
+    def sample(self, chemical):
+        formula_mz = chemical.mass
         sub_spec = list(filter(lambda x: x[0] < formula_mz, self.spectra_list))
         if len(sub_spec) == 0:
             sub_spec = self.spectra_list  # if there aren't any smaller than the mz, we just take any one
@@ -357,8 +357,15 @@ class MGFMS2Sampler(MS2Sampler):
         return mz_list, intensity_list, parent_proportion
 
 
-class ExactMatchMS2Sampler(MS2Sampler):
+class ExactMatchMS2Sampler(MGFMS2Sampler):
     # to be completed. Where we have particular formulas and we
     # have a particular spectrum for each exact formula...
-    def __init__(self):
-        pass
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, id_field="SPECTRUMID"):
+        super().__init__(mgf_file,min_proportion=min_proportion, max_proportion=max_proportion, id_field=id_field)
+    def sample(self, chemical):
+        spectrum = self.spectra_dict[chemical.database_accession]
+        mz_list, intensity_list = zip(*spectrum.peaks)
+        parent_proportion = np.random.rand() * (self.max_proportion - self.min_proportion) + \
+                    self.min_proportion
+        return mz_list, intensity_list, parent_proportion
+

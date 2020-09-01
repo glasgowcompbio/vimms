@@ -146,7 +146,7 @@ class KnownChemical(Chemical):
     """
 
     def __init__(self, formula, isotopes, adducts, rt, max_intensity, chromatogram, children=None,
-                 include_adducts_isotopes=True, total_proportion=0.99):
+                 include_adducts_isotopes=True, total_proportion=0.99, database_accession=None):
         self.formula = formula
         self.mz_diff = isotopes.mz_diff
         if include_adducts_isotopes == True:
@@ -162,6 +162,7 @@ class KnownChemical(Chemical):
         self.children = children
         self.ms_level = 1
         self.mass = self.formula.mass
+        self.database_accession = database_accession
 
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
@@ -596,7 +597,7 @@ class ChemicalMixtureCreator(object):
         rt_list = []
         intensity_list = []
         chromatogram_list = []
-        for formula in formula_list:
+        for formula, db_accession in formula_list:
             rt, intensity = self.rt_and_intensity_sampler.sample(formula)
             rt_list.append(rt)
             intensity_list.append(intensity)
@@ -605,7 +606,7 @@ class ChemicalMixtureCreator(object):
 
         # make into known chemical objects
         chemicals = []
-        for i, formula in enumerate(formula_list):
+        for i, (formula, db_accession) in enumerate(formula_list):
             rt = rt_list[i]
             max_intensity = intensity_list[i]
             chromatogram = chromatogram_list[i]
@@ -614,7 +615,7 @@ class ChemicalMixtureCreator(object):
                 adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
 
                 chemicals.append(KnownChemical(formula, isotopes, adducts, rt, max_intensity, chromatogram,
-                                               include_adducts_isotopes=include_adducts_isotopes))
+                                               include_adducts_isotopes=include_adducts_isotopes, database_accession=db_accession))
             elif isinstance(formula, DummyFormula):
                 chemicals.append(UnknownChemical(formula.mass, rt, max_intensity, chromatogram))
             else:
@@ -622,7 +623,7 @@ class ChemicalMixtureCreator(object):
 
             if ms_levels == 2:
                 parent = chemicals[-1]
-                child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(formula)
+                child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(parent)
 
                 children = []
                 for mz, intensity in zip(child_mz, child_intensity):

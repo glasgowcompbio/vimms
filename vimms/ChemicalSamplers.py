@@ -360,8 +360,8 @@ class MGFMS2Sampler(MS2Sampler):
 class ExactMatchMS2Sampler(MGFMS2Sampler):
     # to be completed. Where we have particular formulas and we
     # have a particular spectrum for each exact formula...
-    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8):
-        super().__init__(mgf_file,min_proportion=min_proportion, max_proportion=max_proportion)
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, id_field="SPECTRUMID"):
+        super().__init__(mgf_file,min_proportion=min_proportion, max_proportion=max_proportion, id_field=id_field)
     def sample(self, chemical):
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)

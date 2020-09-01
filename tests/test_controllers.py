@@ -150,6 +150,15 @@ def two_fixed_chems():
     cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
     return cm.sample(2, 2)
 
+@pytest.fixture(scope="module")
+def even_chems():
+    # four evenly spaced chems for more advanced SWATH testing
+    em = EvenMZFormulaSampler()
+    ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+    cs = ConstantChromatogramSampler()
+    cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs, adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    return cm.sample(4,2)
+
 
 ### tests starts from here ###
 
@@ -864,6 +873,53 @@ class TestSWATH:
 
         filename = 'SWATH_ten_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
+    
+    def test_swath_more(self, even_chems):
+        """
+        Tests SWATH by making even chemicals and then 
+        varying the SWATH window so that in the first example
+        each chemical is in its own window, in the second each window holds two chems
+        and in the third, one window holds them all
+        """
+        ionisation_mode = POSITIVE
+        min_mz = 50
+        max_mz = 460
+        width = 100
+        scan_overlap = 0
+        controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
+        scan_time_dict = {1: 0.124, 2: 0.124}
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, None, scan_duration_dict=scan_time_dict)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        # check the scans
+        ms2_scans = controller.scans[2]
+        for i in range(4):
+            assert len(ms2_scans[i].mzs) == len(even_chems[i].children)
+
+        width = 200
+        controller2 = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
+        scan_time_dict = {1: 0.124, 2: 0.124}
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, None, scan_duration_dict=scan_time_dict)
+        env = Environment(mass_spec, controller2, 200, 300, progress_bar=True)
+        env.run()
+        
+        ms2_scans2 = controller2.scans[2]
+        
+        assert len(ms2_scans2[0].mzs) == len(even_chems[0].children) + len(even_chems[1].children)
+        assert len(ms2_scans2[1].mzs) == len(even_chems[2].children) + len(even_chems[3].children)
+
+        width = 400
+        controller3 = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
+        scan_time_dict = {1: 0.124, 2: 0.124}
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, None, scan_duration_dict=scan_time_dict)
+        env = Environment(mass_spec, controller3, 200, 300, progress_bar=True)
+        env.run()
+        
+        ms2_scans3 = controller3.scans[2]
+        assert len(ms2_scans3[0].mzs) == sum([len(c.children) for c in even_chems])
+        assert len(ms2_scans3[0].mzs) == sum([len(s.mzs) for s in ms2_scans2[:2]])
 
 
 class TestFixedScansController:

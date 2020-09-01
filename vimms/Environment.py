@@ -237,7 +237,10 @@ class Environment(object):
             dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
 
             # set the full-width isolation width, in Da
-            dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, [isolation_width])
+            # if mz is not a list, neither should isolation_width be
+            assert not isinstance(isolation_width, list)
+            isolation_width = [isolation_width]
+            dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, isolation_width)
 
         # define dynamic exclusion parameters
         dda_scan_params.set(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL, mz_tol)
@@ -257,7 +260,7 @@ class Environment(object):
         # dynamically scale the upper mass
         charge = 1
         wiggle_room = 1.1
-        max_precursor_mz = max([p.precursor_mz for p in precursor_list])
+        max_precursor_mz = max([(p.precursor_mz + isol/2) for (p, isol) in zip(precursor_list, isolation_width)])
         last_mass = max_precursor_mz * charge * wiggle_room
         dda_scan_params.set(ScanParameters.LAST_MASS, last_mass)
         return dda_scan_params

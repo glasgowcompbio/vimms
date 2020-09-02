@@ -9,30 +9,10 @@ from vimms.MassSpec import ScanParameters
 
 
 class AIF(Controller):
-    def __init__(self, min_mz, max_mz,
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION):
-        super().__init__()
+    def __init__(self, min_mz, max_mz, params=None):
+        super().__init__(params=params)
         self.min_mz = min_mz  # scan from this mz
         self.max_mz = max_mz  # scan to this mz
-
-        # advanced parameters
-        self.ms1_agc_target = ms1_agc_target
-        self.ms1_max_it = ms1_max_it
-        self.ms1_collision_energy = ms1_collision_energy
-        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
-
-        self.ms2_agc_target = ms2_agc_target
-        self.ms2_max_it = ms2_max_it
-        self.ms2_collision_energy = ms2_collision_energy
-        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
-
         self.scan_number = self.initial_scan_id
 
     # method required by super-class
@@ -54,10 +34,10 @@ class AIF(Controller):
             # make the MS2 scan
             dda_scan_params = ScanParameters()
             dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
-            dda_scan_params.set(ScanParameters.COLLISION_ENERGY, self.ms2_collision_energy)
-            dda_scan_params.set(ScanParameters.AGC_TARGET, self.ms2_agc_target)
-            dda_scan_params.set(ScanParameters.MAX_IT, self.ms2_max_it)
-            dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, self.ms2_orbitrap_resolution)
+            dda_scan_params.set(ScanParameters.COLLISION_ENERGY, self.params.ms2_collision_energy)
+            dda_scan_params.set(ScanParameters.AGC_TARGET, self.params.ms2_agc_target)
+            dda_scan_params.set(ScanParameters.MAX_IT, self.params.ms2_max_it)
+            dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, self.params.ms2_orbitrap_resolution)
             dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5 * (self.max_mz + self.min_mz))
             dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
             dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
@@ -66,10 +46,10 @@ class AIF(Controller):
             self.scan_number += 1  # increase every time we make a scan
 
             # make the MS1 scan
-            task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                            max_it=self.ms1_max_it,
-                                                            collision_energy=self.ms1_collision_energy,
-                                                            orbitrap_resolution=self.ms1_orbitrap_resolution)
+            task = self.environment.get_default_scan_params(agc_target=self.params.ms1_agc_target,
+                                                            max_it=self.params.ms1_max_it,
+                                                            collision_energy=self.params.ms1_collision_energy,
+                                                            orbitrap_resolution=self.params.ms1_orbitrap_resolution)
             task.set(ScanParameters.FIRST_MASS, self.min_mz)
             task.set(ScanParameters.LAST_MASS, self.max_mz)
             # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
@@ -87,43 +67,15 @@ class AIF(Controller):
 class SWATH(Controller):
     def __init__(self, min_mz, max_mz,
                  width, scan_overlap=0,
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ):
-        super().__init__()
+                 params=None):
+        super().__init__(params=params)
         self.width = width
         self.scan_overlap = scan_overlap
         self.min_mz = min_mz  # scan from this mz
         self.max_mz = max_mz  # scan to this mz
-        self.ms1_agc_target = ms1_agc_target
-        self.ms1_max_it = ms1_max_it
-        self.ms1_collision_energy = ms1_collision_energy
-        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
-        self.ms2_agc_target = ms2_agc_target
-        self.ms2_max_it = ms2_max_it
-        self.ms2_collision_energy = ms2_collision_energy
-        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
-        self.ms2_isolation_mode = ms2_isolation_mode
-        self.ms2_activation_type = ms2_activation_type
-        self.ms2_mass_analyser = ms2_mass_analyser
 
         self.scan_number = self.initial_scan_id
         self.exp_info = []  # experimental information - isolation windows
-
-    def handle_acquisition_open(self):
-        logger.info('Acquisition open')
-
-    def handle_acquisition_closing(self):
-        logger.info('Acquisition closing')
 
     def update_state_after_scan(self, last_scan):
         pass
@@ -151,26 +103,12 @@ class SWATH(Controller):
 
             mz_tol = 10  # not used
             rt_tol = 15  # these are not used
-
             for mz in precursor_mz_list:
-                dda_scan_params = self.environment.get_dda_scan_param(mz, 0, precursor_scan_id,
-                                                                      isolation_width, mz_tol, rt_tol,
-                                                                      agc_target=self.ms2_agc_target,
-                                                                      max_it=self.ms2_max_it,
-                                                                      collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                                      activation_type=self.ms2_activation_type,
-                                                                      mass_analyser=self.ms2_mass_analyser,
-                                                                      isolation_mode=self.ms2_isolation_mode)
-
+                dda_scan_params = self.get_ms2_scan_params(mz, 0, precursor_scan_id, isolation_width, mz_tol, rt_tol)
                 new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
 
             # make the MS1 scan
-            task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                            max_it=self.ms1_max_it,
-                                                            collision_energy=self.ms1_collision_energy,
-                                                            orbitrap_resolution=self.ms1_orbitrap_resolution)
-
+            task = self.get_ms1_scan_params()
             new_tasks.append(task)
 
             self.scan_number += len(precursor_mz_list) + 1

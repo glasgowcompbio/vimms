@@ -119,12 +119,6 @@ class SWATH(Controller):
         self.scan_number = self.initial_scan_id
         self.exp_info = []  # experimental information - isolation windows
 
-    def handle_acquisition_open(self):
-        logger.info('Acquisition open')
-
-    def handle_acquisition_closing(self):
-        logger.info('Acquisition closing')
-
     def update_state_after_scan(self, last_scan):
         pass
 

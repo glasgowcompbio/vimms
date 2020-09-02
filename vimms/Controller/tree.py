@@ -15,12 +15,6 @@ class TreeController(Controller):
         self.extra_bins = extra_bins
         self.num_windows = num_windows
 
-    def handle_acquisition_open(self):
-        logger.info('Acquisition open')
-
-    def handle_acquisition_closing(self):
-        logger.info('Acquisition closing')
-
     def update_state_after_scan(self, last_scan):
         pass
         # TODO: add precursor information here

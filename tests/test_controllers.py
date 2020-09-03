@@ -556,8 +556,8 @@ class TestROIController:
         N = 10
         rt_tol = 15
         mz_tol = 10
-        min_roi_intensity = 1
-        min_roi_length = 1
+        min_roi_intensity = 50
+        min_roi_length = 2
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller

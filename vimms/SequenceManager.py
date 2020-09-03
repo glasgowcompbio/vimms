@@ -544,7 +544,7 @@ class CompletedExperiment(BasicExperiment):
     def __init__(self, sequence_manager):
         self.sequence_manager = sequence_manager
         file_names = glob.glob(os.path.join(self.sequence_manager.base_dir, '*.mzML'))
-        self.sequence_manager.controller_schedule = self._create_controller_scehdule(file_names)
+        self.sequence_manager.controller_schedule = self._create_controller_schedule(file_names)
         self.results = self.create_results_df()
         # create df here
         self.run()

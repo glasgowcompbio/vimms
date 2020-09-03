@@ -8,7 +8,8 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
-    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH
+    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH, DiaController, AdvancedParams
+
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
@@ -210,7 +211,9 @@ class TestMS1Controller:
 
         # create a simulated mass spec and MS1 controller
         mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fullscan_ps)
-        controller = SimpleMs1Controller(default_ms1_scan_window=(min_mz, max_mz))
+        params = AdvancedParams()
+        params.default_ms1_scan_window = (min_mz, max_mz)
+        controller = SimpleMs1Controller(params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -920,6 +923,128 @@ class TestSWATH:
         ms2_scans3 = controller3.scans[2]
         assert len(ms2_scans3[0].mzs) == sum([len(c.children) for c in even_chems])
         assert len(ms2_scans3[0].mzs) == sum([len(s.mzs) for s in ms2_scans2[:2]])
+
+
+class TestDiaController:
+    """
+    Tests for the DiaController that implements the nested and tree DIA methods
+    """
+
+    def test_NestedDiaController_even(self, simple_dataset, fragscan_ps):
+        logger.info('Testing NestedDiaController even')
+
+        # some parameters
+        window_type = 'even'
+        kaufmann_design = 'nested'
+        num_windows = 64
+        scan_overlap = 0
+        ionisation_mode = POSITIVE
+        scan_time_dict = {1: 0.12, 2: 0.06}
+        min_rt = 0
+        max_rt = 400
+        min_mz = 100
+        max_mz = 1000
+
+        # run controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'nested_dia_even.mzml'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_NestedDiaController_percentile(self, simple_dataset, fragscan_ps):
+        logger.info('Testing NestedDiaController percentile')
+
+        # some parameters
+        window_type = 'percentile'
+        kaufmann_design = 'nested'
+        num_windows = 64
+        scan_overlap = 0
+        ionisation_mode = POSITIVE
+        scan_time_dict = {1: 0.12, 2: 0.06}
+        min_rt = 0
+        max_rt = 400
+        min_mz = 100
+        max_mz = 1000
+
+        # run controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'nested_dia_percentile.mzml'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_TreeDiaController_even(self, simple_dataset, fragscan_ps):
+        logger.info('Testing TreeDiaController even')
+
+        # some parameters
+        window_type = 'even'
+        kaufmann_design = 'tree'
+        num_windows = 64
+        scan_overlap = 0
+        ionisation_mode = POSITIVE
+        scan_time_dict = {1: 0.12, 2: 0.06}
+        min_rt = 0
+        max_rt = 400
+        min_mz = 100
+        max_mz = 1000
+
+        # run controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'tree_dia_even.mzml'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_TreeDiaController_percentile(self, simple_dataset, fragscan_ps):
+        logger.info('Testing TreeDiaController percentile')
+
+        # some parameters
+        window_type = 'percentile'
+        kaufmann_design = 'tree'
+        num_windows = 64
+        scan_overlap = 0
+        ionisation_mode = POSITIVE
+        scan_time_dict = {1: 0.12, 2: 0.06}
+        min_rt = 0
+        max_rt = 400
+        min_mz = 100
+        max_mz = 1000
+
+        # run controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'tree_dia_percentile.mzml'
+        check_mzML(env, OUT_DIR, filename)
 
 
 class TestFixedScansController:

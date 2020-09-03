@@ -1,10 +1,11 @@
 import bisect
 
+import numpy as np
+from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 from sklearn import linear_model
 from sklearn.preprocessing import PolynomialFeatures
 
-from vimms.Common import *
 from vimms.Controller.topN import TopNController
 from vimms.PeakDetector import calculate_window_change
 from vimms.Roi import match, Roi, SmartRoi
@@ -17,36 +18,9 @@ class RoiController(TopNController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 params=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         params=params)
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity
@@ -103,15 +77,8 @@ class RoiController(TopNController):
 
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
-                dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                                      self.isolation_width, self.mz_tol, self.rt_tol,
-                                                                      agc_target=self.ms2_agc_target,
-                                                                      max_it=self.ms2_max_it,
-                                                                      collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                                      activation_type=self.ms2_activation_type,
-                                                                      mass_analyser=self.ms2_mass_analyser,
-                                                                      isolation_mode=self.ms2_isolation_mode)
+                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
+                                                           self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -119,13 +86,7 @@ class RoiController(TopNController):
 
                 # add an ms1 here
                 if fragmented_count == self.N - self.ms1_shift:
-                    ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                               max_it=self.ms1_max_it,
-                                                                               collision_energy=self.ms1_collision_energy,
-                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution,
-                                                                               activation_type=self.ms1_activation_type,
-                                                                               mass_analyser=self.ms1_mass_analyser,
-                                                                               isolation_mode=self.ms1_isolation_mode)
+                    ms1_scan_params = self.get_ms1_scan_params()
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
@@ -136,13 +97,7 @@ class RoiController(TopNController):
             # if no ms1 has been added, then add at the end
             # if fragmented_count < self.N - self.ms1_shift:
             if not done_ms1:
-                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                           max_it=self.ms1_max_it,
-                                                                           collision_energy=self.ms1_collision_energy,
-                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution,
-                                                                           activation_type=self.ms1_activation_type,
-                                                                           mass_analyser=self.ms1_mass_analyser,
-                                                                           isolation_mode=self.ms1_isolation_mode)
+                ms1_scan_params = self.get_ms1_scan_params()
                 self.current_task_id += 1
                 self.next_processed_scan_id = self.current_task_id
                 logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
@@ -224,40 +179,12 @@ class SmartRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans",
-                 drop_perc=0.01, ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 drop_perc=0.01, ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         params=params)
         self.reset_length_seconds = reset_length_seconds
         self.intensity_increase_factor = intensity_increase_factor
         self.drop_perc = drop_perc
@@ -304,15 +231,8 @@ class SmartRoiController(RoiController):
 
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
-                dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                                      self.isolation_width, self.mz_tol, self.rt_tol,
-                                                                      agc_target=self.ms2_agc_target,
-                                                                      max_it=self.ms2_max_it,
-                                                                      collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                                      activation_type=self.ms2_activation_type,
-                                                                      mass_analyser=self.ms2_mass_analyser,
-                                                                      isolation_mode=self.ms2_isolation_mode)
+                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
+                                                           self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 self.live_roi[i].fragmented()
@@ -321,13 +241,7 @@ class SmartRoiController(RoiController):
 
                 # add an ms1 here
                 if fragmented_count == self.N - self.ms1_shift:
-                    ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                               max_it=self.ms1_max_it,
-                                                                               collision_energy=self.ms1_collision_energy,
-                                                                               orbitrap_resolution=self.ms1_orbitrap_resolution,
-                                                                               activation_type=self.ms1_activation_type,
-                                                                               mass_analyser=self.ms1_mass_analyser,
-                                                                               isolation_mode=self.ms1_isolation_mode)
+                    ms1_scan_params = self.get_ms1_scan_params()
                     self.current_task_id += 1
                     self.next_processed_scan_id = self.current_task_id
                     logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
@@ -338,13 +252,7 @@ class SmartRoiController(RoiController):
             # if no ms1 has been added, then add at the end
             # if fragmented_count < self.N - self.ms1_shift:
             if not done_ms1:
-                ms1_scan_params = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                                           max_it=self.ms1_max_it,
-                                                                           collision_energy=self.ms1_collision_energy,
-                                                                           orbitrap_resolution=self.ms1_orbitrap_resolution,
-                                                                           activation_type=self.ms1_activation_type,
-                                                                           mass_analyser=self.ms1_mass_analyser,
-                                                                           isolation_mode=self.ms1_isolation_mode)
+                ms1_scan_params = self.get_ms1_scan_params()
                 self.current_task_id += 1
                 self.next_processed_scan_id = self.current_task_id
                 logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
@@ -352,9 +260,6 @@ class SmartRoiController(RoiController):
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items
-            # tasks = new_tasks[
-            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
-            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
             self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
 
             # set this ms1 scan as has been processed
@@ -421,41 +326,13 @@ class TopN_SmartRoiController(SmartRoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
-                 ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          reset_length_seconds=reset_length_seconds, intensity_increase_factor=intensity_increase_factor,
                          length_units=length_units, drop_perc=drop_perc, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         params=params)
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()
@@ -466,40 +343,11 @@ class TopN_SmartRoiController(SmartRoiController):
 class TopN_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         length_units=length_units, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         length_units=length_units, ms1_shift=ms1_shift, params=params)
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()
@@ -510,40 +358,11 @@ class TopN_RoiController(RoiController):
 class DsDA_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 peak_df=None, peak_scores=None, ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 peak_df=None, peak_scores=None, ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         length_units=length_units, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         length_units=length_units, ms1_shift=ms1_shift, params=params)
         self.peak_df = peak_df
         self.peak_score = peak_scores
 
@@ -562,40 +381,11 @@ class Probability_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  probability_method, model_params,  # controller specific parameters
                  min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         length_units=length_units, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         length_units=length_units, ms1_shift=ms1_shift, params=params)
         self.probability_method = probability_method
         self.model_params = model_params
 
@@ -622,40 +412,11 @@ class LocalModel_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  model_input_len, score_params,  # controller specific parameters
                  min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         length_units=length_units, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         length_units=length_units, ms1_shift=ms1_shift, params=params)
         self.model = linear_model.LinearRegression(fit_intercept=False)
         self.poly_features = PolynomialFeatures(degree=2)
         self.score_params = score_params
@@ -688,42 +449,13 @@ class Repeated_SmartRoiController(SmartRoiController):
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
                  peak_boxes=[], peak_box_scores=[], box_increase_factor=2, box_decrease_factor=0, box_mz_tol=10,
-                 ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          reset_length_seconds=reset_length_seconds,
                          intensity_increase_factor=intensity_increase_factor, length_units=length_units,
-                         drop_perc=drop_perc, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         drop_perc=drop_perc, ms1_shift=ms1_shift, params=params)
         self.peak_boxes = peak_boxes
         self.peak_box_scores = peak_box_scores
         self.box_increase_factor = box_increase_factor
@@ -756,22 +488,7 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
                  peak_boxes=[], peak_box_scores=[], box_increase_factor=2, box_decrease_factor=0, box_mz_tol=10,
-                 coef_scale=1, model_scores=None, ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 coef_scale=1, model_scores=None, ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -781,20 +498,7 @@ class CaseControl_SmartRoiController(Repeated_SmartRoiController):
                          box_increase_factor=box_increase_factor, box_decrease_factor=box_decrease_factor,
                          box_mz_tol=box_mz_tol,
                          ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         params=params)
 
         self.coef_scale = coef_scale
         self.model_scores = model_scores
@@ -827,40 +531,11 @@ class Classifier_RoiController(RoiController):  # TODO: Needs properly implement
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  roi_picking_model, roi_param_dict,  # controller specific parameters
                  min_roi_length=1, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0,
-                 # advanced parameters
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms1_shift=0, params=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         length_units=length_units, ms1_shift=ms1_shift,
-                         ms1_agc_target=ms1_agc_target,
-                         ms1_max_it=ms1_max_it,
-                         ms1_collision_energy=ms1_collision_energy,
-                         ms1_orbitrap_resolution=ms1_orbitrap_resolution,
-                         ms1_activation_type=ms1_activation_type,
-                         ms1_mass_analyser=ms1_mass_analyser,
-                         ms1_isolation_mode=ms1_isolation_mode,
-                         ms2_agc_target=ms2_agc_target,
-                         ms2_max_it=ms2_max_it,
-                         ms2_collision_energy=ms2_collision_energy,
-                         ms2_orbitrap_resolution=ms2_orbitrap_resolution,
-                         ms2_activation_type=ms2_activation_type,
-                         ms2_mass_analyser=ms2_mass_analyser,
-                         ms2_isolation_mode=ms2_isolation_mode)
+                         length_units=length_units, ms1_shift=ms1_shift, params=params)
         self.roi_picking_model = roi_picking_model
         self.roi_param_dict = roi_param_dict
 

@@ -174,6 +174,9 @@ class SWATH(Controller):
 
 
 class DiaController(Controller):
+    # Class for doing tree and nested DIA methods. Also has a SWATH type controller, but reccommend to use SWATH class
+    # above. Method uses windows methods from DIA.py to create the pattern of windows needed to run the controllers.
+    # Note: the following method used multiple simultaneous isolation windows
     def __init__(self, min_mz, max_mz,  # TODO: add scan overlap to DiaWindows
                  window_type, kaufmann_design, num_windows, scan_overlap=0,
                  extra_bins=0, dia_design='kaufmann',

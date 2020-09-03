@@ -555,7 +555,7 @@ class TestROIController:
         rt_tol = 15
         mz_tol = 10
         min_roi_intensity = 1
-        min_roi_length = 10
+        min_roi_length = 1
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
@@ -569,7 +569,6 @@ class TestROIController:
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
-        assert len(controller.scans[2]) > 0
         check_non_empty_MS2(controller)
 
         # write simulated output to mzML file

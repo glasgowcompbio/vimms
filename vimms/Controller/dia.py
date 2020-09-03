@@ -227,27 +227,30 @@ class DiaController(Controller):
             precursor_scan_id = self.scan_to_process.scan_id
 
             mzs = self.scan_to_process.mzs
-            default_range = [(self.min_mz, self.max_mz)]
-            locations = DiaWindows(mzs, default_range, self.dia_design, self.window_type, self.kaufmann_design,
-                                   self.extra_bins, self.num_windows).locations
-            for loc in locations:
-                mz = []
-                isolation_width = []
-                intensity = []
-                for sub_loc in loc[0]:
-                    mz.append(sum(sub_loc)/2)
-                    isolation_width.append(sub_loc[1]-sub_loc[0])
-                    intensity.append(0)
-                dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                                      isolation_width, mz_tol, rt_tol,
-                                                                      agc_target=self.ms2_agc_target,
-                                                                      max_it=self.ms2_max_it,
-                                                                      collision_energy=self.ms2_collision_energy,
-                                                                      orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                                      activation_type=self.ms2_activation_type,
-                                                                      mass_analyser=self.ms2_mass_analyser,
-                                                                      isolation_mode=self.ms2_isolation_mode)
-                new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
+            if len(mzs) > 0:  # check that ms1 scan is not empty
+                default_range = [(self.min_mz, self.max_mz)]
+                locations = DiaWindows(mzs, default_range, self.dia_design, self.window_type, self.kaufmann_design,
+                                       self.extra_bins, self.num_windows).locations
+                for loc in locations:
+                    mz = []
+                    isolation_width = []
+                    intensity = []
+                    for sub_loc in loc[0]:
+                        mz.append(sum(sub_loc)/2)
+                        isolation_width.append(sub_loc[1]-sub_loc[0])
+                        intensity.append(0)
+                    dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
+                                                                          isolation_width, mz_tol, rt_tol,
+                                                                          agc_target=self.ms2_agc_target,
+                                                                          max_it=self.ms2_max_it,
+                                                                          collision_energy=self.ms2_collision_energy,
+                                                                          orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                                          activation_type=self.ms2_activation_type,
+                                                                          mass_analyser=self.ms2_mass_analyser,
+                                                                          isolation_mode=self.ms2_isolation_mode)
+                    new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
+            else:
+                locations = []
 
             # make the MS1 scan
             task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,

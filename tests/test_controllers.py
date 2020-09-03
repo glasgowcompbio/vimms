@@ -551,7 +551,7 @@ class TestROIController:
         assert len(fragscan_dataset_peaks) == N_CHEMS
 
         isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
-        N = 10
+        N = 1
         rt_tol = 15
         mz_tol = 10
         min_roi_intensity = 5000

@@ -8,6 +8,7 @@ from vimms.MassSpec import ScanParameters
 
 
 class DiaAnalyser(object):
+    # Class for deconvolving basic DIA methods. Only works with basic simulated data
     def __init__(self, controller, min_intensity=0):
         self.controller = controller
         self.scans = controller.scans
@@ -126,6 +127,7 @@ class DiaAnalyser(object):
 
 
 class RestrictedDiaAnalyser(object):
+    # Class for deconvolving toy DIA examples
     def __init__(self, controller):
         self.entropy = []
         self.chemicals_identified = []
@@ -147,10 +149,8 @@ class RestrictedDiaAnalyser(object):
 
 
 class DiaWindows(object):
-    """
-    Create DIA window design
-    """
-
+    # Class for creating windows for basic, tree and nested DIA methods. Method is used in DiaController in
+    # Controller/dia. Basic methods are approximately equal to a SWATH method with no overlapping windows
     def __init__(self, ms1_mzs, ms1_range, dia_design, window_type, kaufmann_design, extra_bins, num_windows=None,
                  range_slack=0.01):
         ms1_range_difference = ms1_range[0][1] - ms1_range[0][0]
@@ -202,10 +202,7 @@ class DiaWindows(object):
 
 
 class KaufmannWindows(object):
-    """
-    Method for creating window designs based on Kaufmann paper - https://www.ncbi.nlm.nih.gov/pubmed/27188447
-    """
-
+    # Class for creating windows for tree and nested DIA methods
     def __init__(self, bin_walls, bin_walls_extra, kaufmann_design, extra_bins=0):
         self.locations = []
         if kaufmann_design == "nested":

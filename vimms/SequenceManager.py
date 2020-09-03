@@ -544,7 +544,7 @@ class CompletedExperiment(BasicExperiment):
     def __init__(self, sequence_manager):
         self.sequence_manager = sequence_manager
         file_names = glob.glob(os.path.join(self.sequence_manager.base_dir, '*.mzML'))
-        self.sequence_manager.controller_schedule = self._create_controller_scehdule(file_names)
+        self.sequence_manager.controller_schedule = self._create_controller_schedule(file_names)
         self.results = self.create_results_df()
         # create df here
         self.run()
@@ -689,7 +689,8 @@ def create_controller(controller_method, param_dict):
     elif controller_method == 'TopNController':
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                                     param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
-                                    param_dict['ms1_shift'], param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
+                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'],
+                                    param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
                                     param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
                                     param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
                                     param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])

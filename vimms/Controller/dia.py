@@ -1,9 +1,11 @@
+import os
 from loguru import logger
+import csv
 
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER
+    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist
 from vimms.Controller import Controller
 from vimms.MassSpec import ScanParameters
 from vimms.DIA import DiaWindows
@@ -16,6 +18,10 @@ class AIF(Controller):
         self.max_mz = max_mz  # scan to this mz
         self.scan_number = self.initial_scan_id
 
+
+    def write_msdial_experiment_file(self, filename):
+        raise NotImplementedError()
+    
     # method required by super-class
     def update_state_after_scan(self, last_scan):
         pass
@@ -78,6 +84,39 @@ class SWATH(Controller):
         self.scan_number = self.initial_scan_id
         self.exp_info = []  # experimental information - isolation windows
 
+    def write_msdial_experiment_file(self, filename):
+        heads = ['Experiment','MS Type','Min m/z','Max m/z']
+        start_mz, stop_mz = self._get_start_stop()
+        ms1_mz_range = self.params.default_ms1_scan_window
+        ms1_row = ['0', 'SCAN', ms1_mz_range[0], ms1_mz_range[1]]
+        swath_rows = []
+        for i,start in enumerate(start_mz):
+            stop = stop_mz[i]
+            new_row = [i+1, 'SWATH', start, stop]
+            swath_rows.append(new_row)
+
+
+        out_dir = os.path.dirname(filename)
+        create_if_not_exist(out_dir)
+
+        with open(filename, 'w') as f:
+            writer = csv.writer(f, delimiter='\t')
+            writer.writerow(heads)
+            writer.writerow(ms1_row)
+            for row in swath_rows:
+                writer.writerow(row)
+
+
+    def _get_start_stop(self):
+        start = self.min_mz
+        start_mz = []
+        stop_mz = []
+        while start < self.max_mz:
+            start_mz.append(start)
+            stop_mz.append(start + self.width)
+            start += self.width - self.scan_overlap
+        return start_mz, stop_mz
+
     def update_state_after_scan(self, last_scan):
         pass
 
@@ -87,13 +126,7 @@ class SWATH(Controller):
 
             precursor_scan_id = self.scan_to_process.scan_id
 
-            start = self.min_mz
-            start_mz = []
-            stop_mz = []
-            while start < self.max_mz:
-                start_mz.append(start)
-                stop_mz.append(start + self.width)
-                start += self.width - self.scan_overlap
+            start_mz, stop_mz = self._get_start_stop()
 
             isolation_width = self.width
 

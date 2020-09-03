@@ -1,4 +1,5 @@
 import unittest
+import csv
 from pathlib import Path
 
 import pytest
@@ -548,12 +549,15 @@ class TestROIController:
         logger.info('Testing ROI controller with simulated chemicals')
         assert len(fragscan_dataset_peaks) == N_CHEMS
 
+        for f in fragscan_dataset_peaks:
+            assert len(f.children) > 0
+
         isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
         N = 10
         rt_tol = 15
         mz_tol = 10
-        min_roi_intensity = 5000
-        min_roi_length = 10
+        min_roi_intensity = 50
+        min_roi_length = 2
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec with noise and ROI controller
@@ -924,6 +928,24 @@ class TestSWATH:
         assert len(ms2_scans3[0].mzs) == sum([len(c.children) for c in even_chems])
         assert len(ms2_scans3[0].mzs) == sum([len(s.mzs) for s in ms2_scans2[:2]])
 
+    def test_swath_msdial_experiment_file(self):
+        min_mz = 50
+        max_mz = 440
+        width = 100
+        scan_overlap = 0
+        controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
+        out_file = Path(OUT_DIR, 'swath_experiment.txt')
+        controller.write_msdial_experiment_file(out_file)
+
+        assert os.path.exists(out_file)
+        with open(out_file, 'r') as f:
+            reader = csv.reader(f, delimiter='\t')
+            rows = []
+            for row in reader:
+                rows.append(row)
+        expected_row = ['4','SWATH','350','450']
+        for i,val in  enumerate(expected_row):
+            assert rows[-1][i] == val
 
 class TestDiaController:
     """

@@ -8,7 +8,7 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
-    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH
+    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH, AdvancedParams
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
@@ -210,7 +210,9 @@ class TestMS1Controller:
 
         # create a simulated mass spec and MS1 controller
         mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fullscan_ps)
-        controller = SimpleMs1Controller(default_ms1_scan_window=(min_mz, max_mz))
+        params = AdvancedParams()
+        params.default_ms1_scan_window = (min_mz, max_mz)
+        controller = SimpleMs1Controller(params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)

@@ -1,13 +1,53 @@
 from collections import defaultdict
 
 import pylab as plt
-from loguru import logger
 
-from vimms.Common import INITIAL_SCAN_ID
+from vimms.Common import *
+
+
+class AdvancedParams(object):
+    def __init__(self,
+                 default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
+                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+                 ms1_max_it=DEFAULT_MS1_MAXIT,
+                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+                 ms2_max_it=DEFAULT_MS2_MAXIT,
+                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+        self.default_ms1_scan_window = default_ms1_scan_window
+
+        self.ms1_agc_target = ms1_agc_target
+        self.ms1_max_it = ms1_max_it
+        self.ms1_collision_energy = ms1_collision_energy
+        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
+        self.ms1_activation_type = ms1_activation_type
+        self.ms1_mass_analyser = ms1_mass_analyser
+        self.ms1_isolation_mode = ms1_isolation_mode
+
+        self.ms2_agc_target = ms2_agc_target
+        self.ms2_max_it = ms2_max_it
+        self.ms2_collision_energy = ms2_collision_energy
+        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
+        self.ms2_activation_type = ms2_activation_type
+        self.ms2_mass_analyser = ms2_mass_analyser
+        self.ms2_isolation_mode = ms2_isolation_mode
 
 
 class Controller(object):
-    def __init__(self):
+    def __init__(self, params=None):
+        if params is None:
+            self.params = AdvancedParams()
+        else:
+            self.params = params
+
         self.scans = defaultdict(list)  # key: ms level, value: list of scans for that level
         self.make_plot = False
         self.scan_to_process = None
@@ -15,6 +55,29 @@ class Controller(object):
         self.next_processed_scan_id = INITIAL_SCAN_ID
         self.initial_scan_id = INITIAL_SCAN_ID
         self.current_task_id = self.initial_scan_id
+
+    def get_ms1_scan_params(self):
+        task = self.environment.get_default_scan_params(default_ms1_scan_window=self.params.default_ms1_scan_window,
+                                                        agc_target=self.params.ms1_agc_target,
+                                                        max_it=self.params.ms1_max_it,
+                                                        collision_energy=self.params.ms1_collision_energy,
+                                                        orbitrap_resolution=self.params.ms1_orbitrap_resolution,
+                                                        activation_type=self.params.ms1_activation_type,
+                                                        mass_analyser=self.params.ms1_mass_analyser,
+                                                        isolation_mode=self.params.ms1_isolation_mode)
+        return task
+
+    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol):
+        task = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
+                                                   isolation_width, mz_tol, rt_tol,
+                                                   agc_target=self.params.ms2_agc_target,
+                                                   max_it=self.params.ms2_max_it,
+                                                   collision_energy=self.params.ms2_collision_energy,
+                                                   orbitrap_resolution=self.params.ms2_orbitrap_resolution,
+                                                   activation_type=self.params.ms2_activation_type,
+                                                   mass_analyser=self.params.ms2_mass_analyser,
+                                                   isolation_mode=self.params.ms2_isolation_mode)
+        return task
 
     def get_initial_tasks(self):
         """
@@ -48,7 +111,8 @@ class Controller(object):
         else:
             self.scan_to_process = None
 
-        logger.debug('outgoing_queue_size = %d, pending_tasks_size = %d' % (outgoing_queue_size, pending_tasks_size))
+        logger.debug(
+            'outgoing_queue_size = %d, pending_tasks_size = %d' % (outgoing_queue_size, pending_tasks_size))
         logger.debug('scan.scan_params = %s' % scan.scan_params)
         logger.debug('scan_to_process = %s' % self.scan_to_process)
 

@@ -546,7 +546,6 @@ class TestROIController:
     """
 
     def test_roi_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
-        np.random.seed(1)
         logger.info('Testing ROI controller with simulated chemicals')
         assert len(fragscan_dataset_peaks) == N_CHEMS
 

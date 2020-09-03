@@ -549,6 +549,9 @@ class TestROIController:
         logger.info('Testing ROI controller with simulated chemicals')
         assert len(fragscan_dataset_peaks) == N_CHEMS
 
+        for f in fragscan_dataset_peaks:
+            assert len(f.children) > 0
+
         isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
         N = 10
         rt_tol = 15

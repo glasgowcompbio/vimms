@@ -390,6 +390,7 @@ class ChemicalCreator(object):
                 if children_ms_level < self.ms_levels:
                     kid.children = self._get_children(self.get_children_method, kid)
                 kids.append(kid)
+        
         return kids
 
     def _get_msn_proportions(self, children_ms_level=None, n_peaks=None, children_intensities=None):
@@ -410,7 +411,10 @@ class ChemicalCreator(object):
         if ms_level == 1:
             return int(self.n_ms1_peaks)
         elif ms_level == 2:
-            return int(self.peak_sampler.n_peaks(2, 1))
+            while True: # Hack here added by simon to prevent zeros
+                n_peaks = int(self.peak_sampler.n_peaks(2, 1))
+                if n_peaks > 0:
+                    return n_peaks
         else:
             return int(math.floor(self.peak_sampler.n_peaks(2, 1) / (5 ** (ms_level - 2))))
 

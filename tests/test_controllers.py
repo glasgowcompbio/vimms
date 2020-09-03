@@ -569,6 +569,7 @@ class TestROIController:
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
+        assert len(controller.scans[2]) > 0
         check_non_empty_MS2(controller)
 
         # write simulated output to mzML file

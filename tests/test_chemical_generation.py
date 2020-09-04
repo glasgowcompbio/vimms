@@ -200,6 +200,9 @@ class TestChemicalsFromMZML():
         d = cm.sample(None, 2)
     
     def test_rt_from_mzml(self):
-        pass
-        
+        ri = MZMLRTandIntensitySampler(MZML_FILE)
+        fs = MZMLFormulaSampler(MZML_FILE)
+        cs = MZMLChromatogramSampler(MZML_FILE)
+        cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        cm.sample(100,2)
         

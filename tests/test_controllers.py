@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
-    EvenMZFormulaSampler, ConstantChromatogramSampler
+    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
@@ -169,6 +169,13 @@ def chems_from_mzml():
     cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
     return cm.sample(None, 2)
 
+@pytest.fixture(scope="module")
+def chem_mz_rt_i_from_mzml():
+    fs = MZMLFormulaSampler(MZML_FILE)
+    ri = MZMLRTandIntensitySampler(MZML_FILE)
+    cs = MZMLChromatogramSampler(MZML_FILE)
+    cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(500, 2)
 ### tests starts from here ###
 
 class TestMS1Controller:
@@ -1142,7 +1149,8 @@ class TestFixedScansController:
 
 
 class TestChemsFromMZML:
-    def test_fullscan_from_mzml(self,chems_from_mzml):
+    @pytest.mark.skip()
+    def test_fullscan_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
         ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
@@ -1151,8 +1159,8 @@ class TestChemsFromMZML:
         env.run()
         filename = 'fullscan_from_mzml.mzML'
         check_mzML(env,OUT_DIR, filename)
-
-    def test_topn_from_mzml(self,chems_from_mzml):
+    @pytest.mark.skip()
+    def test_topn_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         N = 10
         isolation_width = 0.7
@@ -1167,6 +1175,17 @@ class TestChemsFromMZML:
         check_non_empty_MS2(controller)
         filename = 'topn_from_mzml.mzML'
         check_mzML(env,OUT_DIR, filename)
+    
+    def test_mz_rt_i_from_mzml(self, chem_mz_rt_i_from_mzml):
+        ionisation_mode = POSITIVE
+        controller = SimpleMs1Controller()
+        ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml, None)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'fullscan_mz_rt_i_from_mzml.mzML'
+        check_mzML(env,OUT_DIR, filename)
+
 
 if __name__ == '__main__':
     unittest.main()

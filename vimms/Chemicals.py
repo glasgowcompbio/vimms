@@ -794,9 +794,21 @@ class ChemicalMixtureFromMZML(object):
         logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
 
-    def sample(self, ms_levels=2):
+    def sample(self, n_chemicals, ms_levels):
+        """
+            Generate a dataset from the mzml file
+            n_chemicals: set to None if you want all the ROIs turned into chemicals
+        """
+        if n_chemicals == None:
+            rois_to_use = range(len(self.good_rois))
+        elif n_chemicals > len(self.good_rois):
+            rois_to_use = range(len(self.good_rois))
+            logger.warning("Requested more chemicals than ROIs")
+        else:
+            rois_to_use = np.random.permutation(len(self.good_rois))[:n_chemicals]
         chemicals = []
-        for r in self.good_rois:
+        for roi_idx in rois_to_use:
+            r = self.good_rois[roi_idx]
             mz = r.get_mean_mz()
             rt = r.rt_list[0] # this is in seconds
             max_intensity = max(r.intensity_list)

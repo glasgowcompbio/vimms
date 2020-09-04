@@ -167,7 +167,7 @@ def even_chems():
 def chems_from_mzml():
     roi_params = RoiParams(min_intensity=10, min_length=5)
     cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
-    return cm.sample(ms_levels=2)
+    return cm.sample(None, 2)
 
 ### tests starts from here ###
 

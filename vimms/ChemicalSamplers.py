@@ -170,6 +170,27 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
         log_intensity = np.random.rand() * (self.max_log_intensity - self.min_log_intensity) + self.min_log_intensity
         return rt, np.exp(log_intensity)
 
+    class MZMLRTandIntensitySampler(RTAndIntensitySampler):
+        def __init__(self, mzml_file_name, min_rt=0, max_rt=1600, min_log_intensity=np.log(1e4), max_log_intensity=np.log(1e7), min_ms1_intensity=1e3, roi_params=None):
+            self.min_rt = min_rt
+            self.max_rt = max_rt
+            self.min_log_intensity = min_log_intensity
+            self.max_log_intensity = max_log_intensity
+            self.mzml_file_name = mzml_file_name
+            self.min_ms1_intensity = 1e3
+
+            self._get_distributions()
+
+        def _get_distributions(self):
+            mzml_file_object = MZMLFile(str(self.mzml_file_name))
+            rt_bins = {}
+            mz_bins = {}
+            for scan in mzml_file_object.scans:
+                if not scan.ms_level == 1:
+                    continue
+                mz, i = zip(*scan.peaks)
+
+
 
 ###############################################################################################################
 # Chromatogram samplers

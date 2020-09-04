@@ -198,5 +198,8 @@ class TestChemicalsFromMZML():
         roi_params = RoiParams(min_intensity=10, min_length=5)
         cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
         d = cm.sample(None, 2)
+    
+    def test_rt_from_mzml(self):
+        pass
         
         

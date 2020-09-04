@@ -6,8 +6,8 @@ import numpy as np
 import scipy
 import scipy.stats
 from loguru import logger
+import pylab as plt
 
-from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
@@ -153,7 +153,7 @@ class KnownChemical(Chemical):
                  include_adducts_isotopes=True, total_proportion=0.99, database_accession=None):
         self.formula = formula
         self.mz_diff = isotopes.mz_diff
-        if include_adducts_isotopes == True:
+        if include_adducts_isotopes is True:
             self.isotopes = isotopes.get_isotopes(total_proportion)
             self.adducts = adducts.get_adducts()
         else:
@@ -640,7 +640,7 @@ class MultiSampleCreator(object):
 
     def _get_experimental_factor_effect(self, intensity, index_sample, index_chemical):
         experimental_factor_effect = 0.0
-        if self.experimental_classes == None:
+        if self.experimental_classes is None:
             return intensity
         else:
             for index_factor in range(len(self.experimental_classes)):
@@ -732,7 +732,7 @@ class MultipleMixtureCreator(object):
         self.intensity_noise = intensity_noise
         self.overall_missing_probability = overall_missing_probability
 
-        if not 'control' in self.group_dict:
+        if 'control' not in self.group_dict:
             self.group_dict['control'] = {}
             self.group_dict['control']['missing_probability'] = 0.0
             self.group_dict['control']['changing_probability'] = 0.0
@@ -780,11 +780,11 @@ class ChemicalMixtureFromMZML(object):
 
         if roi_params is None:
             self.roi_params = RoiParams()
-        
+
         self.good_rois = self._extract_rois()
         assert len(self.good_rois) > 0
 
-        
+
 
     def _extract_rois(self):
         good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
@@ -799,7 +799,7 @@ class ChemicalMixtureFromMZML(object):
             Generate a dataset from the mzml file
             n_chemicals: set to None if you want all the ROIs turned into chemicals
         """
-        if n_chemicals == None:
+        if n_chemicals is None:
             rois_to_use = range(len(self.good_rois))
         elif n_chemicals > len(self.good_rois):
             rois_to_use = range(len(self.good_rois))
@@ -818,9 +818,11 @@ class ChemicalMixtureFromMZML(object):
                 logger.warning("Unknown source polarity {}".format(source_polarity))
             rt = r.rt_list[0] # this is in seconds
             max_intensity = max(r.intensity_list)
+
             # make a chromatogram object
             chromatogram = EmpiricalChromatogram(np.array(r.rt_list), np.array(r.mz_list), \
                                                  np.array(r.intensity_list), single_point_length=0.9)
+
             # make a chemical          
             new_chemical = UnknownChemical(mz, rt, max_intensity, chromatogram, children=None)
             chemicals.append(new_chemical)
@@ -835,5 +837,5 @@ class ChemicalMixtureFromMZML(object):
                     children.append(child)
                 children.sort(key=lambda x: x.isotopes[0])
                 parent.children = children
-        
+
         return chemicals

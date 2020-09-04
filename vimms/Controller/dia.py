@@ -5,7 +5,7 @@ import csv
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist
+    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW
 from vimms.Controller import Controller
 from vimms.MassSpec import ScanParameters
 from vimms.DIA import DiaWindows
@@ -18,9 +18,23 @@ class AIF(Controller):
         self.max_mz = max_mz  # scan to this mz
         self.scan_number = self.initial_scan_id
 
-
     def write_msdial_experiment_file(self, filename):
-        raise NotImplementedError()
+        heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE', 'DecTarget(1:Yes, 0:No)']
+        start = self.min_mz
+        stop = self.max_mz
+        ce = self.params.ms2_collision_energy
+        ms1_row = ['0', 'SCAN', start, stop, "0eV", 0, 0]
+        aif_row = ['1', 'ALL', start, stop, "{}eV".format(ce), ce, 1]
+
+        out_dir = os.path.dirname(filename)
+        create_if_not_exist(out_dir)
+
+        with open(filename, 'w') as f:
+            writer = csv.writer(f, delimiter='\t')
+            writer.writerow(heads)
+            writer.writerow(ms1_row)
+            writer.writerow(aif_row)
+
     
     # method required by super-class
     def update_state_after_scan(self, last_scan):
@@ -48,6 +62,8 @@ class AIF(Controller):
             dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5 * (self.max_mz + self.min_mz))
             dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
             dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
+            dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+
 
             scans.append(dda_scan_params)
             self.scan_number += 1  # increase every time we make a scan
@@ -59,6 +75,8 @@ class AIF(Controller):
                                                             orbitrap_resolution=self.params.ms1_orbitrap_resolution)
             task.set(ScanParameters.FIRST_MASS, self.min_mz)
             task.set(ScanParameters.LAST_MASS, self.max_mz)
+            task.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+
             # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
 
             scans.append(task)

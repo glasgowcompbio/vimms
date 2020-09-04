@@ -852,6 +852,26 @@ class TestAIFControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    def test_aif_msdial_experiment_file(self):
+        min_mz = 200
+        max_mz = 300
+        params = AdvancedParams()
+        params.ms2_collision_energy = 50
+        controller = AIF(min_mz, max_mz, params=params)
+        out_file = Path(OUT_DIR, 'AIF_experiment.txt')
+        controller.write_msdial_experiment_file(out_file)
+
+        assert os.path.exists(out_file)
+        with open(out_file, 'r') as f:
+            reader = csv.reader(f, delimiter='\t')
+            rows = []
+            for row in reader:
+                rows.append(row)
+        ce = params.ms2_collision_energy
+        expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
+        for i,val in  enumerate(expected_row):
+            assert rows[-1][i] == str(val)
+
 
 class TestSWATH:
     def test_swath(self, ten_chems):

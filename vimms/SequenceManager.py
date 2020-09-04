@@ -605,11 +605,7 @@ def create_controller(controller_method, param_dict):
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
                                         param_dict['min_roi_intensity'], param_dict['min_roi_length'], param_dict['N'],
                                         param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
-                                        param_dict['length_units'], param_dict['ms1_shift'],
-                                        param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                        param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
-                                        param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
-                                        param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
+                                        param_dict['length_units'], param_dict['ms1_shift'], param_dict['params'])
 
     if controller_method == 'TopN_SmartRoiController':
         controller = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -619,11 +615,7 @@ def create_controller(controller_method, param_dict):
                                              param_dict['min_roi_length_for_fragmentation'],
                                              param_dict['reset_length_seconds'],
                                              param_dict['intensity_increase_factor'], param_dict['length_units'],
-                                             param_dict['drop_perc'], param_dict['ms1_shift'],
-                                             param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                             param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
-                                             param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
-                                             param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
+                                             param_dict['drop_perc'], param_dict['ms1_shift'], param_dict['params'])
 
     elif controller_method == "Repeated_SmartRoiController":
         controller = Repeated_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -636,11 +628,7 @@ def create_controller(controller_method, param_dict):
                                                  param_dict['drop_perc'], param_dict['peak_boxes'],
                                                  param_dict['peak_box_scores'], param_dict['box_increase_factor'],
                                                  param_dict['box_decrease_factor'], param_dict['box_mz_tol'],
-                                                 param_dict['ms1_shift'], param_dict['ms1_agc_target'],
-                                                 param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
-                                                 param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
-                                                 param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
-                                                 param_dict['ms2_orbitrap_resolution'])
+                                                 param_dict['ms1_shift'], param_dict['params'])
 
     elif controller_method == "CaseControl_SmartRoiController":
         controller = CaseControl_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -654,23 +642,15 @@ def create_controller(controller_method, param_dict):
                                                     param_dict['peak_box_scores'], param_dict['box_increase_factor'],
                                                     param_dict['box_decrease_factor'], param_dict['box_mz_tol'],
                                                     param_dict['coef_scale'], param_dict['model_scores'],
-                                                    param_dict['ms1_shift'], param_dict['ms1_agc_target'],
-                                                    param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
-                                                    param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
-                                                    param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
-                                                    param_dict['ms2_orbitrap_resolution'])
+                                                    param_dict['ms1_shift'], param_dict['params'])
 
     elif controller_method == 'DsDA_RoiController':
         controller = DsDA_RoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                        param_dict['min_roi_intensity'], param_dict['dsda_scoring_df'],
-                                        param_dict['min_roi_length'], param_dict['N'], param_dict['rt_tol'],
-                                        param_dict['min_roi_length_for_fragmentation'], param_dict['length_units'],
-                                        param_dict['peak_df'], param_dict['peak_scores'], param_dict['ms1_shift'],
-                                        param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                        param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
-                                        param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
-                                        param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
+                                        param_dict['min_roi_intensity'],  param_dict['min_roi_length'], param_dict['N'],
+                                        param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
+                                        param_dict['length_units'], param_dict['peak_df'], param_dict['peak_scores'],
+                                        param_dict['ms1_shift'], param_dict['params'])
 
     elif controller_method == 'Probability_RoiController':
         controller = Probability_RoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -679,42 +659,27 @@ def create_controller(controller_method, param_dict):
                                                param_dict['model_params'], param_dict['min_roi_length'],
                                                param_dict['N'], param_dict['rt_tol'],
                                                param_dict['min_roi_length_for_fragmentation'],
-                                               param_dict['length_units'], param_dict['ms1_shift'],
-                                               param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                               param_dict['ms1_collision_energy'],
-                                               param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
-                                               param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
-                                               param_dict['ms2_orbitrap_resolution'])
+                                               param_dict['length_units'], param_dict['ms1_shift'],param_dict['params'])
 
     elif controller_method == 'TopNController':
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                                     param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
-                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'],
-                                    param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                    param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
-                                    param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
-                                    param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
+                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'],param_dict['params'])
 
     elif controller_method == 'PurityController':
         controller = PurityController(param_dict['ionisation_mode'], param_dict['N'],
                                       param_dict['scan_param_changepoints'], param_dict['isolation_width'],
-                                      param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
+                                      param_dict['mz_tols'], param_dict['rt_tols'], param_dict['min_ms1_intensity'],
                                       param_dict['n_purity_scans'], param_dict['purity_shift'],
                                       param_dict['purity_threshold'], param_dict['purity_randomise'],
-                                      param_dict['purity_add_ms1'], param_dict['ms1_agc_target'],
-                                      param_dict['ms1_max_it'], param_dict['ms1_collision_energy'],
-                                      param_dict['ms1_orbitrap_resolution'], param_dict['ms2_agc_target'],
-                                      param_dict['ms2_max_it'], param_dict['ms2_collision_energy'],
-                                      param_dict['ms2_orbitrap_resolution'])
+                                      param_dict['purity_add_ms1'], param_dict['ms1_shift'], param_dict['params'])
+
     elif controller_method == 'WeightedDewController':
         controller = WeightedDEWController(param_dict['ionisation_mode'], param_dict['N'],
                                            param_dict['isolation_width'], param_dict['mz_tol'], param_dict['rt_tol'],
                                            param_dict['min_ms1_intensity'], param_dict['ms1_shift'],
                                            param_dict['exclusion_t_0'], param_dict['log_intensity'],
-                                           param_dict['ms1_agc_target'], param_dict['ms1_max_it'],
-                                           param_dict['ms1_collision_energy'], param_dict['ms1_orbitrap_resolution'],
-                                           param_dict['ms2_agc_target'], param_dict['ms2_max_it'],
-                                           param_dict['ms2_collision_energy'], param_dict['ms2_orbitrap_resolution'])
+                                           param_dict['params'])
     else:
         logger.warning('Invalid controller_method')
     return controller

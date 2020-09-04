@@ -137,7 +137,7 @@ class MZMLFormulaSampler(FormulaSampler):
         mzml_file_object = MZMLFile(str(self.mzml_file_name))
         mz_bins = {}
         for scan in mzml_file_object.scans:
-            if scan.ms_level is not 1:
+            if not scan.ms_level == 1:
                 continue
             for mz, intensity in scan.peaks:
                 if self.source_polarity == POSITIVE:

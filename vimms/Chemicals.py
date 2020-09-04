@@ -12,7 +12,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
-    Formula, DummyFormula, PROTON_MASS
+    Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiParams
 from vimms.Chromatograms import EmpiricalChromatogram
@@ -794,7 +794,7 @@ class ChemicalMixtureFromMZML(object):
         logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
 
-    def sample(self, n_chemicals, ms_levels):
+    def sample(self, n_chemicals, ms_levels, source_polarity=POSITIVE):
         """
             Generate a dataset from the mzml file
             n_chemicals: set to None if you want all the ROIs turned into chemicals
@@ -810,14 +810,19 @@ class ChemicalMixtureFromMZML(object):
         for roi_idx in rois_to_use:
             r = self.good_rois[roi_idx]
             mz = r.get_mean_mz()
+            if source_polarity == POSITIVE:
+                mz -= PROTON_MASS
+            elif source_polarity == NEGATIVE:
+                mz += PROTON_MASS
+            else:
+                logger.warning("Unknown source polarity {}".format(source_polarity))
             rt = r.rt_list[0] # this is in seconds
             max_intensity = max(r.intensity_list)
             # make a chromatogram object
             chromatogram = EmpiricalChromatogram(np.array(r.rt_list), np.array(r.mz_list), \
                                                  np.array(r.intensity_list), single_point_length=0.9)
             # make a chemical          
-            # Note subtraction of PROTON MASS as this gets added as all chemicals are assumed M+H
-            new_chemical = UnknownChemical(mz - PROTON_MASS, rt, max_intensity, chromatogram, children=None)
+            new_chemical = UnknownChemical(mz, rt, max_intensity, chromatogram, children=None)
             chemicals.append(new_chemical)
 
             if ms_levels == 2:

@@ -6,7 +6,8 @@ from loguru import logger
 
 from vimms.Common import get_rt
 from vimms.MassSpec import Scan, ScanParameters, Precursor
-from vimms.Roi import make_roi, RoiToChemicalCreator
+from vimms.Roi import make_roi
+from vimms.Chemicals import RoiToChemicalCreator
 
 
 ########################################################################################################################

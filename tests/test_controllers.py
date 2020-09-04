@@ -6,7 +6,7 @@ import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
     EvenMZFormulaSampler, ConstantChromatogramSampler
-from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator
+from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH, DiaController, AdvancedParams
@@ -15,6 +15,8 @@ from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
 from vimms.Noise import GaussianPeakNoise, GaussianPeakNoiseLevelSpecific, UniformSpikeNoise
+from vimms.Roi import RoiParams
+
 
 np.random.seed(1)
 
@@ -39,7 +41,7 @@ BEER_CHEMS = load_obj(Path(BASE_DIR, 'QCB_22May19_1.p'))
 BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 
-
+MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
 ### define some useful methods ###
 
 def get_rt_bounds(dataset, centre):
@@ -161,6 +163,11 @@ def even_chems():
     cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs, adduct_prior_dict=ADDUCT_DICT_POS_MH)
     return cm.sample(4,2)
 
+@pytest.fixture(scope="module")
+def chems_from_mzml():
+    roi_params = RoiParams(min_intensity=10, min_length=5)
+    cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
+    return cm.sample(ms_levels=2)
 
 ### tests starts from here ###
 
@@ -1133,6 +1140,33 @@ class TestFixedScansController:
         filename = 'fixedScansController.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+
+class TestChemsFromMZML:
+    def test_fullscan_from_mzml(self,chems_from_mzml):
+        ionisation_mode = POSITIVE
+        controller = SimpleMs1Controller()
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'fullscan_from_mzml.mzML'
+        check_mzML(env,OUT_DIR, filename)
+
+    def test_topn_from_mzml(self,chems_from_mzml):
+        ionisation_mode = POSITIVE
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 0.01
+        rt_tol = 15
+        min_ms1_intensity = 10
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        check_non_empty_MS2(controller)
+        filename = 'topn_from_mzml.mzML'
+        check_mzML(env,OUT_DIR, filename)
 
 if __name__ == '__main__':
     unittest.main()

@@ -28,6 +28,7 @@ RT_RANGE = [(300, 500)]
 N_CHEMICALS = 10
 
 MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
+MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
 
 
 @pytest.fixture(scope="module")
@@ -146,6 +147,17 @@ class TestDatabaseCreation:
             if group_list[i] == 'case':
                 for f in c:
                     assert not f.max_intensity == f.original_chemical.max_intensity
+
+class TestMS2Sampling:
+    def test_mzml_ms2(self):
+        min_n_peaks = 50
+        ms = MZMLMS2Sampler(MZML_FILE, min_n_peaks=min_n_peaks)
+        ud = UniformMZFormulaSampler()
+        cm = ChemicalMixtureCreator(ud, ms2_sampler=ms)
+        d = cm.sample(N_CHEMICALS, 2)
+        
+        for chem in d:
+            assert len(chem.children) >= min_n_peaks
 
 
 class TestMSPWriting:

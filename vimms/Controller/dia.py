@@ -53,33 +53,87 @@ class AIF(Controller):
 
         if self.scan_to_process is not None:
             # make the MS2 scan
-            dda_scan_params = ScanParameters()
-            dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
-            dda_scan_params.set(ScanParameters.COLLISION_ENERGY, self.params.ms2_collision_energy)
-            dda_scan_params.set(ScanParameters.AGC_TARGET, self.params.ms2_agc_target)
-            dda_scan_params.set(ScanParameters.MAX_IT, self.params.ms2_max_it)
-            dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, self.params.ms2_orbitrap_resolution)
-            dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5 * (self.max_mz + self.min_mz))
-            dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
-            dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
-            dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            aif_scan = self.get_ms1_scan_params()
+            aif_scan.set(ScanParameters.COLLISION_ENERGY, self.params.ms2_collision_energy)
 
+            # dda_scan_params = ScanParameters()
+            # dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
+            # dda_scan_params.set(ScanParameters.COLLISION_ENERGY, self.params.ms2_collision_energy)
+            # dda_scan_params.set(ScanParameters.AGC_TARGET, self.params.ms2_agc_target)
+            # dda_scan_params.set(ScanParameters.MAX_IT, self.params.ms2_max_it)
+            # dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, self.params.ms2_orbitrap_resolution)
+            # dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5 * (self.max_mz + self.min_mz))
+            aif_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
+            aif_scan.set(ScanParameters.LAST_MASS, self.max_mz)
+            aif_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
 
-            scans.append(dda_scan_params)
+            # scans.append(dda_scan_params)
+            scans.append(aif_scan)
             self.scan_number += 1  # increase every time we make a scan
 
+
+            # collision_energy = aif_scan.get(ScanParameters.COLLISION_ENERGY)
+            # orbitrap_resolution = aif_scan.get(ScanParameters.ORBITRAP_RESOLUTION)
+            # activation_type = aif_scan.get(ScanParameters.ACTIVATION_TYPE)
+            # mass_analyser = aif_scan.get(ScanParameters.MASS_ANALYSER)
+            # isolation_mode = aif_scan.get(ScanParameters.ISOLATION_MODE)
+            # agc_target = aif_scan.get(ScanParameters.AGC_TARGET)
+            # max_it = aif_scan.get(ScanParameters.MAX_IT)
+            # polarity = aif_scan.get(ScanParameters.POLARITY)
+            # first_mass = aif_scan.get(ScanParameters.FIRST_MASS)
+            # last_mass = aif_scan.get(ScanParameters.LAST_MASS)
+
+            # assert collision_energy is not None
+            # assert orbitrap_resolution is not None
+            # assert activation_type is not None
+            # assert mass_analyser is not None
+            # assert isolation_mode is not None
+            # assert agc_target is not None
+            # assert max_it is not None
+            # assert polarity is not None
+            # assert first_mass is not None
+            # assert last_mass is not None
+
+
             # make the MS1 scan
-            task = self.environment.get_default_scan_params(agc_target=self.params.ms1_agc_target,
-                                                            max_it=self.params.ms1_max_it,
-                                                            collision_energy=self.params.ms1_collision_energy,
-                                                            orbitrap_resolution=self.params.ms1_orbitrap_resolution)
-            task.set(ScanParameters.FIRST_MASS, self.min_mz)
-            task.set(ScanParameters.LAST_MASS, self.max_mz)
-            task.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            ms1_scan = self.get_ms1_scan_params()
 
-            # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
 
-            scans.append(task)
+            # collision_energy = ms1_scan.get(ScanParameters.COLLISION_ENERGY)
+            # orbitrap_resolution = ms1_scan.get(ScanParameters.ORBITRAP_RESOLUTION)
+            # activation_type = ms1_scan.get(ScanParameters.ACTIVATION_TYPE)
+            # mass_analyser = ms1_scan.get(ScanParameters.MASS_ANALYSER)
+            # isolation_mode = ms1_scan.get(ScanParameters.ISOLATION_MODE)
+            # agc_target = ms1_scan.get(ScanParameters.AGC_TARGET)
+            # max_it = ms1_scan.get(ScanParameters.MAX_IT)
+            # polarity = ms1_scan.get(ScanParameters.POLARITY)
+            # first_mass = ms1_scan.get(ScanParameters.FIRST_MASS)
+            # last_mass = ms1_scan.get(ScanParameters.LAST_MASS)
+
+            # assert collision_energy is not None
+            # assert orbitrap_resolution is not None
+            # assert activation_type is not None
+            # assert mass_analyser is not None
+            # assert isolation_mode is not None
+            # assert agc_target is not None
+            # assert max_it is not None
+            # assert polarity is not None
+            # assert first_mass is not None
+            # assert last_mass is not None
+
+
+            # task = self.environment.get_default_scan_params(agc_target=self.params.ms1_agc_target,
+            #                                                 max_it=self.params.ms1_max_it,
+            #                                                 collision_energy=self.params.ms1_collision_energy,
+            #                                                 orbitrap_resolution=self.params.ms1_orbitrap_resolution)
+            ms1_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
+            ms1_scan.set(ScanParameters.LAST_MASS, self.max_mz)
+            ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+
+            # # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
+
+            # scans.append(task)
+            scans.append(ms1_scan)
             self.scan_number += 1
             self.next_processed_scan_id = self.scan_number
 

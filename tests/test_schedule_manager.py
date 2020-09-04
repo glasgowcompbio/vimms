@@ -41,7 +41,7 @@ def fragscan_dataset_spectra(fragscan_ps):
                         get_children_method=GET_MS2_BY_SPECTRA)
 
 
-class Test_ScheduleManager:
+class TestScheduleManager:
     """
     Tests the Schedule Manager starting from both a dataset and an mzml file
     """
@@ -124,7 +124,7 @@ class Test_ScheduleManager:
                                      MZML2CHEMS_DICT=MZML2CHEMS_DICT, ps=fragscan_ps)
 
 
-class Test_GridSearch:
+class TestGridSearch:
     """
     Tests the Grid Search starting from both a dataset and an mzml file
     """

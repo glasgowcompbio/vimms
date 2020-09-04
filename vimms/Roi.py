@@ -9,7 +9,7 @@ import pymzml
 from loguru import logger
 from scipy.stats import pearsonr
 
-from vimms.Chemicals import ChemicalCreator, UnknownChemical
+# from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
 
@@ -270,6 +270,19 @@ def cosine_score(u, v):
     return numerator / denominator
 
 
+class RoiParams(object):
+    def __init__(self, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
+             length_units="scans", ms_level=1, skip=None):
+        self.mz_tol = mz_tol
+        self.mz_units = mz_units
+        self.min_length = min_length
+        self.min_intensity = min_intensity
+        self.start_rt = start_rt
+        self.stop_rt = stop_rt
+        self.length_units = length_units
+        self.ms_level = ms_level
+        self.skip = skip
+
 # Make the RoI from an input file
 # mz_units = Da for Daltons
 # mz_units = ppm for ppm
@@ -368,84 +381,6 @@ def greedy_roi_cluster(roi_list, corr_thresh=0.75, corr_type='cosine'):
     return roi_clusters
 
 
-class RoiToChemicalCreator(ChemicalCreator):
-    """
-    Turns ROI to Chemical objects
-    """
-
-    def __init__(self, peak_sampler, all_roi, n_peaks=1):
-        super().__init__(peak_sampler)
-        self.rois_data = all_roi
-        self.ms_levels = 2
-        self.crp_samples = [[] for i in range(self.ms_levels)]
-        self.crp_index = [[] for i in range(self.ms_levels)]
-        self.alpha = math.inf
-        self.counts = [[] for i in range(self.ms_levels)]
-        if self.ms_levels > 2:
-            logger.warning(
-                "Warning ms_level > 3 not implemented properly yet. Uses scaled ms_level = 2 information for now")
-
-        self.chromatograms = []
-        self.chemicals = []
-        for i in range(len(self.rois_data)):
-            if i % 50000 == 0:
-                logger.debug('%6d/%6d' % (i, len(self.rois_data)))
-            roi = self.rois_data[i]
-
-            # raise numpy warning as exception, see https://stackoverflow.com/questions/15933741/how-do-i-catch-a-numpy-warning-like-its-an-exception-not-just-for-testing
-            chrom = None
-            with np.errstate(divide='raise'):
-                try:
-                    chrom = roi.to_chromatogram()
-                except FloatingPointError:
-                    logger.debug('Invalid chromatogram {}'.format(i))
-                except ZeroDivisionError:
-                    logger.debug('Invalid chromatogram {}'.format(i))
-
-            if chrom is not None:
-                chem = self._to_unknown_chemical(chrom)
-                if self.peak_sampler is not None:
-                    try:
-                        # TODO: initialise chemical with only 1 child for the purpose of experiment, we might need to improve this
-                        chem.children = self._get_children(GET_MS2_BY_PEAKS, chem, n_peaks=n_peaks)
-                    except KeyError:
-                        pass
-                self.chromatograms.append(chrom)
-                self.chemicals.append(chem)
-        assert len(self.chromatograms) == len(self.chemicals)
-        logger.info('Found %d ROIs above thresholds' % len(self.chromatograms))
-
-    def sample(self, chromatogram_creator, mz_range, rt_range, min_ms1_intensity, n_ms1_peaks, ms_levels=2,
-               chemical_type=None,
-               formula_list=None, compound_list=None, alpha=math.inf, fixed_mz=False, adduct_proportion_cutoff=0.05):
-        return NotImplementedError()
-
-    def sample_from_chromatograms(self, chromatogram_creator, min_rt, max_rt, min_ms1_intensity, ms_levels=2):
-        return NotImplementedError()
-
-    def _to_unknown_chemical(self, chrom):
-        idx = np.argmax(chrom.raw_intensities)  # find intensity apex
-        mz = chrom.raw_mzs[idx]
-
-        # In the MassSpec, we assume that chemical starts eluting from chem.rt + chem.chromatogram.rts (normalised to start from 0)
-        # So here, we have to set set chemical rt to start from the minimum of chromatogram raw rts, so it elutes correct.
-        # rt = chrom.raw_rts[idx]
-        rt = min(chrom.raw_rts)
-
-        max_intensity = chrom.raw_intensities[idx]
-        mz = mz - PROTON_MASS
-        chem = UnknownChemical(mz, rt, max_intensity, chrom, None)
-        chem.type = CHEM_NOISE
-        return chem
-
-    def plot_chems(self, n_plots, reverse=False):
-        sorted_chems = sorted(self.chemicals, key=lambda chem: chem.chromatogram.roi.num_scans())
-        if reverse:
-            sorted_chems.reverse()
-        for c in sorted_chems[0:n_plots]:
-            chrom = c.chromatogram
-            plt.plot(chrom.raw_rts, chrom.raw_intensities)
-            plt.show()
 
 
 def plot_roi(roi, statuses=None, log=False):

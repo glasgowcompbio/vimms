@@ -7,8 +7,10 @@ from loguru import logger
 from mass_spec_utils.library_matching.gnps import load_mgf
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram
-from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW
+from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, EmpiricalChromatogram
+from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW, \
+                        POSITIVE, NEGATIVE, PROTON_MASS
+from vimms.Roi import make_roi, RoiParams
 
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
 MAX_MZ = DEFAULT_MS1_SCAN_WINDOW[1]
@@ -125,6 +127,42 @@ class EvenMZFormulaSampler(FormulaSampler):
             self.n_sampled += 1
         return [(DummyFormula(m), None) for m in mz_list]
 
+class MZMLFormulaSampler(FormulaSampler):
+    def __init__(self, mzml_file_name, source_polarity=POSITIVE):
+        self.mzml_file_name = mzml_file_name
+        self.source_polarity = source_polarity
+        self._get_distributions()
+
+    def _get_distributions(self):
+        mzml_file_object = MZMLFile(str(self.mzml_file_name))
+        mz_bins = {}
+        for scan in mzml_file_object.scans:
+            if not scan.ms_level == 1:
+                continue
+            for mz, intensity in scan.peaks:
+                if self.source_polarity == POSITIVE:
+                    mz -= PROTON_MASS
+                elif self.source_polarity == NEGATIVE:
+                    mz += PROTON_MASS
+                else:
+                    logger.warning("Unknown source polarity: {}".format(self.source_polarity))
+                mz_bin = int(mz)
+                if not mz_bin in mz_bins:
+                    mz_bins[mz_bin] = intensity
+                else:
+                    mz_bins[mz_bin] += intensity
+        total_intensity = sum(mz_bins.values())
+        self.mz_bins = [(k, k+1) for k in mz_bins.keys()]
+        self.mz_probs = [v/total_intensity for v in mz_bins.values()]
+
+    def sample(self, n_formulas):
+        mz_list = []
+        for i in range(n_formulas):
+            mz_bin_idx = np.random.choice(len(self.mz_bins), p=self.mz_probs)
+            mz_bin = self.mz_bins[mz_bin_idx]
+            mz = np.random.rand() * (mz_bin[1] - mz_bin[0]) + mz_bin[0]
+            mz_list.append(mz)
+        return [(DummyFormula(m), None) for m in mz_list]
 
 ###############################################################################################################
 # Samplers for RT and intensity when initialising a Formula
@@ -170,6 +208,63 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
         log_intensity = np.random.rand() * (self.max_log_intensity - self.min_log_intensity) + self.min_log_intensity
         return rt, np.exp(log_intensity)
 
+class MZMLRTandIntensitySampler(RTAndIntensitySampler):
+    def __init__(self, mzml_file_name, n_intensity_bins=10, min_rt=0, max_rt=1600, min_log_intensity=np.log(1e4), max_log_intensity=np.log(1e7), roi_params=None):
+        self.min_rt = min_rt
+        self.max_rt = max_rt
+        self.min_log_intensity = min_log_intensity
+        self.max_log_intensity = max_log_intensity
+        self.mzml_file_name = mzml_file_name
+        self.roi_params = roi_params
+        self.n_intensity_bins = n_intensity_bins
+        if self.roi_params is None:
+            self.roi_params = RoiParams()
+        self._get_distributions()
+
+    def _get_distributions(self):
+        mzml_file_object = MZMLFile(str(self.mzml_file_name))
+        rt_bins = {}
+        mz_bins = {}
+        for scan in mzml_file_object.scans:
+            if not scan.ms_level == 1:
+                continue
+            mz, i = zip(*scan.peaks)
+            total_intensity = sum(i)
+            rt = scan.rt_in_seconds
+            if rt < self.min_rt or rt > self.max_rt:
+                continue
+            rt_bin = int(rt)
+            if not rt_bin in rt_bins:
+                rt_bins[rt_bin] = total_intensity
+            else:
+                rt_bins[rt_bin] += total_intensity
+        total_intensity = sum(rt_bins.values())
+        self.rt_bins = [(k,k+1) for k in rt_bins.keys()]
+        self.rt_probs = [v/total_intensity for v in rt_bins.values()]
+        
+        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
+                              min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
+                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt, length_units=self.roi_params.length_units, \
+                              ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
+        log_roi_intensities = [np.log(max(r.intensity_list)) for r in good]
+        log_roi_intensities = list(filter(lambda x: x >= self.min_log_intensity and x <= self.max_log_intensity, log_roi_intensities))
+        hist, bin_edges = np.histogram(log_roi_intensities, bins=self.n_intensity_bins)
+        total_i = hist.sum()
+        hist = [h/total_i for h in hist]
+
+        self.intensity_bins = [(b, bin_edges[i+1]) for i, b in enumerate(bin_edges[:-1])]
+        self.intensity_probs = [h for h in hist]
+
+    def sample(self, formula):
+        rt_bin_idx = np.random.choice(len(self.rt_bins), p=self.rt_probs)
+        rt_bin = self.rt_bins[rt_bin_idx]
+        rt = np.random.rand() * (rt_bin[1] - rt_bin[0]) + rt_bin[0]
+
+        intensity_bin_idx = np.random.choice(len(self.intensity_bins), p=self.intensity_probs)
+        intensity_bin = self.intensity_bins[intensity_bin_idx]
+        log_intensity = np.random.rand() * (intensity_bin[1] - intensity_bin[0]) + intensity_bin[0]
+        return rt, np.exp(log_intensity)
+
 
 ###############################################################################################################
 # Chromatogram samplers
@@ -212,6 +307,32 @@ class ConstantChromatogramSampler(ChromatogramSampler):
 
     def sample(self, formula, rt, intensity):
         return ConstantChromatogram()
+
+class MZMLChromatogramSampler(ChromatogramSampler):
+    def __init__(self, mzml_file_name, roi_params = None):
+        self.mzml_file_name = mzml_file_name
+        self.roi_params = roi_params
+        if self.roi_params is None:
+            self.roi_params = RoiParams()
+        
+        self.good_rois = self._extract_rois()
+
+    def _extract_rois(self):
+        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
+                                min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
+                                start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt, length_units=self.roi_params.length_units, \
+                                ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
+        logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
+        return good
+    
+    def sample(self, formula, rt, intensity):
+        roi_idx = np.random.choice(len(self.good_rois))
+        r = self.good_rois[roi_idx]
+        chromatogram = EmpiricalChromatogram(np.array(r.rt_list), np.array(r.mz_list), \
+                                            np.array(r.intensity_list), single_point_length=0.9)
+        return chromatogram
+
+
 
 
 ###############################################################################################################

@@ -5,10 +5,11 @@ import pytest
 import pysmiles
 
 from vimms.ChemicalSamplers import *
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, DatabaseCompound
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, DatabaseCompound, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Noise import NoPeakNoise
 from vimms.Utils import write_msp, mgf_to_database
+from vimms.Roi import RoiParams
 
 from mass_spec_utils.library_matching.gnps import load_mgf
 
@@ -192,5 +193,16 @@ class TestLinkedCreation:
             assert len(chem.children) > 0
             assert len(orig_spec.peaks) == len(chem.children)
 
-        
+class TestChemicalsFromMZML():
+    def test_chemical_mixture_from_mzml(self):
+        roi_params = RoiParams(min_intensity=10, min_length=5)
+        cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
+        d = cm.sample(None, 2)
+    
+    def test_rt_from_mzml(self):
+        ri = MZMLRTandIntensitySampler(MZML_FILE)
+        fs = MZMLFormulaSampler(MZML_FILE)
+        cs = MZMLChromatogramSampler(MZML_FILE)
+        cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        cm.sample(100,2)
         

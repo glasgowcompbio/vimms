@@ -6,12 +6,16 @@ import numpy as np
 import scipy
 import scipy.stats
 from loguru import logger
+import pylab as plt
+
 
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
-    Formula, DummyFormula
+    Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE, CHEM_NOISE
 from vimms.Noise import GaussianPeakNoise
+from vimms.Roi import make_roi, RoiParams
+from vimms.Chromatograms import EmpiricalChromatogram
 
 
 class DatabaseCompound(object):
@@ -149,7 +153,7 @@ class KnownChemical(Chemical):
                  include_adducts_isotopes=True, total_proportion=0.99, database_accession=None):
         self.formula = formula
         self.mz_diff = isotopes.mz_diff
-        if include_adducts_isotopes == True:
+        if include_adducts_isotopes is True:
             self.isotopes = isotopes.get_isotopes(total_proportion)
             self.adducts = adducts.get_adducts()
         else:
@@ -447,6 +451,85 @@ class ChemicalCreator(object):
             return False
         return True
 
+class RoiToChemicalCreator(ChemicalCreator):
+    """
+    Turns ROI to Chemical objects
+    """
+
+    def __init__(self, peak_sampler, all_roi, n_peaks=1):
+        super().__init__(peak_sampler)
+        self.rois_data = all_roi
+        self.ms_levels = 2
+        self.crp_samples = [[] for i in range(self.ms_levels)]
+        self.crp_index = [[] for i in range(self.ms_levels)]
+        self.alpha = math.inf
+        self.counts = [[] for i in range(self.ms_levels)]
+        if self.ms_levels > 2:
+            logger.warning(
+                "Warning ms_level > 3 not implemented properly yet. Uses scaled ms_level = 2 information for now")
+
+        self.chromatograms = []
+        self.chemicals = []
+        for i in range(len(self.rois_data)):
+            if i % 50000 == 0:
+                logger.debug('%6d/%6d' % (i, len(self.rois_data)))
+            roi = self.rois_data[i]
+
+            # raise numpy warning as exception, see https://stackoverflow.com/questions/15933741/how-do-i-catch-a-numpy-warning-like-its-an-exception-not-just-for-testing
+            chrom = None
+            with np.errstate(divide='raise'):
+                try:
+                    chrom = roi.to_chromatogram()
+                except FloatingPointError:
+                    logger.debug('Invalid chromatogram {}'.format(i))
+                except ZeroDivisionError:
+                    logger.debug('Invalid chromatogram {}'.format(i))
+
+            if chrom is not None:
+                chem = self._to_unknown_chemical(chrom)
+                if self.peak_sampler is not None:
+                    try:
+                        # TODO: initialise chemical with only 1 child for the purpose of experiment, we might need to improve this
+                        chem.children = self._get_children(GET_MS2_BY_PEAKS, chem, n_peaks=n_peaks)
+                    except KeyError:
+                        pass
+                self.chromatograms.append(chrom)
+                self.chemicals.append(chem)
+        assert len(self.chromatograms) == len(self.chemicals)
+        logger.info('Found %d ROIs above thresholds' % len(self.chromatograms))
+
+    def sample(self, chromatogram_creator, mz_range, rt_range, min_ms1_intensity, n_ms1_peaks, ms_levels=2,
+               chemical_type=None,
+               formula_list=None, compound_list=None, alpha=math.inf, fixed_mz=False, adduct_proportion_cutoff=0.05):
+        return NotImplementedError()
+
+    def sample_from_chromatograms(self, chromatogram_creator, min_rt, max_rt, min_ms1_intensity, ms_levels=2):
+        return NotImplementedError()
+
+    def _to_unknown_chemical(self, chrom):
+        idx = np.argmax(chrom.raw_intensities)  # find intensity apex
+        mz = chrom.raw_mzs[idx]
+
+        # In the MassSpec, we assume that chemical starts eluting from chem.rt + chem.chromatogram.rts (normalised to start from 0)
+        # So here, we have to set set chemical rt to start from the minimum of chromatogram raw rts, so it elutes correct.
+        # rt = chrom.raw_rts[idx]
+        rt = min(chrom.raw_rts)
+
+        max_intensity = chrom.raw_intensities[idx]
+        mz = mz - PROTON_MASS
+        chem = UnknownChemical(mz, rt, max_intensity, chrom, None)
+        chem.type = CHEM_NOISE
+        return chem
+
+    def plot_chems(self, n_plots, reverse=False):
+        sorted_chems = sorted(self.chemicals, key=lambda chem: chem.chromatogram.roi.num_scans())
+        if reverse:
+            sorted_chems.reverse()
+        for c in sorted_chems[0:n_plots]:
+            chrom = c.chromatogram
+            plt.plot(chrom.raw_rts, chrom.raw_intensities)
+            plt.show()
+
 
 class MultiSampleCreator(object):
 
@@ -557,7 +640,7 @@ class MultiSampleCreator(object):
 
     def _get_experimental_factor_effect(self, intensity, index_sample, index_chemical):
         experimental_factor_effect = 0.0
-        if self.experimental_classes == None:
+        if self.experimental_classes is None:
             return intensity
         else:
             for index_factor in range(len(self.experimental_classes)):
@@ -573,6 +656,7 @@ class MultiSampleCreator(object):
         if noisy_intensity < 0:
             logger.warning("Warning: Negative Intensities have been created")
         return noisy_intensity
+
 
 
 class ChemicalMixtureCreator(object):
@@ -648,7 +732,7 @@ class MultipleMixtureCreator(object):
         self.intensity_noise = intensity_noise
         self.overall_missing_probability = overall_missing_probability
 
-        if not 'control' in self.group_dict:
+        if 'control' not in self.group_dict:
             self.group_dict['control'] = {}
             self.group_dict['control']['missing_probability'] = 0.0
             self.group_dict['control']['changing_probability'] = 0.0
@@ -686,3 +770,72 @@ class MultipleMixtureCreator(object):
                 new_list.append(new_chemical)
             chemical_lists.append(new_list)
         return chemical_lists
+
+
+class ChemicalMixtureFromMZML(object):
+    def __init__(self, mzml_file_name, ms2_sampler=UniformMS2Sampler(), roi_params=None):
+        self.mzml_file_name = mzml_file_name
+        self.ms2_sampler = ms2_sampler
+        self.roi_params = roi_params
+
+        if roi_params is None:
+            self.roi_params = RoiParams()
+
+        self.good_rois = self._extract_rois()
+        assert len(self.good_rois) > 0
+
+
+
+    def _extract_rois(self):
+        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
+                              min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
+                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt, length_units=self.roi_params.length_units, \
+                              ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
+        logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
+        return good
+
+    def sample(self, n_chemicals, ms_levels, source_polarity=POSITIVE):
+        """
+            Generate a dataset from the mzml file
+            n_chemicals: set to None if you want all the ROIs turned into chemicals
+        """
+        if n_chemicals is None:
+            rois_to_use = range(len(self.good_rois))
+        elif n_chemicals > len(self.good_rois):
+            rois_to_use = range(len(self.good_rois))
+            logger.warning("Requested more chemicals than ROIs")
+        else:
+            rois_to_use = np.random.permutation(len(self.good_rois))[:n_chemicals]
+        chemicals = []
+        for roi_idx in rois_to_use:
+            r = self.good_rois[roi_idx]
+            mz = r.get_mean_mz()
+            if source_polarity == POSITIVE:
+                mz -= PROTON_MASS
+            elif source_polarity == NEGATIVE:
+                mz += PROTON_MASS
+            else:
+                logger.warning("Unknown source polarity {}".format(source_polarity))
+            rt = r.rt_list[0] # this is in seconds
+            max_intensity = max(r.intensity_list)
+
+            # make a chromatogram object
+            chromatogram = EmpiricalChromatogram(np.array(r.rt_list), np.array(r.mz_list), \
+                                                 np.array(r.intensity_list), single_point_length=0.9)
+
+            # make a chemical          
+            new_chemical = UnknownChemical(mz, rt, max_intensity, chromatogram, children=None)
+            chemicals.append(new_chemical)
+
+            if ms_levels == 2:
+                parent = chemicals[-1]
+                child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(parent)
+
+                children = []
+                for mz, intensity in zip(child_mz, child_intensity):
+                    child = MSN(mz, 2, intensity, parent_proportion, None, parent)
+                    children.append(child)
+                children.sort(key=lambda x: x.isotopes[0])
+                parent.children = children
+
+        return chemicals

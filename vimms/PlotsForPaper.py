@@ -9,10 +9,10 @@ import pymzml
 import seaborn as sns
 from loguru import logger
 
-from vimms.Chemicals import UnknownChemical
+from vimms.Chemicals import UnknownChemical, RoiToChemicalCreator
 from vimms.Common import load_obj, PROTON_MASS, find_nearest_index_in_array
 from vimms.MassSpec import FragmentationEvent
-from vimms.Roi import make_roi, RoiToChemicalCreator
+from vimms.Roi import make_roi
 from vimms.SpectralUtils import get_precursor_info, get_chemicals
 
 

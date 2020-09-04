@@ -29,7 +29,7 @@ class SimpleMs1Controller(Controller):
         super().__init__(params=params)
 
     def _process_scan(self, scan):
-        task = self.get_ms1_scan_params();
+        task = self.get_ms1_scan_params()
         return [task]
 
     def update_state_after_scan(self, last_scan):

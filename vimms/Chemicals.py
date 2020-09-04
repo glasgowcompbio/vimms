@@ -12,7 +12,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
-    Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE
+    Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE, CHEM_NOISE
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiParams
 from vimms.Chromatograms import EmpiricalChromatogram

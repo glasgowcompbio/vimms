@@ -1,5 +1,3 @@
-import unittest
-import csv
 from pathlib import Path
 
 import pytest
@@ -16,7 +14,6 @@ HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
 OUT_DIR = Path(DIR_PATH, 'results')
 
 ROI_SOURCES = [str(Path(BASE_DIR, 'beer_t10_simulator_files'))]
-# MIN_MS1_INTENSITY = 1.75E5
 MIN_MS1_INTENSITY = 1
 RT_RANGE = [(0, 1200)]
 CENTRE_RANGE = 600
@@ -45,7 +42,9 @@ def fragscan_dataset_spectra(fragscan_ps):
 
 
 class Test_ScheduleManager:
-
+    """
+    Tests the Schedule Manager starting from both a dataset and an mzml file
+    """
     def test_schedulemanager_dataset(self):
         evaluation_methods = []
 
@@ -126,7 +125,9 @@ class Test_ScheduleManager:
 
 
 class Test_GridSearch:
-
+    """
+    Tests the Grid Search starting from both a dataset and an mzml file
+    """
     def test_gridsearch_dataset(self):
         evaluation_methods = []
         topn_variable_params_dict = {'N': [10], 'rt_tol': [15, 30]}

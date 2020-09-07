@@ -883,7 +883,7 @@ class TestAIFControllers:
 
         assert os.path.exists(out_file)
         with open(out_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
+            reader = csv.reader(f, delimiter='\t', lineterminator=os.linesep)
             rows = []
             for row in reader:
                 rows.append(row)
@@ -979,7 +979,7 @@ class TestSWATH:
 
         assert os.path.exists(out_file)
         with open(out_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
+            reader = csv.reader(f, delimiter='\t', lineterminator=os.linesep)
             rows = []
             for row in reader:
                 rows.append(row)

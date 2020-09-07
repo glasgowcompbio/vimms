@@ -3,6 +3,7 @@ from collections import defaultdict
 import pylab as plt
 
 from vimms.Common import *
+from vimms.MassSpec import ScanParameters
 
 
 class AdvancedParams(object):
@@ -144,3 +145,31 @@ class Controller(object):
                 plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
             plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt, scan.num_peaks))
             plt.show()
+    
+    def _check_scan(self, params):
+
+        # checks that the conditions that are checked in 
+        # vimms-fusion MS class pass here
+        collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
+        orbitrap_resolution = params.get(ScanParameters.ORBITRAP_RESOLUTION)
+        activation_type = params.get(ScanParameters.ACTIVATION_TYPE)
+        mass_analyser = params.get(ScanParameters.MASS_ANALYSER)
+        isolation_mode = params.get(ScanParameters.ISOLATION_MODE)
+        agc_target = params.get(ScanParameters.AGC_TARGET)
+        max_it = params.get(ScanParameters.MAX_IT)
+        source_cid_energy = params.get(ScanParameters.SOURCE_CID_ENERGY)
+        polarity = params.get(ScanParameters.POLARITY)
+        first_mass = params.get(ScanParameters.FIRST_MASS)
+        last_mass = params.get(ScanParameters.LAST_MASS)
+
+        assert collision_energy is not None
+        assert orbitrap_resolution is not None
+        assert activation_type is not None
+        assert mass_analyser is not None
+        assert isolation_mode is not None
+        assert agc_target is not None
+        assert max_it is not None
+        assert polarity is not None
+        assert first_mass is not None
+        assert last_mass is not None
+

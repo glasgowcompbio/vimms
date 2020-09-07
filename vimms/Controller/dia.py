@@ -56,14 +56,20 @@ class AIF(Controller):
             aif_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
             aif_scan.set(ScanParameters.LAST_MASS, self.max_mz)
             aif_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            self._check_scan(aif_scan)
+
             scans.append(aif_scan)
             self.scan_number += 1  # increase every time we make a scan
+
+
 
             # make the MS1 scan with no energy applied
             ms1_scan = self.get_ms1_scan_params()
             ms1_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
             ms1_scan.set(ScanParameters.LAST_MASS, self.max_mz)
             ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            self._check_scan(ms1_scan)
+
             scans.append(ms1_scan)
             self.scan_number += 1
             self.next_processed_scan_id = self.scan_number
@@ -72,6 +78,8 @@ class AIF(Controller):
             self.scan_to_process = None
 
         return scans
+
+
 
 
 class SWATH(Controller):

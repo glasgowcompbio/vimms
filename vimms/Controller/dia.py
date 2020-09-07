@@ -4,7 +4,7 @@ import os
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist
+    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_SOURCE_CID_ENERGY, create_if_not_exist
 from vimms.Controller import Controller
 from vimms.DIA import DiaWindows
 from vimms.MassSpec import ScanParameters
@@ -65,6 +65,7 @@ class AIF(Controller):
 
             # make the MS1 scan with no energy applied
             ms1_scan = self.get_ms1_scan_params()
+            ms1_scan.set(ScanParameters.SOURCE_CID_ENERGY, DEFAULT_SOURCE_CID_ENERGY)
             ms1_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
             ms1_scan.set(ScanParameters.LAST_MASS, self.max_mz)
             ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])

@@ -887,7 +887,7 @@ class TestAIFControllers:
             rows = []
             for row in reader:
                 rows.append(row)
-        ce = params.ms2_collision_energy
+        ce = params.ms1_source_cid_energy
         expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
         for i,val in  enumerate(expected_row):
             assert rows[-1][i] == str(val)

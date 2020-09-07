@@ -321,7 +321,7 @@ class GridSearchExperiment(BasicExperiment):
             dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
             save_obj(dataset, dataset_name)
             self.dataset_file = dataset_name
-            if self.sequence_manager.ms1_picked_peaks_file is None:
+            if self.sequence_manager.ms1_picked_peaks_file is None and len(self.sequence_manager.evaluation_methods) > 0:
                 self.sequence_manager.ms1_picked_peaks_file = self.sequence_manager.pick_peaks(self.mzml_file, None, 1)
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict

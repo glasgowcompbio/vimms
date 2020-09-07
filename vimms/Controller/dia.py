@@ -1,14 +1,13 @@
-import os
-from loguru import logger
 import csv
+import os
 
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW
+    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_SOURCE_CID_ENERGY, create_if_not_exist
 from vimms.Controller import Controller
-from vimms.MassSpec import ScanParameters
 from vimms.DIA import DiaWindows
+from vimms.MassSpec import ScanParameters
 
 
 class AIF(Controller):
@@ -22,20 +21,19 @@ class AIF(Controller):
         heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE', 'DecTarget(1:Yes, 0:No)']
         start = self.min_mz
         stop = self.max_mz
-        ce = self.params.ms2_collision_energy
+        ce = self.params.ms1_source_cid_energy
         ms1_row = ['0', 'SCAN', start, stop, "0eV", 0, 0]
         aif_row = ['1', 'ALL', start, stop, "{}eV".format(ce), ce, 1]
 
         out_dir = os.path.dirname(filename)
         create_if_not_exist(out_dir)
 
-        with open(filename, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f, delimiter='\t', dialect='excel')
             writer.writerow(heads)
             writer.writerow(ms1_row)
             writer.writerow(aif_row)
 
-    
     # method required by super-class
     def update_state_after_scan(self, last_scan):
         pass
@@ -52,34 +50,28 @@ class AIF(Controller):
         scans = []
 
         if self.scan_to_process is not None:
-            # make the MS2 scan
-            dda_scan_params = ScanParameters()
-            dda_scan_params.set(ScanParameters.MS_LEVEL, 1)
-            dda_scan_params.set(ScanParameters.COLLISION_ENERGY, self.params.ms2_collision_energy)
-            dda_scan_params.set(ScanParameters.AGC_TARGET, self.params.ms2_agc_target)
-            dda_scan_params.set(ScanParameters.MAX_IT, self.params.ms2_max_it)
-            dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, self.params.ms2_orbitrap_resolution)
-            dda_scan_params.set(ScanParameters.PRECURSOR_MZ, 0.5 * (self.max_mz + self.min_mz))
-            dda_scan_params.set(ScanParameters.FIRST_MASS, self.min_mz)
-            dda_scan_params.set(ScanParameters.LAST_MASS, self.max_mz)
-            dda_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            # make the MS1 scan with source cid energy applied
+            aif_scan = self.get_ms1_scan_params()
+            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY, self.params.ms1_source_cid_energy)
+            aif_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
+            aif_scan.set(ScanParameters.LAST_MASS, self.max_mz)
+            aif_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            self._check_scan(aif_scan)
 
-
-            scans.append(dda_scan_params)
+            scans.append(aif_scan)
             self.scan_number += 1  # increase every time we make a scan
 
-            # make the MS1 scan
-            task = self.environment.get_default_scan_params(agc_target=self.params.ms1_agc_target,
-                                                            max_it=self.params.ms1_max_it,
-                                                            collision_energy=self.params.ms1_collision_energy,
-                                                            orbitrap_resolution=self.params.ms1_orbitrap_resolution)
-            task.set(ScanParameters.FIRST_MASS, self.min_mz)
-            task.set(ScanParameters.LAST_MASS, self.max_mz)
-            task.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
 
-            # task.set(ScanParameters.CURRENT_TOP_N, 10) # time sampling fix see iss18
 
-            scans.append(task)
+            # make the MS1 scan with no energy applied
+            ms1_scan = self.get_ms1_scan_params()
+            ms1_scan.set(ScanParameters.SOURCE_CID_ENERGY, DEFAULT_SOURCE_CID_ENERGY)
+            ms1_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
+            ms1_scan.set(ScanParameters.LAST_MASS, self.max_mz)
+            ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            self._check_scan(ms1_scan)
+
+            scans.append(ms1_scan)
             self.scan_number += 1
             self.next_processed_scan_id = self.scan_number
 
@@ -87,6 +79,8 @@ class AIF(Controller):
             self.scan_to_process = None
 
         return scans
+
+
 
 
 class SWATH(Controller):
@@ -103,27 +97,25 @@ class SWATH(Controller):
         self.exp_info = []  # experimental information - isolation windows
 
     def write_msdial_experiment_file(self, filename):
-        heads = ['Experiment','MS Type','Min m/z','Max m/z']
+        heads = ['Experiment', 'MS Type', 'Min m/z', 'Max m/z']
         start_mz, stop_mz = self._get_start_stop()
         ms1_mz_range = self.params.default_ms1_scan_window
         ms1_row = ['0', 'SCAN', ms1_mz_range[0], ms1_mz_range[1]]
         swath_rows = []
-        for i,start in enumerate(start_mz):
+        for i, start in enumerate(start_mz):
             stop = stop_mz[i]
-            new_row = [i+1, 'SWATH', start, stop]
+            new_row = [i + 1, 'SWATH', start, stop]
             swath_rows.append(new_row)
-
 
         out_dir = os.path.dirname(filename)
         create_if_not_exist(out_dir)
 
-        with open(filename, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f, delimiter='\t', dialect='excel')
             writer.writerow(heads)
             writer.writerow(ms1_row)
             for row in swath_rows:
                 writer.writerow(row)
-
 
     def _get_start_stop(self):
         start = self.min_mz
@@ -234,8 +226,8 @@ class DiaController(Controller):
                     isolation_width = []
                     intensity = []
                     for sub_loc in loc[0]:
-                        mz.append(sum(sub_loc)/2)
-                        isolation_width.append(sub_loc[1]-sub_loc[0])
+                        mz.append(sum(sub_loc) / 2)
+                        isolation_width.append(sub_loc[1] - sub_loc[0])
                         intensity.append(0)
                     dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                                           isolation_width, mz_tol, rt_tol,
@@ -261,4 +253,3 @@ class DiaController(Controller):
             self.scan_number += len(locations) + 1
             self.next_processed_scan_id = self.scan_number
         return new_tasks
-

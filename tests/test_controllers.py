@@ -785,7 +785,9 @@ class TestAIFControllers:
         logger.info('Without noise')
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
-        controller = AIF(min_mz, max_mz)
+        params = AdvancedParams()
+        params.ms1_source_cid_energy = 30
+        controller = AIF(min_mz, max_mz, params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -811,7 +813,9 @@ class TestAIFControllers:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict, mz_noise=mz_noise,
                                                 intensity_noise=intensity_noise)
-        controller = AIF(min_mz, max_mz)
+        params = AdvancedParams()
+        params.ms1_source_cid_energy = 30
+        controller = AIF(min_mz, max_mz, params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -848,7 +852,9 @@ class TestAIFControllers:
         scan_time_dict = {1: 0.124, 2: 0.124}
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
-        controller = AIF(min_mz, max_mz)
+        params = AdvancedParams()
+        params.ms1_source_cid_energy = 30
+        controller = AIF(min_mz, max_mz, params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -870,18 +876,18 @@ class TestAIFControllers:
         min_mz = 200
         max_mz = 300
         params = AdvancedParams()
-        params.ms2_collision_energy = 50
+        params.ms1_source_cid_energy = 30
         controller = AIF(min_mz, max_mz, params=params)
         out_file = Path(OUT_DIR, 'AIF_experiment.txt')
         controller.write_msdial_experiment_file(out_file)
 
         assert os.path.exists(out_file)
         with open(out_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
+            reader = csv.reader(f, delimiter='\t', lineterminator=os.linesep)
             rows = []
             for row in reader:
                 rows.append(row)
-        ce = params.ms2_collision_energy
+        ce = params.ms1_source_cid_energy
         expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
         for i,val in  enumerate(expected_row):
             assert rows[-1][i] == str(val)
@@ -973,7 +979,7 @@ class TestSWATH:
 
         assert os.path.exists(out_file)
         with open(out_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
+            reader = csv.reader(f, delimiter='\t', lineterminator=os.linesep)
             rows = []
             for row in reader:
                 rows.append(row)

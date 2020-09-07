@@ -28,8 +28,8 @@ class AIF(Controller):
         out_dir = os.path.dirname(filename)
         create_if_not_exist(out_dir)
 
-        with open(filename, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f, delimiter='\t', dialect='excel')
             writer.writerow(heads)
             writer.writerow(ms1_row)
             writer.writerow(aif_row)
@@ -101,8 +101,8 @@ class SWATH(Controller):
         out_dir = os.path.dirname(filename)
         create_if_not_exist(out_dir)
 
-        with open(filename, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f, delimiter='\t', dialect='excel')
             writer.writerow(heads)
             writer.writerow(ms1_row)
             for row in swath_rows:

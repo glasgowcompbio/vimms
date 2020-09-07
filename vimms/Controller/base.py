@@ -3,6 +3,7 @@ from collections import defaultdict
 import pylab as plt
 
 from vimms.Common import *
+from vimms.MassSpec import ScanParameters
 
 
 class AdvancedParams(object):
@@ -15,13 +16,15 @@ class AdvancedParams(object):
                  ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
                  ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
                  ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+                 ms1_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
                  ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+                 ms2_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY):
         self.default_ms1_scan_window = default_ms1_scan_window
 
         self.ms1_agc_target = ms1_agc_target
@@ -31,6 +34,7 @@ class AdvancedParams(object):
         self.ms1_activation_type = ms1_activation_type
         self.ms1_mass_analyser = ms1_mass_analyser
         self.ms1_isolation_mode = ms1_isolation_mode
+        self.ms1_source_cid_energy = ms1_source_cid_energy
 
         self.ms2_agc_target = ms2_agc_target
         self.ms2_max_it = ms2_max_it
@@ -39,6 +43,7 @@ class AdvancedParams(object):
         self.ms2_activation_type = ms2_activation_type
         self.ms2_mass_analyser = ms2_mass_analyser
         self.ms2_isolation_mode = ms2_isolation_mode
+        self.ms2_source_cid_energy = ms2_source_cid_energy
 
 
 class Controller(object):
@@ -61,6 +66,7 @@ class Controller(object):
                                                         agc_target=self.params.ms1_agc_target,
                                                         max_it=self.params.ms1_max_it,
                                                         collision_energy=self.params.ms1_collision_energy,
+                                                        source_cid_energy=self.params.ms1_source_cid_energy,
                                                         orbitrap_resolution=self.params.ms1_orbitrap_resolution,
                                                         activation_type=self.params.ms1_activation_type,
                                                         mass_analyser=self.params.ms1_mass_analyser,
@@ -73,6 +79,7 @@ class Controller(object):
                                                    agc_target=self.params.ms2_agc_target,
                                                    max_it=self.params.ms2_max_it,
                                                    collision_energy=self.params.ms2_collision_energy,
+                                                   source_cid_energy=self.params.ms2_source_cid_energy,
                                                    orbitrap_resolution=self.params.ms2_orbitrap_resolution,
                                                    activation_type=self.params.ms2_activation_type,
                                                    mass_analyser=self.params.ms2_mass_analyser,
@@ -138,3 +145,31 @@ class Controller(object):
                 plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
             plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt, scan.num_peaks))
             plt.show()
+    
+    def _check_scan(self, params):
+
+        # checks that the conditions that are checked in 
+        # vimms-fusion MS class pass here
+        collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
+        orbitrap_resolution = params.get(ScanParameters.ORBITRAP_RESOLUTION)
+        activation_type = params.get(ScanParameters.ACTIVATION_TYPE)
+        mass_analyser = params.get(ScanParameters.MASS_ANALYSER)
+        isolation_mode = params.get(ScanParameters.ISOLATION_MODE)
+        agc_target = params.get(ScanParameters.AGC_TARGET)
+        max_it = params.get(ScanParameters.MAX_IT)
+        source_cid_energy = params.get(ScanParameters.SOURCE_CID_ENERGY)
+        polarity = params.get(ScanParameters.POLARITY)
+        first_mass = params.get(ScanParameters.FIRST_MASS)
+        last_mass = params.get(ScanParameters.LAST_MASS)
+
+        assert collision_energy is not None
+        assert orbitrap_resolution is not None
+        assert activation_type is not None
+        assert mass_analyser is not None
+        assert isolation_mode is not None
+        assert agc_target is not None
+        assert max_it is not None
+        assert polarity is not None
+        assert first_mass is not None
+        assert last_mass is not None
+

@@ -15,13 +15,15 @@ class AdvancedParams(object):
                  ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
                  ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
                  ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+                 ms1_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
                  ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
                  ms2_max_it=DEFAULT_MS2_MAXIT,
                  ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                  ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
                  ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+                 ms2_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY):
         self.default_ms1_scan_window = default_ms1_scan_window
 
         self.ms1_agc_target = ms1_agc_target
@@ -31,6 +33,7 @@ class AdvancedParams(object):
         self.ms1_activation_type = ms1_activation_type
         self.ms1_mass_analyser = ms1_mass_analyser
         self.ms1_isolation_mode = ms1_isolation_mode
+        self.ms1_source_cid_energy = ms1_source_cid_energy
 
         self.ms2_agc_target = ms2_agc_target
         self.ms2_max_it = ms2_max_it
@@ -39,6 +42,7 @@ class AdvancedParams(object):
         self.ms2_activation_type = ms2_activation_type
         self.ms2_mass_analyser = ms2_mass_analyser
         self.ms2_isolation_mode = ms2_isolation_mode
+        self.ms2_source_cid_energy = ms2_source_cid_energy
 
 
 class Controller(object):
@@ -61,6 +65,7 @@ class Controller(object):
                                                         agc_target=self.params.ms1_agc_target,
                                                         max_it=self.params.ms1_max_it,
                                                         collision_energy=self.params.ms1_collision_energy,
+                                                        source_cid_energy=self.params.ms1_source_cid_energy,
                                                         orbitrap_resolution=self.params.ms1_orbitrap_resolution,
                                                         activation_type=self.params.ms1_activation_type,
                                                         mass_analyser=self.params.ms1_mass_analyser,
@@ -73,6 +78,7 @@ class Controller(object):
                                                    agc_target=self.params.ms2_agc_target,
                                                    max_it=self.params.ms2_max_it,
                                                    collision_energy=self.params.ms2_collision_energy,
+                                                   source_cid_energy=self.params.ms2_source_cid_energy,
                                                    orbitrap_resolution=self.params.ms2_orbitrap_resolution,
                                                    activation_type=self.params.ms2_activation_type,
                                                    mass_analyser=self.params.ms2_mass_analyser,

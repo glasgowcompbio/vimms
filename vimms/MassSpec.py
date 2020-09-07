@@ -96,6 +96,7 @@ class ScanParameters(object):
     MASS_ANALYSER = 'analyzer'
     ACTIVATION_TYPE = 'activation_type'
     ISOLATION_MODE = 'isolation_mode'
+    SOURCE_CID_ENERGY = 'source_cid_energy'
 
     # this is used for DIA-based controllers to specify which windows to fragment
     ISOLATION_WINDOWS = 'isolation_windows'

@@ -7,7 +7,7 @@ from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_ISOLATION_WIDTH, DEFAU
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, POSITIVE, DEFAULT_MSN_SCAN_WINDOW, \
     DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ACTIVATION_TYPE, DEFAULT_MS1_ISOLATION_MODE, DEFAULT_MS2_MASS_ANALYSER, \
-    DEFAULT_MS2_ISOLATION_MODE
+    DEFAULT_MS2_ISOLATION_MODE, DEFAULT_SOURCE_CID_ENERGY
 from vimms.Controller import TopNController, PurityController
 from vimms.MassSpec import ScanParameters, IndependentMassSpectrometer, Precursor
 from vimms.MzmlWriter import MzmlWriter
@@ -181,6 +181,7 @@ class Environment(object):
 
     def get_default_scan_params(self, agc_target=DEFAULT_MS1_AGC_TARGET, max_it=DEFAULT_MS1_MAXIT,
                                 collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                                source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
                                 orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
                                 default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
                                 mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
@@ -191,7 +192,7 @@ class Environment(object):
         """
         default_scan_params = ScanParameters()
         default_scan_params.set(ScanParameters.MS_LEVEL, 1)
-        default_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[DEFAULT_MS1_SCAN_WINDOW]])
+        default_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[default_ms1_scan_window]])
         default_scan_params.set(ScanParameters.ISOLATION_WIDTH, DEFAULT_ISOLATION_WIDTH)
         default_scan_params.set(ScanParameters.COLLISION_ENERGY, collision_energy)
         default_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, orbitrap_resolution)
@@ -200,6 +201,7 @@ class Environment(object):
         default_scan_params.set(ScanParameters.ISOLATION_MODE, isolation_mode)
         default_scan_params.set(ScanParameters.AGC_TARGET, agc_target)
         default_scan_params.set(ScanParameters.MAX_IT, max_it)
+        default_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
         default_scan_params.set(ScanParameters.POLARITY, self.mass_spec.ionisation_mode)
         default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
         default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
@@ -208,6 +210,7 @@ class Environment(object):
     def get_dda_scan_param(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
                            agc_target=DEFAULT_MS2_AGC_TARGET, max_it=DEFAULT_MS2_MAXIT,
                            collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                           source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
                            orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION, mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                            activation_type=DEFAULT_MS1_ACTIVATION_TYPE, isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
         dda_scan_params = ScanParameters()
@@ -254,6 +257,7 @@ class Environment(object):
         dda_scan_params.set(ScanParameters.ISOLATION_MODE, isolation_mode)
         dda_scan_params.set(ScanParameters.AGC_TARGET, agc_target)
         dda_scan_params.set(ScanParameters.MAX_IT, max_it)
+        dda_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
         dda_scan_params.set(ScanParameters.POLARITY, self.mass_spec.ionisation_mode)
         dda_scan_params.set(ScanParameters.FIRST_MASS, DEFAULT_MSN_SCAN_WINDOW[0])
 

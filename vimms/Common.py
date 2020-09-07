@@ -45,6 +45,7 @@ DEFAULT_MS1_MASS_ANALYSER = 'Orbitrap'  # IonTrap, Orbitrap
 DEFAULT_MS2_MASS_ANALYSER = 'Orbitrap'  # IonTrap, Orbitrap
 DEFAULT_MS1_ISOLATION_MODE = 'Quadrupole'  # None, Quadrupole, IonTrap
 DEFAULT_MS2_ISOLATION_MODE = 'Quadrupole'  # None, Quadrupole, IonTrap
+DEFAULT_SOURCE_CID_ENERGY = 0
 
 PROTON_MASS = 1.00727645199076
 

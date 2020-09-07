@@ -82,15 +82,6 @@ class TestScheduleManager:
     def test_schedulemanager_mzml(self, fragscan_ps):
         evaluation_methods = []
 
-        MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
-                           'mz_tol': 5,
-                           'mz_units': 'ppm',
-                           'min_length': 1,
-                           'min_intensity': 0,
-                           'start_rt': 0,
-                           'stop_rt': 1560,
-                           'n_peaks': 1}
-
         controller_params = {"ionisation_mode": POSITIVE,
                              "N": 10,
                              "mz_tol": 10,
@@ -173,15 +164,6 @@ class TestGridSearch:
                             'isolation_transition_window': 'rectangular',
                             'isolation_transition_window_params': None,
                             'scan_duration_dict': DEFAULT_SCAN_TIME_DICT}
-
-        MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
-                           'mz_tol': 5,
-                           'mz_units': 'ppm',
-                           'min_length': 1,
-                           'min_intensity': 0,
-                           'start_rt': 0,
-                           'stop_rt': 1560,
-                           'n_peaks': 1}
 
         vsm = VimmsSequenceManager(None, evaluation_methods, OUT_DIR, ms1_picked_peaks_file=None,
                                    progress_bar=False, mzmine_command=None)

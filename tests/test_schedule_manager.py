@@ -120,8 +120,7 @@ class TestScheduleManager:
 
         vsm = VimmsSequenceManager(controller_schedule2, evaluation_methods, OUT_DIR, ms1_picked_peaks_file=None,
                                    progress_bar=True, mzmine_command=None)
-        experiment = BasicExperiment(vsm, parallel=False, mzml_file_list=mzml_file_list,
-                                     MZML2CHEMS_DICT=MZML2CHEMS_DICT, ps=fragscan_ps)
+        experiment = BasicExperiment(vsm, parallel=False, mzml_file_list=mzml_file_list, ps=fragscan_ps)
 
 
 class TestGridSearch:
@@ -187,6 +186,6 @@ class TestGridSearch:
         vsm = VimmsSequenceManager(None, evaluation_methods, OUT_DIR, ms1_picked_peaks_file=None,
                                    progress_bar=False, mzmine_command=None)
         gs = GridSearchExperiment(vsm, 'TopNController', mass_spec_params, None, topn_variable_params_dict,
-                                  controller_params, str(MZML_FILE), MZML2CHEMS_DICT=MZML2CHEMS_DICT, ps=fragscan_ps,
+                                  controller_params, str(MZML_FILE), ps=fragscan_ps,
                                   parallel=False)
 

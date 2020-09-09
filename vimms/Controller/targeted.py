@@ -4,6 +4,10 @@ from vimms.Common import DEFAULT_ISOLATION_WIDTH
 from vimms.MassSpec import ScanParameters
 from loguru import logger
 
+def create_targets():
+    # TODO -- from toxid csv
+    pass
+
 class Target(object):
     def __init__(self, mz, min_mz, max_mz, min_rt, max_rt):
         self.mz = mz

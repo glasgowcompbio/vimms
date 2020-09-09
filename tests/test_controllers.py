@@ -902,9 +902,26 @@ class TestAIFControllers:
         cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri)
         d = cs.sample(1,2)
 
-        controller = AIF()
+        params = AdvancedParams(ms1_source_cid_energy=30)
+        controller = AIF(params=params)
         ionisation_mode = POSITIVE
-        ms = IndependentMassSpectrometer(ionisation_mode,  d, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode,  d, None)
+        env = Environment(mass_spec, controller, 10, 20, progress_bar=True)
+
+        set_log_level_warning()
+        env.run()
+
+        for i,s in enumerate(controller.scans[1]):
+            if i % 2 == 1:
+                # odd scan, AIF, should  have two peaks at 81 and 91
+                integer_mzs =  [int(i) for i in s.mzs]
+                integer_mzs.sort()
+                assert integer_mzs[0] == 81
+                assert integer_mzs[1] == 91
+            else:
+                # even scan, MS1 - should have a single peak at integer value of 101
+                integer_mzs = [int(i) for i in s.mzs]
+                assert integer_mzs[0] == 101 
 
 
 class TestSWATH:

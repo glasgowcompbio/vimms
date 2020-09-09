@@ -515,7 +515,7 @@ class IndependentMassSpectrometer(object):
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
 
-        collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
+        ms1_source_collision_energy = params.get(ScanParameters.SOURCE_CID_ENERGY)
 
         scan_mzs = []  # all the mzs values in this scan
         scan_intensities = []  # all the intensity values in this scan
@@ -540,7 +540,7 @@ class IndependentMassSpectrometer(object):
 
         # the following is to ensure we generate fragment data when we have a collision energe >0
         use_ms_level = ms_level
-        if ms_level == 1 and collision_energy > 0:
+        if ms_level == 1 and ms1_source_collision_energy > 0:
             use_ms_level = 2
 
         for i in idx:

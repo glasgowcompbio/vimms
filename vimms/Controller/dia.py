@@ -11,16 +11,14 @@ from vimms.MassSpec import ScanParameters
 
 
 class AIF(Controller):
-    def __init__(self, min_mz, max_mz, params=None):
+    def __init__(self, params=None):
         super().__init__(params=params)
-        self.min_mz = min_mz  # scan from this mz
-        self.max_mz = max_mz  # scan to this mz
         self.scan_number = self.initial_scan_id
 
     def write_msdial_experiment_file(self, filename):
         heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE', 'DecTarget(1:Yes, 0:No)']
-        start = self.min_mz
-        stop = self.max_mz
+        start = self.params.default_ms1_scan_window[0]
+        stop = self.params.default_ms1_scan_window[1]
         ce = self.params.ms1_source_cid_energy
         ms1_row = ['0', 'SCAN', start, stop, "0eV", 0, 0]
         aif_row = ['1', 'ALL', start, stop, "{}eV".format(ce), ce, 1]
@@ -53,9 +51,7 @@ class AIF(Controller):
             # make the MS1 scan with source cid energy applied
             aif_scan = self.get_ms1_scan_params()
             aif_scan.set(ScanParameters.SOURCE_CID_ENERGY, self.params.ms1_source_cid_energy)
-            aif_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
-            aif_scan.set(ScanParameters.LAST_MASS, self.max_mz)
-            aif_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            aif_scan.set(ScanParameters.ISOLATION_WINDOWS, [[self.params.default_ms1_scan_window]]) 
             self._check_scan(aif_scan)
 
             scans.append(aif_scan)
@@ -66,9 +62,7 @@ class AIF(Controller):
             # make the MS1 scan with no energy applied
             ms1_scan = self.get_ms1_scan_params()
             ms1_scan.set(ScanParameters.SOURCE_CID_ENERGY, DEFAULT_SOURCE_CID_ENERGY)
-            ms1_scan.set(ScanParameters.FIRST_MASS, self.min_mz)
-            ms1_scan.set(ScanParameters.LAST_MASS, self.max_mz)
-            ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[(self.min_mz, self.max_mz)]])
+            ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[self.params.default_ms1_scan_window]])
             self._check_scan(ms1_scan)
 
             scans.append(ms1_scan)

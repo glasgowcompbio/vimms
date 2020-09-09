@@ -2,6 +2,7 @@
 from vimms.Controller.base import Controller
 from vimms.Common import DEFAULT_ISOLATION_WIDTH
 from vimms.MassSpec import ScanParameters
+from loguru import logger
 
 class Target(object):
     def __init__(self, mz, min_mz, max_mz, min_rt, max_rt):
@@ -44,7 +45,7 @@ class TargetedController(Controller):
         self.target_counts = {}
         for t in self.targets:
             self.target_counts[t] = {c: n_replicates for c in self.ce_values}
-    
+
     def update_state_after_scan(self, last_scan):
         pass
 
@@ -58,24 +59,26 @@ class TargetedController(Controller):
             mzi = list(zip(mzs, intensities))
 
             active_targets = list(filter(lambda x: x.active(mzi, rt, self.min_ms1_intensity), self.targets))
-
+            
             target_list = []
             for t in active_targets:
-                for ce in self.ce_values:
+                for ce in self.target_counts[t]:
                     if self.target_counts[t][ce] > 0:
                         target_list.append((t, ce, self.n_replicates - self.target_counts[t][ce]))
             
             
+            
             if len(target_list) > 0:
+                target_list.sort(key = lambda x: x[2], reverse=True) # prioritise by how far we are below the number of repetitions we want
                 # make some MS2 scans, upto N
                 for i in range(min(len(target_list), self.N)):
-                    for t, ce, _ in target_list:
-                        dda_scan_params = self.get_ms2_scan_params(t.mz, 1e3, precursor_scan_id, self.isolation_width, \
-                                                            self.mz_tol, self.rt_tol)
-                        dda_scan_params.set(ScanParameters.COLLISION_ENERGY, ce)
-                        new_tasks.append(dda_scan_params)
-                        self.current_task_id += 1
-                        self.target_counts[t][ce] -= 1
+                    t, ce, _ = target_list[i]
+                    dda_scan_params = self.get_ms2_scan_params(t.mz, 1e3, precursor_scan_id, self.isolation_width, \
+                                                        self.mz_tol, self.rt_tol)
+                    dda_scan_params.set(ScanParameters.COLLISION_ENERGY, ce)
+                    new_tasks.append(dda_scan_params)
+                    self.current_task_id += 1
+                    self.target_counts[t][ce] -= 1
             
             # make the MS1 scan
             ms1_scan_params = self.get_ms1_scan_params()

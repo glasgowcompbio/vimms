@@ -1235,7 +1235,7 @@ class TestTargetedController:
         targets.append(Target(101, 100, 102, 10, 20))
         targets.append(Target(201, 200, 202, 10, 20))
         ce_values = [10, 20, 30]
-        n_replicates = 3
+        n_replicates = 4 
         controller = TargetedController(targets, ce_values, n_replicates=n_replicates)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None)
         env = Environment(mass_spec, controller, 5, 25, progress_bar=True)

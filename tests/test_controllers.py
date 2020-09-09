@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
-    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler
+    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler, \
+        FixedMS2Sampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
@@ -759,7 +760,7 @@ class TestAIFControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
-
+    @pytest.mark.skip()
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals')
 
@@ -785,9 +786,9 @@ class TestAIFControllers:
         logger.info('Without noise')
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
-        params = AdvancedParams()
+        params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         params.ms1_source_cid_energy = 30
-        controller = AIF(min_mz, max_mz, params=params)
+        controller = AIF(params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -813,9 +814,9 @@ class TestAIFControllers:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict, mz_noise=mz_noise,
                                                 intensity_noise=intensity_noise)
-        params = AdvancedParams()
+        params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         params.ms1_source_cid_energy = 30
-        controller = AIF(min_mz, max_mz, params=params)
+        controller = AIF(params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -833,7 +834,7 @@ class TestAIFControllers:
         # write simulated output to mzML file
         filename = 'AIF_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
-
+    @pytest.mark.skip()
     def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -852,9 +853,9 @@ class TestAIFControllers:
         scan_time_dict = {1: 0.124, 2: 0.124}
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
-        params = AdvancedParams()
+        params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         params.ms1_source_cid_energy = 30
-        controller = AIF(min_mz, max_mz, params=params)
+        controller = AIF(params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -872,12 +873,13 @@ class TestAIFControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    @pytest.mark.skip
     def test_aif_msdial_experiment_file(self):
         min_mz = 200
         max_mz = 300
-        params = AdvancedParams()
+        params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         params.ms1_source_cid_energy = 30
-        controller = AIF(min_mz, max_mz, params=params)
+        controller = AIF(params=params)
         out_file = Path(OUT_DIR, 'AIF_experiment.txt')
         controller.write_msdial_experiment_file(out_file)
 
@@ -891,6 +893,35 @@ class TestAIFControllers:
         expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
         for i,val in  enumerate(expected_row):
             assert rows[-1][i] == str(val)
+
+    def test_aif_with_fixed_chems(self):
+        fs = EvenMZFormulaSampler()
+        ms = FixedMS2Sampler(n_frags=2)
+        cs = ConstantChromatogramSampler()
+        ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=1)
+        cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri)
+        d = cs.sample(1,2)
+
+        params = AdvancedParams(ms1_source_cid_energy=30)
+        controller = AIF(params=params)
+        ionisation_mode = POSITIVE
+        mass_spec = IndependentMassSpectrometer(ionisation_mode,  d, None)
+        env = Environment(mass_spec, controller, 10, 20, progress_bar=True)
+
+        set_log_level_warning()
+        env.run()
+
+        for i,s in enumerate(controller.scans[1]):
+            if i % 2 == 1:
+                # odd scan, AIF, should  have two peaks at 81 and 91
+                integer_mzs =  [int(i) for i in s.mzs]
+                integer_mzs.sort()
+                assert integer_mzs[0] == 81
+                assert integer_mzs[1] == 91
+            else:
+                # even scan, MS1 - should have a single peak at integer value of 101
+                integer_mzs = [int(i) for i in s.mzs]
+                assert integer_mzs[0] == 101 
 
 
 class TestSWATH:
@@ -1155,7 +1186,6 @@ class TestFixedScansController:
 
 
 class TestChemsFromMZML:
-    @pytest.mark.skip()
     def test_fullscan_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
@@ -1164,8 +1194,7 @@ class TestChemsFromMZML:
         set_log_level_warning()
         env.run()
         filename = 'fullscan_from_mzml.mzML'
-        check_mzML(env,OUT_DIR, filename)
-    @pytest.mark.skip()
+        check_mzML(env,OUT_DIR, filename) 
     def test_topn_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         N = 10

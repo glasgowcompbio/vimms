@@ -387,6 +387,28 @@ class UniformMS2Sampler(MS2Sampler):
 
         return mz_list, intensity_list, parent_proportion
 
+class FixedMS2Sampler(MS2Sampler):
+    """
+    Generates n_frags fragments, where each is chemical - i*10 mz
+    """
+    def __init__(self, n_frags=2):
+        self.n_frags = n_frags
+
+    def sample(self, chemical):
+        initial_mz = chemical.mass
+        mz_list = []
+        intensity_list = []
+        parent_proportion = 0.5
+        for i in range(self.n_frags):
+            mz_list.append(initial_mz - (i+1)*10)
+            intensity_list.append(1)
+        s = sum(intensity_list)
+        intensity_list = [i / s for i in intensity_list]
+        return mz_list, intensity_list, parent_proportion
+        
+
+
+
 
 class CRPMS2Sampler(MS2Sampler):
     """

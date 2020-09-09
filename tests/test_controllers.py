@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
-    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler
+    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler, \
+        FixedMS2Sampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
@@ -759,7 +760,7 @@ class TestAIFControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
-
+    @pytest.mark.skip()
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals')
 
@@ -833,7 +834,7 @@ class TestAIFControllers:
         # write simulated output to mzML file
         filename = 'AIF_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
-
+    @pytest.mark.skip()
     def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -872,6 +873,7 @@ class TestAIFControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    @pytest.mark.skip
     def test_aif_msdial_experiment_file(self):
         min_mz = 200
         max_mz = 300
@@ -891,6 +893,18 @@ class TestAIFControllers:
         expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
         for i,val in  enumerate(expected_row):
             assert rows[-1][i] == str(val)
+
+    def test_aif_with_fixed_chems(self):
+        fs = EvenMZFormulaSampler()
+        ms = FixedMS2Sampler(n_frags=2)
+        cs = ConstantChromatogramSampler()
+        ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=1)
+        cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri)
+        d = cs.sample(1,2)
+
+        controller = AIF()
+        ionisation_mode = POSITIVE
+        ms = IndependentMassSpectrometer(ionisation_mode,  d, None)
 
 
 class TestSWATH:

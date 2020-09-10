@@ -1,20 +1,71 @@
 # vimms.Controller.targeted
+
+import csv
+from molmass import Formula
+from mass_spec_utils.adduct_calculator.adduct_rules import AdductTransformer
+
 from vimms.Controller.base import Controller
 from vimms.Common import DEFAULT_ISOLATION_WIDTH
 from vimms.MassSpec import ScanParameters
 from loguru import logger
 
-def create_targets():
-    # TODO -- from toxid csv
-    pass
+def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60.):
+    """
+    Note: mz_delta is in ppm
+    """
+    target_list = []
+    
+    with open(str(toxid_file_name), 'r') as f:
+        reader = csv.reader(f)
+        line = [None]
+        while len(line) == 0 or not line[0] == 'Peak Num':
+            line = next(reader)
+        # we will now be in the data
+        at = AdductTransformer()
+
+        for line in reader:
+            if len(line) == 0 or line[0] == '-': # empty line, or undetected compound
+                continue
+            name = line[2]
+            formula = line[3]
+            polarity = line[4]
+            detected_mz = float(line[6])
+            expected_rt = float(line[8])
+            actual_rt = float(line[9])
+            if file_rt_units == 'minutes':
+                expected_rt *= 60.
+                actual_rt *= 60.
+            inrtensity = line[10]
+            for val in line[11:]:
+                assert val == '-' or val  ==  ''
+            metadata = {'name': name, 'formula': formula, 'polarity': polarity, \
+                        'expected_rt': expected_rt, 'actual_rt': actual_rt}
+            
+            if polarity == '+':
+                theoretical_mz = at.mass2ion(Formula(formula).isotope.mass, '[M+H]+')
+            else:
+                theoretical_mz = at.mass2ion(Formula(formula).isotope.mass, '[M-H]-')
+
+            min_mz = theoretical_mz - theoretical_mz * mz_delta / 1e6
+            max_mz = theoretical_mz + theoretical_mz * mz_delta / 1e6
+            min_rt = expected_rt - rt_delta
+            max_rt = expected_rt + rt_delta
+            new_target = Target(theoretical_mz, min_mz, max_mz, min_rt, max_rt, name=name, metadata=metadata)
+            target_list.append(new_target)
+
+    return target_list
+    
 
 class Target(object):
-    def __init__(self, mz, min_mz, max_mz, min_rt, max_rt):
+    def __init__(self, mz, min_mz, max_mz, min_rt, max_rt, name=None, metadata=None):
         self.mz = mz
         self.min_mz = min_mz
         self.max_mz = max_mz
         self.min_rt = min_rt
         self.max_rt = max_rt
+
+        self.name = name
+        self.metadata = metadata
     
     def active(self, mz_intensity, rt, min_intensity_for_fragmentation):
         # check if there is a peak inside this box
@@ -50,6 +101,8 @@ class TargetedController(Controller):
         for t in self.targets:
             self.target_counts[t] = {c: n_replicates for c in self.ce_values}
 
+        self.scan_record = [] # keeps track of which scan is which
+
     def update_state_after_scan(self, last_scan):
         pass
 
@@ -83,11 +136,13 @@ class TargetedController(Controller):
                     new_tasks.append(dda_scan_params)
                     self.current_task_id += 1
                     self.target_counts[t][ce] -= 1
+                    self.scan_record.append([self.current_task_id, t, ce])
             
             # make the MS1 scan
             ms1_scan_params = self.get_ms1_scan_params()
             self.current_task_id += 1
             self.next_processed_scan_id = self.current_task_id
+            self.scan_record.append([self.current_task_id, None, None])
             new_tasks.append(ms1_scan_params)
         return new_tasks
 

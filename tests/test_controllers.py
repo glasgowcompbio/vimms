@@ -11,7 +11,7 @@ from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMix
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, \
-        SWATH, DiaController, AdvancedParams, TargetedController, Target
+        SWATH, DiaController, AdvancedParams, TargetedController, Target, create_targets_from_toxid
 
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
@@ -1261,7 +1261,18 @@ class TestTargetedController:
                 assert count == n_replicates
         
 
-
+    def test_target_creation(self):
+        toxid_file = Path(BASE_DIR, 'Std1_1_20150422_150810.csv')
+        targets = create_targets_from_toxid(toxid_file)
+        assert len(targets) == 82
+        toxid_file = Path(BASE_DIR, 'Std2_1_20150422_150711.csv')
+        targets = create_targets_from_toxid(toxid_file)
+        assert len(targets) == 88
+        toxid_file = Path(BASE_DIR, 'Std3_1_20150422_150553.csv')
+        targets = create_targets_from_toxid(toxid_file)
+        assert len(targets) == 35
+        set_log_level_debug()
+        logger.debug(targets[-1].mz)
 
 
 

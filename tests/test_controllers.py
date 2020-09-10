@@ -10,7 +10,8 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
-    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, SWATH, DiaController, AdvancedParams
+    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, \
+        SWATH, DiaController, AdvancedParams, TargetedController, Target, create_targets_from_toxid
 
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
@@ -760,7 +761,6 @@ class TestAIFControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
-    @pytest.mark.skip()
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals')
 
@@ -834,7 +834,7 @@ class TestAIFControllers:
         # write simulated output to mzML file
         filename = 'AIF_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
-    @pytest.mark.skip()
+    
     def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -873,7 +873,7 @@ class TestAIFControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    @pytest.mark.skip
+    
     def test_aif_msdial_experiment_file(self):
         min_mz = 200
         max_mz = 300
@@ -1220,6 +1220,62 @@ class TestChemsFromMZML:
         env.run()
         filename = 'fullscan_mz_rt_i_from_mzml.mzML'
         check_mzML(env,OUT_DIR, filename)
+
+
+class TestTargetedController:
+    def test_targeted(self):
+        fs = EvenMZFormulaSampler()
+        ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=10)
+        cr = ConstantChromatogramSampler()
+        ms = FixedMS2Sampler()
+        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cr, ms2_sampler=ms)
+        d = cs.sample(2,2) # sample chems with m/z = 100 and 200
+        ionisation_mode = POSITIVE
+        targets = []
+        targets.append(Target(101, 100, 102, 10, 20))
+        targets.append(Target(201, 200, 202, 10, 20))
+        ce_values = [10, 20, 30]
+        n_replicates = 4 
+        controller = TargetedController(targets, ce_values, n_replicates=n_replicates, limit_acquisition=True)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None)
+        env = Environment(mass_spec, controller, 5, 25, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        # check that we go all the scans we wanted
+        for ms_level in controller.scans:
+            assert len(controller.scans[ms_level]) >  0
+        set_log_level_debug()
+        target_counts = {t: {c: 0 for c in ce_values} for t in targets}
+
+
+        for s in controller.scans[2]:
+            params = s.scan_params
+            pmz = params.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
+            filtered_targets = list(filter(lambda x: x.min_rt <= s.rt and x.max_rt >= s.rt and x.min_mz <= pmz and x.max_mz >= pmz, targets))
+            assert len(filtered_targets) == 1
+            target = filtered_targets[0]
+            ce = params.get(ScanParameters.COLLISION_ENERGY)
+            target_counts[target][ce] += 1
+        
+        for t in target_counts:
+            for ce, count in target_counts[t].items():
+                assert count == n_replicates
+        
+
+    def test_target_creation(self):
+        toxid_file = Path(BASE_DIR, 'StdMix1_pHILIC_Current.csv')
+        targets = create_targets_from_toxid(toxid_file)
+        assert len(targets) > 0
+        toxid_file = Path(BASE_DIR, 'StdMix2_pHILIC_Current.csv')
+        targets = create_targets_from_toxid(toxid_file)
+        assert len(targets) > 0
+        toxid_file = Path(BASE_DIR, 'StdMix3_pHILIC_Current.csv')
+        targets = create_targets_from_toxid(toxid_file)
+        assert len(targets) > 0
+        set_log_level_debug()
+        logger.debug(targets[-1].mz)
+
 
 
 if __name__ == '__main__':

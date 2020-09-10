@@ -1236,7 +1236,7 @@ class TestTargetedController:
         targets.append(Target(201, 200, 202, 10, 20))
         ce_values = [10, 20, 30]
         n_replicates = 4 
-        controller = TargetedController(targets, ce_values, n_replicates=n_replicates)
+        controller = TargetedController(targets, ce_values, n_replicates=n_replicates, limit_acquisition=True)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None)
         env = Environment(mass_spec, controller, 5, 25, progress_bar=True)
         set_log_level_warning()
@@ -1245,8 +1245,10 @@ class TestTargetedController:
         # check that we go all the scans we wanted
         for ms_level in controller.scans:
             assert len(controller.scans[ms_level]) >  0
-        
+        set_log_level_debug()
         target_counts = {t: {c: 0 for c in ce_values} for t in targets}
+
+
         for s in controller.scans[2]:
             params = s.scan_params
             pmz = params.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
@@ -1262,15 +1264,15 @@ class TestTargetedController:
         
 
     def test_target_creation(self):
-        toxid_file = Path(BASE_DIR, 'Std1_1_20150422_150810.csv')
+        toxid_file = Path(BASE_DIR, 'StdMix1_pHILIC_Current.csv')
         targets = create_targets_from_toxid(toxid_file)
-        assert len(targets) == 82
-        toxid_file = Path(BASE_DIR, 'Std2_1_20150422_150711.csv')
+        assert len(targets) > 0
+        toxid_file = Path(BASE_DIR, 'StdMix2_pHILIC_Current.csv')
         targets = create_targets_from_toxid(toxid_file)
-        assert len(targets) == 88
-        toxid_file = Path(BASE_DIR, 'Std3_1_20150422_150553.csv')
+        assert len(targets) > 0
+        toxid_file = Path(BASE_DIR, 'StdMix3_pHILIC_Current.csv')
         targets = create_targets_from_toxid(toxid_file)
-        assert len(targets) == 35
+        assert len(targets) > 0
         set_log_level_debug()
         logger.debug(targets[-1].mz)
 

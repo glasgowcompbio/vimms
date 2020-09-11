@@ -514,11 +514,12 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
         return mz_list, intensity_list, parent_proportion
 
 class MZMLMS2Sampler(MS2Sampler):
-    def __init__(self, mzml_file, min_n_peaks = 1, min_total_intensity=1e3, min_proportion=0.1, max_proportion=0.8):
+    def __init__(self, mzml_file, min_n_peaks = 1, min_total_intensity=1e3, min_proportion=0.1, max_proportion=0.8, with_replacement=False):
         self.mzml_file_name = mzml_file
         self.mzml_object = MZMLFile(str(mzml_file))
         self.min_n_peaks = min_n_peaks
         self.min_total_intensity = min_total_intensity
+        self.with_replacement = with_replacement
 
         self.min_proportion = min_proportion
         self.max_proportion = max_proportion
@@ -530,16 +531,17 @@ class MZMLMS2Sampler(MS2Sampler):
         ms2_scans = list(filter(lambda x: x.ms_level == 2 and
                                           len(x.peaks) >= self.min_n_peaks and 
                                           sum([i for mz,i in x.peaks]) >= self.min_total_intensity, self.mzml_object.scans))
-        assert len(ms2_scans) > 0
+        assert len(ms2_scans) > 0, "After filtering no ms2 scans remain - consider loosening filter parameters"
         logger.debug("{} MS2 scansn remaining".format(len(ms2_scans)))
         self.ms2_scans = ms2_scans
 
     def sample(self,chemical):
-        assert len(self.ms2_scans) > 0
+        assert len(self.ms2_scans) > 0, "MS2 sampler ran out of scans. Consider an alternative, or setting with_replacement to True"
         # pick a scan and removoe
         scan_idx = np.random.choice(len(self.ms2_scans),1)[0]
         scan = self.ms2_scans[scan_idx]
-        del self.ms2_scans[scan_idx]
+        if not self.with_replacement:
+            del self.ms2_scans[scan_idx]
 
         parent_proportion = np.random.rand() * (self.max_proportion - self.min_proportion) + \
                             self.min_proportion

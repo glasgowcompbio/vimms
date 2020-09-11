@@ -9,7 +9,7 @@ from vimms.Common import DEFAULT_ISOLATION_WIDTH
 from vimms.MassSpec import ScanParameters
 from loguru import logger
 
-def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60., adducts_to_use=['[M+H]+', '[M+K]+', '[M+Na]+']):
+def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60., polarity_filter=['+'], adducts_to_use=['[M+H]+', '[M+K]+', '[M+Na]+']):
     """
     Note: mz_delta is in ppm
     """
@@ -29,6 +29,8 @@ def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta
             name = line[1]
             formula = line[2]
             polarity = line[3]
+            if not polarity in polarity_filter:
+                continue
             expected_rt = float(line[5])
             if file_rt_units == 'minutes':
                 expected_rt *= 60.

@@ -93,6 +93,15 @@ class Controller(object):
         """
         return []
 
+    def get_initial_scan_params(self):
+        """
+        Gets the initial scan parameters to send to the mass spec that starts the whole process.
+        Will default to sending an MS1 scan with whatever parameters passed in self.params
+        Subclasses can override this to return different types of scans.
+        :return: the MS1
+        """
+        return self.get_ms1_scan_params()
+
     def set_environment(self, env):
         self.environment = env
 
@@ -145,7 +154,7 @@ class Controller(object):
                 plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
             plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt, scan.num_peaks))
             plt.show()
-    
+
     def _check_scan(self, params):
 
         # checks that the conditions that are checked in 
@@ -172,4 +181,3 @@ class Controller(object):
         assert polarity is not None
         assert first_mass is not None
         assert last_mass is not None
-

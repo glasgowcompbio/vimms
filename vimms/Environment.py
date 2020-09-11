@@ -31,6 +31,7 @@ class Environment(object):
         self.out_dir = out_dir
         self.out_file = out_file
         self.pending_tasks = []
+        self.bar = tqdm(total=self.max_time - self.min_time, initial=0) if self.progress_bar else None
 
     def run(self):
         """
@@ -49,35 +50,40 @@ class Environment(object):
         self.mass_spec.register_event(IndependentMassSpectrometer.STATE_CHANGED,
                                       self.handle_state_changed)
 
-        # run mass spec
-        bar = tqdm(total=self.max_time - self.min_time, initial=0) if self.progress_bar else None
+        # initial scan should be generated here when the acquisition opens
         self.mass_spec.fire_event(IndependentMassSpectrometer.ACQUISITION_STREAM_OPENING)
 
-        # set this to add initial MS1 scan
-        initial_scan = True
+        # main loop to the simulate scan generation process of the mass spec
         try:
             # perform one step of mass spec up to max_time
             while self.mass_spec.time < self.max_time:
-                # controller._process_scan() is called here immediately when a scan is produced within a step
-                scan = self.mass_spec.step(initial_scan)
-                if initial_scan:
-                    # no longer initial scan
-                    initial_scan = False
-
-                # update controller internal states AFTER a scan has been generated and handled
-                self.controller.update_state_after_scan(scan)
-                # increment progress bar
-                self._update_progress_bar(bar, scan)
+                # unless no more scan scheduled by the controller, then stop the simulated run
+                scan = self._one_step()
+                if scan is None:
+                    break
         except Exception as e:
             raise e
         finally:
             self.mass_spec.fire_event(IndependentMassSpectrometer.ACQUISITION_STREAM_CLOSED)
             self.mass_spec.close()
-            self.close_progress_bar(bar)
+            self.close_progress_bar()
         self.write_mzML(self.out_dir, self.out_file)
+
+    def _one_step(self, params=None):
+        # controller._process_scan() is called here immediately when a scan is produced within a step
+        scan = self.mass_spec.step(params=params)
+        if scan is not None:
+            # update controller internal states AFTER a scan has been generated and handled
+            self.controller.update_state_after_scan(scan)
+            # increment progress bar
+            self._update_progress_bar(scan)
+        return scan
 
     def handle_acquisition_open(self):
         logger.debug('Acquisition open')
+        # send the initial custom scan to start the custom scan generation process
+        params = self.get_initial_scan_params()
+        self._one_step(params=params)
 
     def handle_acquisition_closing(self):
         logger.debug('Acquisition closing')
@@ -85,31 +91,27 @@ class Environment(object):
     def handle_state_changed(self, state):
         logger.debug('State changed!')
 
-    def _update_progress_bar(self, pbar, scan):
+    def _update_progress_bar(self, scan):
         """
         Updates progress bar based on elapsed time
-        :param elapsed: Elapsed time to increment the progress bar
-        :param pbar: progress bar object
         :param scan: the newly generated scan
         :return: None
         """
-        if pbar is not None:
-            N, DEW = self._get_N_DEW(self.mass_spec.time)
-            if N is not None and DEW is not None:
-                msg = '(%.3fs) ms_level=%d N=%d DEW=%d' % (self.mass_spec.time, scan.ms_level, N, DEW)
-            else:
-                msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
-            if pbar.n + scan.scan_duration < pbar.total:
-                pbar.update(scan.scan_duration)
-            pbar.set_description(msg)
+        N, DEW = self._get_N_DEW(self.mass_spec.time)
+        if N is not None and DEW is not None:
+            msg = '(%.3fs) ms_level=%d N=%d DEW=%d' % (self.mass_spec.time, scan.ms_level, N, DEW)
+        else:
+            msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
+        if self.bar.n + scan.scan_duration < self.bar.total:
+            self.bar.update(scan.scan_duration)
+        self.bar.set_description(msg)
 
-    def close_progress_bar(self, bar):
-        if bar is not None:
-            try:
-                bar.close()
-            except Exception as e:
-                logger.warning('Failed to close progress bar: %s' % str(e))
-                pass
+    def close_progress_bar(self):
+        try:
+            self.pbar.close()
+        except Exception as e:
+            logger.warning('Failed to close progress bar: %s' % str(e))
+            pass
 
     def add_scan(self, scan):
         """
@@ -178,6 +180,9 @@ class Environment(object):
             self.mass_spec.current_N = N
         if DEW is not None:
             self.mass_spec.current_DEW = DEW
+
+    def get_initial_scan_params(self):
+        return self.controller.get_initial_scan_params()
 
     def get_default_scan_params(self, agc_target=DEFAULT_MS1_AGC_TARGET, max_it=DEFAULT_MS1_MAXIT,
                                 collision_energy=DEFAULT_MS1_COLLISION_ENERGY,

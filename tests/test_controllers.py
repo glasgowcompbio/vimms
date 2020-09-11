@@ -237,7 +237,7 @@ class TestMS1Controller:
         run_environment(env)
 
         for scan_level, scans in controller.scans.items():
-            for s in scans[1:]:
+            for s in scans:
                 assert min(s.mzs) >= min_mz
                 assert max(s.mzs) <= max_mz
 

@@ -411,6 +411,7 @@ class TestTopNController:
         filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+class TestExclusion:
     def test_TopN_controller_with_beer_chems_and_initial_exclusion_list(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals and an initial exclusion list')
 
@@ -439,6 +440,39 @@ class TestTopNController:
             # write simulated output to mzML file
             filename = 'topN_controller_qcbeer_exclusion_%d.mzML' % i
             check_mzML(env, OUT_DIR, filename)
+
+    def test_exclusion_simple_data(self):
+        # three chemicals, both will get fragmented 
+        # first time around and exclusion such  that neither
+        # should be fragmented second time
+        fs = EvenMZFormulaSampler()
+        ch = ConstantChromatogramSampler()
+        rti = UniformRTAndIntensitySampler(min_rt=0, max_rt=5)
+        cs = ChemicalMixtureCreator(fs, chromatogram_sampler=ch, rt_and_intensity_sampler=rti)
+        n_chems = 3
+        dataset = cs.sample(n_chems, 2)
+        ionisation_mode = POSITIVE
+        initial_exclusion_list = None
+        min_ms1_intensity = 0
+        N = 10
+        mz_tol = 10
+        rt_tol = 30
+        isolation_width = 1
+        all_controllers = []
+        for i in range(2):
+            mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, None)
+            controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
+                                        initial_exclusion_list=initial_exclusion_list)
+            print('exclude = %d' % len(controller.exclusion_list))
+            env = Environment(mass_spec, controller, 0, 20, progress_bar=True)
+            run_environment(env)
+
+            if initial_exclusion_list is None:
+                initial_exclusion_list = []
+            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
+            all_controllers.append(controller)
+        assert len(all_controllers[0].scans[2]) == n_chems
+        assert len(all_controllers[1].scans[2]) == 0
 
 
 class TestMultipleMS2Windows:

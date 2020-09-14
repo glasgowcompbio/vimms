@@ -76,7 +76,8 @@ class Environment(object):
             # update controller internal states AFTER a scan has been generated and handled
             self.controller.update_state_after_scan(scan)
             # increment progress bar
-            self._update_progress_bar(scan)
+            if self.bar is True:
+                self._update_progress_bar(scan)
         return scan
 
     def handle_acquisition_open(self):

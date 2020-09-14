@@ -473,7 +473,7 @@ class TestMultipleMS2Windows:
 
         ionisation_mode = POSITIVE
 
-        controller = FixedScansController([])
+        controller = FixedScansController()
         mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
@@ -1170,7 +1170,7 @@ class TestFixedScansController:
         max_rt = 112
         ionisation_mode = POSITIVE
 
-        controller = FixedScansController([])
+        controller = FixedScansController(schedule=None)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 

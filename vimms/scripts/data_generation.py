@@ -1,15 +1,16 @@
 # data generation script
-import sys
 import argparse
-from loguru import logger
-import numpy as np
+import sys
 
+import numpy as np
+from loguru import logger
+
+from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, load_obj, ADDUCT_DICT_POS_MH, set_log_level_warning
 
 sys.path.append('..')
 sys.path.append('../..') # if running in this folder
 
 
-from vimms.Common import *
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.ChemicalSamplers import DatabaseFormulaSampler, UniformRTAndIntensitySampler, UniformMS2Sampler
 from vimms.MassSpec import IndependentMassSpectrometer

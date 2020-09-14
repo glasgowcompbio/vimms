@@ -1,18 +1,19 @@
 # test chemical generaion
+import os
 from pathlib import Path
 
+import numpy as np
 import pytest
-import pysmiles
-
-from vimms.ChemicalSamplers import *
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, DatabaseCompound, ChemicalMixtureFromMZML
-from vimms.Common import *
-from vimms.Noise import NoPeakNoise
-from vimms.Utils import write_msp, mgf_to_database
-from vimms.Roi import RoiParams
-
 from mass_spec_utils.library_matching.gnps import load_mgf
 
+from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, UniformMZFormulaSampler, \
+    CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, MZMLRTandIntensitySampler, MZMLFormulaSampler, \
+    MZMLChromatogramSampler
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
+from vimms.Common import load_obj, ADDUCT_DICT_POS_MH
+from vimms.Noise import NoPeakNoise
+from vimms.Roi import RoiParams
+from vimms.Utils import write_msp, mgf_to_database
 
 np.random.seed(1)
 
@@ -149,6 +150,7 @@ class TestDatabaseCreation:
                 for f in c:
                     assert not f.max_intensity == f.original_chemical.max_intensity
 
+
 class TestMS2Sampling:
     def test_mzml_ms2(self):
         min_n_peaks = 50
@@ -156,7 +158,7 @@ class TestMS2Sampling:
         ud = UniformMZFormulaSampler()
         cm = ChemicalMixtureCreator(ud, ms2_sampler=ms)
         d = cm.sample(N_CHEMICALS, 2)
-        
+
         for chem in d:
             assert len(chem.children) >= min_n_peaks
 
@@ -183,7 +185,7 @@ class TestLinkedCreation:
         # ExactMatchMS2Sampler needs to be given the same mgf file
         # and both need to use the same field in the MGF as the unique ID
         mm = ExactMatchMS2Sampler(MGF_FILE, id_field="SPECTRUMID")
-        cm = ChemicalMixtureCreator(hd, ms2_sampler = mm)
+        cm = ChemicalMixtureCreator(hd, ms2_sampler=mm)
         dataset = cm.sample(N_CHEMICALS, 2)
 
         # check each chemical to see if it has the correct number of peaks
@@ -193,16 +195,16 @@ class TestLinkedCreation:
             assert len(chem.children) > 0
             assert len(orig_spec.peaks) == len(chem.children)
 
+
 class TestChemicalsFromMZML():
     def test_chemical_mixture_from_mzml(self):
         roi_params = RoiParams(min_intensity=10, min_length=5)
         cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
         d = cm.sample(None, 2)
-    
+
     def test_rt_from_mzml(self):
         ri = MZMLRTandIntensitySampler(MZML_FILE)
         fs = MZMLFormulaSampler(MZML_FILE)
         cs = MZMLChromatogramSampler(MZML_FILE)
         cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-        cm.sample(100,2)
-        
+        cm.sample(100, 2)

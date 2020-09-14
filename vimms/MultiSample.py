@@ -1,7 +1,7 @@
 # import numpy as np
 #
+# from vimms.BOMAS import BaseOptimiser, QCB_MZML2CHEMS_DICT, XML_TEMPLATE_MS2, MZMINE_COMMAND
 # from vimms.Common import POSITIVE
-# from vimms.BOMAS import *
 # from vimms.PythonMzmine import get_base_scoring_df, get_max_intensity
 #
 # QCB_ROI_CONTROLLER_PARAM_DICT = {"ionisation_mode": POSITIVE,

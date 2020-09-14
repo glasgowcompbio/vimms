@@ -113,8 +113,10 @@ class BaseOptimiser(object):
 
     def run_initial_simulations(self):
         if self.use_parallel:
-            results = run_parallel_controller(self.controller_method, search_param_dict, base_param_dict)
-            return results
+            # TODO: not working yet
+            # results = run_parallel_controller(self.controller_method, search_param_dict, base_param_dict)
+            # return results
+            pass
         else:
             results = self.results
             for idx in range(len(self.initial_params)):
@@ -218,17 +220,17 @@ class BaseOptimiser(object):
                                         controller_param_dict["mz_tol"],
                                         flex_controller_param_dict['DEW'],
                                         controller_param_dict["min_ms1_intensity"])
-        elif controller_method == 'Repeated_RoiController':
-            controller = Repeated_RoiController(controller_param_dict["ionisation_mode"],
-                                                controller_param_dict["isolation_width"],
-                                                controller_param_dict["mz_tol"],
-                                                controller_param_dict["min_ms1_intensity"],
-                                                controller_param_dict["min_roi_intensity"],
-                                                controller_param_dict["min_roi_length"],
-                                                controller_param_dict["N"],
-                                                controller_param_dict["rt_tol"],
-                                                controller_param_dict["min_roi_length_for_fragmentation"],
-                                                flex_controller_param_dict["peak_df"])
+        # elif controller_method == 'Repeated_RoiController':
+        #     controller = Repeated_RoiController(controller_param_dict["ionisation_mode"],
+        #                                         controller_param_dict["isolation_width"],
+        #                                         controller_param_dict["mz_tol"],
+        #                                         controller_param_dict["min_ms1_intensity"],
+        #                                         controller_param_dict["min_roi_intensity"],
+        #                                         controller_param_dict["min_roi_length"],
+        #                                         controller_param_dict["N"],
+        #                                         controller_param_dict["rt_tol"],
+        #                                         controller_param_dict["min_roi_length_for_fragmentation"],
+        #                                         flex_controller_param_dict["peak_df"])
         return controller  # TODO: add more controller options
 
 

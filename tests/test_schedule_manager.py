@@ -47,6 +47,7 @@ class TestScheduleManager:
     """
     Tests the Schedule Manager starting from both a dataset and an mzml file
     """
+
     def test_schedulemanager_dataset(self):
         evaluation_methods = []
 
@@ -120,6 +121,7 @@ class TestGridSearch:
     """
     Tests the Grid Search starting from both a dataset and an mzml file
     """
+
     def test_gridsearch_dataset(self):
         evaluation_methods = []
         topn_variable_params_dict = {'N': [10], 'rt_tol': [15, 30]}
@@ -172,4 +174,3 @@ class TestGridSearch:
         gs = GridSearchExperiment(vsm, 'TopNController', mass_spec_params, None, topn_variable_params_dict,
                                   controller_params, str(MZML_FILE), ps=fragscan_ps,
                                   parallel=False)
-

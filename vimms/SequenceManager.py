@@ -328,7 +328,8 @@ class GridSearchExperiment(BasicExperiment):
             dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
             save_obj(dataset, dataset_name)
             self.dataset_file = dataset_name
-            if self.sequence_manager.ms1_picked_peaks_file is None and len(self.sequence_manager.evaluation_methods) > 0:
+            if self.sequence_manager.ms1_picked_peaks_file is None and len(
+                    self.sequence_manager.evaluation_methods) > 0:
                 self.sequence_manager.ms1_picked_peaks_file = self.sequence_manager.pick_peaks(self.mzml_file, None, 1)
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
@@ -660,7 +661,7 @@ def create_controller(controller_method, param_dict):
     elif controller_method == 'DsDA_RoiController':
         controller = DsDA_RoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                        param_dict['min_roi_intensity'],  param_dict['min_roi_length'], param_dict['N'],
+                                        param_dict['min_roi_intensity'], param_dict['min_roi_length'], param_dict['N'],
                                         param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
                                         param_dict['length_units'], param_dict['peak_df'], param_dict['peak_scores'],
                                         param_dict['ms1_shift'], param_dict['params'])
@@ -672,12 +673,13 @@ def create_controller(controller_method, param_dict):
                                                param_dict['model_params'], param_dict['min_roi_length'],
                                                param_dict['N'], param_dict['rt_tol'],
                                                param_dict['min_roi_length_for_fragmentation'],
-                                               param_dict['length_units'], param_dict['ms1_shift'],param_dict['params'])
+                                               param_dict['length_units'], param_dict['ms1_shift'],
+                                               param_dict['params'])
 
     elif controller_method == 'TopNController':
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                                     param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
-                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'],param_dict['params'])
+                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'], param_dict['params'])
 
     elif controller_method == 'PurityController':
         controller = PurityController(param_dict['ionisation_mode'], param_dict['N'],

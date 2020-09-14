@@ -71,31 +71,37 @@ class Isotopes(object):
 class Adducts(object):
     def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
         if adduct_prior_dict is None:
-            self.adduct_names = list(POS_TRANSFORMATIONS.keys())
-            self.adduct_prior = np.ones(len(self.adduct_names)) * 0.1
-            self.adduct_prior[0] = 1.0  # give more weight to the first one, i.e. M+H
+            self.adduct_names = {POSITIVE: list(POS_TRANSFORMATIONS.keys())}
+            self.adduct_prior = {POSITIVE: np.ones(len(self.adduct_names[POSITIVE])) * 0.1}
+            self.adduct_prior[POSITIVE][0] = 1.0  # give more weight to the first one, i.e. M+H
         else:
-            self.adduct_names = list(adduct_prior_dict.keys())
-            self.adduct_prior = np.array(list(adduct_prior_dict.values()))
+            assert POSITIVE in adduct_prior_dict or NEGATIVE in adduct_prior_dict
+            self.adduct_names = {k: list(adduct_prior_dict[k].keys()) for k in adduct_prior_dict}
+            self.adduct_prior = {k: np.array(list(adduct_prior_dict[k].values())) for k in adduct_prior_dict}
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
 
     def get_adducts(self):
-        adducts = []
+        adducts = {}
         proportions = self._get_adduct_proportions()
-        for j in range(len(self.adduct_names)):
-            if proportions[j] != 0:
-                adducts.extend([(self._get_adduct_names()[j], proportions[j])])
+        for k in self.adduct_names:
+            adducts[k] = []
+            for j in range(len(self.adduct_names[k])):
+                if proportions[k][j] != 0:
+                    adducts[k].extend([(self._get_adduct_names()[k][j], proportions[k][j])])
         return adducts
 
     def _get_adduct_proportions(self):
         # TODO: replace this with something proper
-        proportions = np.random.dirichlet(self.adduct_prior)
-        while max(proportions) < 0.2:
-            proportions = np.random.dirichlet(self.adduct_prior)
-        proportions[np.where(proportions < self.adduct_proportion_cutoff)] = 0
-        proportions = proportions / max(proportions)
-        proportions.tolist()
+        proportions  = {}
+        for k in self.adduct_prior:
+            proportions[k] = np.random.dirichlet(self.adduct_prior[k])
+            while max(proportions[k]) < 0.2:
+                proportions[k] = np.random.dirichlet(self.adduct_prior[k])
+            proportions[k][np.where(proportions[k] < self.adduct_proportion_cutoff)] = 0
+            proportions[k] = proportions[k] / max(proportions[k])
+            proportions[k].tolist()
+            assert len(proportions[k]) == len(self.adduct_names[k])
         return proportions
 
     def _get_adduct_names(self):
@@ -116,7 +122,7 @@ class UnknownChemical(Chemical):
     def __init__(self, mz, rt, max_intensity, chromatogram, children=None):
         self.max_intensity = max_intensity
         self.isotopes = [(mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
-        self.adducts = [("M+H", 1)]
+        self.adducts = {POSITIVE: [("M+H", 1)]}
         self.rt = rt
         self.chromatogram = chromatogram
         self.children = children
@@ -159,7 +165,7 @@ class KnownChemical(Chemical):
         else:
             mz = isotopes.get_isotopes(total_proportion)[0][0]
             self.isotopes = [(mz, 1, "Mono")]
-            self.adducts = [("M+H", 1)]
+            self.adducts = {POSITIVE: [("M+H", 1)]}
         self.rt = rt
         self.max_intensity = max_intensity
         self.chromatogram = chromatogram

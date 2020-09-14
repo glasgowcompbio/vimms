@@ -185,6 +185,66 @@ def chem_mz_rt_i_from_mzml():
     return cm.sample(500, 2)
 ### tests starts from here ###
 
+class TestIonisationMode:
+    def test_positive_fixed(self):
+        fs = EvenMZFormulaSampler()
+        ms = FixedMS2Sampler()
+        ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+        cs = ConstantChromatogramSampler()
+        cm = ChemicalMixtureCreator(fs, ms2_sampler=ms, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        dataset = cm.sample(3,2)
+
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 10
+        rt_tol = 15
+
+        ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
+        controller = TopNController(POSITIVE, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        env =  Environment(ms, controller, 102, 110, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        ms1_mz_vals = [int(m) for m in controller.scans[1][0].mzs]
+        
+        expected_vals = [101,201,301]
+        for i,m in  enumerate(ms1_mz_vals):
+            assert m == expected_vals[i]
+
+        expected_frags = set([81,91,181,191, 281, 291])
+        for scan in controller.scans[2]:
+            for m in scan.mzs:
+                assert int(m) in expected_frags
+
+    def test_negative_fixed(self):
+        fs = EvenMZFormulaSampler()
+        ms = FixedMS2Sampler()
+        ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+        cs = ConstantChromatogramSampler()
+        cm = ChemicalMixtureCreator(fs, ms2_sampler=ms, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        dataset = cm.sample(3,2)
+
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 10
+        rt_tol = 15
+
+        ms = IndependentMassSpectrometer(NEGATIVE, dataset, None)
+        controller = TopNController(NEGATIVE, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        env =  Environment(ms, controller, 102, 110, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        ms1_mz_vals = [int(m) for m in controller.scans[1][0].mzs]
+        
+        expected_vals = [98,198,298]
+        for i,m in  enumerate(ms1_mz_vals):
+            assert m == expected_vals[i]
+        
+        expected_frags = set([88,78,188,178, 288, 278])
+        for scan in controller.scans[2]:
+            for m in scan.mzs:
+                assert int(m) in expected_frags
+
+
 class TestMS1Controller:
     """
     Tests the MS1 controller that does MS1 full-scans only with the simulated mass spec class.

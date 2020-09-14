@@ -122,7 +122,7 @@ class UnknownChemical(Chemical):
     def __init__(self, mz, rt, max_intensity, chromatogram, children=None):
         self.max_intensity = max_intensity
         self.isotopes = [(mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
-        self.adducts = {POSITIVE: [("M+H", 1)]}
+        self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.rt = rt
         self.chromatogram = chromatogram
         self.children = children
@@ -165,7 +165,7 @@ class KnownChemical(Chemical):
         else:
             mz = isotopes.get_isotopes(total_proportion)[0][0]
             self.isotopes = [(mz, 1, "Mono")]
-            self.adducts = {POSITIVE: [("M+H", 1)]}
+            self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.rt = rt
         self.max_intensity = max_intensity
         self.chromatogram = chromatogram

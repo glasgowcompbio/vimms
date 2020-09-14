@@ -6,7 +6,7 @@ import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
     EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler, \
-        FixedMS2Sampler, DatabaseMZFormulaSampler
+        FixedMS2Sampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import *
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
@@ -245,22 +245,26 @@ class TestIonisationMode:
                 assert int(m) in expected_frags
 
     def test_multiple_adducts(self):
-        fs = DatabaseMZFormulaSampler(HMDB)
+        fs = DatabaseFormulaSampler(HMDB)
         ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
         cs = ConstantChromatogramSampler()
-        adduct_prior_dict = {'POSITIVE': {'M+H': 100, 'M+Na': 100, 'M+K': 100}}
-        cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        adduct_prior_dict = {POSITIVE: {'M+H': 100, 'M+Na': 100, 'M+K': 100}}
+        cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs, adduct_prior_dict=adduct_prior_dict)
 
         n_adducts = len(adduct_prior_dict[POSITIVE])
         n_chems = 5
         dataset = cm.sample(n_chems,2)
+        
+
+        for c in dataset:
+            c.isotopes = [(c.mass, 1, "Mono")]
+
         # should be 15 peaks all the time
         controller = SimpleMs1Controller()
         ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
         env =  Environment(ms, controller, 102, 110, progress_bar=True)
         set_log_level_warning()
         env.run()
-
         for scan in controller.scans[1]:
             assert len(scan.mzs) == n_chems * n_adducts
 

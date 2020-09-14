@@ -1,17 +1,27 @@
 import itertools as it
 import os
+import sys
 from itertools import product
+from pathlib import Path
 
-from pyDOE import *
+import numpy as np
+import pandas as pd
+import pylab as plt
+from loguru import logger
+from pyDOE import lhs
 from scipy.optimize import minimize
 from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, Matern
 
-from vimms.Common import *
-from vimms.Controller import *
-from vimms.Environment import *
+# from vimms.Common import *
+# from vimms.Controller import *
+# from vimms.Environment import *
+from vimms.Common import POSITIVE, load_obj, save_obj
+from vimms.Controller import TopNController
+from vimms.Environment import Environment
 from vimms.FeatureExtraction import extract_roi
+from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import peak_scoring
 from vimms.PythonMzmine import pick_peaks, controller_score
 
@@ -103,8 +113,10 @@ class BaseOptimiser(object):
 
     def run_initial_simulations(self):
         if self.use_parallel:
-            results = run_parallel_controller(self.controller_method, search_param_dict, base_param_dict)
-            return results
+            # TODO: not working yet
+            # results = run_parallel_controller(self.controller_method, search_param_dict, base_param_dict)
+            # return results
+            pass
         else:
             results = self.results
             for idx in range(len(self.initial_params)):
@@ -208,17 +220,17 @@ class BaseOptimiser(object):
                                         controller_param_dict["mz_tol"],
                                         flex_controller_param_dict['DEW'],
                                         controller_param_dict["min_ms1_intensity"])
-        elif controller_method == 'Repeated_RoiController':
-            controller = Repeated_RoiController(controller_param_dict["ionisation_mode"],
-                                                controller_param_dict["isolation_width"],
-                                                controller_param_dict["mz_tol"],
-                                                controller_param_dict["min_ms1_intensity"],
-                                                controller_param_dict["min_roi_intensity"],
-                                                controller_param_dict["min_roi_length"],
-                                                controller_param_dict["N"],
-                                                controller_param_dict["rt_tol"],
-                                                controller_param_dict["min_roi_length_for_fragmentation"],
-                                                flex_controller_param_dict["peak_df"])
+        # elif controller_method == 'Repeated_RoiController':
+        #     controller = Repeated_RoiController(controller_param_dict["ionisation_mode"],
+        #                                         controller_param_dict["isolation_width"],
+        #                                         controller_param_dict["mz_tol"],
+        #                                         controller_param_dict["min_ms1_intensity"],
+        #                                         controller_param_dict["min_roi_intensity"],
+        #                                         controller_param_dict["min_roi_length"],
+        #                                         controller_param_dict["N"],
+        #                                         controller_param_dict["rt_tol"],
+        #                                         controller_param_dict["min_roi_length_for_fragmentation"],
+        #                                         flex_controller_param_dict["peak_df"])
         return controller  # TODO: add more controller options
 
 

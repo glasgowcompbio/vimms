@@ -5,7 +5,7 @@ import scipy
 from events import Events
 from loguru import logger
 
-from vimms.Common import adduct_transformation, DEFAULT_SCAN_TIME_DICT
+from vimms.Common import adduct_transformation, DEFAULT_SCAN_TIME_DICT, INITIAL_SCAN_ID
 from vimms.Noise import NoPeakNoise
 
 
@@ -256,7 +256,7 @@ class IndependentMassSpectrometer(object):
         """
 
         # current scan index and internal time
-        self.idx = 100000  # same as the real mass spec
+        self.idx = INITIAL_SCAN_ID  # same as the real mass spec
         self.time = 0
 
         # current task queue
@@ -311,45 +311,44 @@ class IndependentMassSpectrometer(object):
     def set_environment(self, env):
         self.environment = env
 
-    def step(self, initial_scan=False):
+    def step(self, params=None):
         """
         Performs one step of a mass spectrometry process
         :return:
         """
+        # if no params passed in, then try to get one from the queue
+        if params is None:
+            try:
+                # get a scan params from the queue
+                params = self.processing_queue.pop(0)
+            except IndexError: # nothing in the queue
+                params = None
 
-        # get scan param from the processing queue and do one scan
-        if initial_scan:
-            params = self.environment.get_default_scan_params()
-            is_method_scan = False
-        else:
-            params, is_method_scan = self._get_params()
-        scan = self._get_scan(self.time, params)
+        # if finally we have params, then make a scan
+        if params is not None:
+            scan = self._get_scan(self.time, params)
+            current_level = scan.ms_level
 
-        # A method scan (not a custom scan) should have its scan_params set to None
-        if is_method_scan:
-            scan.scan_params = None
+            # notify the controller that a new scan has been generated
+            # at this point, the MS_SCAN_ARRIVED event handler in the controller is called
+            # and the processing queue will be updated with new sets of scan parameters to do
+            self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
-        # notify the controller that a new scan has been generated
-        # at this point, the MS_SCAN_ARRIVED event handler in the controller is called
-        # and the processing queue will be updated with new sets of scan parameters to do
-        self.fire_event(self.MS_SCAN_ARRIVED, scan)
+            # sample scan duration and increase internal time
+            current_N = self.current_N
+            current_DEW = self.current_DEW
+            try:
+                next_scan_param = self.get_processing_queue()[0]
+            except IndexError:
+                next_scan_param = None
 
-        # sample scan duration and increase internal time
-        current_level = scan.ms_level
-        current_N = self.current_N
-        current_DEW = self.current_DEW
-        try:
-            next_scan_param = self.get_processing_queue()[0]
-        except IndexError:
-            next_scan_param = None
+            current_scan_duration = self._increase_time(current_level, current_N, current_DEW,
+                                                        next_scan_param)
+            scan.scan_duration = current_scan_duration
 
-        current_scan_duration = self._increase_time(current_level, current_N, current_DEW,
-                                                    next_scan_param)
-        scan.scan_duration = current_scan_duration
-
-        # stores the updated value of N and DEW
-        self._store_next_N_DEW(next_scan_param)
-        return scan
+            # stores the updated value of N and DEW
+            self._store_next_N_DEW(next_scan_param)
+            return scan
 
     def get_processing_queue(self):
         """
@@ -418,21 +417,6 @@ class IndependentMassSpectrometer(object):
     ####################################################################################################################
     # Private methods
     ####################################################################################################################
-
-    def _get_params(self):
-        """
-        Retrieves a new set of scan parameters from the processing queue
-        :return: A new set of scan parameters from the queue if available, otherwise it returns the default scan params.
-        """
-        # if the processing queue is empty, then just do the repeating scan
-        if len(self.processing_queue) == 0:
-            params = self.environment.get_default_scan_params()  # this should not occurs until mass spec and controller run completely separetely
-            is_method_scan = True
-        else:
-            # otherwise pop the parameter for the next scan from the queue
-            params = self.processing_queue.pop(0)
-            is_method_scan = False
-        return params, is_method_scan
 
     def _increase_time(self, current_level, current_N, current_DEW, next_scan_param):
         # look into the queue, find out what the next scan ms_level is, and compute the scan duration

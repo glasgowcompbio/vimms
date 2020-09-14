@@ -1,23 +1,30 @@
 import glob
 import inspect
 import itertools
+import os
 import time
 from os.path import dirname, abspath
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import seaborn as sns
+from loguru import logger
 from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import BoxJoinAligner
 from sklearn.linear_model import LogisticRegression
 
-from vimms.Controller import *
+from vimms.Chemicals import ChemicalMixtureFromMZML
+from vimms.Common import create_if_not_exist, save_obj, load_obj
+from vimms.Controller import TopNController, PurityController, WeightedDEWController
+from vimms.Controller.roi import get_box_intensity, TopN_RoiController, TopN_SmartRoiController, \
+    Repeated_SmartRoiController, CaseControl_SmartRoiController, DsDA_RoiController, Probability_RoiController
 from vimms.Environment import Environment
-from vimms.FeatureExtraction import extract_roi
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
-from vimms.Scoring import picked_peaks_evaluation, roi_scoring
 from vimms.Roi import RoiParams
-from vimms.Chemicals import ChemicalMixtureFromMZML
+from vimms.Scoring import picked_peaks_evaluation, roi_scoring
 
 parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')
@@ -321,7 +328,8 @@ class GridSearchExperiment(BasicExperiment):
             dataset_name = os.path.join(sequence_manager.base_dir, Path(mzml_file).stem + '.p')
             save_obj(dataset, dataset_name)
             self.dataset_file = dataset_name
-            if self.sequence_manager.ms1_picked_peaks_file is None and len(self.sequence_manager.evaluation_methods) > 0:
+            if self.sequence_manager.ms1_picked_peaks_file is None and len(
+                    self.sequence_manager.evaluation_methods) > 0:
                 self.sequence_manager.ms1_picked_peaks_file = self.sequence_manager.pick_peaks(self.mzml_file, None, 1)
         self.variable_params_dict = variable_params_dict
         self.base_params_dict = base_params_dict
@@ -653,7 +661,7 @@ def create_controller(controller_method, param_dict):
     elif controller_method == 'DsDA_RoiController':
         controller = DsDA_RoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                        param_dict['min_roi_intensity'],  param_dict['min_roi_length'], param_dict['N'],
+                                        param_dict['min_roi_intensity'], param_dict['min_roi_length'], param_dict['N'],
                                         param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
                                         param_dict['length_units'], param_dict['peak_df'], param_dict['peak_scores'],
                                         param_dict['ms1_shift'], param_dict['params'])
@@ -665,12 +673,13 @@ def create_controller(controller_method, param_dict):
                                                param_dict['model_params'], param_dict['min_roi_length'],
                                                param_dict['N'], param_dict['rt_tol'],
                                                param_dict['min_roi_length_for_fragmentation'],
-                                               param_dict['length_units'], param_dict['ms1_shift'],param_dict['params'])
+                                               param_dict['length_units'], param_dict['ms1_shift'],
+                                               param_dict['params'])
 
     elif controller_method == 'TopNController':
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                                     param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
-                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'],param_dict['params'])
+                                    param_dict['ms1_shift'], param_dict['initial_exclusion_list'], param_dict['params'])
 
     elif controller_method == 'PurityController':
         controller = PurityController(param_dict['ionisation_mode'], param_dict['N'],

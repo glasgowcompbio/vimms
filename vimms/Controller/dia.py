@@ -11,9 +11,10 @@ from vimms.MassSpec import ScanParameters
 
 
 class AIF(Controller):
-    def __init__(self, params=None):
+    def __init__(self, ms1_source_cid_energy, params=None):
         super().__init__(params=params)
         self.scan_number = self.initial_scan_id
+        self.ms1_source_cid_energy = ms1_source_cid_energy
 
     def write_msdial_experiment_file(self, filename):
         heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE', 'DecTarget(1:Yes, 0:No)']
@@ -50,19 +51,14 @@ class AIF(Controller):
         if self.scan_to_process is not None:
             # make the MS1 scan with source cid energy applied
             aif_scan = self.get_ms1_scan_params()
-            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY, self.params.ms1_source_cid_energy)
-            aif_scan.set(ScanParameters.ISOLATION_WINDOWS, [[self.params.default_ms1_scan_window]]) 
+            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY, self.ms1_source_cid_energy)
             self._check_scan(aif_scan)
 
             scans.append(aif_scan)
             self.scan_number += 1  # increase every time we make a scan
 
-
-
             # make the MS1 scan with no energy applied
             ms1_scan = self.get_ms1_scan_params()
-            ms1_scan.set(ScanParameters.SOURCE_CID_ENERGY, DEFAULT_SOURCE_CID_ENERGY)
-            ms1_scan.set(ScanParameters.ISOLATION_WINDOWS, [[self.params.default_ms1_scan_window]])
             self._check_scan(ms1_scan)
 
             scans.append(ms1_scan)

@@ -1,24 +1,26 @@
-import unittest
 import csv
+import os
+import unittest
 from pathlib import Path
+from loguru import logger
 
+import numpy as np
 import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
     EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler, \
         FixedMS2Sampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import *
+from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, GET_MS2_BY_PEAKS, ADDUCT_DICT_POS_MH, \
+    GET_MS2_BY_SPECTRA, POSITIVE, DEFAULT_ISOLATION_WIDTH
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
-    TopN_SmartRoiController, WeightedDEWController, ScheduleGenerator, FixedScansController, \
-        SWATH, DiaController, AdvancedParams, TargetedController, Target, create_targets_from_toxid
-
+    TopN_SmartRoiController, WeightedDEWController, FixedScansController, \
+    SWATH, DiaController, AdvancedParams, TargetedController, Target, create_targets_from_toxid
 from vimms.Controller.fullscan import SimpleMs1Controller
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
 from vimms.Noise import GaussianPeakNoise, GaussianPeakNoiseLevelSpecific, UniformSpikeNoise
 from vimms.Roi import RoiParams
-
 
 np.random.seed(1)
 
@@ -49,6 +51,8 @@ BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 
 MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
+
+
 ### define some useful methods ###
 
 def get_rt_bounds(dataset, centre):
@@ -161,20 +165,24 @@ def two_fixed_chems():
     cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
     return cm.sample(2, 2)
 
+
 @pytest.fixture(scope="module")
 def even_chems():
     # four evenly spaced chems for more advanced SWATH testing
     em = EvenMZFormulaSampler()
     ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
     cs = ConstantChromatogramSampler()
-    cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs, adduct_prior_dict=ADDUCT_DICT_POS_MH)
-    return cm.sample(4,2)
+    cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs,
+                                adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    return cm.sample(4, 2)
+
 
 @pytest.fixture(scope="module")
 def chems_from_mzml():
     roi_params = RoiParams(min_intensity=10, min_length=5)
     cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
     return cm.sample(None, 2)
+
 
 @pytest.fixture(scope="module")
 def chem_mz_rt_i_from_mzml():
@@ -183,6 +191,8 @@ def chem_mz_rt_i_from_mzml():
     cs = MZMLChromatogramSampler(MZML_FILE)
     cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
     return cm.sample(500, 2)
+
+
 ### tests starts from here ###
 
 class TestIonisationMode:
@@ -331,7 +341,7 @@ class TestMS1Controller:
 
 
         for scan_level, scans in controller.scans.items():
-            for s in scans[1:]:
+            for s in scans:
                 assert min(s.mzs) >= min_mz
                 assert max(s.mzs) <= max_mz
 
@@ -587,7 +597,7 @@ class TestMultipleMS2Windows:
 
         ionisation_mode = POSITIVE
 
-        controller = FixedScansController(ionisation_mode, [])
+        controller = FixedScansController()
         mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
@@ -597,8 +607,7 @@ class TestMultipleMS2Windows:
         ms2_scan_3 = env.get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol)
 
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
-
-        controller.schedule = schedule
+        controller.set_tasks(schedule)
         set_log_level_warning()
         env.run()
         assert len(controller.scans[2]) == 3
@@ -886,6 +895,7 @@ class TestAIFControllers:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
+
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
         logger.info('Testing Top-N controller with simulated chemicals')
 
@@ -912,8 +922,8 @@ class TestAIFControllers:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -940,8 +950,8 @@ class TestAIFControllers:
                                                 scan_duration_dict=scan_time_dict, mz_noise=mz_noise,
                                                 intensity_noise=intensity_noise)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -959,7 +969,7 @@ class TestAIFControllers:
         # write simulated output to mzML file
         filename = 'AIF_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
-    
+
     def test_AIF_controller_with_beer_chems(self, fragscan_ps):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
@@ -979,8 +989,8 @@ class TestAIFControllers:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -998,13 +1008,12 @@ class TestAIFControllers:
         filename = 'AIF_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    
     def test_aif_msdial_experiment_file(self):
         min_mz = 200
         max_mz = 300
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
         out_file = Path(OUT_DIR, 'AIF_experiment.txt')
         controller.write_msdial_experiment_file(out_file)
 
@@ -1016,7 +1025,7 @@ class TestAIFControllers:
                 rows.append(row)
         ce = params.ms1_source_cid_energy
         expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
-        for i,val in  enumerate(expected_row):
+        for i, val in enumerate(expected_row):
             assert rows[-1][i] == str(val)
 
     def test_aif_with_fixed_chems(self):
@@ -1025,28 +1034,28 @@ class TestAIFControllers:
         cs = ConstantChromatogramSampler()
         ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=1)
         cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri)
-        d = cs.sample(1,2)
+        d = cs.sample(1, 2)
 
-        params = AdvancedParams(ms1_source_cid_energy=30)
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy)
         ionisation_mode = POSITIVE
-        mass_spec = IndependentMassSpectrometer(ionisation_mode,  d, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None)
         env = Environment(mass_spec, controller, 10, 20, progress_bar=True)
 
         set_log_level_warning()
         env.run()
 
-        for i,s in enumerate(controller.scans[1]):
+        for i, s in enumerate(controller.scans[1]):
             if i % 2 == 1:
                 # odd scan, AIF, should  have two peaks at 81 and 91
-                integer_mzs =  [int(i) for i in s.mzs]
+                integer_mzs = [int(i) for i in s.mzs]
                 integer_mzs.sort()
                 assert integer_mzs[0] == 81
                 assert integer_mzs[1] == 91
             else:
                 # even scan, MS1 - should have a single peak at integer value of 101
                 integer_mzs = [int(i) for i in s.mzs]
-                assert integer_mzs[0] == 101 
+                assert integer_mzs[0] == 101
 
 
 class TestSWATH:
@@ -1076,7 +1085,7 @@ class TestSWATH:
 
         filename = 'SWATH_ten_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
-    
+
     def test_swath_more(self, even_chems):
         """
         Tests SWATH by making even chemicals and then 
@@ -1107,9 +1116,9 @@ class TestSWATH:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, None, scan_duration_dict=scan_time_dict)
         env = Environment(mass_spec, controller2, 200, 300, progress_bar=True)
         env.run()
-        
+
         ms2_scans2 = controller2.scans[2]
-        
+
         assert len(ms2_scans2[0].mzs) == len(even_chems[0].children) + len(even_chems[1].children)
         assert len(ms2_scans2[1].mzs) == len(even_chems[2].children) + len(even_chems[3].children)
 
@@ -1119,7 +1128,7 @@ class TestSWATH:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, None, scan_duration_dict=scan_time_dict)
         env = Environment(mass_spec, controller3, 200, 300, progress_bar=True)
         env.run()
-        
+
         ms2_scans3 = controller3.scans[2]
         assert len(ms2_scans3[0].mzs) == sum([len(c.children) for c in even_chems])
         assert len(ms2_scans3[0].mzs) == sum([len(s.mzs) for s in ms2_scans2[:2]])
@@ -1139,9 +1148,10 @@ class TestSWATH:
             rows = []
             for row in reader:
                 rows.append(row)
-        expected_row = ['4','SWATH','350','450']
-        for i,val in  enumerate(expected_row):
+        expected_row = ['4', 'SWATH', '350', '450']
+        for i, val in enumerate(expected_row):
             assert rows[-1][i] == val
+
 
 class TestDiaController:
     """
@@ -1164,7 +1174,8 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict)
         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
@@ -1193,7 +1204,8 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict)
         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
@@ -1222,7 +1234,8 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict)
         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
@@ -1251,7 +1264,8 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps, scan_duration_dict=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps,
+                                                scan_duration_dict=scan_time_dict)
         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
@@ -1270,44 +1284,34 @@ class TestFixedScansController:
     Tests the FixedScansController that sends a scheduled number of scans
     """
 
-    def test_FixedScansController(self, simple_dataset, fragscan_ps):
+    def test_FixedScansController(self, two_fixed_chems):
         logger.info('Testing FixedScansController')
-        # assert len(fragscan_dataset_peaks) == N_CHEMS
-
+        mz_to_target = [chem.mass + 1.0 for chem in two_fixed_chems]
+        isolation_width = DEFAULT_ISOLATION_WIDTH
+        mz_tol = 0.1
+        rt_tol = 15
+        min_rt = 110
+        max_rt = 112
         ionisation_mode = POSITIVE
-        initial_ms1 = 10
-        end_ms1 = 10
-        num_topN_blocks = 2
-        N = 10
-        precursor_mz = 515.4821
-        ms1_mass_analyser = 'Orbitrap'
-        ms2_mass_analyser = 'Orbitrap'
-        activation_type = 'HCD'
-        isolation_mode = 'Quadrupole'
 
-        gen = ScheduleGenerator(initial_ms1, end_ms1, precursor_mz, num_topN_blocks, N, ms1_mass_analyser,
-                                ms2_mass_analyser, activation_type, isolation_mode)
-        schedule = gen.schedule
-        expected = initial_ms1 + ((N + 1) * num_topN_blocks) + end_ms1
-        assert len(schedule) == expected
+        controller = FixedScansController(schedule=None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
+        env = Environment(mass_spec, controller, min_rt, max_rt)
 
-        # create a simulated mass spec without noise and Top-N controller
-        # mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, fragscan_ps)
-        controller = FixedScansController(ionisation_mode, schedule, isolation_width=1000)
-        min_bound = 200
-        max_bound = 210
+        ms1_scan = env.get_default_scan_params()
+        ms2_scan_1 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
+        ms2_scan_2 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
+        ms2_scan_3 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
+        schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
+        controller.set_tasks(schedule)
+        set_log_level_warning()
+        env.run()
 
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
-        run_environment(env)
-
-        # check that there is at least one non-empty MS1 and MS2 scans
-        check_non_empty_MS1(controller)
-        check_non_empty_MS2(controller)
-
-        filename = 'fixedScansController.mzML'
-        check_mzML(env, OUT_DIR, filename)
+        assert len(controller.scans[1]) == 1
+        assert len(controller.scans[2]) == 3
+        for scan in controller.scans[2]:
+            assert scan.num_peaks > 0
+        env.write_mzML(OUT_DIR, 'fixedScansController.mzML')
 
 
 class TestChemsFromMZML:
@@ -1319,7 +1323,8 @@ class TestChemsFromMZML:
         set_log_level_warning()
         env.run()
         filename = 'fullscan_from_mzml.mzML'
-        check_mzML(env,OUT_DIR, filename) 
+        check_mzML(env, OUT_DIR, filename)
+
     def test_topn_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         N = 10
@@ -1334,8 +1339,8 @@ class TestChemsFromMZML:
         env.run()
         check_non_empty_MS2(controller)
         filename = 'topn_from_mzml.mzML'
-        check_mzML(env,OUT_DIR, filename)
-    
+        check_mzML(env, OUT_DIR, filename)
+
     def test_mz_rt_i_from_mzml(self, chem_mz_rt_i_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
@@ -1344,7 +1349,7 @@ class TestChemsFromMZML:
         set_log_level_warning()
         env.run()
         filename = 'fullscan_mz_rt_i_from_mzml.mzML'
-        check_mzML(env,OUT_DIR, filename)
+        check_mzML(env, OUT_DIR, filename)
 
 
 class TestTargetedController:
@@ -1354,13 +1359,13 @@ class TestTargetedController:
         cr = ConstantChromatogramSampler()
         ms = FixedMS2Sampler()
         cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cr, ms2_sampler=ms)
-        d = cs.sample(2,2) # sample chems with m/z = 100 and 200
+        d = cs.sample(2, 2)  # sample chems with m/z = 100 and 200
         ionisation_mode = POSITIVE
         targets = []
         targets.append(Target(101, 100, 102, 10, 20))
         targets.append(Target(201, 200, 202, 10, 20))
         ce_values = [10, 20, 30]
-        n_replicates = 4 
+        n_replicates = 4
         controller = TargetedController(targets, ce_values, n_replicates=n_replicates, limit_acquisition=True)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None)
         env = Environment(mass_spec, controller, 5, 25, progress_bar=True)
@@ -1369,24 +1374,24 @@ class TestTargetedController:
 
         # check that we go all the scans we wanted
         for ms_level in controller.scans:
-            assert len(controller.scans[ms_level]) >  0
+            assert len(controller.scans[ms_level]) > 0
         set_log_level_debug()
         target_counts = {t: {c: 0 for c in ce_values} for t in targets}
-
 
         for s in controller.scans[2]:
             params = s.scan_params
             pmz = params.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
-            filtered_targets = list(filter(lambda x: x.min_rt <= s.rt and x.max_rt >= s.rt and x.min_mz <= pmz and x.max_mz >= pmz, targets))
+            filtered_targets = list(
+                filter(lambda x: x.min_rt <= s.rt and x.max_rt >= s.rt and x.min_mz <= pmz and x.max_mz >= pmz,
+                       targets))
             assert len(filtered_targets) == 1
             target = filtered_targets[0]
             ce = params.get(ScanParameters.COLLISION_ENERGY)
             target_counts[target][ce] += 1
-        
+
         for t in target_counts:
             for ce, count in target_counts[t].items():
                 assert count == n_replicates
-        
 
     def test_target_creation(self):
         toxid_file = Path(BASE_DIR, 'StdMix1_pHILIC_Current.csv')
@@ -1400,7 +1405,6 @@ class TestTargetedController:
         assert len(targets) > 0
         set_log_level_debug()
         logger.debug(targets[-1].mz)
-
 
 
 if __name__ == '__main__':

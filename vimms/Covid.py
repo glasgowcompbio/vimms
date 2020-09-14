@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy
+from events import Events
 from scipy.stats import skewnorm
 
-from vimms.Common import *
-from vimms.MassSpec import *
+from vimms.Common import POSITIVE
+from vimms.MassSpec import ScanParameters, IndependentMassSpectrometer, Scan
 
 
 class Person(object):

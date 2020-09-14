@@ -1,18 +1,19 @@
 # test chemical generaion
+import os
 from pathlib import Path
 
+import numpy as np
 import pytest
-import pysmiles
-
-from vimms.ChemicalSamplers import *
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, DatabaseCompound, ChemicalMixtureFromMZML
-from vimms.Common import *
-from vimms.Noise import NoPeakNoise
-from vimms.Utils import write_msp, mgf_to_database
-from vimms.Roi import RoiParams
-
 from mass_spec_utils.library_matching.gnps import load_mgf
 
+from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, UniformMZFormulaSampler, \
+    CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, MZMLRTandIntensitySampler, MZMLFormulaSampler, \
+    MZMLChromatogramSampler
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
+from vimms.Common import load_obj, ADDUCT_DICT_POS_MH
+from vimms.Noise import NoPeakNoise
+from vimms.Roi import RoiParams
+from vimms.Utils import write_msp, mgf_to_database
 
 np.random.seed(1)
 

@@ -12,7 +12,7 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
         FixedMS2Sampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, GET_MS2_BY_PEAKS, ADDUCT_DICT_POS_MH, \
-    GET_MS2_BY_SPECTRA, POSITIVE, DEFAULT_ISOLATION_WIDTH
+    GET_MS2_BY_SPECTRA, POSITIVE, NEGATIVE, DEFAULT_ISOLATION_WIDTH
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, FixedScansController, \
     SWATH, DiaController, AdvancedParams, TargetedController, Target, create_targets_from_toxid

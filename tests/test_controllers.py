@@ -787,8 +787,8 @@ class TestAIFControllers:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -815,8 +815,8 @@ class TestAIFControllers:
                                                 scan_duration_dict=scan_time_dict, mz_noise=mz_noise,
                                                 intensity_noise=intensity_noise)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -854,8 +854,8 @@ class TestAIFControllers:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
                                                 scan_duration_dict=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -878,8 +878,8 @@ class TestAIFControllers:
         min_mz = 200
         max_mz = 300
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
-        params.ms1_source_cid_energy = 30
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy, params=params)
         out_file = Path(OUT_DIR, 'AIF_experiment.txt')
         controller.write_msdial_experiment_file(out_file)
 
@@ -902,8 +902,8 @@ class TestAIFControllers:
         cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri)
         d = cs.sample(1,2)
 
-        params = AdvancedParams(ms1_source_cid_energy=30)
-        controller = AIF(params=params)
+        ms1_source_cid_energy = 30
+        controller = AIF(ms1_source_cid_energy)
         ionisation_mode = POSITIVE
         mass_spec = IndependentMassSpectrometer(ionisation_mode,  d, None)
         env = Environment(mass_spec, controller, 10, 20, progress_bar=True)

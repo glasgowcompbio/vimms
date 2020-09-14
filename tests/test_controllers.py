@@ -40,6 +40,11 @@ MZ_RANGE = [(0, 1050)]
 N_CHEMS = 10
 
 BEER_CHEMS = load_obj(Path(BASE_DIR, 'QCB_22May19_1.p'))
+
+# this is a temporary hack until beer_chems are updated
+for b in BEER_CHEMS:
+    b.adducts = {POSITIVE: b.adducts}
+
 BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 
@@ -236,14 +241,16 @@ class TestMS1Controller:
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
 
+        # write simulated output to mzML file
+        filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
         for scan_level, scans in controller.scans.items():
             for s in scans[1:]:
                 assert min(s.mzs) >= min_mz
                 assert max(s.mzs) <= max_mz
 
-        # write simulated output to mzML file
-        filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
-        check_mzML(env, OUT_DIR, filename)
 
 
 class TestTopNControllerSpectra:

@@ -1,10 +1,6 @@
 # some other more general tests
 
-import numpy as np
-
 from vimms.Chemicals import Formula
-
-np.random.seed(1)
 
 
 class TestFormula:

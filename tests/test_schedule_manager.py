@@ -1,46 +1,10 @@
-import os
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
-from vimms.Chemicals import ChemicalCreator
-from vimms.Common import load_obj, GET_MS2_BY_SPECTRA, POSITIVE, DEFAULT_SCAN_TIME_DICT
-
-### define some useful constants ###
+from tests.conftest import BASE_DIR, OUT_DIR, MZML_FILE
+from vimms.Common import POSITIVE, DEFAULT_SCAN_TIME_DICT
 from vimms.SequenceManager import VimmsSequenceManager, BasicExperiment, GridSearchExperiment
-
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
-BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
-HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
-OUT_DIR = str(Path(DIR_PATH, 'results'))
-
-ROI_SOURCES = [str(Path(BASE_DIR, 'beer_t10_simulator_files'))]
-MIN_MS1_INTENSITY = 1
-RT_RANGE = [(0, 1200)]
-CENTRE_RANGE = 600
-MIN_RT = RT_RANGE[0][0]
-MAX_RT = RT_RANGE[0][1]
-MZ_RANGE = [(0, 1050)]
-N_CHEMS = 10
-
-BEER_CHEMS = load_obj(Path(BASE_DIR, 'QCB_22May19_1.p'))
-BEER_MIN_BOUND = 550
-BEER_MAX_BOUND = 650
-
-MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
-
-
-@pytest.fixture(scope="module")
-def fragscan_ps():
-    return load_obj(Path(BASE_DIR, 'peak_sampler_mz_rt_int_beerqcb_fragmentation.p'))
-
-
-@pytest.fixture(scope="module")
-def fragscan_dataset_spectra(fragscan_ps):
-    chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
-                        get_children_method=GET_MS2_BY_SPECTRA)
 
 
 class TestScheduleManager:
@@ -48,7 +12,7 @@ class TestScheduleManager:
     Tests the Schedule Manager starting from both a dataset and an mzml file
     """
 
-    def test_schedulemanager_dataset(self):
+    def test_schedulemanager_dataset(self, fragscan_ps):
         evaluation_methods = []
 
         dataset_file = Path(BASE_DIR, 'QCB_22May19_1.p')
@@ -122,7 +86,7 @@ class TestGridSearch:
     Tests the Grid Search starting from both a dataset and an mzml file
     """
 
-    def test_gridsearch_dataset(self):
+    def test_gridsearch_dataset(self, fragscan_ps):
         evaluation_methods = []
         topn_variable_params_dict = {'N': [10], 'rt_tol': [15, 30]}
 

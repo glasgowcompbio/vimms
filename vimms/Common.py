@@ -67,9 +67,12 @@ POS_TRANSFORMATIONS['2M+H'] = lambda mz: (mz * 2) + 1.007276
 POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
 POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.
 
+NEG_TRANSFORMATIONS = collections.OrderedDict()
+NEG_TRANSFORMATIONS['M-H'] = lambda mz: (mz - PROTON_MASS)
+
 # example prior dictionary to be passed when creating an 
 # adducts object to only get M+H adducts out
-ADDUCT_DICT_POS_MH = {'M+H': 1.0}
+ADDUCT_DICT_POS_MH = {POSITIVE: {'M+H': 1.0}}
 
 ATOM_NAMES = ['C', 'H', 'N', 'O', 'P', 'S', 'Cl', 'I', 'Br', 'Si', 'F', 'D']
 ATOM_MASSES = {'C': 12.00000000000, 'H': 1.00782503214, 'O': 15.99491462210, 'N': 14.00307400524,
@@ -190,7 +193,12 @@ def chromatogramDensityNormalisation(rts, intensities):
 
 
 def adduct_transformation(mz, adduct):
-    f = POS_TRANSFORMATIONS[adduct]
+    if adduct in POS_TRANSFORMATIONS:
+        f = POS_TRANSFORMATIONS[adduct]
+    elif adduct in NEG_TRANSFORMATIONS:
+        f = NEG_TRANSFORMATIONS[adduct]
+    else:
+        f = lambda mz: mz
     return f(mz)
 
 

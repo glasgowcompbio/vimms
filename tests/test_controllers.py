@@ -8,12 +8,11 @@ import numpy as np
 import pytest
 
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
-    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, \
-    MZMLChromatogramSampler, \
-    FixedMS2Sampler
+    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler, \
+        FixedMS2Sampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, GET_MS2_BY_PEAKS, ADDUCT_DICT_POS_MH, \
-    GET_MS2_BY_SPECTRA, POSITIVE, DEFAULT_ISOLATION_WIDTH
+    GET_MS2_BY_SPECTRA, POSITIVE, NEGATIVE, DEFAULT_ISOLATION_WIDTH
 from vimms.Controller import TopNController, PurityController, TopN_RoiController, AIF, \
     TopN_SmartRoiController, WeightedDEWController, FixedScansController, \
     SWATH, DiaController, AdvancedParams, TargetedController, Target, create_targets_from_toxid
@@ -43,6 +42,11 @@ MZ_RANGE = [(0, 1050)]
 N_CHEMS = 10
 
 BEER_CHEMS = load_obj(Path(BASE_DIR, 'QCB_22May19_1.p'))
+
+# this is a temporary hack until beer_chems are updated
+for b in BEER_CHEMS:
+    b.adducts = {POSITIVE: b.adducts}
+
 BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 
@@ -191,6 +195,90 @@ def chem_mz_rt_i_from_mzml():
 
 ### tests starts from here ###
 
+class TestIonisationMode:
+    def test_positive_fixed(self):
+        fs = EvenMZFormulaSampler()
+        ms = FixedMS2Sampler()
+        ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+        cs = ConstantChromatogramSampler()
+        cm = ChemicalMixtureCreator(fs, ms2_sampler=ms, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        dataset = cm.sample(3,2)
+
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 10
+        rt_tol = 15
+
+        ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
+        controller = TopNController(POSITIVE, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        env =  Environment(ms, controller, 102, 110, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        ms1_mz_vals = [int(m) for m in controller.scans[1][0].mzs]
+        
+        expected_vals = [101,201,301]
+        for i,m in  enumerate(ms1_mz_vals):
+            assert m == expected_vals[i]
+
+        expected_frags = set([81,91,181,191, 281, 291])
+        for scan in controller.scans[2]:
+            for m in scan.mzs:
+                assert int(m) in expected_frags
+
+    def test_negative_fixed(self):
+        fs = EvenMZFormulaSampler()
+        ms = FixedMS2Sampler()
+        ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+        cs = ConstantChromatogramSampler()
+        cm = ChemicalMixtureCreator(fs, ms2_sampler=ms, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+        dataset = cm.sample(3,2)
+
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 10
+        rt_tol = 15
+
+        ms = IndependentMassSpectrometer(NEGATIVE, dataset, None)
+        controller = TopNController(NEGATIVE, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
+        env =  Environment(ms, controller, 102, 110, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        ms1_mz_vals = [int(m) for m in controller.scans[1][0].mzs]
+        
+        expected_vals = [98,198,298]
+        for i,m in  enumerate(ms1_mz_vals):
+            assert m == expected_vals[i]
+        
+        expected_frags = set([88,78,188,178, 288, 278])
+        for scan in controller.scans[2]:
+            for m in scan.mzs:
+                assert int(m) in expected_frags
+
+    def test_multiple_adducts(self):
+        fs = DatabaseFormulaSampler(HMDB)
+        ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+        cs = ConstantChromatogramSampler()
+        adduct_prior_dict = {POSITIVE: {'M+H': 100, 'M+Na': 100, 'M+K': 100}}
+        cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs, adduct_prior_dict=adduct_prior_dict)
+
+        n_adducts = len(adduct_prior_dict[POSITIVE])
+        n_chems = 5
+        dataset = cm.sample(n_chems,2)
+        
+
+        for c in dataset:
+            c.isotopes = [(c.mass, 1, "Mono")]
+
+        # should be 15 peaks all the time
+        controller = SimpleMs1Controller()
+        ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
+        env =  Environment(ms, controller, 102, 110, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        for scan in controller.scans[1]:
+            assert len(scan.mzs) == n_chems * n_adducts
+
+
 class TestMS1Controller:
     """
     Tests the MS1 controller that does MS1 full-scans only with the simulated mass spec class.
@@ -247,14 +335,16 @@ class TestMS1Controller:
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
         run_environment(env)
 
+        # write simulated output to mzML file
+        filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
         for scan_level, scans in controller.scans.items():
             for s in scans:
                 assert min(s.mzs) >= min_mz
                 assert max(s.mzs) <= max_mz
 
-        # write simulated output to mzML file
-        filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
-        check_mzML(env, OUT_DIR, filename)
 
 
 class TestTopNControllerSpectra:

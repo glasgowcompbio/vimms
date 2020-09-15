@@ -1,8 +1,11 @@
 from loguru import logger
 
 from tests.conftest import OUT_DIR
+from vimms.ChemicalSamplers import EvenMZFormulaSampler, UniformRTAndIntensitySampler, ConstantChromatogramSampler, \
+    FixedMS2Sampler
+from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import DEFAULT_ISOLATION_WIDTH, POSITIVE, set_log_level_warning
-from vimms.Controller import FixedScansController
+from vimms.Controller import FixedScansController, MultiIsolationController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 
@@ -86,3 +89,45 @@ class TestFixedScansController:
         for scan in controller.scans[2]:
             assert scan.num_peaks > 0
         env.write_mzML(OUT_DIR, 'fixedScansController.mzML')
+
+
+class TestMultiIsolationController:
+    def test_multiple_isolation(self):
+        N = 3
+        fs = EvenMZFormulaSampler()
+        ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=10)
+        cr = ConstantChromatogramSampler()
+        ms = FixedMS2Sampler()
+        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cr, ms2_sampler=ms)
+        d = cs.sample(3, 2)  # sample chems with m/z = 100 and 200
+        ionisation_mode = POSITIVE
+        controller = MultiIsolationController(N)
+        ms = IndependentMassSpectrometer(POSITIVE, d, None)
+        env = Environment(ms, controller, 10, 20, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+
+        assert len(controller.scans[1]) > 0
+        assert len(controller.scans[2]) > 0
+
+        # look at the first block of MS2 scans
+        # and check that they are the correct super-positions
+        mm = {}
+        # first three scans hit the individual precursors
+        mm[(0,)] = controller.scans[2][0]
+        mm[(1,)] = controller.scans[2][1]
+        mm[(2,)] = controller.scans[2][2]
+        # next three should hit the pairs
+        mm[(0,1)] = controller.scans[2][3]
+        mm[(0,2)] = controller.scans[2][4]
+        mm[(1,2)] = controller.scans[2][5]
+        # final should hit all three
+        mm[(0,1,2)] = controller.scans[2][6]
+
+        for key, value in mm.items():
+            actual_mz_vals = set(mm[key].mzs)
+            expected_mz_vals = set()
+            for k in key:
+                for m in mm[(k,)].mzs:
+                    expected_mz_vals.add(m)
+            assert expected_mz_vals == actual_mz_vals

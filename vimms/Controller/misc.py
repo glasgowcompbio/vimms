@@ -1,3 +1,5 @@
+import itertools
+import numpy as np
 from loguru import logger
 
 from vimms.Controller.base import Controller
@@ -54,4 +56,57 @@ class FixedScansController(Controller):
         return []
 
     def update_state_after_scan(self, last_scan):
+        pass
+
+class MultiIsolationController(Controller):
+    def __init__(self, N, params=None):
+        super().__init__(params=params)
+        assert N > 1
+        self.N = N
+        self.isolation_width = 0.7
+        self.mz_tol = 10
+        self.rt_tol = 15
+
+    def _make_scan_order(self, N):
+        # makes a list of tuples, each saying which precuror idx in the sorted
+        # list should be in which MS2 scan
+        initial_idx = range(N)
+        scan_order = []    
+        for L in range(1, len(initial_idx)+1):
+            for subset in itertools.combinations(initial_idx, L):
+                scan_order.append(subset)
+        return scan_order
+    
+    def _process_scan(self, scan):
+        # if there's a previous ms1 scan to process
+        new_tasks = []
+        fragmented_count = 0
+        if self.scan_to_process is not None:
+            mzs = self.scan_to_process.mzs
+            intensities = self.scan_to_process.intensities
+            rt = self.scan_to_process.rt
+            idx = np.argsort(intensities)[::-1]
+            precursor_scan_id = self.scan_to_process.scan_id
+            scan_order = self._make_scan_order(min(self.N,len(mzs)))
+
+            for subset in scan_order:
+                mz = []
+                intensity = []
+                for s in subset:
+                    mz.append(mzs[idx[s]])
+                    intensity.append(mzs[idx[s]])
+                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
+                                                           self.mz_tol, self.rt_tol)
+
+                new_tasks.append(dda_scan_params)
+                self.current_task_id += 1
+
+            ms1_scan_params = self.get_ms1_scan_params()
+            self.current_task_id += 1
+            self.next_processed_scan_id = self.current_task_id
+            new_tasks.append(ms1_scan_params)
+    
+        return new_tasks
+
+    def update_state_after_scan(self, scan):
         pass

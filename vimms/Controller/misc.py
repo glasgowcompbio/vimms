@@ -3,7 +3,7 @@ import numpy as np
 from loguru import logger
 
 from vimms.Controller.base import Controller
-
+from vimms.Common import DEFAULT_ISOLATION_WIDTH
 
 class FixedScansController(Controller):
     """
@@ -59,11 +59,11 @@ class FixedScansController(Controller):
         pass
 
 class MultiIsolationController(Controller):
-    def __init__(self, N, params=None):
+    def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH, params=None):
         super().__init__(params=params)
         assert N > 1
         self.N = N
-        self.isolation_width = 0.7
+        self.isolation_width = isolation_width
         self.mz_tol = 10
         self.rt_tol = 15
 

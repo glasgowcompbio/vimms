@@ -269,14 +269,15 @@ class TestIonisationMode:
         for c in dataset:
             c.isotopes = [(c.mass, 1, "Mono")]
 
-        # should be 15 peaks all the time
+        # should be 15 peaks or less all the time
+        # some adducts might not be sampled if the probability is less than 0.2
         controller = SimpleMs1Controller()
         ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
         env =  Environment(ms, controller, 102, 110, progress_bar=True)
         set_log_level_warning()
         env.run()
         for scan in controller.scans[1]:
-            assert len(scan.mzs) == n_chems * n_adducts
+            assert len(scan.mzs) <= n_chems * n_adducts
 
 
 class TestMS1Controller:

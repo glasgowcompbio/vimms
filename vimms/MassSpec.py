@@ -274,7 +274,7 @@ class IndependentMassSpectrometer(object):
 
         # the list of all chemicals in the dataset
         self.chemicals = chemicals
-        self.ionisation_mode = ionisation_mode  # currently unused
+        self.ionisation_mode = ionisation_mode  
 
         # stores the chromatograms start and end rt for quick retrieval
         chem_rts = np.array([chem.rt for chem in self.chemicals])
@@ -635,7 +635,10 @@ class IndependentMassSpectrometer(object):
 
     def _get_adducts(self, chemical):
         if chemical.ms_level == 1:
-            return chemical.adducts
+            if self.ionisation_mode in chemical.adducts:
+                return chemical.adducts[self.ionisation_mode]
+            else:
+                return []
         else:
             return self._get_adducts(chemical.parent)
 

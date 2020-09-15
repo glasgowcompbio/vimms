@@ -2,43 +2,34 @@
 import os
 from pathlib import Path
 
-import numpy as np
 import pytest
 from mass_spec_utils.library_matching.gnps import load_mgf
 
+from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check_non_empty_MS2
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, UniformMZFormulaSampler, \
     CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, MZMLRTandIntensitySampler, MZMLFormulaSampler, \
     MZMLChromatogramSampler
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import load_obj, ADDUCT_DICT_POS_MH
+from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning
+from vimms.Controller import SimpleMs1Controller, TopNController
+from vimms.Environment import Environment
+from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import NoPeakNoise
 from vimms.Roi import RoiParams
 from vimms.Utils import write_msp, mgf_to_database
 
-np.random.seed(1)
-
 ### define some useful constants ###
-
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
-BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
-HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
-OUT_DIR = Path(DIR_PATH, 'results')
 
 MZ_RANGE = [(300, 600)]
 RT_RANGE = [(300, 500)]
-
-N_CHEMICALS = 10
-
-MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
-MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
-
+N_CHEMS = 10
 
 @pytest.fixture(scope="module")
 def simple_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
     hf = DatabaseFormulaSampler(HMDB)
     cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH)
-    d = cc.sample(N_CHEMICALS, 2)
+    d = cc.sample(N_CHEMS, 2)
     return d
 
 
@@ -47,12 +38,12 @@ def simple_no_database_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
     hf = UniformMZFormulaSampler()
     cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH)
-    d = cc.sample(N_CHEMICALS, 2)
+    d = cc.sample(N_CHEMS, 2)
     return d
 
 
 def check_chems(chem_list):
-    assert len(chem_list) == N_CHEMICALS
+    assert len(chem_list) == N_CHEMS
     for chem in chem_list:
         assert chem.mass >= MZ_RANGE[0][0]
         assert chem.mass <= MZ_RANGE[0][1]
@@ -66,7 +57,7 @@ class TestDatabaseCreation:
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
-        d = cc.sample(N_CHEMICALS, 2)
+        d = cc.sample(N_CHEMS, 2)
 
         check_chems(d)
 
@@ -74,7 +65,7 @@ class TestDatabaseCreation:
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         hf = UniformMZFormulaSampler(min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
-        d = cc.sample(N_CHEMICALS, 2)
+        d = cc.sample(N_CHEMS, 2)
 
         check_chems(d)
 
@@ -84,7 +75,7 @@ class TestDatabaseCreation:
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = CRPMS2Sampler()
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, ms2_sampler=cs)
-        d = cc.sample(N_CHEMICALS, 2)
+        d = cc.sample(N_CHEMS, 2)
         check_chems(d)
 
     def test_ms2_mgf(self):
@@ -92,14 +83,14 @@ class TestDatabaseCreation:
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cs = MGFMS2Sampler(MGF_FILE)
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri, ms2_sampler=cs)
-        d = cc.sample(N_CHEMICALS, 2)
+        d = cc.sample(N_CHEMS, 2)
         check_chems(d)
 
     def test_multiple_chems(self):
         hf = DatabaseFormulaSampler(HMDB, min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
         ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
-        d = cc.sample(N_CHEMICALS, 2)
+        d = cc.sample(N_CHEMS, 2)
 
         group_list = ['control', 'control', 'case', 'case']
         group_dict = {'case': {'missing_probability': 0,
@@ -157,7 +148,7 @@ class TestMS2Sampling:
         ms = MZMLMS2Sampler(MZML_FILE, min_n_peaks=min_n_peaks)
         ud = UniformMZFormulaSampler()
         cm = ChemicalMixtureCreator(ud, ms2_sampler=ms)
-        d = cm.sample(N_CHEMICALS, 2)
+        d = cm.sample(N_CHEMS, 2)
 
         for chem in d:
             assert len(chem.children) >= min_n_peaks
@@ -186,7 +177,7 @@ class TestLinkedCreation:
         # and both need to use the same field in the MGF as the unique ID
         mm = ExactMatchMS2Sampler(MGF_FILE, id_field="SPECTRUMID")
         cm = ChemicalMixtureCreator(hd, ms2_sampler=mm)
-        dataset = cm.sample(N_CHEMICALS, 2)
+        dataset = cm.sample(N_CHEMS, 2)
 
         # check each chemical to see if it has the correct number of peaks
         records = load_mgf(MGF_FILE, id_field="SPECTRUMID")
@@ -208,3 +199,39 @@ class TestChemicalsFromMZML():
         cs = MZMLChromatogramSampler(MZML_FILE)
         cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
         cm.sample(100, 2)
+
+    def test_fullscan_from_mzml(self, chems_from_mzml):
+        ionisation_mode = POSITIVE
+        controller = SimpleMs1Controller()
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'fullscan_from_mzml.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_topn_from_mzml(self, chems_from_mzml):
+        ionisation_mode = POSITIVE
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 0.01
+        rt_tol = 15
+        min_ms1_intensity = 10
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        check_non_empty_MS2(controller)
+        filename = 'topn_from_mzml.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_mz_rt_i_from_mzml(self, chem_mz_rt_i_from_mzml):
+        ionisation_mode = POSITIVE
+        controller = SimpleMs1Controller()
+        ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml, None)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'fullscan_mz_rt_i_from_mzml.mzML'
+        check_mzML(env, OUT_DIR, filename)

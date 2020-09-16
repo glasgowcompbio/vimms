@@ -157,7 +157,7 @@ class TargetedController(Controller):
         found_names = set()
         unique_names = set([t.name for t in self.targets])
         for target in self.targets:
-            print(target)
+            output_method(target)
             for c in self.ce_values:
                 output_method('\t{} -> {} scans'.format(c, self.target_counts[target][c]))
                 if self.target_counts[target][c] > 0:

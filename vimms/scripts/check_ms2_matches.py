@@ -15,21 +15,32 @@ def process_block(block, file_name):
     peak_start_pos = [b.startswith("Num") for b in block].index(True)
     peaks = []
     for line in block[peak_start_pos+1:]:
-        tokens = line.split()
-        if len(tokens) > 1:
-            peaks.append([float(t) for t in tokens])
+        line = line.rstrip()
+        if ';' in line:
+            # msp format has peak tuples separated by ';'
+            peak_tuples = line.split(';')
+            for pt in peak_tuples:
+                tokens = pt.split()
+                if len(tokens) > 0:
+                    peaks.append([float(t) for t in tokens])
+        else:
+            tokens = line.split()
+            if len(tokens) > 1:
+                peaks.append([float(t) for t in tokens])
     # precursor_mz,peaks,metadata,original_file,spectrum_id
     precursor_mz = None
     original_file = file_name
     spectrum_id = None
     metadata = {}
     for line in block[:peak_start_pos]:
-        if line.startswith('PRECURSORMZ'):
+        if line.startswith('PRECURSORMZ') or line.startswith('PrecursorMZ'):
             precursor_mz = float(line.split(':')[1])
-        elif line.startswith('NAME:'):
+        elif line.startswith('NAME:') or line.startswith('Name:'):
             spectrum_id = line.split(':')[1]
         else:
-            key, value = line.split(':')
+            tokens = line.split(':')
+            key = tokens[0]
+            value = ':'.join(tokens[1:])
             metadata[key] = value
 
     assert precursor_mz is not None
@@ -48,7 +59,7 @@ def library_from_msp(msp_file_name):
     block = []
     records = {}
     for line in lines:
-        if line.startswith("NAME:"):
+        if line.startswith("NAME:") or line.startswith('Name:'):
             # new block
             if len(block) > 0:
                 new_record = process_block(block, msp_file_name)

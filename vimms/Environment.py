@@ -76,8 +76,7 @@ class Environment(object):
             # update controller internal states AFTER a scan has been generated and handled
             self.controller.update_state_after_scan(scan)
             # increment progress bar
-            if self.bar is True:
-                self._update_progress_bar(scan)
+            self._update_progress_bar(scan)
         return scan
 
     def handle_acquisition_open(self):
@@ -98,21 +97,23 @@ class Environment(object):
         :param scan: the newly generated scan
         :return: None
         """
-        N, DEW = self._get_N_DEW(self.mass_spec.time)
-        if N is not None and DEW is not None:
-            msg = '(%.3fs) ms_level=%d N=%d DEW=%d' % (self.mass_spec.time, scan.ms_level, N, DEW)
-        else:
-            msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
-        if self.bar.n + scan.scan_duration < self.bar.total:
-            self.bar.update(scan.scan_duration)
-        self.bar.set_description(msg)
+        if self.bar is not None:
+            N, DEW = self._get_N_DEW(self.mass_spec.time)
+            if N is not None and DEW is not None:
+                msg = '(%.3fs) ms_level=%d N=%d DEW=%d' % (self.mass_spec.time, scan.ms_level, N, DEW)
+            else:
+                msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
+            if self.bar.n + scan.scan_duration < self.bar.total:
+                self.bar.update(scan.scan_duration)
+            self.bar.set_description(msg)
 
     def close_progress_bar(self):
-        try:
-            self.pbar.close()
-        except Exception as e:
-            logger.warning('Failed to close progress bar: %s' % str(e))
-            pass
+        if self.bar is not None:
+            try:
+                self.bar.close()
+            except Exception as e:
+                logger.warning('Failed to close progress bar: %s' % str(e))
+                pass
 
     def add_scan(self, scan):
         """

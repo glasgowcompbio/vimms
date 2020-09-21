@@ -6,7 +6,7 @@ from pathlib import Path
 from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chemicals import KnownChemical, UnknownChemical, DatabaseCompound
-from vimms.Common import adduct_transformation, create_if_not_exist, ATOM_MASSES
+from vimms.Common import adduct_transformation, create_if_not_exist, ATOM_MASSES, POSITIVE
 
 # Constants for write_msp
 COLLISION_ENERGY = '25'
@@ -31,7 +31,7 @@ def decimal_to_string(fnum, no_dec=0):
     return res
 
 
-def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False, all_isotopes=False):
+def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False, all_isotopes=False, ion_mode=[POSITIVE]):
     """
     Turn a chemical list into an msp file
     """
@@ -47,7 +47,7 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False, all_isot
         else:
             use_isotopes = [0]
         for which_isotope in use_isotopes:
-            for ionisation_mode in chem.adducts:
+            for ionisation_mode in ion_mode:
                 for which_adduct in range(len(chem.adducts[ionisation_mode])):
                     if isinstance(chem, KnownChemical):
                         name = 'NAME: ' + 'KnowChemical' + '_' + chem.formula.formula_string + '_iso' + str(

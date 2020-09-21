@@ -243,7 +243,7 @@ class TestIonisationMode:
         cs = ConstantChromatogramSampler()
         adduct_prior_dict = {POSITIVE: {'M+H': 100, 'M+Na': 100, 'M+K': 100}}
         cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cs,
-                                    adduct_prior_dict=adduct_prior_dict)
+                                    adduct_prior_dict=adduct_prior_dict, adduct_proportion_cutoff=0.0)
 
         n_adducts = len(adduct_prior_dict[POSITIVE])
         n_chems = 5

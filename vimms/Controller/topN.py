@@ -4,6 +4,7 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
+from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
 from vimms.MassSpec import ScanParameters, ExclusionItem
 
@@ -91,8 +92,8 @@ class TopNController(Controller):
                 n_tasks_remaining = self.N - len(new_tasks)
                 for i in range(n_tasks_remaining):
                     precursor_scan_id = self.scan_to_process.scan_id
-                    dda_scan_params = self.get_ms2_scan_params(123.456, 100.0, precursor_scan_id, self.isolation_width,
-                                                            self.mz_tol, self.rt_tol)
+                    dda_scan_params = self.get_ms2_scan_params(DUMMY_PRECURSOR_MZ, 100.0, precursor_scan_id, self.isolation_width,
+                                                               self.mz_tol, self.rt_tol)
                     new_tasks.append(dda_scan_params)
                     ms2_tasks.append(dda_scan_params)
                     fragmented_count += 1

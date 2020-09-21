@@ -2,6 +2,8 @@
 # simple script that loads an msp and an mzml and sees how many of the spectra in the MSP file
 # can be matched to a spectrum in an ms2 scan in the .mzml
 import sys
+import os
+import glob
 import argparse
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
@@ -89,6 +91,45 @@ def make_queries_from_mzml(mzml_file_object):
     return query_spectra
 
 
+def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):
+    mzml_file_objects = {}
+    if os.path.isfile(mzml_file_name):
+        mzml_file_objects[mzml_file_name] = MZMLFile(mzml_file_name)
+    elif os.path.isdir(mzml_file_name):
+        mzml_files = glob.glob(os.path.join(mzml_file_name,'*.mzML'))
+        for m in mzml_files:
+            mzml_file_objects[m] = MZMLFile(m)
+    else:
+        logger.debug("No mzML files found")
+        sys.exit(0)
+
+    for m,mzml_file_object in mzml_file_objects.items():
+        logger.debug("Loaded {} scans from {}".format(len(mzml_file_object.scans), m))
+
+    sl = library_from_msp(msp_file_name)
+    logger.debug("Created library from {}".format(msp_file_name))
+
+    hit_ids = set()
+    for m, mzml_file_object in mzml_file_objects.items():
+        query_spectra = make_queries_from_mzml(mzml_file_object)
+        for q in query_spectra:
+            hits = sl.spectral_match(q, ms1_tol=precursor_tolerance, score_thresh=hit_threshold)
+            for hit in hits:
+                hit_id = hit[0]
+                hit_ids.add(hit_id)
+    
+    all_library_ids = set(sl.records.keys())
+    n_library_ids = len(all_library_ids)
+    n_hits = len(hit_ids)
+    logger.debug("Out of {} IDs, {} got hits".format(n_library_ids,n_hits))
+    missing_ids = all_library_ids - hit_ids
+    # print("Missing")
+    # for i in missing_ids:
+    #     print(i)
+    return n_hits, n_library_ids
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Limited dataset creation')
     parser.add_argument('mzml_file_name', type=str)
@@ -98,27 +139,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    mzml_file_object = MZMLFile(args.mzml_file_name)
-    logger.debug("Loaded {} scans from {}".format(len(mzml_file_object.scans), args.mzml_file_name))
-    sl = library_from_msp(args.msp_file_name)
-
-    logger.debug("Created library from {}".format(args.msp_file_name))
-
-    query_spectra = make_queries_from_mzml(mzml_file_object)
-
-    hit_ids = set()
-    for q in query_spectra:
-        hits = sl.spectral_match(q, ms1_tol=args.precursor_tolerance, score_thresh=args.hit_threshold)
-        for hit in hits:
-            hit_id = hit[0]
-            hit_ids.add(hit_id)
-    
-    all_library_ids = set(sl.records.keys())
-    n_library_ids = len(all_library_ids)
-    n_hits = len(hit_ids)
-    print("Out of {} IDs, {} got hits".format(n_library_ids,n_hits))
-    missing_ids = all_library_ids - hit_ids
-    # print("Missing")
-    # for i in missing_ids:
-    #     print(i)
-
+    n_hits, out_of = main(str(args.mzml_file_name), str(args.msp_file_name), args.precursor_tolerance, args.hit_threshold)

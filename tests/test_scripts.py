@@ -64,7 +64,7 @@ class TestMS2Matching:
         a, b = ms2_main(os.path.join(output_folder, '0.mzML'), msp_file, 1, 0.7)
         # check with all
         c, d = ms2_main(output_folder, os.path.join(output_folder,'mmm.msp'), 1, 0.7)
-
+    
         assert b==d
         assert c > a
 

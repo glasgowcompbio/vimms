@@ -12,6 +12,30 @@ from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import GaussianPeakNoise
 
 
+
+class TestTopNForcedN:
+    """
+    Test the TopN controller when N is forced to be N. I.e. always fragment enough
+    """
+    def test_TopN_forceN(self, ten_chems):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, ten_chems, None)
+        N = 20
+        controller = TopNController(POSITIVE, N, 0.7, 10, 15, 0, force_N=True)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        run_environment(env)
+
+        all_scans = controller.scans[1] + controller.scans[2]
+        # sort by RT
+        all_scans.sort(key = lambda x: x.rt)
+        ms1_pos = []
+        for i, s in enumerate(all_scans):
+            if s.ms_level == 1:
+                ms1_pos.append(i)
+        
+        for i, mp in enumerate(ms1_pos[:-1]):
+            assert ms1_pos[i+1] - (mp + 1) == N
+
+
 class TestTopNController:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.

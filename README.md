@@ -17,7 +17,7 @@ on both the simulator as well as on actual mass spectrometry instruments that ha
 only the Thermo Fusion instrument via [IAPI](https://github.com/thermofisherlsms/iapi), but please contact us if you want to 
 add support for other instruments.
 
-Demonstration
+Demonstration 
 ---------
 
 Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/sdrogers/vimms/tree/master/demo).

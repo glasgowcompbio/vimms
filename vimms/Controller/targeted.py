@@ -105,6 +105,7 @@ class TargetedController(Controller):
             self.target_counts[t] = {c: 0 for c in self.ce_values}
 
         self.scan_record = [] # keeps track of which scan is which
+        self.seen_targets = set()
 
     def update_state_after_scan(self, last_scan):
         pass
@@ -119,7 +120,8 @@ class TargetedController(Controller):
             mzi = list(zip(mzs, intensities))
 
             active_targets = list(filter(lambda x: x.active(mzi, rt, self.min_ms1_intensity), self.targets))
-            
+            self.seen_targets.update(active_targets)
+
             target_list = []
             for t in active_targets:
                 for ce in self.target_counts[t]:

@@ -44,6 +44,7 @@ class TopNController(Controller):
         if self.scan_to_process is not None:
             mzs = self.scan_to_process.mzs
             intensities = self.scan_to_process.intensities
+            assert mzs.shape == intensities.shape
             rt = self.scan_to_process.rt
 
             # loop over points in decreasing intensity

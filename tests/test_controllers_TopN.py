@@ -170,6 +170,7 @@ class TestTopNController:
         filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+class TestTopNAdvanced:
     def test_TopN_controller_advanced_params(self, fragscan_dataset_peaks_onlyMH, fragscan_ps):
         # set some values that are not the defaults, so we know they're passed correctly
         params = AdvancedParams(

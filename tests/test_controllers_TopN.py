@@ -6,9 +6,10 @@ from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, Unifor
     ConstantChromatogramSampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import POSITIVE, set_log_level_warning, NEGATIVE
-from vimms.Controller import TopNController, SimpleMs1Controller, PurityController, WeightedDEWController
+from vimms.Controller import TopNController, SimpleMs1Controller, PurityController, WeightedDEWController, \
+    AdvancedParams
 from vimms.Environment import Environment
-from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
 from vimms.Noise import GaussianPeakNoise
 
 
@@ -168,6 +169,71 @@ class TestTopNController:
         # write simulated output to mzML file
         filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
         check_mzML(env, OUT_DIR, filename)
+
+class TestTopNAdvanced:
+    def test_TopN_controller_advanced_params(self, fragscan_dataset_peaks_onlyMH, fragscan_ps):
+        # set some values that are not the defaults, so we know they're passed correctly
+        params = AdvancedParams(
+            default_ms1_scan_window=(10.0, 2000.0),
+            ms1_agc_target=100000,
+            ms1_max_it=500,
+            ms1_collision_energy=200,
+            ms1_orbitrap_resolution=100000,
+            ms1_activation_type='CID',
+            ms1_mass_analyser='IonTrap',
+            ms1_isolation_mode='IonTrap',
+            ms1_source_cid_energy=10,
+            ms2_agc_target=50000,
+            ms2_max_it=250,
+            ms2_collision_energy=300,
+            ms2_orbitrap_resolution=100000,
+            ms2_activation_type='CID',
+            ms2_mass_analyser='IonTrap',
+            ms2_isolation_mode='IonTrap',
+            ms2_source_cid_energy=20
+        )
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY, params=params)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that some of the scan parameters returned are actually what we set
+        # ms1 check
+        scan = controller.scans[1][0]
+        scan_params = scan.scan_params
+        assert scan_params.get(ScanParameters.FIRST_MASS) == params.default_ms1_scan_window[0]
+        assert scan_params.get(ScanParameters.LAST_MASS) == params.default_ms1_scan_window[1]
+        assert scan_params.get(ScanParameters.AGC_TARGET) == params.ms1_agc_target
+        assert scan_params.get(ScanParameters.MAX_IT) == params.ms1_max_it
+        assert scan_params.get(ScanParameters.COLLISION_ENERGY) == params.ms1_collision_energy
+        assert scan_params.get(ScanParameters.ORBITRAP_RESOLUTION) == params.ms1_orbitrap_resolution
+        assert scan_params.get(ScanParameters.ACTIVATION_TYPE) == params.ms1_activation_type
+        assert scan_params.get(ScanParameters.MASS_ANALYSER) == params.ms1_mass_analyser
+        assert scan_params.get(ScanParameters.ISOLATION_MODE) == params.ms1_isolation_mode
+        assert scan_params.get(ScanParameters.SOURCE_CID_ENERGY) == params.ms1_source_cid_energy
+
+        # ms2 check
+        scan = controller.scans[2][0]
+        scan_params = scan.scan_params
+        assert scan_params.get(ScanParameters.AGC_TARGET) == params.ms2_agc_target
+        assert scan_params.get(ScanParameters.MAX_IT) == params.ms2_max_it
+        assert scan_params.get(ScanParameters.COLLISION_ENERGY) == params.ms2_collision_energy
+        assert scan_params.get(ScanParameters.ORBITRAP_RESOLUTION) == params.ms2_orbitrap_resolution
+        assert scan_params.get(ScanParameters.ACTIVATION_TYPE) == params.ms2_activation_type
+        assert scan_params.get(ScanParameters.MASS_ANALYSER) == params.ms2_mass_analyser
+        assert scan_params.get(ScanParameters.ISOLATION_MODE) == params.ms2_isolation_mode
+        assert scan_params.get(ScanParameters.SOURCE_CID_ENERGY) == params.ms2_source_cid_energy
+
 
 
 class TestTopNControllerSpectra:

@@ -532,7 +532,6 @@ class IndependentMassSpectrometer(object):
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
             mzs = self._get_all_mz_peaks(chemical, scan_time, use_ms_level, isolation_windows)
             peaks = []
-
             if mzs is not None:
                 chem_mzs = []
                 chem_intensities = []
@@ -585,7 +584,6 @@ class IndependentMassSpectrometer(object):
         # if no peaks generated, then just return None
         if len(mz_peaks) == 0:
             return None
-
         # apply noise if any
         noisy_mz_peaks = []
         for i in range(len(mz_peaks)):
@@ -613,7 +611,6 @@ class IndependentMassSpectrometer(object):
             # returns ms3 fragments if chemical and scan are both ms3, etc, etc
             intensity = self._get_intensity(chemical, query_rt, which_isotope, which_adduct)
             mz = self._get_mz(chemical, query_rt, which_isotope, which_adduct)
-
             if self.isolation_transition_window == 'gaussian':
                 parent_mz = self._get_mz(chemical.parent, query_rt, which_isotope, which_adduct)
                 scale_factor = scipy.stats.norm(0, self.isolation_transition_window_params[0]).pdf(
@@ -651,8 +648,11 @@ class IndependentMassSpectrometer(object):
                         chemical.max_intensity
             return intensity * chemical.chromatogram.get_relative_intensity(query_rt - chemical.rt)
         else:
+            prop = chemical.parent_mass_prop
+            if isinstance(prop, np.ndarray):
+                prop = prop[0]
             return self._get_intensity(chemical.parent, query_rt, which_isotope, which_adduct) * \
-                   chemical.parent_mass_prop * chemical.prop_ms2_mass
+                   prop * chemical.prop_ms2_mass
 
     def _get_mz(self, chemical, query_rt, which_isotope, which_adduct):
         if chemical.ms_level == 1:

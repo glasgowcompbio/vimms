@@ -596,7 +596,10 @@ class PeakSampler(object):
         # this is the proportion of all fragment intensities in a spectra over the parent intensity
         # returns number between 0 and 1
         if len(self.all_ms2_scans) > 0:
-            return np.random.choice(self.intensity_props, replace=False, size=N)
+            prop = np.random.choice(self.intensity_props, replace=False, size=N)
+            if N  == 1: # flatten so that it isn't an array
+                prop = prop[0]
+            return prop
         return None
 
     ####################################################################################################################

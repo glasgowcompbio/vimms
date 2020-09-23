@@ -47,15 +47,12 @@ in either a simulated or a real environment (connecting to an actual mass spectr
 ![Example Spectra](images/old_schematic.png?raw=true "Example Spectra")
 
 For example, here we show an example MS1 (fullscan) controller that only sends MS1 scans and saves them back: 
-https://github.com/sdrogers/vimms/blob/master/vimms/Controller/topN.py#L101-L133.
+https://github.com/sdrogers/vimms/blob/master/vimms/Controller/fullscan.py.
 
 Another example of a Top-N controller that fragments the top-N most intense precursor ions in the survey (MS1) scan:
-https://github.com/sdrogers/vimms/blob/master/vimms/Controller/topN.py#L246-L473
+https://github.com/sdrogers/vimms/blob/master/vimms/Controller/topN.py.
 
-Finally the following YouTube video describes [SmartROI](https://github.com/sdrogers/vimms/blob/master/vimms/Controller/roi.py#L208-L393), a controller that detects regions-of-interests (ROIs) in real-time and 
-fragment based on certain criteria:
-
-[![SmartROI](http://img.youtube.com/vi/kHPYQicGoHE/0.jpg)](https://www.youtube.com/watch?v=kHPYQicGoHE "SmartROI")
+For more details, please check the **Publications** section.
 
 Installation
 ---------------
@@ -67,17 +64,20 @@ ViMMS requires Python 3+. Unfortunately it is not compatible with Python 2. You 
 
 ```pip install vimms```
 
-You can download the latest stable release (1.0) used in our paper from here: <a href="https://zenodo.org/badge/latestdoi/196360601"><img src="https://zenodo.org/badge/196360601.svg" alt="DOI"></a>
+You can download the latest stable release (1.0) used in our original ViMMS paper from here: <a href="https://zenodo.org/badge/latestdoi/196360601"><img src="https://zenodo.org/badge/196360601.svg" alt="DOI"></a>
 The stable version contains the simulator element up to the first paper, but it is fairly out-of-date now. 
-For more cutting-edge stuff, please check out the development version.
+
+A newer stable (2.0) release that contained many new controllers and code improvements can be found here: https://github.com/sdrogers/vimms/releases/tag/2.0.0.
+
+For more cutting-edge stuff, please check out the development version below. 
 
 **Development version**
 
-To use the latest bleeding-edge ViMMS code in this repository, follow the steps below. Note that this repository is in active development, so some things may break.
+To use the latest bleeding-edge ViMMS code in this repository, follow the steps below to check out the master branch. Note that this repository is in active development, so some things may break (please report an issue in that case).
 
 1. Install Python 3. We recommend Python 3.6 or 3.7.
 2. Install pipenv (https://pipenv.readthedocs.io/en/latest/).
-3. Clone this repository.
+3. Clone this repository by checking out the master branch: `git clone https://github.com/sdrogers/vimms.git`.
 4. In this cloned directory, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
 5. Run Jupyter Notebook (`$ jupyter notebook`) or Jupyter Lab (`$ jupyter lab`).
 
@@ -88,6 +88,7 @@ Example Notebooks
 
 - Notebooks that demonstrate how to use ViMMS are available in the [demo](https://github.com/sdrogers/vimms/tree/master/demo) folder of this repository.
 - Notebooks to replicate the results in the papers related to ViMMS are available in [examples](https://github.com/sdrogers/vimms/tree/master/examples) folder of this repository.
+
 Test Cases
 --------
 
@@ -107,11 +108,22 @@ To see test output, add the `-s` switch, e.g.:
 
 `python -m pytest -s tests/integration/test_controllers.py::TestSMARTROIController`
 
-Publication
+Publications
 ------------
 
-To reference ViMMS in your work, please cite our paper:
+To reference the ViMMS simulator in your work, please cite our paper:
 - Wandy, Joe, et al. "*In Silico Optimization of Mass Spectrometry Fragmentation Strategies in Metabolomics.*" Metabolites 9.10 (2019): 219. https://www.mdpi.com/2218-1989/9/10/219
+
+If you develop new controllers on top of ViMMS, please also cite the following paper: 
+- Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" bioRxiv (2020). https://www.biorxiv.org/content/10.1101/2020.09.11.293092v1.abstract (**pre-print**)
+
+Conferences and Poster Presentations
+------------------------------------
 
 SmartROI -- voted the best poster for the CompMS COSI track in ISMB 2020:
 - https://f1000research.com/posters/9-973
+
+And it's accompanying video presentation:
+
+[![SmartROI](http://img.youtube.com/vi/kHPYQicGoHE/0.jpg)](https://www.youtube.com/watch?v=kHPYQicGoHE "SmartROI")
+

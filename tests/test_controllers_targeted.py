@@ -22,8 +22,8 @@ class TestTargetedController:
         d = cs.sample(2, 2)  # sample chems with m/z = 100 and 200
         ionisation_mode = POSITIVE
         targets = []
-        targets.append(Target(101, 100, 102, 10, 20))
-        targets.append(Target(201, 200, 202, 10, 20))
+        targets.append(Target(101, 100, 102, 10, 20, adduct='M+H'))
+        targets.append(Target(201, 200, 202, 10, 20, metadata={'a': 1}))
         ce_values = [10, 20, 30]
         n_replicates = 4
         controller = TargetedController(targets, ce_values, n_replicates=n_replicates, limit_acquisition=True)

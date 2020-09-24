@@ -140,6 +140,9 @@ class ScanParameters(object):
         else:
             return None
 
+    def get_all(self):
+        return self.params
+
     def compute_isolation_windows(self):
         """
         Gets the full-width (DDA) isolation window around a precursor m/z

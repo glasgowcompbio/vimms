@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import pandas as pd
 import pylab as plt
 from loguru import logger
 
@@ -145,6 +146,24 @@ class Controller(object):
 
     def update_state_after_scan(self, last_scan):
         raise NotImplementedError()
+
+    def dump_scans(self, output_method):
+        all_scans = self.scans[1] + self.scans[2]
+        all_scans.sort(key=lambda x: x.scan_id)  # sort by scan_id
+        out_list = []
+        for scan in all_scans:
+            out = {
+                'scan_id': scan.scan_id,
+                'num_peaks': scan.num_peaks,
+                'rt': scan.rt,
+                'ms_level': scan.ms_level
+            }
+            out.update(scan.scan_params.get_all())  # add all the scan params to out
+            out_list.append(out)
+
+        # dump to csv
+        df = pd.DataFrame(out_list)
+        output_method(df.to_csv(index=False, line_terminator='\n'))
 
     def _process_scan(self, scan):
         raise NotImplementedError()

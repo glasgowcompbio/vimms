@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
-
-from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW
+from loguru import logger
+from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW, POSITIVE, NEGATIVE
 from vimms.MassSpec import ScanParameters
 
 
@@ -133,9 +133,20 @@ class MzmlWriter(object):
         except AttributeError:  # if it's a method scan (not a custom scan), there's no scan_params to get first_mz and last_mz
             first_mz, last_mz = DEFAULT_MS1_SCAN_WINDOW
 
+
+        polarity = scan.scan_params.get(ScanParameters.POLARITY)
+        if polarity == POSITIVE:
+            int_polarity = 1
+        elif polarity == NEGATIVE:
+            int_polarity = -1
+        else:
+            int_polarity = 1
+            logger.warning("Unknown polarity in mzml writer: {}".format(polarity))
+
         out.write_spectrum(
             scan.mzs, scan.intensities,
             id=scan_id,
+            polarity=int_polarity,
             centroided=True,
             scan_start_time=scan.rt / 60.0,
             scan_window_list=[(first_mz, last_mz)],

@@ -3,7 +3,7 @@ import os
 import numpy as np
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 from loguru import logger
-from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW
+from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW, POSITIVE, NEGATIVE
 from vimms.MassSpec import ScanParameters
 
 

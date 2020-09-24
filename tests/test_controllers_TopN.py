@@ -1,5 +1,6 @@
+import os
 from loguru import logger
-
+import pymzml
 from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE, run_environment, \
     check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND, HMDB
 from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, UniformRTAndIntensitySampler, \
@@ -11,6 +12,34 @@ from vimms.Controller import TopNController, SimpleMs1Controller, PurityControll
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
 from vimms.Noise import GaussianPeakNoise
+
+
+class TestNegative:
+    def test_neg(self, even_chems):
+        mass_spec = IndependentMassSpectrometer(NEGATIVE, even_chems, None)
+        N = 10
+        controller = TopNController(NEGATIVE, N, 0.7, 10, 15, 0, force_N=True)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        run_environment(env)
+
+        for level in controller.scans:
+            for scan in controller.scans[level]:
+                assert scan.scan_params.get(ScanParameters.POLARITY) == NEGATIVE
+        ms1_peaks = [int(m) for m in controller.scans[1][0].mzs]
+        ms1_peaks.sort()
+        assert 98 in ms1_peaks
+        assert 198 in ms1_peaks
+        assert 298 in ms1_peaks
+        assert 398 in ms1_peaks
+
+        filename = 'topn_negative.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+        # load the file and check polarity in the mzml
+
+        run = pymzml.run.Reader(os.path.join(OUT_DIR, filename))
+        for n, spec in enumerate(run):
+            assert spec.get('MS:1000129') # this is the negative scan accession
 
 
 

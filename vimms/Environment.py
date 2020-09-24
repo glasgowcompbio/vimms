@@ -192,7 +192,9 @@ class Environment(object):
                                 orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
                                 default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
                                 mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                                activation_type=DEFAULT_MS1_ACTIVATION_TYPE, isolation_mode=DEFAULT_MS1_ISOLATION_MODE):
+                                activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                                isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+                                metadata=None):
         """
         Gets the default method scan parameters. Now it's set to do MS1 scan only.
         :return: the default scan parameters
@@ -212,14 +214,18 @@ class Environment(object):
         default_scan_params.set(ScanParameters.POLARITY, self.mass_spec.ionisation_mode)
         default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
         default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
+        default_scan_params.set(ScanParameters.METADATA, metadata)
         return default_scan_params
 
     def get_dda_scan_param(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
                            agc_target=DEFAULT_MS2_AGC_TARGET, max_it=DEFAULT_MS2_MAXIT,
                            collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
                            source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
-                           orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION, mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                           activation_type=DEFAULT_MS1_ACTIVATION_TYPE, isolation_mode=DEFAULT_MS2_ISOLATION_MODE):
+                           orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                           mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                           activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                           isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+                           metadata=None):
         dda_scan_params = ScanParameters()
         dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
 
@@ -267,6 +273,7 @@ class Environment(object):
         dda_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
         dda_scan_params.set(ScanParameters.POLARITY, self.mass_spec.ionisation_mode)
         dda_scan_params.set(ScanParameters.FIRST_MASS, DEFAULT_MSN_SCAN_WINDOW[0])
+        dda_scan_params.set(ScanParameters.METADATA, metadata)
 
         # dynamically scale the upper mass
         charge = 1

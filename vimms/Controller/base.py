@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import pandas as pd
 import pylab as plt
 from loguru import logger
 
@@ -66,7 +67,7 @@ class Controller(object):
         self.initial_scan_id = INITIAL_SCAN_ID
         self.current_task_id = self.initial_scan_id
 
-    def get_ms1_scan_params(self):
+    def get_ms1_scan_params(self, metadata=None):
         task = self.environment.get_default_scan_params(default_ms1_scan_window=self.params.default_ms1_scan_window,
                                                         agc_target=self.params.ms1_agc_target,
                                                         max_it=self.params.ms1_max_it,
@@ -75,10 +76,11 @@ class Controller(object):
                                                         orbitrap_resolution=self.params.ms1_orbitrap_resolution,
                                                         activation_type=self.params.ms1_activation_type,
                                                         mass_analyser=self.params.ms1_mass_analyser,
-                                                        isolation_mode=self.params.ms1_isolation_mode)
+                                                        isolation_mode=self.params.ms1_isolation_mode,
+                                                        metadata=metadata)
         return task
 
-    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol):
+    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None):
         task = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
                                                    isolation_width, mz_tol, rt_tol,
                                                    agc_target=self.params.ms2_agc_target,
@@ -88,7 +90,8 @@ class Controller(object):
                                                    orbitrap_resolution=self.params.ms2_orbitrap_resolution,
                                                    activation_type=self.params.ms2_activation_type,
                                                    mass_analyser=self.params.ms2_mass_analyser,
-                                                   isolation_mode=self.params.ms2_isolation_mode)
+                                                   isolation_mode=self.params.ms2_isolation_mode,
+                                                   metadata=metadata)
         return task
 
     def get_initial_tasks(self):
@@ -143,6 +146,24 @@ class Controller(object):
 
     def update_state_after_scan(self, last_scan):
         raise NotImplementedError()
+
+    def dump_scans(self, output_method):
+        all_scans = self.scans[1] + self.scans[2]
+        all_scans.sort(key=lambda x: x.scan_id)  # sort by scan_id
+        out_list = []
+        for scan in all_scans:
+            out = {
+                'scan_id': scan.scan_id,
+                'num_peaks': scan.num_peaks,
+                'rt': scan.rt,
+                'ms_level': scan.ms_level
+            }
+            out.update(scan.scan_params.get_all())  # add all the scan params to out
+            out_list.append(out)
+
+        # dump to csv
+        df = pd.DataFrame(out_list)
+        output_method(df.to_csv(index=False, line_terminator='\n'))
 
     def _process_scan(self, scan):
         raise NotImplementedError()

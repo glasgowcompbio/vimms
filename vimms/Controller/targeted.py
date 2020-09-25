@@ -136,8 +136,13 @@ class TargetedController(Controller):
                 # make some MS2 scans, upto N
                 for i in range(min(len(target_list), self.N)):
                     t, ce, _ = target_list[i]
+                    metadata = {}
+                    if t.adduct is not None:
+                        metadata['adduct'] = t.adduct
+                    if t.metadata is not None:
+                        metadata.update(t.metadata) # copy the rest of metadata from target
                     dda_scan_params = self.get_ms2_scan_params(t.mz, 1e3, precursor_scan_id, self.isolation_width, \
-                                                        self.mz_tol, self.rt_tol)
+                                                        self.mz_tol, self.rt_tol, metadata=metadata)
                     dda_scan_params.set(ScanParameters.COLLISION_ENERGY, ce)
                     new_tasks.append(dda_scan_params)
                     self.current_task_id += 1

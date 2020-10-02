@@ -10,7 +10,7 @@ from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormula
     CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, MZMLRTandIntensitySampler, MZMLFormulaSampler, \
     MZMLChromatogramSampler
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning
+from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning, set_log_level_debug
 from vimms.Controller import SimpleMs1Controller, TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer

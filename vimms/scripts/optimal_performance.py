@@ -6,12 +6,16 @@ import sys
 
 import networkx as nx
 import numpy as np
+
+from loguru import logger
+
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 from vimms.Roi import Roi
+from vimms.Common import POSITIVE
 
 
 def get_times(mzfile_object):
@@ -103,6 +107,58 @@ def get_intensity(roi, rt, interpolate=False):
                         roi.intensity_list[after_pos] - roi.intensity_list[before_pos])
         else:
             return roi.intensity_list[before_pos]
+
+def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, chrom_min = 0.001):
+    # this currently only works for mono-isotope and M+H
+    logger.warning('Making graph edges from chemicals only uses the monoisotopic M+H adduct')
+    chem_id = 0
+    edges = []
+    # find the minimum delta t and then set the step for determining the end of peaks to be half of this
+    min_scan_delta = min([scan_start_times[i+1] - scan_start_times[i] for i in range(len(scan_start_times)-1)])
+    delta_t = min_scan_delta / 2
+    for chemical in chems:
+        
+        adduct = 'M+H'
+        which_isotope = 0
+
+        # skip chems that start after the end of acquisition
+        rt_start = chemical.rt
+        if rt_start > scan_start_times[-1]:
+            continue
+
+        # find the end rt of chemicals
+        rt_end = rt_start + delta_t
+        while chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) is not None and chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) > chrom_min and rt_end <= scan_start_times[-1]:
+            rt_end += delta_t
+        
+        # get the intensity at this RT
+        adduct_intensity = {a: i for a,i in chemical.adducts[POSITIVE]}
+        max_intensity = chemical.isotopes[which_isotope][1] * adduct_intensity[adduct] * chemical.max_intensity
+
+        # standard loop as in the ROI case
+        spo = bisect.bisect_right(scan_start_times, rt_start)
+        can_fragment = False  # until we see an MS1
+        while spo < len(scan_start_times) and scan_start_times[spo] < rt_end:
+            # get relative intensity at this time point
+            rel_intensity = chemical.chromatogram.get_relative_intensity(scan_start_times[spo] - chemical.rt)
+            if rel_intensity is None:
+                rel_intensity = 0.0
+            intensity = max_intensity * rel_intensity
+            if scan_levels[spo] == 1:
+                if intensity >= min_ms1_intensity:
+                    can_fragment = True
+                else:
+                    can_fragment = False
+            if scan_levels[spo] == 2:
+                if can_fragment:
+                    edges.append(("S{}".format(spo), "B{}".format(chem_id), chemical))
+            spo += 1
+        chem_id += 1
+    return edges
+
+
+
+        
 
 
 def make_edges(boxes, scan_start_times, scan_levels, min_ms1_intensity):

@@ -10,6 +10,7 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
 from vimms.scripts.check_ms2_matches import main as ms2_main
+from vimms.scripts.optimal_performance import setup_scans, make_edges_chems, reducedUnweightedMaxMatchingFromLists
 
 class TestMS2Matching:
     def test_ms2_matching(self):
@@ -69,3 +70,21 @@ class TestMS2Matching:
         assert c > a
 
 
+class TestChemEdges:
+    def test_chem_edges(self, ten_chems):
+        set_log_level_debug()
+        min_ms1_intensity = 1e3
+        min_rt = 200
+        max_rt = 300
+        N = 10
+        scan_duration_dict = {1:0.6, 2:0.2}
+        scan_levels, scan_start_times = setup_scans(scan_duration_dict, N, min_rt, max_rt)
+        edges = make_edges_chems(ten_chems,  scan_start_times, scan_levels, min_ms1_intensity)
+
+        scan_names, box_names, _ = zip(*edges)
+        scanSet = set(scan_names)
+        boxSet = set(box_names)
+        reduced_edges = list(zip(scan_names, box_names))
+        matchList, size = reducedUnweightedMaxMatchingFromLists(scanSet, boxSet, reduced_edges)
+        print("The matching has size: {}".format(size))
+        

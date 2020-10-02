@@ -9,7 +9,7 @@ from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, UniformMZFormulaSampler, \
     CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, MZMLRTandIntensitySampler, MZMLFormulaSampler, \
     MZMLChromatogramSampler
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML, chemical_to_box
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning, set_log_level_debug
 from vimms.Controller import SimpleMs1Controller, TopNController
 from vimms.Environment import Environment

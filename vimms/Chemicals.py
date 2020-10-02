@@ -8,6 +8,8 @@ import scipy.stats
 from loguru import logger
 import pylab as plt
 
+from mass_spec_utils.data_import.mzmine import PickedBox
+
 
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
@@ -845,3 +847,5 @@ class ChemicalMixtureFromMZML(object):
                 parent.children = children
 
         return chemicals
+
+

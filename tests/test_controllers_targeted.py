@@ -42,7 +42,7 @@ class TestTargetedController:
             params = s.scan_params
             pmz = params.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
             filtered_targets = list(
-                filter(lambda x: x.min_rt <= s.rt and x.max_rt >= s.rt and x.min_mz <= pmz and x.max_mz >= pmz,
+                filter(lambda x: x.from_rt <= s.rt and x.to_rt >= s.rt and x.from_mz <= pmz and x.to_mz >= pmz,
                        targets))
             assert len(filtered_targets) == 1
             target = filtered_targets[0]

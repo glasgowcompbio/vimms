@@ -531,6 +531,7 @@ class IndependentMassSpectrometer(object):
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
+
         sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
 
         # Note: at this point, the scan duration is not set yet because we don't know what the next scan is going to be

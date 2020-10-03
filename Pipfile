@@ -32,6 +32,7 @@ tabulate = "*"
 pytest = "*"
 pysmiles = "*"
 "flake8" = "*"
+intervaltree = "*"
 
 [dev-packages]
 pipenv-setup = "*"

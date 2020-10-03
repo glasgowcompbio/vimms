@@ -54,22 +54,27 @@ def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta
 class Target(object):
     def __init__(self, mz, min_mz, max_mz, min_rt, max_rt, name=None, adduct=None,metadata=None):
         self.mz = mz
-        self.min_mz = min_mz
-        self.max_mz = max_mz
-        self.min_rt = min_rt
-        self.max_rt = max_rt
-
+        self.from_mz = min_mz
+        self.to_mz = max_mz
+        self.from_rt = min_rt
+        self.to_rt = max_rt
         self.name = name
         self.metadata = metadata
         self.adduct = adduct
     
+    def peak_in(self, mz, rt):
+        if mz >= self.from_mz and mz <= self.to_mz and rt >= self.from_rt and rt <= self.to_rt:
+            return True
+        else:
+            return False
+
     def active(self, mz_intensity, rt, min_intensity_for_fragmentation):
         # check if there is a peak inside this box
         # if there is, return true, else return false
         # mzi is a zip of the mz and intensity lists from a scan
-        if rt < self.min_rt or rt >  self.max_rt:
+        if rt < self.from_rt or rt >  self.to_rt:
             return False
-        sub_mzi = list(filter(lambda x: x[0] >= self.min_mz and x[0] <= self.max_mz and x[1] >= min_intensity_for_fragmentation, mz_intensity))
+        sub_mzi = list(filter(lambda x: x[0] >= self.from_mz and x[0] <= self.to_mz and x[1] >= min_intensity_for_fragmentation, mz_intensity))
         if len(sub_mzi) > 0:
             return True
         else:
@@ -77,9 +82,9 @@ class Target(object):
     
     def __str__(self):
         if self.name is not None:
-            return "{}{} (m/z: {}->{}, rt: {}->{})".format(self.name, self.adduct, self.min_mz, self.max_mz, self.min_rt, self.max_rt)
+            return "{}{} (m/z: {}->{}, rt: {}->{})".format(self.name, self.adduct, self.from_mz, self.to_mz, self.from_rt, self.to_rt)
         else:
-            return "(m/z: {}->{}, rt: {}->{})".format(self.min_mz, self.max_mz, self.min_rt, self.max_rt)
+            return "(m/z: {}->{}, rt: {}->{})".format(self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
 class TargetedController(Controller):
     """

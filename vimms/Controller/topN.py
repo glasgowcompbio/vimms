@@ -6,7 +6,8 @@ from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
 from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
-from vimms.MassSpec import ScanParameters, ExclusionItem
+from vimms.MassSpec import ScanParameters
+from vimms.Exclusion import ExclusionItem
 
 
 class TopNController(Controller):

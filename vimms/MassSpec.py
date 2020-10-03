@@ -206,36 +206,6 @@ class FragmentationEvent(object):
     def __repr__(self):
         return 'MS%d FragmentationEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
 
-
-class ExclusionItem(object):
-    """
-    A class to store the item to exclude when computing dynamic exclusion window
-    """
-
-    def __init__(self, from_mz, to_mz, from_rt, to_rt, frag_at):
-        """
-        Creates a dynamic exclusion item
-        :param from_mz: m/z lower bounding box
-        :param to_mz: m/z upper bounding box
-        :param from_rt: RT lower bounding box
-        :param to_rt: RT upper bounding box
-        """
-        self.from_mz = from_mz
-        self.to_mz = to_mz
-        self.from_rt = from_rt
-        self.to_rt = to_rt
-        self.frag_at = frag_at
-
-    def __repr__(self):
-        return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
-
-    def __lt__(self, other):
-        if self.from_mz <= other.from_mz:
-            return True
-        else:
-            return False
-
-
 class IndependentMassSpectrometer(object):
     """
     A class that represents (synchronous) mass spectrometry process.

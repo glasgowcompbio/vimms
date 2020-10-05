@@ -4,7 +4,7 @@ import math
 import numpy as np
 from tqdm import tqdm
 
-from vimms.MassSpec import ScanParameters
+from vimms.Common import ScanParameters
 
 
 class DiaAnalyser(object):

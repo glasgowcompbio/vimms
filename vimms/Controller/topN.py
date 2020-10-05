@@ -4,9 +4,8 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
-from vimms.Common import DUMMY_PRECURSOR_MZ
+from vimms.Common import DUMMY_PRECURSOR_MZ, ScanParameters, get_default_scan_params
 from vimms.Controller.base import Controller
-from vimms.MassSpec import ScanParameters
 from vimms.Exclusion import ExclusionItem
 
 
@@ -567,7 +566,7 @@ class PurityController(TopNController):
                         ms2_tasks.append(dda_scan_params)
                         self.current_task_id += 1
                         if self.purity_add_ms1 and purity_idx != purity_randomise_idx[-1]:
-                            ms1_scan_params = self.environment.get_default_scan_params()
+                            ms1_scan_params = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode)
                             new_tasks.append(ms1_scan_params)
                             self.current_task_id += 1
                         fragmented_count += 1

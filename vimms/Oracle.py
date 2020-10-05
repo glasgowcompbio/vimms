@@ -2,7 +2,9 @@
 import numpy as np
 from loguru import logger
 from vimms.Exclusion import BoxHolder, ExclusionItem
-from vimms.MassSpec import ScanParameters
+from vimms.Common import ScanParameters
+
+
 # some example oracles...
 
 class AbstractOracle(object):

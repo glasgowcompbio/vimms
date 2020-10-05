@@ -4,8 +4,8 @@ import scipy
 from events import Events
 from scipy.stats import skewnorm
 
-from vimms.Common import POSITIVE
-from vimms.MassSpec import ScanParameters, IndependentMassSpectrometer, Scan
+from vimms.Common import POSITIVE, ScanParameters
+from vimms.MassSpec import IndependentMassSpectrometer, Scan
 
 
 class Person(object):

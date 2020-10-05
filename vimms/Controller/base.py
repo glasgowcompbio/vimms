@@ -8,8 +8,8 @@ from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, DEFAUL
     DEFAULT_MS1_COLLISION_ENERGY, DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS1_ACTIVATION_TYPE, \
     DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ISOLATION_MODE, DEFAULT_SOURCE_CID_ENERGY, DEFAULT_MS2_AGC_TARGET, \
     DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_MS2_ISOLATION_MODE, INITIAL_SCAN_ID
-from vimms.MassSpec import ScanParameters
+    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_MS2_ISOLATION_MODE, INITIAL_SCAN_ID, ScanParameters, get_default_scan_params, \
+    get_dda_scan_param
 
 
 class AdvancedParams(object):
@@ -68,30 +68,32 @@ class Controller(object):
         self.current_task_id = self.initial_scan_id
 
     def get_ms1_scan_params(self, metadata=None):
-        task = self.environment.get_default_scan_params(default_ms1_scan_window=self.params.default_ms1_scan_window,
-                                                        agc_target=self.params.ms1_agc_target,
-                                                        max_it=self.params.ms1_max_it,
-                                                        collision_energy=self.params.ms1_collision_energy,
-                                                        source_cid_energy=self.params.ms1_source_cid_energy,
-                                                        orbitrap_resolution=self.params.ms1_orbitrap_resolution,
-                                                        activation_type=self.params.ms1_activation_type,
-                                                        mass_analyser=self.params.ms1_mass_analyser,
-                                                        isolation_mode=self.params.ms1_isolation_mode,
-                                                        metadata=metadata)
+        task = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode,
+                                       default_ms1_scan_window=self.params.default_ms1_scan_window,
+                                       agc_target=self.params.ms1_agc_target,
+                                       max_it=self.params.ms1_max_it,
+                                       collision_energy=self.params.ms1_collision_energy,
+                                       source_cid_energy=self.params.ms1_source_cid_energy,
+                                       orbitrap_resolution=self.params.ms1_orbitrap_resolution,
+                                       activation_type=self.params.ms1_activation_type,
+                                       mass_analyser=self.params.ms1_mass_analyser,
+                                       isolation_mode=self.params.ms1_isolation_mode,
+                                       metadata=metadata)
         return task
 
     def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None):
-        task = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                   isolation_width, mz_tol, rt_tol,
-                                                   agc_target=self.params.ms2_agc_target,
-                                                   max_it=self.params.ms2_max_it,
-                                                   collision_energy=self.params.ms2_collision_energy,
-                                                   source_cid_energy=self.params.ms2_source_cid_energy,
-                                                   orbitrap_resolution=self.params.ms2_orbitrap_resolution,
-                                                   activation_type=self.params.ms2_activation_type,
-                                                   mass_analyser=self.params.ms2_mass_analyser,
-                                                   isolation_mode=self.params.ms2_isolation_mode,
-                                                   metadata=metadata)
+        task = get_dda_scan_param(mz, intensity, precursor_scan_id,
+                                  isolation_width, mz_tol, rt_tol,
+                                  agc_target=self.params.ms2_agc_target,
+                                  max_it=self.params.ms2_max_it,
+                                  collision_energy=self.params.ms2_collision_energy,
+                                  source_cid_energy=self.params.ms2_source_cid_energy,
+                                  orbitrap_resolution=self.params.ms2_orbitrap_resolution,
+                                  activation_type=self.params.ms2_activation_type,
+                                  mass_analyser=self.params.ms2_mass_analyser,
+                                  isolation_mode=self.params.ms2_isolation_mode,
+                                  polarity=self.environment.mass_spec.ionisation_mode,
+                                  metadata=metadata)
         return task
 
     def get_initial_tasks(self):

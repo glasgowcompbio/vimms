@@ -10,8 +10,7 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
     MZMLChromatogramSampler
 from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, GET_MS2_BY_PEAKS, ADDUCT_DICT_POS_MH, \
-    GET_MS2_BY_SPECTRA, POSITIVE
-from vimms.MassSpec import ScanParameters
+    GET_MS2_BY_SPECTRA, POSITIVE, ScanParameters
 from vimms.Roi import RoiParams
 
 ### define some useful constants ###

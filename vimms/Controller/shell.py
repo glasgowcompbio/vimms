@@ -1,6 +1,6 @@
 # shell.py
 from vimms.Controller.base import Controller
-from vimms.MassSpec import ScanParameters
+from vimms.Common import ScanParameters
 
 
 class Shell(Controller):

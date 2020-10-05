@@ -6,10 +6,10 @@ from tests.conftest import BASE_DIR
 from vimms.ChemicalSamplers import EvenMZFormulaSampler, UniformRTAndIntensitySampler, ConstantChromatogramSampler, \
     FixedMS2Sampler
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
+from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug, ScanParameters
 from vimms.Controller import Target, TargetedController, create_targets_from_toxid
 from vimms.Environment import Environment
-from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
+from vimms.MassSpec import IndependentMassSpectrometer
 
 
 class TestTargetedController:

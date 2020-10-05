@@ -4,7 +4,8 @@ from tests.conftest import OUT_DIR
 from vimms.ChemicalSamplers import EvenMZFormulaSampler, UniformRTAndIntensitySampler, ConstantChromatogramSampler, \
     FixedMS2Sampler
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.Common import DEFAULT_ISOLATION_WIDTH, POSITIVE, set_log_level_warning
+from vimms.Common import DEFAULT_ISOLATION_WIDTH, POSITIVE, set_log_level_warning, get_default_scan_params, \
+    get_dda_scan_param
 from vimms.Controller import FixedScansController, MultiIsolationController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -35,10 +36,10 @@ class TestMultipleMS2Windows:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
-        ms1_scan = env.get_default_scan_params()
-        ms2_scan_1 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
-        ms2_scan_2 = env.get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol, rt_tol)
-        ms2_scan_3 = env.get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol)
+        ms1_scan = get_default_scan_params(polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_2 = get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_3 = get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
 
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
@@ -75,10 +76,10 @@ class TestFixedScansController:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
-        ms1_scan = env.get_default_scan_params()
-        ms2_scan_1 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
-        ms2_scan_2 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
-        ms2_scan_3 = env.get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol)
+        ms1_scan = get_default_scan_params(polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_2 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_3 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
         set_log_level_warning()

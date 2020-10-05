@@ -60,7 +60,7 @@ class TopNAgent(AbstractAgent):
             if intensity < self.min_ms1_intensity:
                 break
 
-            if self.exclusion.is_in_box(mz, rt):  #  will always return false in this controller, but used in children
+            if self.exclusion.is_in_box(mz, rt):  # will always return false in this controller, but used in children
                 continue
 
             precursor_scan_id = scan.scan_id

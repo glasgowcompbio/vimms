@@ -10,7 +10,7 @@ from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
 from vimms.Controller import Shell
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Oracle import FullScanOracle, TopNOracle, TopNDEWOracle
+from vimms.Agent import FullScanAgent, TopNAgent, TopNDEWAgent
 from vimms.Noise import UniformSpikeNoise
 
 
@@ -25,11 +25,10 @@ class TestShellController:
         d = cs.sample(500, 2) 
         ionisation_mode = POSITIVE
 
-        # Example shows how the same Oracle object can be used
-        # in consecutive controllers
+        # Example shows how the same Agent object can be used in consecutive controllers
 
-        oracle = TopNDEWOracle(10, 1000, 10, 1500)
-        controller = Shell(ionisation_mode, oracle)
+        agent = TopNDEWAgent(10, 1000, 10, 1500)
+        controller = Shell(ionisation_mode, agent)
         spike_noise = UniformSpikeNoise(0.1, 1000)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None, spike_noise=spike_noise)
         env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
@@ -42,7 +41,7 @@ class TestShellController:
 
         check_mzML(env, OUT_DIR, 'shell.mzML')
 
-        controller = Shell(ionisation_mode, oracle)
+        controller = Shell(ionisation_mode, agent)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None, spike_noise=spike_noise)
         env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
         set_log_level_warning()
@@ -50,13 +49,11 @@ class TestShellController:
 
         check_mzML(env, OUT_DIR, 'shell2.mzML')
 
-        controller = Shell(ionisation_mode, oracle)
+        controller = Shell(ionisation_mode, agent)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None, spike_noise=spike_noise)
         env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
         set_log_level_warning()
         env.run()
 
         check_mzML(env, OUT_DIR, 'shell3.mzML')
-        
-
 

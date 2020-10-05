@@ -5,7 +5,7 @@ import scipy
 from events import Events
 from loguru import logger
 
-from vimms.Common import adduct_transformation, DEFAULT_SCAN_TIME_DICT, INITIAL_SCAN_ID
+from vimms.Common import adduct_transformation, DEFAULT_SCAN_TIME_DICT, INITIAL_SCAN_ID, ScanParameters
 from vimms.Noise import NoPeakNoise
 
 
@@ -77,110 +77,6 @@ class Scan(object):
 
     def __repr__(self):
         return 'Scan %d num_peaks=%d rt=%.2f ms_level=%d' % (self.scan_id, self.num_peaks, self.rt, self.ms_level)
-
-
-class ScanParameters(object):
-    """
-    A class to store parameters used to instruct the mass spec how to generate a scan.
-    This object is usually created by the controllers.
-    """
-
-    MS_LEVEL = 'ms_level'
-    COLLISION_ENERGY = 'collision_energy'
-    POLARITY = 'polarity'
-    FIRST_MASS = 'first_mass'
-    LAST_MASS = 'last_mass'
-    ORBITRAP_RESOLUTION = 'orbitrap_resolution'
-    AGC_TARGET = 'agc_target'
-    MAX_IT = 'max_it'
-    MASS_ANALYSER = 'analyzer'
-    ACTIVATION_TYPE = 'activation_type'
-    ISOLATION_MODE = 'isolation_mode'
-    SOURCE_CID_ENERGY = 'source_cid_energy'
-    METADATA = 'metadata'
-
-    # this is used for DIA-based controllers to specify which windows to fragment
-    ISOLATION_WINDOWS = 'isolation_windows'
-
-    # precursor m/z and isolation width have to be specified together for DDA-based controllers
-    PRECURSOR_MZ = 'precursor_mz'
-    ISOLATION_WIDTH = 'isolation_width'
-
-    # used in Top-N, hybrid and ROI controllers to perform dynamic exclusion
-    DYNAMIC_EXCLUSION_MZ_TOL = 'dew_mz_tol'
-    DYNAMIC_EXCLUSION_RT_TOL = 'dew_rt_tol'
-
-    # only used by the hybrid controller for now, since its Top-N may change depending on time
-    # for other DDA controllers it's always the same throughout the whole run, so we don't send this parameter
-    CURRENT_TOP_N = 'current_top_N'
-
-    def __init__(self):
-        """
-        Creates a scan parameter object
-        """
-        self.params = {}
-
-    def set(self, key, value):
-        """
-        Sets scan parameter value
-        :param key: a scan parameter name
-        :param value: a scan parameter value
-        :return:
-        """
-        self.params[key] = value
-
-    def get(self, key):
-        """
-        Gets scan parameter value
-        :param key:
-        :return:
-        """
-        if key in self.params:
-            return self.params[key]
-        else:
-            return None
-
-    def get_all(self):
-        return self.params
-
-    def compute_isolation_windows(self):
-        """
-        Gets the full-width (DDA) isolation window around a precursor m/z
-        """
-        precursor_list = self.get(ScanParameters.PRECURSOR_MZ)
-        isolation_width_list = self.get(ScanParameters.ISOLATION_WIDTH)
-
-        isolation_windows = []
-
-        windows = []
-        for i, precursor in enumerate(precursor_list):
-            isolation_width = isolation_width_list[i]
-            mz_lower = precursor.precursor_mz - (isolation_width / 2)
-            mz_upper = precursor.precursor_mz + (isolation_width / 2)
-            windows.append((mz_lower, mz_upper))
-
-        isolation_windows.append(windows)
-        return isolation_windows
-
-    def __repr__(self):
-        return 'ScanParameters %s' % (self.params)
-
-    def __eq__(self, other):
-        if not isinstance(other, ScanParameters):
-            return NotImplemented
-        return self.params == other.params
-
-
-class Precursor(object):
-    def __init__(self, precursor_mz, precursor_intensity, precursor_charge, precursor_scan_id):
-        self.precursor_mz = precursor_mz
-        self.precursor_intensity = precursor_intensity
-        self.precursor_charge = precursor_charge
-        self.precursor_scan_id = precursor_scan_id
-
-    def __repr__(self):
-        return 'Precursor mz %f intensity %f charge %d scan_id %d' % (
-            self.precursor_mz, self.precursor_intensity, self.precursor_charge, self.precursor_scan_id)
 
 
 class FragmentationEvent(object):
@@ -530,6 +426,7 @@ class IndependentMassSpectrometer(object):
 
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
+
 
         sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
 

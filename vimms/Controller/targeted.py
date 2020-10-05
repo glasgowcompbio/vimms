@@ -5,8 +5,7 @@ from molmass import Formula
 from mass_spec_utils.adduct_calculator.adduct_rules import AdductTransformer
 
 from vimms.Controller.base import Controller
-from vimms.Common import DEFAULT_ISOLATION_WIDTH
-from vimms.MassSpec import ScanParameters
+from vimms.Common import DEFAULT_ISOLATION_WIDTH, ScanParameters
 from loguru import logger
 
 def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60., polarity_filter=['+'], adducts_to_use=['[M+H]+', '[M+K]+', '[M+Na]+']):

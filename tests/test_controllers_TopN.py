@@ -6,11 +6,11 @@ from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RAN
 from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, UniformRTAndIntensitySampler, \
     ConstantChromatogramSampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.Common import POSITIVE, set_log_level_warning, NEGATIVE
+from vimms.Common import POSITIVE, set_log_level_warning, NEGATIVE, ScanParameters
 from vimms.Controller import TopNController, SimpleMs1Controller, PurityController, WeightedDEWController, \
     AdvancedParams
 from vimms.Environment import Environment
-from vimms.MassSpec import IndependentMassSpectrometer, ScanParameters
+from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import GaussianPeakNoise
 
 

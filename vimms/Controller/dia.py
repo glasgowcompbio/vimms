@@ -4,10 +4,9 @@ import os
 from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
     DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
     DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_SOURCE_CID_ENERGY, create_if_not_exist
+    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist, ScanParameters, get_default_scan_params, get_dda_scan_param
 from vimms.Controller import Controller
 from vimms.DIA import DiaWindows
-from vimms.MassSpec import ScanParameters
 
 
 class AIF(Controller):
@@ -69,8 +68,6 @@ class AIF(Controller):
             self.scan_to_process = None
 
         return scans
-
-
 
 
 class SWATH(Controller):
@@ -219,24 +216,26 @@ class DiaController(Controller):
                         mz.append(sum(sub_loc) / 2)
                         isolation_width.append(sub_loc[1] - sub_loc[0])
                         intensity.append(0)
-                    dda_scan_params = self.environment.get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                                          isolation_width, mz_tol, rt_tol,
-                                                                          agc_target=self.ms2_agc_target,
-                                                                          max_it=self.ms2_max_it,
-                                                                          collision_energy=self.ms2_collision_energy,
-                                                                          orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                                          activation_type=self.ms2_activation_type,
-                                                                          mass_analyser=self.ms2_mass_analyser,
-                                                                          isolation_mode=self.ms2_isolation_mode)
+                    dda_scan_params = get_dda_scan_param(mz, intensity, precursor_scan_id,
+                                                         isolation_width, mz_tol, rt_tol,
+                                                         agc_target=self.ms2_agc_target,
+                                                         max_it=self.ms2_max_it,
+                                                         collision_energy=self.ms2_collision_energy,
+                                                         orbitrap_resolution=self.ms2_orbitrap_resolution,
+                                                         activation_type=self.ms2_activation_type,
+                                                         mass_analyser=self.ms2_mass_analyser,
+                                                         isolation_mode=self.ms2_isolation_mode,
+                                                         polarity=self.environment.mass_spec.ionisation_mode)
                     new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
             else:
                 locations = []
 
             # make the MS1 scan
-            task = self.environment.get_default_scan_params(agc_target=self.ms1_agc_target,
-                                                            max_it=self.ms1_max_it,
-                                                            collision_energy=self.ms1_collision_energy,
-                                                            orbitrap_resolution=self.ms1_orbitrap_resolution)
+            task = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode,
+                                           agc_target=self.ms1_agc_target,
+                                           max_it=self.ms1_max_it,
+                                           collision_energy=self.ms1_collision_energy,
+                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
 
             new_tasks.append(task)
 

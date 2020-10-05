@@ -292,3 +292,207 @@ def extract_zip_file(in_file, delete=True):
 
 def uniform_list(N, min_val, max_val):
     return list(np.random.rand(N) * (max_val - min_val) + min_val)
+
+
+class ScanParameters(object):
+    """
+    A class to store parameters used to instruct the mass spec how to generate a scan.
+    This object is usually created by the controllers.
+    """
+
+    MS_LEVEL = 'ms_level'
+    COLLISION_ENERGY = 'collision_energy'
+    POLARITY = 'polarity'
+    FIRST_MASS = 'first_mass'
+    LAST_MASS = 'last_mass'
+    ORBITRAP_RESOLUTION = 'orbitrap_resolution'
+    AGC_TARGET = 'agc_target'
+    MAX_IT = 'max_it'
+    MASS_ANALYSER = 'analyzer'
+    ACTIVATION_TYPE = 'activation_type'
+    ISOLATION_MODE = 'isolation_mode'
+    SOURCE_CID_ENERGY = 'source_cid_energy'
+    METADATA = 'metadata'
+
+    # this is used for DIA-based controllers to specify which windows to fragment
+    ISOLATION_WINDOWS = 'isolation_windows'
+
+    # precursor m/z and isolation width have to be specified together for DDA-based controllers
+    PRECURSOR_MZ = 'precursor_mz'
+    ISOLATION_WIDTH = 'isolation_width'
+
+    # used in Top-N, hybrid and ROI controllers to perform dynamic exclusion
+    DYNAMIC_EXCLUSION_MZ_TOL = 'dew_mz_tol'
+    DYNAMIC_EXCLUSION_RT_TOL = 'dew_rt_tol'
+
+    # only used by the hybrid controller for now, since its Top-N may change depending on time
+    # for other DDA controllers it's always the same throughout the whole run, so we don't send this parameter
+    CURRENT_TOP_N = 'current_top_N'
+
+    def __init__(self):
+        """
+        Creates a scan parameter object
+        """
+        self.params = {}
+
+    def set(self, key, value):
+        """
+        Sets scan parameter value
+        :param key: a scan parameter name
+        :param value: a scan parameter value
+        :return:
+        """
+        self.params[key] = value
+
+    def get(self, key):
+        """
+        Gets scan parameter value
+        :param key:
+        :return:
+        """
+        if key in self.params:
+            return self.params[key]
+        else:
+            return None
+
+    def get_all(self):
+        return self.params
+
+    def compute_isolation_windows(self):
+        """
+        Gets the full-width (DDA) isolation window around a precursor m/z
+        """
+        precursor_list = self.get(ScanParameters.PRECURSOR_MZ)
+        isolation_width_list = self.get(ScanParameters.ISOLATION_WIDTH)
+
+        isolation_windows = []
+
+        windows = []
+        for i, precursor in enumerate(precursor_list):
+            isolation_width = isolation_width_list[i]
+            mz_lower = precursor.precursor_mz - (isolation_width / 2)
+            mz_upper = precursor.precursor_mz + (isolation_width / 2)
+            windows.append((mz_lower, mz_upper))
+
+        isolation_windows.append(windows)
+        return isolation_windows
+
+    def __repr__(self):
+        return 'ScanParameters %s' % (self.params)
+
+    def __eq__(self, other):
+        if not isinstance(other, ScanParameters):
+            return NotImplemented
+        return self.params == other.params
+
+
+class Precursor(object):
+    def __init__(self, precursor_mz, precursor_intensity, precursor_charge, precursor_scan_id):
+        self.precursor_mz = precursor_mz
+        self.precursor_intensity = precursor_intensity
+        self.precursor_charge = precursor_charge
+        self.precursor_scan_id = precursor_scan_id
+
+    def __repr__(self):
+        return 'Precursor mz %f intensity %f charge %d scan_id %d' % (
+            self.precursor_mz, self.precursor_intensity, self.precursor_charge, self.precursor_scan_id)
+
+
+def get_default_scan_params(polarity=POSITIVE, agc_target=DEFAULT_MS1_AGC_TARGET, max_it=DEFAULT_MS1_MAXIT,
+                            collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+                            source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+                            orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+                            default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
+                            mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+                            activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                            isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+                            metadata=None):
+    """
+    Gets the default method scan parameters. Now it's set to do MS1 scan only.
+    :return: the default scan parameters
+    """
+    default_scan_params = ScanParameters()
+    default_scan_params.set(ScanParameters.MS_LEVEL, 1)
+    default_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[default_ms1_scan_window]])
+    default_scan_params.set(ScanParameters.ISOLATION_WIDTH, DEFAULT_ISOLATION_WIDTH)
+    default_scan_params.set(ScanParameters.COLLISION_ENERGY, collision_energy)
+    default_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, orbitrap_resolution)
+    default_scan_params.set(ScanParameters.ACTIVATION_TYPE, activation_type)
+    default_scan_params.set(ScanParameters.MASS_ANALYSER, mass_analyser)
+    default_scan_params.set(ScanParameters.ISOLATION_MODE, isolation_mode)
+    default_scan_params.set(ScanParameters.AGC_TARGET, agc_target)
+    default_scan_params.set(ScanParameters.MAX_IT, max_it)
+    default_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
+    default_scan_params.set(ScanParameters.POLARITY, polarity)
+    default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
+    default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
+    default_scan_params.set(ScanParameters.METADATA, metadata)
+    return default_scan_params
+
+
+def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
+                       agc_target=DEFAULT_MS2_AGC_TARGET, max_it=DEFAULT_MS2_MAXIT,
+                       collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+                       source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+                       orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+                       mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+                       activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+                       isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+                       polarity=POSITIVE,
+                       metadata=None):
+    dda_scan_params = ScanParameters()
+    dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
+
+    assert isinstance(mz, list) == isinstance(intensity, list)
+
+    # create precursor object, assume it's all singly charged
+    precursor_charge = +1 if (polarity == POSITIVE) else -1
+    if type(mz) == list:
+        precursor_list = []
+        for i, m in enumerate(mz):
+            precursor_list.append(Precursor(precursor_mz=m, precursor_intensity=intensity[i],
+                                            precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id))
+        dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
+
+        if type(isolation_width) == list:
+            assert len(isolation_width) == len(precursor_list)
+        else:
+            isolation_width = [isolation_width for m in mz]
+        dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, isolation_width)
+
+    else:
+        precursor = Precursor(precursor_mz=mz, precursor_intensity=intensity,
+                              precursor_charge=precursor_charge, precursor_scan_id=precursor_scan_id)
+        precursor_list = [precursor]
+        dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
+
+        # set the full-width isolation width, in Da
+        # if mz is not a list, neither should isolation_width be
+        assert not isinstance(isolation_width, list)
+        isolation_width = [isolation_width]
+        dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, isolation_width)
+
+    # define dynamic exclusion parameters
+    dda_scan_params.set(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL, mz_tol)
+    dda_scan_params.set(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL, rt_tol)
+
+    # define other fragmentation parameters
+    dda_scan_params.set(ScanParameters.COLLISION_ENERGY, collision_energy)
+    dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, orbitrap_resolution)
+    dda_scan_params.set(ScanParameters.ACTIVATION_TYPE, activation_type)
+    dda_scan_params.set(ScanParameters.MASS_ANALYSER, mass_analyser)
+    dda_scan_params.set(ScanParameters.ISOLATION_MODE, isolation_mode)
+    dda_scan_params.set(ScanParameters.AGC_TARGET, agc_target)
+    dda_scan_params.set(ScanParameters.MAX_IT, max_it)
+    dda_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
+    dda_scan_params.set(ScanParameters.POLARITY, polarity)
+    dda_scan_params.set(ScanParameters.FIRST_MASS, DEFAULT_MSN_SCAN_WINDOW[0])
+    dda_scan_params.set(ScanParameters.METADATA, metadata)
+
+    # dynamically scale the upper mass
+    charge = 1
+    wiggle_room = 1.1
+    max_precursor_mz = max([(p.precursor_mz + isol/2) for (p, isol) in zip(precursor_list, isolation_width)])
+    last_mass = max_precursor_mz * charge * wiggle_room
+    dda_scan_params.set(ScanParameters.LAST_MASS, last_mass)
+    return dda_scan_params

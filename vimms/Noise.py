@@ -88,7 +88,7 @@ class UniformSpikeNoise(object):
 
     def sample(self, min_measurement_mz, max_measurement_mz):
         mz_range = max_measurement_mz - min_measurement_mz
-        n_points = int(mz_range * self.density)
+        n_points = max(int(mz_range * self.density), 1)
         mz_vals = uniform_list(n_points, min_measurement_mz, max_measurement_mz)
         intensity_vals = uniform_list(n_points, self.min_val, self.max_val)
         return mz_vals, intensity_vals

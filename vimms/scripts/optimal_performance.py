@@ -114,8 +114,8 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
     chem_id = 0
     edges = []
     # find the minimum delta t and then set the step for determining the end of peaks to be half of this
-    min_scan_delta = min([scan_start_times[i+1] - scan_start_times[i] for i in range(len(scan_start_times)-1)])
-    delta_t = min_scan_delta / 2
+    # min_scan_delta = min([scan_start_times[i+1] - scan_start_times[i] for i in range(len(scan_start_times)-1)])
+    # delta_t = min_scan_delta / 2
     for chemical in chems:
         
         adduct = 'M+H'
@@ -126,10 +126,10 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
         if rt_start > scan_start_times[-1]:
             continue
 
-        # find the end rt of chemicals
-        rt_end = rt_start + delta_t
-        while chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) is not None and chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) > chrom_min and rt_end <= scan_start_times[-1]:
-            rt_end += delta_t
+        # # find the end rt of chemicals
+        # rt_end = rt_start + delta_t
+        # while chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) is not None and chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) > chrom_min and rt_end <= scan_start_times[-1]:
+        #     rt_end += delta_t
         
         # get the intensity at this RT
         adduct_intensity = {a: i for a,i in chemical.adducts[POSITIVE]}
@@ -138,7 +138,7 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
         # standard loop as in the ROI case
         spo = bisect.bisect_right(scan_start_times, rt_start)
         can_fragment = False  # until we see an MS1
-        while spo < len(scan_start_times) and scan_start_times[spo] < rt_end:
+        while spo < len(scan_start_times):
             # get relative intensity at this time point
             rel_intensity = chemical.chromatogram.get_relative_intensity(scan_start_times[spo] - chemical.rt)
             if rel_intensity is None:
@@ -153,6 +153,8 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
                 if can_fragment:
                     edges.append(("S{}".format(spo), "B{}".format(chem_id), chemical))
             spo += 1
+            if rel_intensity < chrom_min:
+                break
         chem_id += 1
     return edges
 

@@ -109,16 +109,17 @@ if __name__ == '__main__':
         for library in spec_libraries:
             hits = spec_libraries[library].spectral_match(query_spectra[spec_id], score_thresh=args.score_thresh)
             for hit in hits:
-                new_hit = [spec_id, library, hit[0], hit[1]]
+                new_hit = [spec_id, library, hit[0], hit[1], hit[2].metadata['inchikey']]
                 all_hits.append(new_hit)
         
     logger.debug('Writing output to {}'.format(args.output_csv_file))   
     with open(args.output_csv_file,'w') as f:
         writer = csv.writer(f)
-        writer.writerow(['spec_id', 'library', 'hit_id', 'score'])
+        writer.writerow(['spec_id', 'library', 'hit_id', 'score', 'inchikey'])
         for hit in all_hits:
             writer.writerow(hit)
 
     # summary
-    s, _, t, sc = zip(*all_hits)
+    s, _, t, sc, ik = zip(*all_hits)
     logger.warning("{} unique spectra got hits".format(len(set(s))))
+    logger.warning("{} unique structures were hit".format(len(set([a.split('-')[0] for a in ik if a is not None]))))

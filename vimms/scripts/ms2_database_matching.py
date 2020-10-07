@@ -99,14 +99,17 @@ if __name__ == '__main__':
                 new_hit = [spec_id, library, hit[0], hit[1], hit[2].metadata['inchikey']]
                 all_hits.append(new_hit)
         
-    logger.warning('Writing output to {}'.format(args.output_csv_file))   
-    with open(args.output_csv_file,'w') as f:
-        writer = csv.writer(f)
-        writer.writerow(['spec_id', 'library', 'hit_id', 'score', 'inchikey'])
-        for hit in all_hits:
-            writer.writerow(hit)
+    if len(all_hits) == 0:
+        logger.warning("No hits found!")
+    else:
+        logger.warning('Writing output to {}'.format(args.output_csv_file))   
+        with open(args.output_csv_file,'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(['spec_id', 'library', 'hit_id', 'score', 'inchikey'])
+            for hit in all_hits:
+                writer.writerow(hit)
 
-    # summary
-    s, _, t, sc, ik = zip(*all_hits)
-    logger.warning("{} unique spectra got hits".format(len(set(s))))
-    logger.warning("{} unique structures were hit".format(len(set([a.split('-')[0] for a in ik if a is not None]))))
+        # summary
+        s, _, t, sc, ik = zip(*all_hits)
+        logger.warning("{} unique spectra got hits".format(len(set(s))))
+        logger.warning("{} unique structures were hit".format(len(set([a.split('-')[0] for a in ik if a is not None]))))

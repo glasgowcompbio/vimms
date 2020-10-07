@@ -15,6 +15,10 @@ import requests
 from loguru import logger
 from tqdm import tqdm
 
+########################################################################################################################
+# Common constants
+########################################################################################################################
+
 MZ = 'mz'
 INTENSITY = 'intensity'
 RT = 'rt'
@@ -96,6 +100,11 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
 }
 
 
+########################################################################################################################
+# Common classes
+########################################################################################################################
+
+
 class Formula(object):
     def __init__(self, formula_string):
         self.formula_string = formula_string
@@ -146,152 +155,6 @@ class DummyFormula(object):
 
     def compute_exact_mass(self):
         return self.mass
-
-
-def create_if_not_exist(out_dir):
-    if not os.path.exists(out_dir) and len(out_dir) > 0:
-        logger.info('Created %s' % out_dir)
-        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-
-
-def save_obj(obj, filename):
-    """
-    Save object to file
-    :param obj: the object to save
-    :param filename: the output file
-    :return: None
-    """
-    out_dir = os.path.dirname(filename)
-    create_if_not_exist(out_dir)
-    logger.info('Saving %s to %s' % (type(obj), filename))
-    with gzip.GzipFile(filename, 'w') as f:
-        pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-def load_obj(filename):
-    """
-    Load saved object from file
-    :param filename: The file to load
-    :return: the loaded object
-    """
-    try:
-        with gzip.GzipFile(filename, 'rb') as f:
-            return pickle.load(f)
-    except OSError:
-        logger.warning('Old, invalid or missing pickle in %s. Please regenerate this file.' % filename)
-        return None
-
-
-def chromatogramDensityNormalisation(rts, intensities):
-    """
-    Definition to standardise the area under a chromatogram to 1. Returns updated intensities
-    """
-    area = 0.0
-    for rt_index in range(len(rts) - 1):
-        area += ((intensities[rt_index] + intensities[rt_index + 1]) / 2) / (rts[rt_index + 1] - rts[rt_index])
-    new_intensities = [x * (1 / area) for x in intensities]
-    return new_intensities
-
-
-def adduct_transformation(mz, adduct):
-    if adduct in POS_TRANSFORMATIONS:
-        f = POS_TRANSFORMATIONS[adduct]
-    elif adduct in NEG_TRANSFORMATIONS:
-        f = NEG_TRANSFORMATIONS[adduct]
-    else:
-        f = lambda mz: mz
-    return f(mz)
-
-
-def takeClosest(myList, myNumber):
-    """
-    Assumes myList is sorted. Returns closest value to myNumber.
-
-    If two numbers are equally close, return the smallest number.
-    """
-    pos = bisect_left(myList, myNumber)
-    if pos == 0:
-        return 0
-    if pos == len(myList):
-        return -1
-    before = myList[pos - 1]
-    after = myList[pos]
-    if after - myNumber < myNumber - before:
-        return pos
-    else:
-        return pos - 1
-
-
-def set_log_level_warning():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.WARNING)
-
-
-def set_log_level_info():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.INFO)
-
-
-def set_log_level_debug():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.DEBUG)
-
-
-def get_rt(spectrum):
-    '''
-    Extracts RT value from a pymzml spectrum object
-    :param spectrum: a pymzml spectrum object
-    :return: the retention time (in seconds)
-    '''
-    rt, units = spectrum.scan_time
-    if units == 'minute':
-        rt *= 60.0
-    return rt
-
-
-def find_nearest_index_in_array(array, value):
-    '''
-    Finds index in array where the value is the nearest
-    :param array:
-    :param value:
-    :return:
-    '''
-    idx = (np.abs(array - value)).argmin()
-    return idx
-
-
-def download_file(url, out_file=None):
-    r = requests.get(url, stream=True)
-    total_size = int(r.headers.get('content-length', 0));
-    block_size = 1024
-    current_size = 0
-
-    if out_file is None:
-        out_file = url.rsplit('/', 1)[-1]  # get the last part in url
-    logger.info('Downloading %s' % out_file)
-
-    with open(out_file, 'wb') as f:
-        for data in tqdm(r.iter_content(block_size), total=math.ceil(total_size // block_size), unit='KB',
-                         unit_scale=True):
-            current_size += len(data)
-            f.write(data)
-    assert current_size == total_size
-    return out_file
-
-
-def extract_zip_file(in_file, delete=True):
-    logger.info('Extracting %s' % in_file)
-    with zipfile.ZipFile(file=in_file) as zip_file:
-        for file in tqdm(iterable=zip_file.namelist(), total=len(zip_file.namelist())):
-            zip_file.extract(member=file)
-
-    if delete:
-        logger.info('Deleting %s' % in_file)
-        os.remove(in_file)
-
-
-def uniform_list(N, min_val, max_val):
-    return list(np.random.rand(N) * (max_val - min_val) + min_val)
 
 
 class ScanParameters(object):
@@ -398,6 +261,156 @@ class Precursor(object):
             self.precursor_mz, self.precursor_intensity, self.precursor_charge, self.precursor_scan_id)
 
 
+########################################################################################################################
+# Common methods
+########################################################################################################################
+
+def create_if_not_exist(out_dir):
+    if not os.path.exists(out_dir) and len(out_dir) > 0:
+        logger.info('Created %s' % out_dir)
+        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+
+def save_obj(obj, filename):
+    """
+    Save object to file
+    :param obj: the object to save
+    :param filename: the output file
+    :return: None
+    """
+    out_dir = os.path.dirname(filename)
+    create_if_not_exist(out_dir)
+    logger.info('Saving %s to %s' % (type(obj), filename))
+    with gzip.GzipFile(filename, 'w') as f:
+        pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def load_obj(filename):
+    """
+    Load saved object from file
+    :param filename: The file to load
+    :return: the loaded object
+    """
+    try:
+        with gzip.GzipFile(filename, 'rb') as f:
+            return pickle.load(f)
+    except OSError:
+        logger.warning('Old, invalid or missing pickle in %s. Please regenerate this file.' % filename)
+        return None
+
+
+def chromatogramDensityNormalisation(rts, intensities):
+    """
+    Definition to standardise the area under a chromatogram to 1. Returns updated intensities
+    """
+    area = 0.0
+    for rt_index in range(len(rts) - 1):
+        area += ((intensities[rt_index] + intensities[rt_index + 1]) / 2) / (rts[rt_index + 1] - rts[rt_index])
+    new_intensities = [x * (1 / area) for x in intensities]
+    return new_intensities
+
+
+def adduct_transformation(mz, adduct):
+    if adduct in POS_TRANSFORMATIONS:
+        f = POS_TRANSFORMATIONS[adduct]
+    elif adduct in NEG_TRANSFORMATIONS:
+        f = NEG_TRANSFORMATIONS[adduct]
+    else:
+        f = lambda mz: mz
+    return f(mz)
+
+
+def take_closest(my_list, my_number):
+    """
+    Assumes myList is sorted. Returns closest value to myNumber.
+
+    If two numbers are equally close, return the smallest number.
+    """
+    pos = bisect_left(my_list, my_number)
+    if pos == 0:
+        return 0
+    if pos == len(my_list):
+        return -1
+    before = my_list[pos - 1]
+    after = my_list[pos]
+    if after - my_number < my_number - before:
+        return pos
+    else:
+        return pos - 1
+
+
+def set_log_level_warning():
+    logger.remove()
+    logger.add(sys.stderr, level=logging.WARNING)
+
+
+def set_log_level_info():
+    logger.remove()
+    logger.add(sys.stderr, level=logging.INFO)
+
+
+def set_log_level_debug():
+    logger.remove()
+    logger.add(sys.stderr, level=logging.DEBUG)
+
+
+def get_rt(spectrum):
+    '''
+    Extracts RT value from a pymzml spectrum object
+    :param spectrum: a pymzml spectrum object
+    :return: the retention time (in seconds)
+    '''
+    rt, units = spectrum.scan_time
+    if units == 'minute':
+        rt *= 60.0
+    return rt
+
+
+def find_nearest_index_in_array(array, value):
+    '''
+    Finds index in array where the value is the nearest
+    :param array:
+    :param value:
+    :return:
+    '''
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+
+def download_file(url, out_file=None):
+    r = requests.get(url, stream=True)
+    total_size = int(r.headers.get('content-length', 0));
+    block_size = 1024
+    current_size = 0
+
+    if out_file is None:
+        out_file = url.rsplit('/', 1)[-1]  # get the last part in url
+    logger.info('Downloading %s' % out_file)
+
+    with open(out_file, 'wb') as f:
+        for data in tqdm(r.iter_content(block_size), total=math.ceil(total_size // block_size), unit='KB',
+                         unit_scale=True):
+            current_size += len(data)
+            f.write(data)
+    assert current_size == total_size
+    return out_file
+
+
+def extract_zip_file(in_file, delete=True):
+    logger.info('Extracting %s' % in_file)
+    with zipfile.ZipFile(file=in_file) as zip_file:
+        for file in tqdm(iterable=zip_file.namelist(), total=len(zip_file.namelist())):
+            zip_file.extract(member=file)
+
+    if delete:
+        logger.info('Deleting %s' % in_file)
+        os.remove(in_file)
+
+
+def uniform_list(N, min_val, max_val):
+    return list(np.random.rand(N) * (max_val - min_val) + min_val)
+
+
 def get_default_scan_params(polarity=POSITIVE, agc_target=DEFAULT_MS1_AGC_TARGET, max_it=DEFAULT_MS1_MAXIT,
                             collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
                             source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
@@ -492,7 +505,7 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width, mz_tol
     # dynamically scale the upper mass
     charge = 1
     wiggle_room = 1.1
-    max_precursor_mz = max([(p.precursor_mz + isol/2) for (p, isol) in zip(precursor_list, isolation_width)])
+    max_precursor_mz = max([(p.precursor_mz + isol / 2) for (p, isol) in zip(precursor_list, isolation_width)])
     last_mass = max_precursor_mz * charge * wiggle_room
     dda_scan_params.set(ScanParameters.LAST_MASS, last_mass)
     return dda_scan_params

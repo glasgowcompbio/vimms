@@ -98,7 +98,7 @@ if __name__ == '__main__':
         logger.warning("No hits found!")
     else:
         logger.warning('Writing output to {}'.format(args.output_csv_file))   
-        with open(args.output_csv_file,'w') as f:
+        with open(args.output_csv_file,'w',newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['spec_id', 'library', 'hit_id', 'score', 'inchikey'])
             for hit in all_hits:

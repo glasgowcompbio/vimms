@@ -18,7 +18,6 @@ sys.path.append('../..') # if running in this folder
 
 from vimms.Common import load_obj, save_obj, set_log_level_warning, set_log_level_debug
 
-SUPPORTED_LIBRARIES = set(['gnps', 'massbank'])
 
 
 def load_scans_from_mzml(mzml_file_name):
@@ -69,11 +68,7 @@ if __name__ == '__main__':
         set_log_level_debug()
 
     libraries = args.libraries
-    for library in libraries:
-        if not library in SUPPORTED_LIBRARIES:
-            logger.warning("Unsupported library: {}".format(library))
-            sys.exit(0)
-    
+
     spec_libraries = {}
     if args.library_cache is not None:
         for library in libraries:

@@ -154,14 +154,15 @@ class Controller(object):
         all_scans.sort(key=lambda x: x.scan_id)  # sort by scan_id
         out_list = []
         for scan in all_scans:
-            out = {
-                'scan_id': scan.scan_id,
-                'num_peaks': scan.num_peaks,
-                'rt': scan.rt,
-                'ms_level': scan.ms_level
-            }
-            out.update(scan.scan_params.get_all())  # add all the scan params to out
-            out_list.append(out)
+            if scan.scan_params is not None:  # ignore any scan that we didn't send (no scan_params)
+                out = {
+                    'scan_id': scan.scan_id,
+                    'num_peaks': scan.num_peaks,
+                    'rt': scan.rt,
+                    'ms_level': scan.ms_level
+                }
+                out.update(scan.scan_params.get_all())  # add all the scan params to out
+                out_list.append(out)
 
         # dump to csv
         df = pd.DataFrame(out_list)

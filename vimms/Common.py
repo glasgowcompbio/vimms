@@ -99,6 +99,8 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
     'n_peaks': 1
 }
 
+MSDIAL_DDA_MODE = 'lcmsdda'
+MSDIAL_DIA_MODE = 'lcmsdia'
 
 ########################################################################################################################
 # Common classes

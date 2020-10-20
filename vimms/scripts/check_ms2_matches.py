@@ -3,12 +3,15 @@
 # can be matched to a spectrum in an ms2 scan in the .mzml
 import sys
 import os
+import pandas as pd
+import numpy as np
 import glob
 import argparse
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
+from vimms.Common import load_obj
 
 sys.path.append('..')
 sys.path.append('../..') # if running in this folder
@@ -102,6 +105,22 @@ def make_queries_from_mzml(mzml_file_object):
             continue
         precursor_mz = scan.precursor_mz
         peaks = scan.peaks
+        new_spectrum = Spectrum(precursor_mz, peaks)
+        query_spectra.append(new_spectrum)
+    return query_spectra
+
+
+def make_queries_from_chemicals(chemicals_file_name):
+    chemicals = load_obj(chemicals_file_name)
+    query_spectra = []
+    for chem in chemicals:
+        precursor_mz = chem.isotopes[0][0]
+        peaks = []
+        for child in chem.children:
+            mz = child.isotopes[0][0]
+            intensity = child.parent.max_intensity * child.prop_ms2_mass
+            peak = np.array([mz, intensity])
+            peaks.append(peak)
         new_spectrum = Spectrum(precursor_mz, peaks)
         query_spectra.append(new_spectrum)
     return query_spectra

@@ -19,7 +19,7 @@ class AIF(Controller):
         heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE', 'DecTarget(1:Yes, 0:No)']
         start = self.params.default_ms1_scan_window[0]
         stop = self.params.default_ms1_scan_window[1]
-        ce = self.params.ms1_source_cid_energy
+        ce = self.ms1_source_cid_energy
         ms1_row = ['0', 'SCAN', start, stop, "0eV", 0, 0]
         aif_row = ['1', 'ALL', start, stop, "{}eV".format(ce), ce, 1]
 

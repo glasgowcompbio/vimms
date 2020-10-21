@@ -15,7 +15,7 @@ sys.path.append('../..')  # if running in this folder
 from vimms.Common import create_if_not_exist, MSDIAL_DDA_MODE, MSDIAL_DIA_MODE
 
 
-def run_msdial(msdial_console_app, mode, params_file, input_dir, output_dir=None):
+def run_msdial(msdial_console_app, mode, params_file, input_dir, output_dir=None, save_project=False):
     """
     Runs MSDIAL as a subprocess on an input folder
     :param msdial_console_app: path to MSDIAL console app
@@ -30,10 +30,14 @@ def run_msdial(msdial_console_app, mode, params_file, input_dir, output_dir=None
     else:
         create_if_not_exist(output_dir)
 
-    subprocess.run([msdial_console_app, mode, "-i", input_dir, "-o", output_dir, "-m", params_file])
+    args = [msdial_console_app, mode, '-i', input_dir, '-o', output_dir, '-m', params_file]
+    if save_project:
+        args.append('-p')
+    subprocess.run(args)
 
 
-def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder, msp_folder=None):
+def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder, msp_folder=None,
+                     subdir=False, save_project=False):
     """
     Copies each mzML file in the specified mzml_folder to be processed by MSDIAL separately.
     The results will be placed into mzml_folder
@@ -41,22 +45,58 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder, msp_fol
     :param mode: either MSDIAL_DDA_MODE or MSDIAL_DIA_MODE
     :param params_file: path to MSDIAL params file
     :param mzml_folder: input directory, each mzML file in this folder will be processed separately by MSDIAL
+    :param subdir: if True, then the input should be a directory containing subdirectories of mzML files to be processed together.
+    :param save_project: if True, then save the MSDIAL project file (can be loaded to GUI later on)
     :return: None. The results will be placed in mzml_folder
     """
-    # for each mzML file ...
-    mzml_files = glob.glob(os.path.join(mzml_folder, '*.mzML'))
-    for i in range(len(mzml_files)):
-        mzml_file = mzml_files[i]
-        logger.info('{}/{} {}'.format(i + 1, len(mzml_files), mzml_file))
 
-        with tempfile.TemporaryDirectory() as temp_path:
-            # copy mzml file to temp dir
-            shutil.copy2(mzml_file, temp_path)
+    # Process a folder containing mzML files.
+    # Each mzML file will be processed separately.
+    if not subdir:
 
-            # assume that each mzML has a corresponding .msp file in that folder
+        # for each mzML file ...
+        mzml_files = glob.glob(os.path.join(mzml_folder, '*.mzML'))
+        for i in range(len(mzml_files)):
+            mzml_file = mzml_files[i]
+            logger.info('{}/{} {}'.format(i + 1, len(mzml_files), mzml_file))
+
+            with tempfile.TemporaryDirectory() as temp_path:
+                # copy mzml file to temp dir
+                shutil.copy2(mzml_file, temp_path)
+
+                # assume that each mzML has a corresponding .msp file in that folder
+                new_params_file = params_file
+                if msp_folder is not None:
+                    msp_path = get_path_in_folder(mzml_file, '{}.msp', msp_folder)
+                    # logger.debug('Using {}'.format(msp_path))
+
+                    # if the msp file actually exists
+                    if os.path.exists(msp_path):
+                        # read existing params file
+                        params_txt = Path(params_file).read_text()
+
+                        # substitute '{msp_file}' in params text with the actual msp path
+                        params_txt = params_txt.format(msp_file=msp_path)
+                        # logger.debug(params_txt)
+
+                        # construct new path to params_file inside temp_path, write the substituted text to it
+                        new_params_file = get_path_in_folder(params_file, None, temp_path)
+                        Path(new_params_file).write_text(params_txt)
+
+                run_msdial(msdial_console_app, mode, new_params_file, temp_path, output_dir=mzml_folder)
+
+    # Process a folder containing sub-folders of mzML files.
+    # Each subfolder contains mzML files that will be processed together.
+    else:
+        subdirs = [f.path for f in os.scandir(mzml_folder) if f.is_dir()]
+        for subdir in subdirs:
+            logger.warning(subdir)
             new_params_file = params_file
+
+            # assume that each subdir has a corresponding .msp file in that folder
             if msp_folder is not None:
-                msp_path = get_path_in_folder(mzml_file, '{}.msp', msp_folder)
+                basename = os.path.basename(subdir)
+                msp_path = get_path_in_folder(basename, '{}.msp', msp_folder)
                 # logger.debug('Using {}'.format(msp_path))
 
                 # if the msp file actually exists
@@ -69,10 +109,11 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder, msp_fol
                     # logger.debug(params_txt)
 
                     # construct new path to params_file inside temp_path, write the substituted text to it
-                    new_params_file = get_path_in_folder(params_file, None, temp_path)
+                    new_params_file = get_path_in_folder(params_file, None, subdir)
                     Path(new_params_file).write_text(params_txt)
 
-            run_msdial(msdial_console_app, mode, new_params_file, temp_path, output_dir=mzml_folder)
+            run_msdial(msdial_console_app, mode, new_params_file, subdir, output_dir=subdir,
+                       save_project=True)
 
 
 def get_path_in_folder(fname, ext_pattern, target_folder):

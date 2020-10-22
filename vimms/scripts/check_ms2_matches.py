@@ -82,9 +82,25 @@ def library_from_msp(msp_file_name):
     return sl
 
 
+def make_queries_from_aligned_msdial(msdial_file_name):
+    query_spectra = []
+    msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='Alignment ID', header=4)
+    for i in range(msdial_df.shape[0]):
+        precursor_mz = msdial_df['Average Mz'][i]
+        peaks = []
+        if msdial_df['MS/MS spectrum'][i] == msdial_df['MS/MS spectrum'][i]:  # checking if nan
+            for info in msdial_df['MS/MS spectrum'][i].split():
+                mz, intensity = info.split(':')
+                peak = np.array([float(mz), float(intensity)])
+                peaks.append(peak)
+            new_spectrum = Spectrum(precursor_mz, peaks)
+            query_spectra.append(new_spectrum)
+    return query_spectra
+
+
 def make_queries_from_msdial(msdial_file_name):
     query_spectra = []
-    msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='PeakID')
+    msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='PeakID')#
     for i in range(msdial_df.shape[0]):
         precursor_mz = msdial_df['Precursor m/z'][i]
         peaks = []

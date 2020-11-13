@@ -102,6 +102,11 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
 MSDIAL_DDA_MODE = 'lcmsdda'
 MSDIAL_DIA_MODE = 'lcmsdia'
 
+IN_SILICO_OPTIMISE_TOPN = 'TopN'
+IN_SILICO_OPTIMISE_SMART_ROI = 'SmartROI'
+IN_SILICO_OPTIMISE_WEIGHTED_DEW = 'WeightedDEW'
+
+
 ########################################################################################################################
 # Common classes
 ########################################################################################################################

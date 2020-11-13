@@ -33,6 +33,8 @@ pytest = "*"
 pysmiles = "*"
 "flake8" = "*"
 intervaltree = "*"
+ax-platform = "*"
+torch = "*"
 
 [dev-packages]
 pipenv-setup = "*"

@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 
+import ipyparallel as ipp
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
@@ -129,33 +130,66 @@ def run_SmartROI(chems, ps, time_dict, params, out_dir):
 
     iif_values = params['iif_values']
     dp_values = params['dp_values']
-    sample_name = params['sample_name']
+    params_list = []
     for iif in iif_values:
         for dp in dp_values:
-            out_file = 'SMART_{}_{}_{}.mzml'.format(sample_name, iif, dp)
-            logger.warning('Generating %s' % out_file)
-            if os.path.isfile(os.path.join(out_dir, out_file)):
-                logger.warning('Already done')
-                continue
+            # copy params and add additional attributes we need
+            copy_params = dict(params)
+            copy_params['iif'] = iif
+            copy_params['dp'] = dp
+            copy_params['chems'] = chems
+            copy_params['ps'] = ps
+            copy_params['time_dict'] = time_dict
+            copy_params['out_dir'] = out_dir
+            params_list.append(copy_params)
 
-            intensity_increase_factor = iif  # fragment ROI again if intensity increases 10 fold
-            drop_perc = dp / 100
-            reset_length_seconds = 1e6  # set so reset never happens
+    # Try to run the controllers in parallel. If fails, then run it serially
+    logger.warning('Running controllers in parallel, please wait ...')
+    run_serial = False
+    try:
+        rc = ipp.Client()
+        dview = rc[:]  # use all engines
+        with dview.sync_imports():
+            pass
+        dview.map_sync(run_single_SmartROI, params_list)
+    except OSError:  # cluster has not been started
+        run_serial = True
+    except ipp.error.TimeoutError:  # takes too long to run
+        run_serial = True
 
-            controller = TopN_SmartRoiController(params['ionisation_mode'], params['isolation_width'], params['mz_tol'],
-                                                 params['min_ms1_intensity'], params['min_roi_intensity'],
-                                                 params['min_roi_length'], N=params['N'], rt_tol=params['rt_tol'],
-                                                 min_roi_length_for_fragmentation=params[
-                                                     'min_roi_length_for_fragmentation'],
-                                                 reset_length_seconds=reset_length_seconds,
-                                                 intensity_increase_factor=intensity_increase_factor,
-                                                 drop_perc=drop_perc)
+    if run_serial:  # if any exception from above, try to run it serially
+        logger.warning('IPython cluster not found, running controllers in serial mode')
+        for copy_params in params_list:
+            run_single_SmartROI(copy_params)
 
-            mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, ps, scan_duration_dict=time_dict)
-            env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
-                              out_dir=out_dir, out_file=out_file)
-            env.run()
     set_log_level_debug(remove_id=warn_handler_id)
+
+
+def run_single_SmartROI(params):
+    out_file = 'SMART_{}_{}_{}.mzml'.format(params['sample_name'], params['iif'], params['dp'])
+    logger.warning('Generating %s' % out_file)
+    if os.path.isfile(os.path.join(params['out_dir'], out_file)):
+        logger.warning('Already done')
+        return
+
+    intensity_increase_factor = params['iif']  # fragment ROI again if intensity increases 10 fold
+    drop_perc = params['dp'] / 100
+    reset_length_seconds = 1e6  # set so reset never happens
+
+    controller = TopN_SmartRoiController(params['ionisation_mode'], params['isolation_width'], params['mz_tol'],
+                                         params['min_ms1_intensity'], params['min_roi_intensity'],
+                                         params['min_roi_length'], N=params['N'], rt_tol=params['rt_tol'],
+                                         min_roi_length_for_fragmentation=params[
+                                             'min_roi_length_for_fragmentation'],
+                                         reset_length_seconds=reset_length_seconds,
+                                         intensity_increase_factor=intensity_increase_factor,
+                                         drop_perc=drop_perc)
+
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'], params['ps'],
+                                            scan_duration_dict=params['time_dict'])
+    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
+                      out_dir=params['out_dir'], out_file=out_file)
+    env.run()
 
 
 def run_WeightedDEW(chems, ps, time_dict, params, out_dir):
@@ -174,26 +208,59 @@ def run_WeightedDEW(chems, ps, time_dict, params, out_dir):
 
     t0_values = params['t0_values']
     rt_tol_values = params['rt_tol_values']
-    sample_name = params['sample_name']
+    params_list = []
     for t0 in t0_values:
         for r in rt_tol_values:
-            out_file = 'WeightedDEW_{}_{}_{}.mzml'.format(sample_name, t0, r)
-            logger.warning('Generating %s' % out_file)
-            if os.path.isfile(os.path.join(out_dir, out_file)):
-                logger.warning('Already done')
-                continue
-            if t0 > r:
-                logger.warning('Impossible combination')
-                continue
+            # copy params and add additional attributes we need
+            copy_params = dict(params)
+            copy_params['t0'] = t0
+            copy_params['r'] = r
+            copy_params['chems'] = chems
+            copy_params['ps'] = ps
+            copy_params['time_dict'] = time_dict
+            copy_params['out_dir'] = out_dir
+            params_list.append(copy_params)
 
-            controller = WeightedDEWController(params['ionisation_mode'], params['N'], params['isolation_width'],
-                                               params['mz_tol'], r, params['min_ms1_intensity'], exclusion_t_0=t0,
-                                               log_intensity=True)
-            mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, ps, scan_duration_dict=time_dict)
-            env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
-                              out_dir=out_dir, out_file=out_file)
-            env.run()
+    # Try to run the controllers in parallel. If fails, then run it serially
+    logger.warning('Running controllers in parallel, please wait ...')
+    try:
+        import ipyparallel as ipp
+        rc = ipp.Client()
+        dview = rc[:]  # use all engines
+        with dview.sync_imports():
+            pass
+        dview.map_sync(run_single_WeightedDEW, params_list)
+    except OSError:  # cluster has not been started
+        run_serial = True
+    except ipp.error.TimeoutError:  # takes too long to run
+        run_serial = True
+
+    if run_serial:  # if any exception from above, try to run it serially
+        logger.warning('IPython cluster not found, running controllers in serial mode')
+        for copy_params in params_list:
+            run_single_WeightedDEW(copy_params)
+
     set_log_level_debug(remove_id=warn_handler_id)
+
+
+def run_single_WeightedDEW(params):
+    out_file = 'WeightedDEW_{}_{}_{}.mzml'.format(params['sample_name'], params['t0'], params['r'])
+    logger.warning('Generating %s' % out_file)
+    if os.path.isfile(os.path.join(params['out_dir'], out_file)):
+        logger.warning('Already done')
+        return
+    if params['t0'] > params['r']:
+        logger.warning('Impossible combination')
+        return
+
+    controller = WeightedDEWController(params['ionisation_mode'], params['N'], params['isolation_width'],
+                                       params['mz_tol'], params['r'], params['min_ms1_intensity'],
+                                       exclusion_t_0=params['t0'], log_intensity=True)
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'], params['ps'],
+                                            scan_duration_dict=params['time_dict'])
+    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
+                      out_dir=params['out_dir'], out_file=out_file)
+    env.run()
 
 
 def string_to_list(my_str, convert=None):

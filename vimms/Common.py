@@ -341,19 +341,31 @@ def take_closest(my_list, my_number):
         return pos - 1
 
 
-def set_log_level_warning():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.WARNING)
+def set_log_level(level, remove_id=None):
+    if remove_id is None:
+        logger.remove(0)  # remove default handler
+    else:
+        logger.remove(remove_id)  # remove previously set handler
+
+    # add new handler at the desired log level
+    new_handler_id = logger.add(sys.stderr, level=level)
+    return new_handler_id
 
 
-def set_log_level_info():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.INFO)
+def set_log_level_warning(remove_id=None):
+    return set_log_level(logging.WARNING, remove_id=remove_id)
 
 
-def set_log_level_debug():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.DEBUG)
+def set_log_level_info(remove_id=None):
+    return set_log_level(logging.INFO, remove_id=remove_id)
+
+
+def set_log_level_debug(remove_id=None):
+    return set_log_level(logging.DEBUG, remove_id=remove_id)
+
+
+def add_log_file(log_path, level):
+    logger.add(log_path, level=level)
 
 
 def get_rt(spectrum):

@@ -102,6 +102,11 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
 MSDIAL_DDA_MODE = 'lcmsdda'
 MSDIAL_DIA_MODE = 'lcmsdia'
 
+IN_SILICO_OPTIMISE_TOPN = 'TopN'
+IN_SILICO_OPTIMISE_SMART_ROI = 'SmartROI'
+IN_SILICO_OPTIMISE_WEIGHTED_DEW = 'WeightedDEW'
+
+
 ########################################################################################################################
 # Common classes
 ########################################################################################################################
@@ -341,19 +346,34 @@ def take_closest(my_list, my_number):
         return pos - 1
 
 
-def set_log_level_warning():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.WARNING)
+def set_log_level(level, remove_id=None):
+    if remove_id is None:
+        try:
+            logger.remove(0)  # try to remove the default handler with id 0
+        except ValueError: # no default handler has been set
+            pass
+    else:
+        logger.remove(remove_id)  # remove previously set handler by id
+
+    # add new handler at the desired log level
+    new_handler_id = logger.add(sys.stderr, level=level)
+    return new_handler_id
 
 
-def set_log_level_info():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.INFO)
+def set_log_level_warning(remove_id=None):
+    return set_log_level(logging.WARNING, remove_id=remove_id)
 
 
-def set_log_level_debug():
-    logger.remove()
-    logger.add(sys.stderr, level=logging.DEBUG)
+def set_log_level_info(remove_id=None):
+    return set_log_level(logging.INFO, remove_id=remove_id)
+
+
+def set_log_level_debug(remove_id=None):
+    return set_log_level(logging.DEBUG, remove_id=remove_id)
+
+
+def add_log_file(log_path, level):
+    logger.add(log_path, level=level)
 
 
 def get_rt(spectrum):

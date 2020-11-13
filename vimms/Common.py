@@ -348,9 +348,12 @@ def take_closest(my_list, my_number):
 
 def set_log_level(level, remove_id=None):
     if remove_id is None:
-        logger.remove(0)  # remove default handler
+        try:
+            logger.remove(0)  # try to remove the default handler with id 0
+        except ValueError: # no default handler has been set
+            pass
     else:
-        logger.remove(remove_id)  # remove previously set handler
+        logger.remove(remove_id)  # remove previously set handler by id
 
     # add new handler at the desired log level
     new_handler_id = logger.add(sys.stderr, level=level)

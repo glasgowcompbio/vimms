@@ -14,8 +14,8 @@ from ax.service.managed_loop import optimize
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
     boxes = load_picked_boxes(box_file)
     mz_file = MZMLFile(mzml_file)
-    scans2boxes,boxes2scans = map_boxes_to_scans(mz_file, boxes, half_isolation_window=half_isolation_window)
-    coverage = len(boxes2scans)
+    scans2boxes, boxes2scans = map_boxes_to_scans(mz_file, boxes, half_isolation_window=half_isolation_window)
+    coverage = len(boxes2scans) / len(boxes)
     return coverage
 
 

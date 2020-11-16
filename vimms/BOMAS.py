@@ -90,6 +90,46 @@ def top_n_bayesian_optimisation(n_trials, n_range, rt_tol_range, save_file_name,
         ],
         evaluation_function=top_n_evaluation,
         objective_name='coverage',
+        total_trials=n_trials
+    )
+    return best_parameters, values, experiment, model
+
+
+def smart_roi_bayesian_optimisation(n_trials, n_range, rt_tol_range, iff_range, dp_range, save_file_name, mass_spec_file,
+                                    ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
+                                    min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
+                                    reset_length_seconds, min_rt, max_rt, box_file, half_isolation_window):
+    # create param_dict
+    best_parameters, values, experiment, model = optimize(
+        parameters=[
+            # the variable controller bits
+            {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
+            {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
+            {"name": "iff", "type": "range", "bounds": iff_range},  # alpha / 100
+            {"name": "dp", "type": "range", "bounds": dp_range},  # beta
+            # the mass spec bits
+            {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
+            # the controller bits
+            {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
+            {"name": "isolation_width", "type": "fixed", "value": isolation_width},
+            {"name": "mz_tol", "type": "fixed", "value": mz_tol},
+            {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
+            {"name": "params_file", "type": "fixed", "value": params_file},
+            {"name": "min_roi_intensity", "type": "fixed", "value": min_roi_intensity},
+            {"name": "min_roi_length", "type": "fixed", "value": min_roi_length},
+            {"name": "min_roi_length_for_fragmentation", "type": "fixed", "value": min_roi_length_for_fragmentation},
+            {"name": "reset_length_seconds", "type": "fixed", "value": reset_length_seconds},
+            # the env bits
+            {"name": "min_rt", "type": "fixed", "value": min_rt},
+            {"name": "max_rt", "type": "fixed", "value": max_rt},
+            {"name": "save_file_name", "type": "fixed", "value": save_file_name},
+            # the evaluation bits
+            {"name": "box_file", "type": "fixed", "value": box_file},
+            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+        ],
+        evaluation_function=top_n_evaluation,
+        objective_name='coverage',
+        total_trials=n_trials
         )
     return best_parameters, values, experiment, model
 

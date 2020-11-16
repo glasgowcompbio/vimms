@@ -41,12 +41,29 @@ def top_n_evaluation(param_dict):
     return coverage
 
 
+def smart_roi_evaluation(param_dict):
+    mass_spec = load_obj(param_dict['mass_spec_file'])
+    params = load_obj(param_dict['params_file'])
+    smartroi = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_window'],
+                                       param_dict['mz_tol'], param_dict['min_ms1_intensity'],
+                                       param_dict['min_roi_intensity'], param_dict['min_roi_length'],
+                                       param_dict['N'], param_dict['rt_tol'],
+                                       param_dict['min_roi_length_for_fragmentation'],
+                                       param_dict['reset_length_seconds'],
+                                       param_dict['iif'], length_units="scans", drop_perc=param_dict['dp']/100,
+                                       ms1_shift=0, params=params)
+    run_env(mass_spec, smartroi, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
+    coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
+                                       param_dict['half_isolation_window'])
+    return coverage
+
 
 ########################################################################################################################
 # Optimisation methods
 ########################################################################################################################
 
-def top_n_bayesian_optimisation(n_range, rt_tol_range, save_file_name, mass_spec_file,
+
+def top_n_bayesian_optimisation(n_trials, n_range, rt_tol_range, save_file_name, mass_spec_file,
                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
                                min_rt, max_rt, box_file, half_isolation_window):
     # create param_dict

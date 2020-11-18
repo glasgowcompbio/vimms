@@ -84,7 +84,8 @@ class FragmentationEvent(object):
     A class to store fragmentation events. Mostly used for benchmarking purpose.
     """
 
-    def __init__(self, chem, query_rt, ms_level, peaks, scan_id):
+    def __init__(self, chem, query_rt, ms_level, peaks, scan_id, parents_intensity=None, parent_adduct=None,
+                 parent_isotope=None, precursor_mz=None, isolation_window=None, scan_params=None):
         """
         Creates a fragmentation event
         :param chem: the chemical that were fragmented
@@ -92,15 +93,28 @@ class FragmentationEvent(object):
         :param ms_level: MS level of fragmentation
         :param peaks: the set of peaks produced during the fragmentation event
         :param scan_id: the scan id linked to this fragmentation event
+        :param parents_intensity: the intensity of the chemical that was fragmented at the time it was fragmented
+        :param parent_adduct: the adduct that was fragmented of the chemical
+        :param parent_isotope: the isotope that was fragmented of the chemical
+        :param precursor_mz: the precursor mz of the scan
+        :param isolation_window: the isolation window of the scan
+        :param scan_params: the scan parameter settings that were used
         """
         self.chem = chem
         self.query_rt = query_rt
         self.ms_level = ms_level
         self.peaks = peaks
         self.scan_id = scan_id
+        self.parents_intensity = parents_intensity   # only ms2
+        self.parent_adduct = parent_adduct   # only ms2
+        self.parent_isotope = parent_isotope   # only ms2
+        self.precursor_mz = precursor_mz
+        self.isolation_window = isolation_window
+        self.scan_params = scan_params
 
     def __repr__(self):
         return 'MS%d FragmentationEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
+
 
 class IndependentMassSpectrometer(object):
     """

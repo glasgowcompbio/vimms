@@ -72,7 +72,7 @@ setup(
         "nbformat==5.0.7; python_version >= '3.5'",
         "nest-asyncio==1.4.1; python_version >= '3.5'",
         "networkx==2.5",
-        "notebook==6.1.4; python_version >= '3.5'",
+        "notebook==6.1.5; python_version >= '3.5'",
         "numpy==1.19.2",
         "outcome==1.0.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "packaging==20.4; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",

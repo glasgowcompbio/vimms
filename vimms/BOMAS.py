@@ -23,6 +23,9 @@ def run_env(mass_spec, controller, min_rt, max_rt, mzml_file):
     env = Environment(mass_spec, controller, min_rt, max_rt)
     env.run()
     env.write_mzML(None, mzml_file)
+    chems = [event.chem.__repr__() for event in env.mass_spec.fragmentation_events if event.ms_level > 1]
+    chemical_coverage = len(np.unique(np.array(chems))) / len(env.mass_spec.chemicals)
+    return chemical_coverage
 
 
 ########################################################################################################################
@@ -35,10 +38,15 @@ def top_n_evaluation(param_dict):
     params = load_obj(param_dict['params_file'])
     topn = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                           param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'], params=params)
-    run_env(mass_spec, topn, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
+    chemical_coverage = run_env(mass_spec, topn, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
     coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
                                        param_dict['half_isolation_window'])
-    return coverage
+    print('coverage', coverage)
+    print('chemical_coverage', chemical_coverage)
+    if param_dict['coverage_type'] == 'coverage':
+        return coverage
+    else:
+        return chemical_coverage
 
 
 def smart_roi_evaluation(param_dict):
@@ -52,10 +60,15 @@ def smart_roi_evaluation(param_dict):
                                        param_dict['reset_length_seconds'],
                                        param_dict['iif'], length_units="scans", drop_perc=param_dict['dp']/100,
                                        ms1_shift=0, params=params)
-    run_env(mass_spec, smartroi, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
+    chemical_coverage = run_env(mass_spec, smartroi, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
     coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
                                        param_dict['half_isolation_window'])
-    return coverage
+    print('coverage', coverage)
+    print('chemical_coverage', chemical_coverage)
+    if param_dict['coverage_type'] == 'coverage':
+        return coverage
+    else:
+        return chemical_coverage
 
 
 ########################################################################################################################
@@ -65,7 +78,7 @@ def smart_roi_evaluation(param_dict):
 
 def top_n_bayesian_optimisation(n_trials, n_range, rt_tol_range, save_file_name, mass_spec_file,
                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
-                               min_rt, max_rt, box_file, half_isolation_window):
+                               min_rt, max_rt, box_file, half_isolation_window, coverage_type):
     # create param_dict
     best_parameters, values, experiment, model = optimize(
         parameters=[
@@ -86,7 +99,9 @@ def top_n_bayesian_optimisation(n_trials, n_range, rt_tol_range, save_file_name,
             {"name": "save_file_name", "type": "fixed", "value": save_file_name},
             # the evaluation bits
             {"name": "box_file", "type": "fixed", "value": box_file},
-            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window},
+            # evaluation
+            {"name": "coverage_type", "type": "fixed", "value": coverage_type}
         ],
         evaluation_function=top_n_evaluation,
         objective_name='coverage',
@@ -95,10 +110,55 @@ def top_n_bayesian_optimisation(n_trials, n_range, rt_tol_range, save_file_name,
     return best_parameters, values, experiment, model
 
 
-def smart_roi_bayesian_optimisation(n_trials, n_range, rt_tol_range, iff_range, dp_range, save_file_name, mass_spec_file,
+def smart_roi_bayesian_optimisation2(n_trials, n, rt_tol, iff_range, dp_range, save_file_name, mass_spec_file,
                                     ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
                                     min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
-                                    reset_length_seconds, min_rt, max_rt, box_file, half_isolation_window):
+                                    reset_length_seconds, min_rt, max_rt, box_file, half_isolation_window,
+                                    coverage_type):
+    # create param_dict
+    best_parameters, values, experiment, model = optimize(
+        parameters=[
+            # the variable controller bits
+
+            {"name": "iff", "type": "range", "bounds": iff_range},  # alpha / 100
+            {"name": "dp", "type": "range", "bounds": dp_range},  # beta
+            # the mass spec bits
+            {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
+            # the controller bits
+            {"name": "N", "type": "fixed", "value": n},
+            {"name": "rt_tol", "type": "fixed", "value": rt_tol},
+            {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
+            {"name": "isolation_width", "type": "fixed", "value": isolation_width},
+            {"name": "mz_tol", "type": "fixed", "value": mz_tol},
+            {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
+            {"name": "params_file", "type": "fixed", "value": params_file},
+            {"name": "min_roi_intensity", "type": "fixed", "value": min_roi_intensity},
+            {"name": "min_roi_length", "type": "fixed", "value": min_roi_length},
+            {"name": "min_roi_length_for_fragmentation", "type": "fixed", "value": min_roi_length_for_fragmentation},
+            {"name": "reset_length_seconds", "type": "fixed", "value": reset_length_seconds},
+            # the env bits
+            {"name": "min_rt", "type": "fixed", "value": min_rt},
+            {"name": "max_rt", "type": "fixed", "value": max_rt},
+            {"name": "save_file_name", "type": "fixed", "value": save_file_name},
+            # the evaluation bits
+            {"name": "box_file", "type": "fixed", "value": box_file},
+            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window},
+            # evaluation
+            {"name": "coverage_type", "type": "fixed", "value": coverage_type}
+        ],
+        evaluation_function=top_n_evaluation,
+        objective_name='coverage',
+        total_trials=n_trials
+        )
+    return best_parameters, values, experiment, model
+
+
+
+def smart_roi_bayesian_optimisation4(n_trials, n_range, rt_tol_range, iff_range, dp_range, save_file_name, mass_spec_file,
+                                    ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
+                                    min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
+                                    reset_length_seconds, min_rt, max_rt, box_file, half_isolation_window,
+                                    coverage_type):
     # create param_dict
     best_parameters, values, experiment, model = optimize(
         parameters=[
@@ -125,7 +185,9 @@ def smart_roi_bayesian_optimisation(n_trials, n_range, rt_tol_range, iff_range, 
             {"name": "save_file_name", "type": "fixed", "value": save_file_name},
             # the evaluation bits
             {"name": "box_file", "type": "fixed", "value": box_file},
-            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window},
+            # evaluation
+            {"name": "coverage_type", "type": "fixed", "value": coverage_type}
         ],
         evaluation_function=top_n_evaluation,
         objective_name='coverage',

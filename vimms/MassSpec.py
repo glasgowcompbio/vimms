@@ -79,7 +79,7 @@ class Scan(object):
         return 'Scan %d num_peaks=%d rt=%.2f ms_level=%d' % (self.scan_id, self.num_peaks, self.rt, self.ms_level)
 
 
-class FragmentationEvent(object):
+class ScanEvent(object):
     """
     A class to store fragmentation events. Mostly used for benchmarking purpose.
     """
@@ -113,7 +113,7 @@ class FragmentationEvent(object):
         self.scan_params = scan_params
 
     def __repr__(self):
-        return 'MS%d FragmentationEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
+        return 'MS%d ScanEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
 
 
 class IndependentMassSpectrometer(object):
@@ -435,7 +435,7 @@ class IndependentMassSpectrometer(object):
                 scan_intensities.extend(chem_intensities)
             # for benchmarking purpose
             if len(peaks) > 0:
-                frag = FragmentationEvent(chemical, scan_time, use_ms_level, peaks, scan_id,
+                frag = ScanEvent(chemical, scan_time, use_ms_level, peaks, scan_id,
                                           parents_intensity=peaks_ms1_intensities,
                                           parent_adduct=peaks_which_adducts,
                                           parent_isotope=peaks_which_isotopes,

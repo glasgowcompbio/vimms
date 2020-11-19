@@ -1,7 +1,7 @@
 [experiment]
 controller_name	= SmartROI
 min_rt = 0
-max_rt = 1560
+max_rt = 1440
 ionisation_mode = Positive
 isolation_width = 1
 
@@ -19,13 +19,13 @@ min_ms1_intensity = 5000
 iif_values = [2, 3, 5, 10, 1e3, 1e6]
 dp_values = [0, 0.1, 0.5, 1, 5]
 min_roi_intensity = 500
-min_roi_length = 3 
-min_roi_length_for_fragmentation = 1
+min_roi_length = 0
+min_roi_length_for_fragmentation = 0
 
 # leave blank to compute timing from the seed data itself
 time_dict = {"1": 0.71, "2": 0.20}
 
-# shouldn't be needed?
+# TODO: should be removed eventually
 ps_file = /Users/joewa/University of Glasgow/Vinny Davies - CLDS Metabolomics Project/Trained Models/peak_sampler_mz_rt_int_beerqcb_fragmentation.p 
 
 [evaluation]

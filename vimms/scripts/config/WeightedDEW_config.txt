@@ -1,7 +1,7 @@
 [experiment]
 controller_name = WeightedDEW
 min_rt = 0
-max_rt = 1560
+max_rt = 1440
 ionisation_mode = Positive
 isolation_width = 1
 
@@ -21,7 +21,7 @@ rt_tol_values = [15, 60, 120, 240, 360, 3600]
 # leave blank to compute timing from the seed data itself
 time_dict = {"1": 0.60, "2": 0.20}
 
-# shouldn't be needed?
+# TODO: should be removed eventually
 ps_file = /Users/joewa/University of Glasgow/Vinny Davies - CLDS Metabolomics Project/Trained Models/peak_sampler_mz_rt_int_beerqcb_fragmentation.p 
 
 [evaluation]

@@ -190,7 +190,7 @@ class IndependentMassSpectrometer(object):
         if params is None:
             try:
                 # get a scan params from the queue
-                params = self.processing_queue.pop(0)
+                params = self.get_params()
             except IndexError: # nothing in the queue
                 params = None
 
@@ -234,6 +234,20 @@ class IndependentMassSpectrometer(object):
         :return: None
         """
         self.processing_queue.append(param)
+
+    def get_params(self):
+        """
+        Retrieves a new set of scan parameters from the processing queue
+        :return: A new set of scan parameters from the queue if available,
+            otherwise it returns nothing (default scan set in actual MS)
+        """
+        # if the processing queue is empty, then just do the repeating scan
+        if len(self.processing_queue) == 0:
+            params = None
+        else:
+            # otherwise pop the parameter for the next scan from the queue
+            params = self.processing_queue.pop(0)
+        return params
 
     def fire_event(self, event_name, arg=None):
         """

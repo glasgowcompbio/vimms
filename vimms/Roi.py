@@ -12,6 +12,7 @@ from scipy.stats import pearsonr
 # from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
+from vimms.Box import GenericBox
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
@@ -88,6 +89,7 @@ class Roi(object):
             self.mz_list[0], self.mz_list[-1],
             self.rt_list[0], self.rt_list[-1])
 
+    def to_box(self): return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list))
 
 INITIAL_WAITING = 0
 CAN_FRAGMENT = 1

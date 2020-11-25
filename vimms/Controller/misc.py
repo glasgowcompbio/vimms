@@ -49,7 +49,7 @@ class FixedScansController(Controller):
         self.initial_task = schedule[0]  # used for sending the first scan
         self.tasks = schedule[1:]  # used for sending all the other scans
 
-    def handle_scan(self, scan, outgoing_queue_size, pending_tasks_size):
+    def handle_scan(self, scan, current_size, pending_size):
         # simply record every scan that we've received, but return no new tasks
         logger.debug('Time %f Received %s' % (scan.rt, scan))
         self.scans[scan.ms_level].append(scan)

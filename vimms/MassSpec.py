@@ -102,6 +102,101 @@ class FragmentationEvent(object):
     def __repr__(self):
         return 'MS%d FragmentationEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
 
+
+class TaskManager(object):
+    """
+    A class to track how many new tasks (scan commands) that we can send, given the buffer size of the mass spec.
+    """
+    def __init__(self, buffer_size=5):
+        """
+        Initialises the task manager.
+        :param buffer_size: maximum buffer or queue size on the mass spec. At any point, this class will
+        ensure that there is not more than this number of tasks enqueued on the mass spec, see
+        https://github.com/thermofisherlsms/iapi/issues/22.
+        """
+        self.current_tasks = []
+        self.pending_tasks = []
+        self.buffer_size = buffer_size
+
+    def add_current(self, tasks):
+        """
+        Add to the list of current tasks (ready to send)
+        :param tasks: list of current tasks
+        :return: None
+        """
+        self.current_tasks.extend(tasks)
+
+    def add_pending(self, tasks):
+        """
+        Add to the list of pending tasks (sent but not received)
+        :param tasks: list of pending tasks
+        :return: None
+        """
+        self.pending_tasks.extend(tasks)
+
+    def remove_pending(self, completed_task):
+        """
+        Remove a completed task from the list of pending tasks
+        :param completed_task: a newly completed task
+        :return:
+        """
+        self.pending_tasks = [t for t in self.pending_tasks if t != completed_task]
+
+    def to_send(self):
+        """
+        Select current tasks that could be sent to the mass spec,
+        ensuring that buffer_size on the mass spec is not exceeded.
+        :return:
+        """
+        batch_size = self.buffer_size - self.pending_size()
+        batch = []
+        while self.current_size() > 0 and len(batch) < batch_size:
+            batch.append(self.pop_current())
+        return batch
+
+    def pop_current(self):
+        """
+        Remove the first current task (ready to send)
+        :return: a current task
+        """
+        return self.current_tasks.pop(0)
+
+    def pop_pending(self):
+        """
+        Remove the first pending task (sent but not received)
+        :return: a pending task
+        """
+        return self.pending_tasks.pop(0)
+
+    def peek_current(self):
+        """
+        Get the first current task (ready to send) without removing it
+        :return: a current task
+        """
+        return self.current_tasks[0]
+
+    def peek_pending(self):
+        """
+        Get the first pending task (sent but not received) without removing it
+        :return: a pending task
+        """
+        return self.pending_tasks[0]
+
+    def current_size(self):
+        """
+        Get the size of current tasks
+        :return: the size of current tasks
+        """
+        return len(self.current_tasks)
+
+    def pending_size(self):
+        """
+        Get the size of pending tasks
+        :return: the size of pending tasks
+        """
+        return len(self.pending_tasks)
+
+
 class IndependentMassSpectrometer(object):
     """
     A class that represents (synchronous) mass spectrometry process.
@@ -115,7 +210,7 @@ class IndependentMassSpectrometer(object):
 
     def __init__(self, ionisation_mode, chemicals, peak_sampler, mz_noise=None, intensity_noise=None, spike_noise=None,
                  isolation_transition_window='rectangular', isolation_transition_window_params=None,
-                 scan_duration_dict=DEFAULT_SCAN_TIME_DICT):
+                 scan_duration_dict=DEFAULT_SCAN_TIME_DICT, task_manager=None):
         """
         Creates a mass spec object.
         :param ionisation_mode: POSITIVE or NEGATIVE
@@ -130,7 +225,7 @@ class IndependentMassSpectrometer(object):
         self.time = 0
 
         # current task queue
-        self.processing_queue = []
+        self.task_manager = task_manager if task_manager is not None else TaskManager()
         self.environment = None
 
         self.events = Events((self.MS_SCAN_ARRIVED, self.ACQUISITION_STREAM_OPENING, self.ACQUISITION_STREAM_CLOSED,
@@ -188,52 +283,71 @@ class IndependentMassSpectrometer(object):
         """
         # if no params passed in, then try to get one from the queue
         if params is None:
-            try:
-                # get a scan params from the queue
-                params = self.processing_queue.pop(0)
-            except IndexError: # nothing in the queue
-                params = None
+            # Get the next set of params from the outgoing tasks.
+            # This could return an empty list if there's nothing there.
+            params_list = self.get_params()
+        else:
+            logger.debug('Got an initial task from controller')
+            params_list = [params] # initial param passed from the controller
 
-        # if finally we have params, then make a scan
-        if params is not None:
-            scan = self._get_scan(self.time, params)
-            current_level = scan.ms_level
+        # Send params away. In the simulated case, no sending actually occurs,
+        # instead we just track these params we've sent by adding them to self.environment.pending_tasks
+        if len(params_list) > 0:
+            logger.debug('new tasks ready to send = %d' % len(params_list))
+            self.send_params(params_list)
 
-            # notify the controller that a new scan has been generated
-            # at this point, the MS_SCAN_ARRIVED event handler in the controller is called
-            # and the processing queue will be updated with new sets of scan parameters to do
-            self.fire_event(self.MS_SCAN_ARRIVED, scan)
+        # pick up the last param that has been sent and generate a new scan
+        new_scan = None
+        if self.task_manager.pending_size() > 0:
+            params = self.task_manager.pop_pending()
 
-            # sample scan duration and increase internal time
-            current_N = self.current_N
-            current_DEW = self.current_DEW
-            try:
-                next_scan_param = self.get_processing_queue()[0]
-            except IndexError:
-                next_scan_param = None
+            # Make scan using the param that has been sent
+            # Note that in the real mass spec, the scan generation likely won't happen
+            # immediately after the param is sent.
+            new_scan = self._get_scan(self.time, params)
 
-            current_scan_duration = self._increase_time(current_level, current_N, current_DEW,
-                                                        next_scan_param)
-            scan.scan_duration = current_scan_duration
+            # dispatch the generated scan to controller
+            self.dispatch_scan(new_scan)
+        return new_scan
 
-            # stores the updated value of N and DEW
-            self._store_next_N_DEW(next_scan_param)
-            return scan
+    def dispatch_scan(self, scan):
+        # notify the controller that a new scan has been generated
+        # at this point, the MS_SCAN_ARRIVED event handler in the controller is called
+        # and the processing queue will be updated with new sets of scan parameters to do
+        self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
-    def get_processing_queue(self):
+        # sample scan duration and increase internal time
+        current_N = self.current_N
+        current_DEW = self.current_DEW
+        try:
+            next_scan_param = self.task_manager.peek_current()
+        except IndexError:
+            next_scan_param = None
+
+        current_level = scan.ms_level
+        current_scan_duration = self._increase_time(current_level, current_N, current_DEW,
+                                                    next_scan_param)
+        scan.scan_duration = current_scan_duration
+
+        # TODO: this is probably no longer necessary and can be removed as part of issue #46
+        # stores the updated value of N and DEW
+        self._store_next_N_DEW(next_scan_param)
+
+    def get_params(self):
         """
-        Returns the current processing queue
-        :return:
+        Retrieves a new set of scan parameters from the processing queue
+        :return: A new set of scan parameters from the queue if available,
+            otherwise it returns nothing (default scan set in actual MS)
         """
-        return self.processing_queue
+        params_list = self.task_manager.to_send()
+        logger.debug('Selected %d tasks to send' % (len(params_list)))
+        return params_list
 
-    def add_to_processing_queue(self, param):
-        """
-        Adds a new scan parameters to the processing queue of scan parameters. Usually done by the controllers.
-        :param param: the scan parameters to add
-        :return: None
-        """
-        self.processing_queue.append(param)
+    def send_params(self, params_list):
+        # in the real IAPI mass spec, we would send these params to the instrument.
+        # but here we just store them in the list of pending tasks to be processed later
+        self.task_manager.add_pending(params_list)
+        logger.debug('Successfully sent %d tasks' % (len(params_list)))
 
     def fire_event(self, event_name, arg=None):
         """
@@ -310,7 +424,7 @@ class IndependentMassSpectrometer(object):
             current_scan_duration = tt
 
         self.time += current_scan_duration
-        logger.debug('Time %f Len(queue)=%d' % (self.time, len(self.processing_queue)))
+        logger.debug('scan_duration=%f time %f' % (current_scan_duration, self.time))
         return current_scan_duration
 
     def _sample_scan_duration(self, current_DEW, current_N, current_level, next_level):

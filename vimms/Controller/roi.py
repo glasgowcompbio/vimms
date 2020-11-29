@@ -35,6 +35,8 @@ class RoiController(TopNController):
         self.junk_roi = []
         self.live_roi_fragmented = []
         self.live_roi_last_rt = []  # last fragmentation time of ROI
+        
+    def get_rois(self): return self.live_roi + self.dead_roi
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process

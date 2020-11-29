@@ -89,7 +89,8 @@ class Roi(object):
             self.mz_list[0], self.mz_list[-1],
             self.rt_list[0], self.rt_list[-1])
 
-    def to_box(self): return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list))
+    def to_box(self, min_rtwidth=0.01, min_mzwidth=0.01): 
+        return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list), min_xwidth=min_rtwidth, min_ywidth=min_mzwidth)
 
 INITIAL_WAITING = 0
 CAN_FRAGMENT = 1

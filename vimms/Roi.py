@@ -89,7 +89,22 @@ class Roi(object):
             self.mz_list[0], self.mz_list[-1],
             self.rt_list[0], self.rt_list[-1])
 
-    def to_box(self): return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list))
+    def to_box(self):
+        return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list))
+
+    def get_boxes_overlap(self, min_roi_box_intensity, boxes):
+        # get the first entry where all subsequent intensities are above the min_intensity
+        first_relvant_idx = max(np.where(self.intensity_list <= min_roi_box_intensity)[0])
+        if (first_relvant_idx + 1) < len(self.intensity_list) and self.intensity_list[first_relvant_idx+1] > min_roi_box_intensity:
+            # define the current ROI box
+            roi_box = GenericBox(min(self.rt_list[first_relvant_idx:]), max(self.rt_list[first_relvant_idx:]),
+                                 min(self.mz_list[first_relvant_idx:]), max(self.mz_list[first_relvant_idx:]))
+            # calculate the overlap with all inputted boxes
+            overlaps = [roi_box.overlap_2(box) for box in boxes]
+        else:
+            overlaps = [0.0 for box in boxes]
+        return overlaps
+
 
 INITIAL_WAITING = 0
 CAN_FRAGMENT = 1

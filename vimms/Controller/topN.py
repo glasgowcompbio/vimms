@@ -597,3 +597,24 @@ class PurityController(TopNController):
         current_N = self.N[idx]
         current_rt_tol = self.rt_tols[idx]
         return current_N, current_rt_tol, idx
+
+# Some potentially useful skeleton code for simplifying controllers
+
+# def _process_scan(self, scan):
+#     new_tasks = []  # this gets updated in _get_ms2_scan
+#     fragmented_count = 0  # this gets updated in _get_ms2_scan
+#     if self.scan_to_process is not None:
+#         self._update_status()  # updates ROIs, exclusion list etc
+#         self.get_precursor_info()  # retrieves relevant precursor info (mz, int, rt) etc.
+#         # Above should be consistent for ROI methods and consistent for
+#         scores_info = self.get_scores()  # this is the individual scoring system
+#         for i in scores_info:
+#             new_task, fragmented_count = self.get_ms2_scan(scan, fragmented_count)  # gets ms2 scan, returns None if ms2 scan not chosen
+#             # in above we update the fragmentation_count and things like N
+#             new_tasks.append(new_task)
+#             self.update_exclusion()  # updates exlcusion list
+#             self.update_scores()  # updated scores. Generally does nothing, people useful for some future methods
+#             if new_task == None:
+#                 pass  # stop looping through scans
+#         return new_tasks
+

@@ -113,9 +113,14 @@ class RoiController(TopNController):
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
+        if scan.ms_level ==  2:
+            self.update_boxes_intensities(scan)  # this doesnt do anything here. Useful for future controllers. Will be remove when we refactor
         return new_tasks
 
     def update_state_after_scan(self, last_scan):
+        pass
+
+    def update_boxes_intensities(self, ms2_scan):
         pass
 
     def _update_roi(self, new_scan):
@@ -355,6 +360,58 @@ class TopN_RoiController(RoiController):
         initial_scores = self._get_dda_scores()
         scores = self._get_top_N_scores(initial_scores)
         return scores
+
+
+# class TopNBoxRoiController(RoiController):
+#     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+#                  min_roi_length, boxes, boxes_intensity, boxes_params, N=None, rt_tol=10,
+#                  min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, params=None):
+#
+#         self.boxes = boxes
+#         self.boxes_intensity = boxes_intensity  # the intensity the boxes have been fragmented at before
+#         self.boxes_params = boxes_params
+#         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+#                          min_roi_length, N, rt_tol=rt_tol,
+#                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+#                          length_units=length_units, ms1_shift=ms1_shift, params=params)
+#
+#     def _get_scores(self):
+#         self._update_boxes_intensities()  # not sure how Im going to do this yet. maybe not here
+#         dda_scores = self._get_dda_scores()
+#         roi_intensities = np.array([roi.intensity_list[-1] for roi in self.live_roi])
+#         overlap_scores = []
+#         for i in range(len(dda_scores)):
+#             overlaps = self.live_roi[i].get_boxes_overlap(self.boxes_params['min_roi_box_intensity'], self.boxes)
+#             overlap_scores.append(sum((roi_intensities - self.boxes_intensity) * overlaps))
+#         scores = dda_scores * self.boxes_params['theta1'] + np.array(overlap_scores) * self.boxes_params['theta2']
+#         return scores
+#
+#
+#     def _update_boxes_intensities(self, ms2_scan):
+#         mz = ms2_scan.precursor_mz
+#         rt = ms2_scan.rt
+#         intensity =
+#         which_boxes =
+#         self.boxes_intensity[which_boxes] = [max(self.boxes_intensity[i], intensity) for i in which_boxes]
+#
+#
+#
+#
+#         NotImplementedError()
+#         # TODO: here we will need to update boxes_intensities to reflect any scans done since the last scores were
+#         #  calculated
+#
+
+
+        # scores = np.log(self.current_roi_intensities)  # log intensities
+        # scores *= (np.array(self.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
+        # time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
+        # time_filter[time_filter == 0] = (
+        #         (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
+        # scores *= time_filter
+        # scores *= (self.current_roi_length >= self.min_roi_length_for_fragmentation)
+        # return scores
+
 
 
 class DsDA_RoiController(RoiController):

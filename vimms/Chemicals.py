@@ -544,8 +544,11 @@ class RoiToChemicalCreator(ChemicalCreator):
 
 class MultiSampleCreator(object):
 
-    def __init__(self, original_dataset, n_samples, classes, intensity_noise_sd,
-                 change_probabilities, change_differences_means, change_differences_sds, dropout_probabilities=None,
+    def __init__(self, original_dataset,
+                 n_samples,  # a list of the number of samples for each class, e.g. [2,2] for ['class1', 'class2']
+                 classes,  # a list of the classes, e.g. ['class1', 'class2']
+                 intensity_noise_sd, change_probabilities, change_differences_means, change_differences_sds,
+                 dropout_probabilities=None,
                  dropout_numbers=None, experimental_classes=None, experimental_probabilitities=None,
                  experimental_sds=None, save_location=None):
         self.original_dataset = original_dataset

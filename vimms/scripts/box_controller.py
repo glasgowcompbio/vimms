@@ -77,7 +77,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
     hmdb = load_obj(hmdbpath)
     df = DatabaseFormulaSampler(hmdb, min_mz=100, max_mz=1000)
     cm = ChemicalMixtureCreator(df, adduct_prior_dict={POSITIVE: {"M+H" : 1}})
-    chemicals = cm.sample(100, 1)
+    chemicals = cm.sample(500, 1)
     
     boxes = []
     for i in range(no_injections):
@@ -105,7 +105,7 @@ def main():
     
     def run_area_calcs(boxenv, rt_box_size, mz_box_size):
         def pretty_print(scores):
-            print({i : x for i, x in enumerate(itertools.chain(*scores))})
+            print({i : x for i, x in enumerate(itertools.chain(*scores)) if x > 0.0 and x < 1.0})
         print("\nRun area calcs start!")
         print("\nDictGrid Scores:")
         scores_by_injection, dict_time = Timer().time_f(lambda: boxenv.test_non_overlap(DictGrid, rt_box_size, mz_box_size))
@@ -153,7 +153,7 @@ def main():
     
     boxenv = TestEnv(0, 1440, 1500, 0, 0, 0, 0)
     boxenv.boxes_by_injection = run_vimms(20, 1, 0.3)
-    run_area_calcs(boxenv, 0.3, 0.001)
+    run_area_calcs(boxenv, 0.2, 0.01)
     
     box_adjust(boxenv, *range(10, 401, 10))    
 main()

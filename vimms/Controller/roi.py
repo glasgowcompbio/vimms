@@ -35,8 +35,13 @@ class RoiController(TopNController):
         self.junk_roi = []
         self.live_roi_fragmented = []
         self.live_roi_last_rt = []  # last fragmentation time of ROI
-        
-    def get_rois(self): return self.live_roi + self.dead_roi
+
+        # fragmentation to Roi dictionaries
+        self.frag_roi_dicts = []  # scan_id, roi_id, precursor_intensity
+        self.roi_id_counter = 0
+
+    def get_rois(self):
+        return self.live_roi + self.dead_roi
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -49,6 +54,7 @@ class RoiController(TopNController):
 
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
+            self.current_roi_ids = [roi.id for roi in self.live_roi]
 
             # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":
@@ -67,6 +73,7 @@ class RoiController(TopNController):
             for i in idx:
                 mz = self.current_roi_mzs[i]
                 intensity = self.current_roi_intensities[i]
+                roi_id = self.current_roi_ids[i]
 
                 # stopping criteria is done based on the scores
                 if scores[i] <= 0:
@@ -85,6 +92,8 @@ class RoiController(TopNController):
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
                 self.current_task_id += 1
+                self.frag_roi_dicts.append({'scan_id': self.current_task_id, 'roi_id': roi_id,
+                                            'precursor_intensity': intensity})
 
                 # add an ms1 here
                 if fragmented_count == self.N - self.ms1_shift:
@@ -113,15 +122,26 @@ class RoiController(TopNController):
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
-        if scan.ms_level ==  2:
-            self.update_boxes_intensities(scan)  # this doesnt do anything here. Useful for future controllers. Will be remove when we refactor
+        if scan.ms_level == 2:  # add ms2 scans to Rois
+            self.add_scan_to_roi(scan)
         return new_tasks
 
     def update_state_after_scan(self, last_scan):
         pass
 
-    def update_boxes_intensities(self, ms2_scan):
-        pass
+    def add_scan_to_roi(self, scan):
+        frag_event_ids = np.array([event['scan_id'] for event in self.frag_roi_dicts])
+        which_event = np.where(frag_event_ids == scan.scan_id)[0]
+        live_roi_ids = np.array([roi.id for roi in self.live_roi])
+        which_roi = np.where(live_roi_ids == self.frag_roi_dicts[which_event[0]]['roi_id'])[0]
+        if len(which_roi) > 0:
+            self.live_roi[which_roi[0]].add_fragmentation_event(
+                scan, self.frag_roi_dicts[which_event[0]]['precursor_intensity'])
+            del self.frag_roi_dicts[which_event[0]]
+        else:
+            pass  # hopefully shouldnt happen
+
+
 
     def _update_roi(self, new_scan):
         if new_scan.ms_level == 1:
@@ -141,7 +161,8 @@ class RoiController(TopNController):
                         if match_roi in not_grew:
                             not_grew.remove(match_roi)
                     else:
-                        new_roi = Roi(mz, current_ms1_scan_rt, intensity)
+                        new_roi = Roi(mz, current_ms1_scan_rt, intensity, self.roi_id_counter)
+                        self.roi_id_counter += 1
                         bisect.insort_right(self.live_roi, new_roi)
                         self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
                         self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)

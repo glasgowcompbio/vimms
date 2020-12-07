@@ -37,7 +37,10 @@ POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.033823
 # When a new point (mz,rt,intensity) is added, it updates the 
 # list and the mean mz which is required.
 class Roi(object):
-    def __init__(self, mz, rt, intensity):
+    def __init__(self, mz, rt, intensity, id=None):
+        self.id = id
+        self.fragmentation_events = []
+        self.max_fragmentation_intensity = 0.0
         if type(mz) == list:
             self.mz_list = mz
         else:
@@ -73,6 +76,10 @@ class Roi(object):
         self.mz_sum += mz
         self.n += 1
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+
+    def add_fragmentation_event(self, scan, precursor_intensity):
+        self.fragmentation_events.append(scan)
+        self.max_fragmentation_intensity = max(self.max_fragmentation_intensity, precursor_intensity)
 
     def __lt__(self, other):
         return self.get_mean_mz() <= other.get_mean_mz()

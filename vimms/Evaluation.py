@@ -21,11 +21,17 @@ def evaluate_simulated_env(env, base_chemicals=None):
     chemicals_fragmented = np.array(chems)[np.where(coverage == 1)]
     if base_chemicals is not None:
         base_chemicals_coverage = [(chem in chemicals_fragmented)*1 for chem in base_chemicals]
+        #base_chemicals_intensity = [coverage_intensity[np.where(chem in chemicals_fragmented)] for chem in base_chemicals]
+
+        for chem in base_chemicals:
+            where_chem = np.where(chem in chemicals_fragmented)
+            inten = coverage_intensity[np.where(chem in chemicals_fragmented)]
     else:
         base_chemicals_coverage = None
+        base_chemicals_intensity = None
     return {'coverage': coverage, 'coverage_intensity': coverage_intensity, 'coverage_prop': coverage_prop,
             'coverage_intensity_prop': coverage_intensity_prop, 'chemicals_fragmented': chemicals_fragmented,
-            'base_chemicals_coverage': base_chemicals_coverage}
+            'base_chemicals_coverage': base_chemicals_coverage, 'base_chemicals_intensity': base_chemicals_intensity}
 
 
 def evaluate_mzml(mzml_file, picked_peaks_file, half_isolation_window):

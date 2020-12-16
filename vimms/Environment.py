@@ -97,7 +97,7 @@ class Environment(object):
         :param scan: the newly generated scan
         :return: None
         """
-        if self.bar is not None:
+        if self.bar is not None and scan.scan_duration is not None:
             N, DEW = self._get_N_DEW(self.mass_spec.time)
             if N is not None and DEW is not None:
                 msg = '(%.3fs) ms_level=%d N=%d DEW=%d' % (self.mass_spec.time, scan.ms_level, N, DEW)
@@ -121,31 +121,22 @@ class Environment(object):
         :param scan: A newly generated scan
         :return: None
         """
+        logger.debug('Time %f Received %s' % (scan.rt, scan))
+
         # check the status of the last block of pending tasks we sent to determine if their corresponding scans
         # have actually been performed by the mass spec
         completed_task = scan.scan_params
         if completed_task is not None:  # should not be none for custom scans that we sent
-            self.pending_tasks = [t for t in self.pending_tasks if t != completed_task]
+            self.mass_spec.task_manager.remove_pending(completed_task)
 
         # handle the scan immediately by passing it to the controller,
         # and get new set of tasks from the controller
-        outgoing_queue_size = len(self.mass_spec.get_processing_queue())
-        pending_tasks_size = len(self.pending_tasks)
-        tasks = self.controller.handle_scan(scan, outgoing_queue_size, pending_tasks_size)
-        self.pending_tasks.extend(tasks)  # track pending tasks here
+        current_size = self.mass_spec.task_manager.current_size()
+        pending_size = self.mass_spec.task_manager.pending_size()
+        tasks = self.controller.handle_scan(scan, current_size, pending_size)
 
-        # immediately push new tasks to mass spec queue
-        self.add_tasks(tasks)
-        return len(tasks)
-
-    def add_tasks(self, outgoing_scan_params):
-        """
-        Stores new tasks from the controller. In this case, immediately we pass the new tasks to the mass spec.
-        :param outgoing_scan_params: new tasks to send
-        :return: None
-        """
-        for new_task in outgoing_scan_params:
-            self.mass_spec.add_to_processing_queue(new_task)
+        # immediately push newly generated tasks to mass spec queue
+        self.mass_spec.task_manager.add_current(tasks)
 
     def write_mzML(self, out_dir, out_file):
         """
@@ -175,7 +166,9 @@ class Environment(object):
         self.controller.set_environment(self)
         self.mass_spec.set_environment(self)
         self.mass_spec.time = self.min_time
-        self.add_tasks(self.controller.get_initial_tasks())  # add the initial tasks from the controller
+
+        # add the initial tasks from the controller to the mass spec task manager
+        self.mass_spec.task_manager.add_current(self.controller.get_initial_tasks())
 
         N, DEW = self._get_N_DEW(self.mass_spec.time)
         if N is not None:

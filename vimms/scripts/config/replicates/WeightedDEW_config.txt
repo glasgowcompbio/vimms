@@ -1,0 +1,30 @@
+[experiment]
+controller_name = WeightedDEW
+min_rt = 0
+max_rt = 1440
+ionisation_mode = Positive
+isolation_width = 1
+
+[roi_extraction]
+mz_tol = 5
+mz_units = ppm
+min_length = 1
+min_intensity = 0
+	
+[simulation]
+N = 10
+mz_tol = 10
+min_ms1_intensity = 5000
+t0_values = [1, 3, 10, 15, 30, 60]
+rt_tol_values = [15, 60, 120, 240, 360, 3600]
+
+# leave blank to compute timing from the seed data itself
+time_dict = 
+
+# TODO: should be removed eventually
+ps_file = /Users/joewa/University of Glasgow/Vinny Davies - CLDS Metabolomics Project/Trained Models/peak_sampler_mz_rt_int_beerqcb_fragmentation.p 
+
+[evaluation]
+mzmine_command = /Users/joewa/work/MZmine-2.40.1/startMZmine_Windows.bat
+mzmine_xml_file = /Users/joewa/Work/git/vimms/batch_files/QC_PP.xml
+

@@ -60,7 +60,7 @@ setup(
         "jupyterlab-server==1.2.0; python_version >= '3.5'",
         "kiwisolver==1.2.0; python_version >= '3.6'",
         "loguru==0.5.3",
-        "lxml==4.5.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
+        "lxml==4.6.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
         "markupsafe==1.1.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "mass-spec-utils==0.0.12",
         "matplotlib==3.3.2",

@@ -90,7 +90,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
         env.run()    
-        boxes.append([r.to_box() for r in controller.get_rois()])
+        boxes.append([r.to_box(0.01, 0.01) for r in controller.get_rois()])
     return boxes
         
 def main():
@@ -111,9 +111,9 @@ def main():
         scores_by_injection, dict_time = Timer().time_f(lambda: boxenv.test_non_overlap(DictGrid, rt_box_size, mz_box_size))
         pretty_print(scores_by_injection)
     
-        print("\nBoolArrayGrid Scores:")
+        '''print("\nBoolArrayGrid Scores:")
         scores_by_injection_2, array_time = Timer().time_f(lambda: boxenv.test_non_overlap(ArrayGrid, rt_box_size, mz_box_size))
-        pretty_print(scores_by_injection_2)
+        pretty_print(scores_by_injection_2)'''
         
         print("\nExact Scores:")
         scores_by_injection_3, exact_time = Timer().time_f(lambda: boxenv.test_simple_splitter())
@@ -130,10 +130,10 @@ def main():
         print("BoxSplitting with Grid Time Taken {}".format(exact_grid_time))
         
     def box_adjust(boxenv, *no_boxes):
-        for n in no_boxes:
-            rt_box_size, mz_box_size = (boxenv.max_rt - boxenv.min_rt) / n, boxenv.max_mz / n
+        for x_n, y_n in no_boxes:
+            rt_box_size, mz_box_size = (boxenv.max_rt - boxenv.min_rt) / x_n, boxenv.max_mz / y_n
             _, exact_grid_time = Timer().time_f(lambda: boxenv.test_non_overlap(LocatorGrid, rt_box_size, mz_box_size))
-            print("Time with {} Boxes: {}".format(n, exact_grid_time))
+            print("Time with {}, {} Boxes: {}".format(x_n, y_n, exact_grid_time))
     
     boxenv = TestEnv.random_boxenv(200, 3)
     run_area_calcs(boxenv, (boxenv.max_rt - boxenv.min_rt) / 10000, boxenv.max_mz / 10000)
@@ -155,5 +155,12 @@ def main():
     boxenv.boxes_by_injection = run_vimms(20, 1, 0.3)
     run_area_calcs(boxenv, 0.2, 0.01)
     
-    box_adjust(boxenv, *range(10, 401, 10))    
+    print()
+    for ratio in range(1, 11):
+        print("---Ratio of {}---\n".format(ratio))
+        box_adjust(boxenv, *((n // ratio, n) for n in range(ratio, 1001, 10 * ratio)))
+    
+    from statistics import mean
+    def box_lengths(b): return b.pt2.x - b.pt1.x, b.pt2.y - b.pt1.y
+    print("Avg. xlen == {}, Avg. ylen == {}".format(*map(mean, zip(*(box_lengths(b) for inj in boxenv.boxes_by_injection for b in inj)))))
 main()

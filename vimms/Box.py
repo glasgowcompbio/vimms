@@ -10,9 +10,10 @@ class Point():
     def __repr__(self): return "Point({}, {})".format(self.x, self.y)
 
 class Box():
-    def __init__(self, x1, x2, y1, y2, min_xwidth=0, min_ywidth=0):
+    def __init__(self, x1, x2, y1, y2, parents=[], min_xwidth=0, min_ywidth=0):
         self.pt1 = Point(min(x1, x2), min(y1, y2))
         self.pt2 = Point(max(x1, x2), max(y1, y2))
+        self.parents = parents
         
         if(self.pt2.x - self.pt1.x < min_xwidth):
             midpoint = self.pt1.x + ((self.pt2.x - self.pt1.x) / 2)
@@ -23,9 +24,17 @@ class Box():
             self.pt1.y, self.pt2.y = midpoint - (min_ywidth / 2), midpoint + (min_ywidth / 2)
         
     def __repr__(self): return "Box({}, {})".format(self.pt1, self.pt2)
+    def __eq__(self, other_box): return self.pt1 == other_box.pt1 and self.pt2 == other_box.pt2
     def __hash__(self): return (self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y).__hash__()
     def area(self): return (self.pt2.x - self.pt1.x) * (self.pt2.y - self.pt1.y)
     def copy(self): return type(self)(self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y)
+    def shift(self, xshift=0, yshift=0):
+        self.pt1.x += xshift
+        self.pt2.x += xshift
+        self.pt1.y += yshift
+        self.pt2.y += yshift
+    def num_overlaps(self): return 1 if len(self.parents) == 0 else len(self.parents)
+    def top_level_boxes(self): return [self.copy()] if self.parents == [] else self.parents
         
 class GenericBox(Box):
     '''Makes no particular assumptions about bounding boxes.'''
@@ -48,7 +57,7 @@ class GenericBox(Box):
         b = Box(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x), max(self.pt1.y, other_box.pt1.y), min(self.pt2.y, other_box.pt2.y))
         return b.area() / (self.area() + other_box.area() - b.area())
                
-    def split_box(self, other_box):
+    def non_overlap_split(self, other_box):
         '''Finds 1 to 4 boxes describing the polygon of area of this box not overlapped by other_box.
            If one box is found, crops this box to dimensions of that box, and returns None.
            Otherwise, returns list of 2 to 4 boxes. Number of boxes found is equal to number of edges overlapping area does NOT share with this box.'''
@@ -57,19 +66,16 @@ class GenericBox(Box):
         split_boxes = []
         if(other_box.pt1.x > self.pt1.x):
             x1 = other_box.pt1.x
-            split_boxes.append(GenericBox(self.pt1.x, x1, y1, y2))
+            split_boxes.append(GenericBox(self.pt1.x, x1, y1, y2, parents=self.parents))
         if(other_box.pt2.x < self.pt2.x):
             x2 = other_box.pt2.x
-            split_boxes.append(GenericBox(x2, self.pt2.x, y1, y2))
+            split_boxes.append(GenericBox(x2, self.pt2.x, y1, y2, parents=self.parents))
         if(other_box.pt1.y > self.pt1.y):
             y1 = other_box.pt1.y
-            split_boxes.append(GenericBox(x1, x2, self.pt1.y, y1))
+            split_boxes.append(GenericBox(x1, x2, self.pt1.y, y1, parents=self.parents))
         if(other_box.pt2.y < self.pt2.y):
             y2 = other_box.pt2.y
-            split_boxes.append(GenericBox(x1, x2, y2, self.pt2.y))
-        if(len(split_boxes) == 1):
-            self.pt1, self.pt2 = split_boxes[0].pt1, split_boxes[0].pt2
-            return None
+            split_boxes.append(GenericBox(x1, x2, y2, self.pt2.y, parents=self.parents))
         return split_boxes
         
 class Grid():
@@ -146,18 +152,17 @@ class LocatorGrid(Grid):
         
     @staticmethod
     def splitting_non_overlap(box, *other_boxes):
-        new_boxes = [box.copy()]
+        new_boxes = [box]
         for b in other_boxes: #filter boxes down via grid with large boxes for this loop + boxes could be potentially sorted by size (O(n) insert time in worst-case)?
             if(box.overlaps_with_box(b)): #quickly exits any box not overlapping new box
+                updated_boxes = []
                 for b2 in new_boxes:
-                    if(b.contains_box(b2)): #your box is contained within a previous box, in which case area is 0 (remove box from list, return if list is empty)
-                        new_boxes.remove(b2)
-                        if(not new_boxes): return 0.0
-                    else:
-                        split_boxes = b2.split_box(b)
-                        if(not split_boxes is None):
-                            new_boxes.remove(b2)
-                            new_boxes.extend(split_boxes)
+                    if(not b.contains_box(b2)): #if your box is contained within a previous box area is 0 and box is not carried over
+                        split_boxes = b2.non_overlap_split(b)
+                        if(not split_boxes is None): updated_boxes.extend(split_boxes)
+                        else: updated_boxes.append(b2)
+                if(not updated_boxes): return 0.0
+                new_boxes = updated_boxes
         return sum(b.area() for b in new_boxes) / box.area()
         
     def non_overlap(self, box):

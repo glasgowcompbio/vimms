@@ -8,7 +8,7 @@ from vimms.Controller.roi import RoiController
 class NonOverlapController(RoiController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None):
         super().__init__(
                             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
@@ -16,6 +16,7 @@ class NonOverlapController(RoiController):
                             length_units=length_units, ms1_shift=ms1_shift, params=params
                         )
 
+        self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid #helps us understand previous RoIs
 
     def schedule_ms1(self, new_tasks):
@@ -60,7 +61,7 @@ class NonOverlapController(RoiController):
             mz, intensity = self.current_roi_mzs[i], self.current_roi_intensities[i]
             self.live_roi_fragmented[i] = True
             self.live_roi_last_rt[i] = rt
-            self.grid.register_box(self.live_roi[i].to_box())
+            self.grid.register_box(self.live_roi[i].to_box(self.min_rt_width, self.min_mz_width))
 
             ms2s.schedule_ms2s(new_tasks, ms2_tasks, mz, intensity)
             if ms2s.fragmented_count == self.N - self.ms1_shift:
@@ -75,5 +76,5 @@ class NonOverlapController(RoiController):
         
         return new_tasks
         
-    def _non_overlaps(self): return [self.grid.non_overlap(r.to_box()) for r in self.live_roi]
+    def _non_overlaps(self): return [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width)) for r in self.live_roi]
     def _get_scores(self): return self._get_top_N_scores(self._get_dda_scores() * self._non_overlaps())

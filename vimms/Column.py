@@ -15,7 +15,12 @@ class Column(object):
         return offsets, true_offset_function
 
     def get_dataset(self):
-        return self.dataset + self.offsets
+        new_dataset = []
+        for i in range(len(self.dataset)):
+            new_chem = self.dataset[i]
+            new_chem.rt += self.offsets[i]
+            new_dataset.append(new_chem)
+        return new_dataset
 
     def get_chemical(self, idx):
         return self.dataset[idx] + self.offsets[idx]
@@ -35,6 +40,7 @@ class Column(object):
         for i in range(100):
             offsets, true_drift_function = self._get_offsets()
             plt.plot(self.dataset_rts[order], true_drift_function[order])
+        plt.xlabel('Base RT')
         plt.show()
 
 

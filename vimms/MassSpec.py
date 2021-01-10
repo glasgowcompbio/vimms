@@ -47,7 +47,7 @@ class Scan(object):
     """
 
     def __init__(self, scan_id, mzs, intensities, ms_level, rt,
-                 scan_duration=None, scan_params=None, parent=None):
+                 scan_duration=None, scan_params=None, parent=None, fragevent=None):
         """
         Creates a scan
         :param scan_id: current scan id
@@ -74,6 +74,7 @@ class Scan(object):
         self.scan_duration = scan_duration
         self.scan_params = scan_params
         self.parent = parent
+        self.fragevent = fragevent
 
     def __repr__(self):
         return 'Scan %d num_peaks=%d rt=%.2f ms_level=%d' % (self.scan_id, self.num_peaks, self.rt, self.ms_level)
@@ -493,6 +494,7 @@ class IndependentMassSpectrometer(object):
         :param scan_time: the timepoint
         :return: a mass spectrometry scan at that time
         """
+        frag = None
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
@@ -566,7 +568,8 @@ class IndependentMassSpectrometer(object):
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
-        sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
+        sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params,
+                  fragevent=frag)
 
         # Note: at this point, the scan duration is not set yet because we don't know what the next scan is going to be
         # We will set it later in the get_next_scan() method after we've notified the controller that this scan is produced.

@@ -40,6 +40,7 @@ class Roi(object):
     def __init__(self, mz, rt, intensity, id=None):
         self.id = id
         self.fragmentation_events = []
+        self.fragmentation_intensities = []
         self.max_fragmentation_intensity = 0.0
         if type(mz) == list:
             self.mz_list = mz
@@ -79,7 +80,8 @@ class Roi(object):
 
     def add_fragmentation_event(self, scan, precursor_intensity):
         self.fragmentation_events.append(scan)
-        self.max_fragmentation_intensity = max(self.max_fragmentation_intensity, precursor_intensity)
+        self.fragmentation_intensities.append(precursor_intensity)
+        self.max_fragmentation_intensity = max(self.fragmentation_intensities)
 
     def __lt__(self, other):
         return self.get_mean_mz() <= other.get_mean_mz()
@@ -91,25 +93,19 @@ class Roi(object):
         return chrom
 
     def __repr__(self):
-        return 'ROI with data points=%d mz (%.4f-%.4f) rt (%.4f-%.4f)' % (
+        return 'ROI with data points=%d fragmentations=%d mz (%.4f-%.4f) rt (%.4f-%.4f)' % (
             self.n,
+            len(self.fragmentation_events),
             self.mz_list[0], self.mz_list[-1],
             self.rt_list[0], self.rt_list[-1])
 
     def to_box(self, min_rt_width, min_mz_width): 
-        return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list), min_xwidth=min_rt_width, min_ywidth=min_mz_width)
+        return GenericBox(min(self.rt_list), max(self.rt_list), min(self.mz_list), max(self.mz_list),
+                          min_xwidth=min_rtwidth, min_ywidth=min_mzwidth)
 
-    def get_boxes_overlap(self, min_roi_box_intensity, boxes):
-        # get the first entry where all subsequent intensities are above the min_intensity
-        first_relvant_idx = max(np.where(self.intensity_list <= min_roi_box_intensity)[0])
-        if (first_relvant_idx + 1) < len(self.intensity_list) and self.intensity_list[first_relvant_idx+1] > min_roi_box_intensity:
-            # define the current ROI box
-            roi_box = GenericBox(min(self.rt_list[first_relvant_idx:]), max(self.rt_list[first_relvant_idx:]),
-                                 min(self.mz_list[first_relvant_idx:]), max(self.mz_list[first_relvant_idx:]))
-            # calculate the overlap with all inputted boxes
-            overlaps = [roi_box.overlap_2(box) for box in boxes]
-        else:
-            overlaps = [0.0 for box in boxes]
+    def get_boxes_overlap(self, boxes):
+        roi_box = self.to_box()
+        overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
 
 INITIAL_WAITING = 0

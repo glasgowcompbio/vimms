@@ -22,7 +22,7 @@ def evaluate_simulated_env(env, base_chemicals=None):
     chemicals_fragmented = np.array(chems)[np.where(coverage == 1)]
     if base_chemicals is not None:
         base_chemicals_coverage = [(chem in chemicals_fragmented)*1 for chem in base_chemicals]
-        #base_chemicals_intensity = [coverage_intensity[np.where(chem in chemicals_fragmented)] for chem in base_chemicals]
+        base_chemicals_intensity = [coverage_intensity[np.where(chem in chemicals_fragmented)] for chem in base_chemicals]
 
         for chem in base_chemicals:
             where_chem = np.where(chem in chemicals_fragmented)

@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -16,9 +18,9 @@ class Column(object):
 
     def get_dataset(self):
         new_dataset = []
-        for i in range(len(self.dataset)):
-            new_chem = self.dataset[i]
-            new_chem.rt += self.offsets[i]
+        for chem, rt_shift in zip(self.dataset, self.offsets):
+            new_chem = copy.deepcopy(chem)
+            new_chem.rt += rt_shift
             new_dataset.append(new_chem)
         return new_dataset
 

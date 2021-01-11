@@ -111,9 +111,9 @@ def main():
         scores_by_injection, dict_time = Timer().time_f(lambda: boxenv.test_non_overlap(DictGrid, rt_box_size, mz_box_size))
         pretty_print(scores_by_injection)
     
-        '''print("\nBoolArrayGrid Scores:")
+        print("\nBoolArrayGrid Scores:")
         scores_by_injection_2, array_time = Timer().time_f(lambda: boxenv.test_non_overlap(ArrayGrid, rt_box_size, mz_box_size))
-        pretty_print(scores_by_injection_2)'''
+        pretty_print(scores_by_injection_2)
         
         print("\nExact Scores:")
         scores_by_injection_3, exact_time = Timer().time_f(lambda: boxenv.test_simple_splitter())
@@ -152,7 +152,7 @@ def main():
     print()
     
     boxenv = TestEnv(0, 1440, 1500, 0, 0, 0, 0)
-    boxenv.boxes_by_injection = run_vimms(20, 1, 0.3)
+    boxenv.boxes_by_injection = run_vimms(20, (boxenv.max_rt - boxenv.min_rt) / 150, boxenv.max_mz / 150)
     run_area_calcs(boxenv, 0.2, 0.01)
     
     print()

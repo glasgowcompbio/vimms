@@ -121,7 +121,7 @@ class UnknownChemical(Chemical):
     Chemical from an unknown chemical formula
     """
 
-    def __init__(self, mz, rt, max_intensity, chromatogram, children=None):
+    def __init__(self, mz, rt, max_intensity, chromatogram, children=None, base_chemical=None):
         self.max_intensity = max_intensity
         self.isotopes = [(mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
         self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
@@ -131,6 +131,7 @@ class UnknownChemical(Chemical):
         self.ms_level = 1
         self.mz_diff = 0
         self.mass = mz
+        self.base_chemical = base_chemical
 
     def __repr__(self):
         return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
@@ -158,7 +159,7 @@ class KnownChemical(Chemical):
     """
 
     def __init__(self, formula, isotopes, adducts, rt, max_intensity, chromatogram, children=None,
-                 include_adducts_isotopes=True, total_proportion=0.99, database_accession=None):
+                 include_adducts_isotopes=True, total_proportion=0.99, database_accession=None, base_chemical=None):
         self.formula = formula
         self.mz_diff = isotopes.mz_diff
         if include_adducts_isotopes is True:
@@ -175,6 +176,7 @@ class KnownChemical(Chemical):
         self.ms_level = 1
         self.mass = self.formula.mass
         self.database_accession = database_accession
+        self.base_chemical = base_chemical
 
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (

@@ -152,6 +152,9 @@ class UnknownChemical(Chemical):
     def __hash__(self):
         return hash(self.get_key())
 
+    def get_apex_rt(self):
+        return self.rt + self.chromatogram.get_apex_rt()
+
 
 class KnownChemical(Chemical):
     """
@@ -192,6 +195,9 @@ class KnownChemical(Chemical):
 
     def __hash__(self):
         return hash(self.get_key())
+
+    def get_apex_rt(self):
+        return self.rt + self.chromatogram.get_apex_rt()
 
 
 class MSN(Chemical):

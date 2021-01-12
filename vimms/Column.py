@@ -46,6 +46,11 @@ class Column(object):
         plt.show()
 
 
+class CleanColumn(Column):
+    def __init__(self, dataset):
+        super().__init__(dataset, 0.0)
+
+
 class GaussianProcessColumn(Column):
     def __init__(self, dataset, noise_sd, rbf_params, intercept_params, linear_params):
         self.rbf_params = rbf_params

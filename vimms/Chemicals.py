@@ -581,6 +581,8 @@ class MultiSampleCreator(object):
         for index_sample in range(sum(self.n_samples)):
             logger.debug("Dataset {} of {} created.".format(index_sample + 1, sum(self.n_samples)))
             new_sample = copy.deepcopy(self.original_dataset)
+            for i in range(len(new_sample)):
+                new_sample[i].base_chemical = self.original_dataset[i]
             which_class = np.where(np.array(self.classes) == self.sample_classes[index_sample])
             for index_chemical in range(len(new_sample)):
                 if not np.array(self.chemical_statuses)[which_class][0][index_chemical] == "missing":

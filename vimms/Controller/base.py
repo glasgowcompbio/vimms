@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 
 import pandas as pd
@@ -66,6 +67,7 @@ class Controller(object):
         self.next_processed_scan_id = INITIAL_SCAN_ID
         self.initial_scan_id = INITIAL_SCAN_ID
         self.current_task_id = self.initial_scan_id
+        self.processing_times = []
 
     def get_ms1_scan_params(self, metadata=None):
         task = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode,
@@ -140,7 +142,10 @@ class Controller(object):
         logger.debug('scan.scan_params = %s' % scan.scan_params)
 
         # implemented by subclass
+        start = time.time()
         new_tasks = self._process_scan(scan)
+        elapsed = time.time() - start
+        self.processing_times.append(elapsed)
         return new_tasks
 
     def update_state_after_scan(self, last_scan):

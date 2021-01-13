@@ -35,6 +35,8 @@ class Column(object):
         plt.plot(self.dataset_rts[order], self.true_drift_function[order] + 1.95 * self.noise_sd, 'b--')
         plt.plot(self.dataset_rts[order], self.true_drift_function[order] - 1.95 * self.noise_sd, 'b--')
         plt.plot(self.dataset_rts, self.offsets, 'ro')
+        plt.ylabel('Drift Amount')
+        plt.xlabel('Base RT')
         plt.show()
 
     def plot_drift_distribution(self):
@@ -43,6 +45,7 @@ class Column(object):
         for i in range(100):
             offsets, true_drift_function = self._get_offsets()
             plt.plot(self.dataset_rts[order], true_drift_function[order])
+        plt.ylabel('Drift Amount')
         plt.xlabel('Base RT')
         plt.show()
 

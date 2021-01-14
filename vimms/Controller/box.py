@@ -61,7 +61,7 @@ class NonOverlapController(RoiController):
             mz, intensity = self.current_roi_mzs[i], self.current_roi_intensities[i]
             self.live_roi_fragmented[i] = True
             self.live_roi_last_rt[i] = rt
-            self.grid.register_box(self.live_roi[i].to_box(self.min_rt_width, self.min_mz_width))
+            self.grid.register_roi(self.live_roi[i])
 
             ms2s.schedule_ms2s(new_tasks, ms2_tasks, mz, intensity)
             if ms2s.fragmented_count == self.N - self.ms1_shift:

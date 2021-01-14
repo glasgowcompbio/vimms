@@ -27,7 +27,7 @@ class Box():
     def __eq__(self, other_box): return self.pt1 == other_box.pt1 and self.pt2 == other_box.pt2
     def __hash__(self): return (self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y).__hash__()
     def area(self): return (self.pt2.x - self.pt1.x) * (self.pt2.y - self.pt1.y)
-    def copy(self): return type(self)(self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y)
+    def copy(self, xshift=0, yshift=0): return type(self)(self.pt1.x + xshift, self.pt2.x + xshift, self.pt1.y + yshift, self.pt2.y + yshift)
     def shift(self, xshift=0, yshift=0):
         self.pt1.x += xshift
         self.pt2.x += xshift
@@ -90,9 +90,9 @@ class Grid():
         self.rt_box_size, self.mz_box_size = rt_box_size, mz_box_size
         self.box_area = float(Decimal(rt_box_size) * Decimal(mz_box_size))
         
-        rtboxes = range(0, int((self.max_rt - self.min_rt) / rt_box_size) + 1)
-        mzboxes = range(0, int((self.max_mz - self.min_mz) / mz_box_size) + 1)
-        self.boxes = self.init_boxes(rtboxes, mzboxes)
+        self.rtboxes = range(0, int((self.max_rt - self.min_rt) / rt_box_size) + 1)
+        self.mzboxes = range(0, int((self.max_mz - self.min_mz) / mz_box_size) + 1)
+        self.boxes = self.init_boxes(self.rtboxes, self.mzboxes)
         
     def get_box_ranges(self, box):
         rt_box_range = (int(box.pt1.x / self.rt_box_size), int(box.pt2.x / self.rt_box_size) + 1)
@@ -172,3 +172,26 @@ class LocatorGrid(Grid):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
             for ls in row: ls.append(box)
+
+class IdentityDrift():
+    def __init__(self): pass
+    def get_estimator(self): return lambda x: 0 
+            
+class GridEstimator():
+    '''Wrapper class letting internal grid be updated with rt drift estimates.'''
+
+    def __init__(self, grid, drift_model, min_rt_width=0.01, min_mz_width=0.01):
+        self.observed_rois = []
+        self.grid = grid
+        self.drift_model = drift_model
+        self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
+    
+    def non_overlap(self, box): return self.grid.non_overlap(box)
+    def register_roi(self, roi): self.observed_rois.append(roi)
+    
+    def update(self):
+        self.grid.boxes = self.grid.init_boxes(self.grid.rtboxes, self.grid.mzboxes)
+        for roi in self.observed_rois:
+            apex_rt = roi.rt_list[np.argmax(roi.intensity_list)]
+            drift = self.drift_model.get_estimator()(apex_rt)
+            self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=drift))

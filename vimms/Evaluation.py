@@ -5,7 +5,8 @@ import numpy as np
 import csv
 
 
-def evaluate_simulated_env(env, min_fragmentation_intensity=0.0):
+def evaluate_simulated_env(env, min_fragmentation_intensity_for_coverage=0.0,
+                                    min_fragmentation_intensity_for_intensity=0.0):
     # Evaluates a single simulated injection against the chemicals present in that injection
     chems = env.mass_spec.chemicals
     max_coverage = len(chems)
@@ -16,8 +17,11 @@ def evaluate_simulated_env(env, min_fragmentation_intensity=0.0):
         if event.ms_level > 1:
             if event.chem in chems:
                 chem_idx = np.where(np.array(chems) == event.chem)
-                coverage[chem_idx] = 1
-                coverage_intensity[chem_idx] = max(coverage_intensity[chem_idx], event.parents_intensity[0])
+                parent_intensity = event.parents_intensity[0]
+                if parent_intensity >= min_fragmentation_intensity_for_coverage:
+                    coverage[chem_idx] = 1
+                if parent_intensity >= min_fragmentation_intensity_for_intensity:
+                    coverage_intensity[chem_idx] = max(coverage_intensity[chem_idx], parent_intensity)
     coverage_prop = sum(coverage) / max_coverage
     coverage_intensity_prop = sum(coverage_intensity) / max_coverage_intensity
     chemicals_fragmented = np.array(chems)[np.where(coverage == 1)]

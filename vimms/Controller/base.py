@@ -142,10 +142,16 @@ class Controller(object):
         logger.debug('scan.scan_params = %s' % scan.scan_params)
 
         # implemented by subclass
-        start = time.time()
-        new_tasks = self._process_scan(scan)
-        elapsed = time.time() - start
-        self.processing_times.append(elapsed)
+        if self.scan_to_process is not None:
+            # track how long each scan takes to process
+            start = time.time()
+            new_tasks = self._process_scan(scan)
+            elapsed = time.time() - start
+            self.processing_times.append(elapsed)
+        else:
+            # this scan is not the one we want to process, but here we pass it to _process_scan anyway
+            # in case the subclass wants to do something with it
+            new_tasks = self._process_scan(scan)
         return new_tasks
 
     def update_state_after_scan(self, last_scan):

@@ -10,7 +10,7 @@ from collections import Counter
 
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     '''Evaluates a single simulated injection against the chemicals present in that injection'''
-    true_chems = env.mass_spec.chemicals if base_chemicals == None else base_chemicals
+    true_chems = env.mass_spec.chemicals if base_chemicals is None else base_chemicals
     fragmented = {} #map chem to highest observed intensity
     for event in env.mass_spec.fragmentation_events:
         if(event.ms_level > 1):
@@ -46,7 +46,7 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     
     coverage = [r["coverage"] for r in results]
     observed_chems = set(itertools.chain(*(env.mass_spec.chemicals for env in env_list)))
-    max_coverage = sum(any(chem in observed for observed in observed_chems) for chem in base_chemicals)
+    max_coverage = sum(chem in observed_chems for chem in base_chemicals)
     coverage_prop = [np.sum(cov) / max_coverage for cov in coverage]
     cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
     cumulative_coverage_prop = [np.sum(cov) / max_coverage for cov in cumulative_coverage]

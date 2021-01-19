@@ -207,3 +207,5 @@ class Controller(object):
         assert polarity is not None
         assert first_mass is not None
         assert last_mass is not None
+
+    def after_injection_cleanup(self): pass

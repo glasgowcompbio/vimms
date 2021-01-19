@@ -188,10 +188,11 @@ class GridEstimator():
     
     def non_overlap(self, box): return self.grid.non_overlap(box)
     def register_roi(self, roi): self.observed_rois.append(roi)
+    def get_estimator(self): return self.drift_model.get_estimator()
     
     def update(self):
         self.grid.boxes = self.grid.init_boxes(self.grid.rtboxes, self.grid.mzboxes)
         for roi in self.observed_rois:
             apex_rt = roi.rt_list[np.argmax(roi.intensity_list)]
             drift = self.drift_model.get_estimator()(apex_rt)
-            self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=drift))
+            self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)))

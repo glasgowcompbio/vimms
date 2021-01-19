@@ -87,6 +87,7 @@ class Environment(object):
 
     def handle_acquisition_closing(self):
         logger.debug('Acquisition closing')
+        self.controller.after_injection_cleanup()
 
     def handle_state_changed(self, state):
         logger.debug('State changed!')

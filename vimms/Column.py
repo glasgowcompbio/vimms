@@ -1,4 +1,5 @@
 import copy
+import itertools
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,9 +20,9 @@ class Column(object):
 
     def get_dataset(self):
         new_dataset = []
-        for chem, rt_shift in zip(self.dataset, self.offsets):
+        for i, chem in enumerate(self.dataset):
             new_chem = copy.deepcopy(chem)
-            new_chem.rt += rt_shift
+            new_chem.rt += self.offsets[i]
             new_dataset.append(new_chem)
         return new_dataset
 
@@ -54,19 +55,33 @@ class CleanColumn(Column):
     def __init__(self, dataset):
         super().__init__(dataset, 0.0)
 
-
 class LinearColumn(Column):
     def __init__(self, dataset, noise_sd, intercept_params, linear_params):
         self.intercept_params = intercept_params
         self.linear_params = linear_params
+        self.intercept_term = np.random.normal(self.intercept_params[0], self.intercept_params[1])
+        self.linear_term = np.random.normal(self.linear_params[0], self.linear_params[1])
         super().__init__(dataset, noise_sd)
+        
+    @staticmethod
+    def from_fixed_offsets(dataset, noise_sd, intercept_term, linear_term):
+        new = LinearColumn(dataset, noise_sd, (0, 0), (0, 0))
+        new.intercept_term, new.linear_term = intercept_term, linear_term
+        new.offsets, new.true_drift_function = new._get_offsets()
+        return new
 
     def _get_offsets(self):
-        intercept_term = np.random.normal(self.intercept_params[0], self.intercept_params[1])
-        linear_term = np.random.normal(self.linear_params[0], self.linear_params[1])
-        true_offset_function = intercept_term + linear_term * self.dataset_apex_rts
+        true_offset_function = self.intercept_term + self.linear_term * self.dataset_apex_rts
         offsets = true_offset_function + np.random.normal(0, self.noise_sd, len(self.dataset))
         return offsets, true_offset_function
+        
+    def drift_fn(self, roi, injection_number):
+        '''f(rt) = rt + (m * rt + c)
+        rt + m * rt = f(rt) - c
+        rt(1 + m) = f(rt) - c
+        rt = (f(rt) - c) / (1 + m)'''
+        rt = roi.estimate_apex()
+        return rt - (rt - self.intercept_term) / (1 + self.linear_term) #this doesn't account for noise?
 
 
 class GaussianProcessColumn(Column):

@@ -173,26 +173,44 @@ class LocatorGrid(Grid):
         for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
             for ls in row: ls.append(box)
 
-class IdentityDrift():
-    def __init__(self): pass
-    def get_estimator(self): return lambda x: 0 
+class DriftModel():
+    @abstractmethod
+    def get_estimator(self, injection_number): pass
+
+class IdentityDrift(DriftModel):
+    '''Dummy drift model which does nothing, for testing purposes.'''
+    def get_estimator(self, injection_number): return lambda roi, inj_num: 0
+    
+class OracleDrift(DriftModel):
+    '''Drift model that cheats by being given the 'true' rt drift in simulation, for testing purposes.'''
+    def __init__(self, drift_fns):
+        self.drift_fns = drift_fns
+    def get_estimator(self, injection_number): 
+        if(type(self.drift_fns) == type([])): return self.drift_fns[injection_number]
+        return self.drift_fns
             
 class GridEstimator():
     '''Wrapper class letting internal grid be updated with rt drift estimates.'''
 
     def __init__(self, grid, drift_model, min_rt_width=0.01, min_mz_width=0.01):
-        self.observed_rois = []
+        self.observed_rois = [[]]
         self.grid = grid
         self.drift_model = drift_model
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
+        self.injection_count = 0
     
     def non_overlap(self, box): return self.grid.non_overlap(box)
-    def register_roi(self, roi): self.observed_rois.append(roi)
-    def get_estimator(self): return self.drift_model.get_estimator()
+    def register_roi(self, roi): self.observed_rois[self.injection_count].append(roi)
+    def get_estimator(self):
+        fn = self.drift_model.get_estimator(self.injection_count)
+        return lambda roi: fn(roi, self.injection_count)
     
-    def update(self):
+    def update_after_injection(self):
         self.grid.boxes = self.grid.init_boxes(self.grid.rtboxes, self.grid.mzboxes)
-        for roi in self.observed_rois:
-            apex_rt = roi.rt_list[np.argmax(roi.intensity_list)]
-            drift = self.drift_model.get_estimator()(apex_rt)
-            self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)))
+        for injection_number, injection in enumerate(self.observed_rois):
+            fn = self.drift_model.get_estimator(injection_number)
+            for roi in injection:
+                drift = fn(roi, injection_number)
+                self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)))
+        self.injection_count += 1
+        self.observed_rois.append([])

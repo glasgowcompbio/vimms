@@ -69,6 +69,9 @@ class Roi(object):
 
     def get_autocorrelation(self, lag=1):
         return pd.Series(self.intensity_list).autocorr(lag=lag)
+        
+    def estimate_apex(self): 
+        return self.rt_list[np.argmax(self.intensity_list)]
 
     def add(self, mz, rt, intensity):
         self.mz_list.append(mz)

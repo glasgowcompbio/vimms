@@ -11,6 +11,7 @@ import numpy as np
 from ax.service.managed_loop import optimize
 from ax.service.utils.instantiation import parameter_from_json
 import ax
+from ax import *
 from ax.modelbridge.registry import Models
 
 
@@ -200,7 +201,7 @@ def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t
         # the variable controller bits
         {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
         {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
-        {"name": "exclusion_t_0", "type": "range", "bounds": t0_range},  # TODO: add restriction
+        {"name": "exclusion_t_0", "type": "range", "bounds": t0_range},
         # the mass spec bits
         {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
         # the controller bits
@@ -219,7 +220,8 @@ def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t
         {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
     ]
     param_list = [parameter_from_json(p) for p in parameters]
-    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
+    param_constraints = [OrderConstraint(lower_parameter=param_list[2], upper_parameter=param_list[1])]  # t0 and rt_tol
+    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=param_constraints)
 
     exp = ax.SimpleExperiment(
         name="test_experiment",

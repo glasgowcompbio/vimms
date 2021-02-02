@@ -43,6 +43,37 @@ def top_n_evaluation(param_dict):
                                        param_dict['half_isolation_window'])
     return coverage
 
+
+def smart_roi_evaluation(param_dict):
+    mass_spec = load_obj(param_dict['mass_spec_file'])
+    params = load_obj(param_dict['params_file'])
+    smart_roi = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
+                                        param_dict['mz_tol'], param_dict['min_ms1_intensity'],
+                                        param_dict['min_roi_intensity'], param_dict['min_roi_length'],
+                                        N=param_dict['N'], rt_tol = param_dict['rt_tol'],
+                                        min_roi_length_for_fragmentation=param_dict['min_roi_length_for_fragmentation'],
+                                        intensity_increase_factor=param_dict['intensity_increase_factor'],
+                                        drop_perc=param_dict['drop_perc'], ms1_shift=param_dict['ms1_shift'],
+                                        params=params)
+    run_env(mass_spec, smart_roi, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
+    coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
+                                       param_dict['half_isolation_window'])
+    return coverage
+
+
+def weighted_dew_evaluation(param_dict):
+    mass_spec = load_obj(param_dict['mass_spec_file'])
+    params = load_obj(param_dict['params_file'])
+    weighted_dew = WeightedDEWController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
+                                         param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
+                                         exclusion_t_0=param_dict['exclusion_t_0'],
+                                         log_intensity=param_dict['log_intensity'], params=params)
+    run_env(mass_spec, weighted_dew, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
+    coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
+                                       param_dict['half_isolation_window'])
+    return coverage
+
+
 ########################################################################################################################
 # Optimisation methods
 ########################################################################################################################
@@ -99,6 +130,123 @@ def top_n_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, save_fil
     max_score = scores.max()
     optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
     return exp, parameter_inputs, scores, max_score, optimal_parameters, model
+
+
+def smart_roi_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, iff_range, dp_range, save_file_name,
+                                    mass_spec_file, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
+                                    params_file, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
+                                    ms1_shift, min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
+    parameters = [
+        # the variable controller bits
+        {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
+        {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
+        {"name": "intensity_increase_factor", "type": "range", "bounds": iff_range},
+        {"name": "drop_perc", "type": "range", "bounds": dp_range},
+        # the mass spec bits
+        {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
+        # the controller bits
+        {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
+        {"name": "isolation_width", "type": "fixed", "value": isolation_width},
+        {"name": "mz_tol", "type": "fixed", "value": mz_tol},
+        {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
+        {"name": "params_file", "type": "fixed", "value": params_file},
+        {"name": "min_roi_intensity", "type": "fixed", "value": min_roi_intensity},
+        {"name": "min_roi_length", "type": "fixed", "value": min_roi_length},
+        {"name": "min_roi_length_for_fragmentation", "type": "fixed", "value": min_roi_length_for_fragmentation},
+        {"name": "ms1_shift", "type": "fixed", "value": ms1_shift},
+        # the env bits
+        {"name": "min_rt", "type": "fixed", "value": min_rt},
+        {"name": "max_rt", "type": "fixed", "value": max_rt},
+        {"name": "save_file_name", "type": "fixed", "value": save_file_name},
+        # the evaluation bits
+        {"name": "box_file", "type": "fixed", "value": box_file},
+        {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+    ]
+    param_list = [parameter_from_json(p) for p in parameters]
+    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
+    print(search_space)
+
+    exp = ax.SimpleExperiment(
+        name="test_experiment",
+        search_space=search_space,
+        evaluation_function=smart_roi_evaluation,
+        objective_name="score",
+        minimize=False
+    )
+
+    sobol = Models.SOBOL(exp.search_space)
+    for i in range(n_sobol):
+        print(f"Running Sobol trial {i + 1}")
+        exp.new_batch_trial(generator_run=sobol.gen(1))
+        exp.eval()
+
+    model = None
+    for i in range(n_gpei):
+        model = Models.GPEI(experiment=exp, data=exp.eval())
+        print(f"Running GPEI trial {i + 1}")
+        exp.new_trial(generator_run=model.gen(batch_size))
+
+    parameter_inputs = [trial.arms[0].parameters for trial in exp.trials.values()]
+    scores = np.array(exp.eval().df['mean'])
+    max_score = scores.max()
+    optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
+    return exp, parameter_inputs, scores, max_score, optimal_parameters, model
+
+
+def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t0_range, save_file_name, mass_spec_file,
+                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, log_intensity, params_file,
+                                min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
+    parameters = [
+        # the variable controller bits
+        {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
+        {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
+        {"name": "exclusion_t_0", "type": "range", "bounds": t0_range},  # TODO: add restriction
+        # the mass spec bits
+        {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
+        # the controller bits
+        {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
+        {"name": "isolation_width", "type": "fixed", "value": isolation_width},
+        {"name": "mz_tol", "type": "fixed", "value": mz_tol},
+        {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
+        {"name": "log_intensity", "type": "fixed", "value": log_intensity},
+        {"name": "params_file", "type": "fixed", "value": params_file},
+        # the env bits
+        {"name": "min_rt", "type": "fixed", "value": min_rt},
+        {"name": "max_rt", "type": "fixed", "value": max_rt},
+        {"name": "save_file_name", "type": "fixed", "value": save_file_name},
+        # the evaluation bits
+        {"name": "box_file", "type": "fixed", "value": box_file},
+        {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+    ]
+    param_list = [parameter_from_json(p) for p in parameters]
+    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
+
+    exp = ax.SimpleExperiment(
+        name="test_experiment",
+        search_space=search_space,
+        evaluation_function=weighted_dew_evaluation,
+        objective_name="score",
+        minimize=False
+    )
+    sobol = Models.SOBOL(exp.search_space)
+    for i in range(n_sobol):
+        print(f"Running Sobol trial {i + 1}")
+        exp.new_batch_trial(generator_run=sobol.gen(1))
+        exp.eval()
+
+    model = None
+    for i in range(n_gpei):
+        model = Models.GPEI(experiment=exp, data=exp.eval())
+        print(f"Running GPEI trial {i + 1}")
+        exp.new_trial(generator_run=model.gen(batch_size))
+
+    parameter_inputs = [trial.arms[0].parameters for trial in exp.trials.values()]
+    scores = np.array(exp.eval().df['mean'])
+    max_score = scores.max()
+    optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
+    return exp, parameter_inputs, scores, max_score, optimal_parameters, model
+
+
 
 
 # def top_n_bayesian_optimisation(n_range, rt_tol_range, save_file_name, mass_spec_file,

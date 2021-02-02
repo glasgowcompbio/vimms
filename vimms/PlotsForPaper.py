@@ -11,7 +11,7 @@ from loguru import logger
 
 from vimms.Chemicals import UnknownChemical, RoiToChemicalCreator
 from vimms.Common import load_obj, PROTON_MASS, find_nearest_index_in_array
-from vimms.MassSpec import FragmentationEvent
+from vimms.MassSpec import ScanEvent
 from vimms.Roi import make_roi
 from vimms.SpectralUtils import get_precursor_info, get_chemicals
 
@@ -664,7 +664,7 @@ def get_chem_to_frag_events(chemicals, ms1_df):
             ms_level = 2
             peaks = []  # we don't know which ms2 peaks are linked to this chem object
             # key = get_key(chem)
-            frag_event = FragmentationEvent(chem, query_rt, ms_level, peaks, scan_id)
+            frag_event = ScanEvent(chem, query_rt, ms_level, peaks, scan_id)
             chem_to_frag_events[chem].append(frag_event)
     return dict(chem_to_frag_events)
 

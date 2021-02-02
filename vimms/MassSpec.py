@@ -47,7 +47,7 @@ class Scan(object):
     """
 
     def __init__(self, scan_id, mzs, intensities, ms_level, rt,
-                 scan_duration=None, scan_params=None, parent=None):
+                 scan_duration=None, scan_params=None, parent=None, fragevent=None):
         """
         Creates a scan
         :param scan_id: current scan id
@@ -74,17 +74,19 @@ class Scan(object):
         self.scan_duration = scan_duration
         self.scan_params = scan_params
         self.parent = parent
+        self.fragevent = fragevent
 
     def __repr__(self):
         return 'Scan %d num_peaks=%d rt=%.2f ms_level=%d' % (self.scan_id, self.num_peaks, self.rt, self.ms_level)
 
 
-class FragmentationEvent(object):
+class ScanEvent(object):
     """
     A class to store fragmentation events. Mostly used for benchmarking purpose.
     """
 
-    def __init__(self, chem, query_rt, ms_level, peaks, scan_id):
+    def __init__(self, chem, query_rt, ms_level, peaks, scan_id, parents_intensity=None, parent_adduct=None,
+                 parent_isotope=None, precursor_mz=None, isolation_window=None, scan_params=None):
         """
         Creates a fragmentation event
         :param chem: the chemical that were fragmented
@@ -92,15 +94,28 @@ class FragmentationEvent(object):
         :param ms_level: MS level of fragmentation
         :param peaks: the set of peaks produced during the fragmentation event
         :param scan_id: the scan id linked to this fragmentation event
+        :param parents_intensity: the intensity of the chemical that was fragmented at the time it was fragmented
+        :param parent_adduct: the adduct that was fragmented of the chemical
+        :param parent_isotope: the isotope that was fragmented of the chemical
+        :param precursor_mz: the precursor mz of the scan
+        :param isolation_window: the isolation window of the scan
+        :param scan_params: the scan parameter settings that were used
         """
         self.chem = chem
         self.query_rt = query_rt
         self.ms_level = ms_level
         self.peaks = peaks
         self.scan_id = scan_id
+        self.parents_intensity = parents_intensity   # only ms2
+        self.parent_adduct = parent_adduct   # only ms2
+        self.parent_isotope = parent_isotope   # only ms2
+        self.precursor_mz = precursor_mz
+        self.isolation_window = isolation_window
+        self.scan_params = scan_params
 
     def __repr__(self):
-        return 'MS%d FragmentationEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
+        return 'MS%d ScanEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
+
 
 
 class TaskManager(object):
@@ -479,6 +494,7 @@ class IndependentMassSpectrometer(object):
         :param scan_time: the timepoint
         :return: a mass spectrometry scan at that time
         """
+        frag = None
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
@@ -516,21 +532,32 @@ class IndependentMassSpectrometer(object):
             # mzs is a list of (mz, intensity) for the different adduct/isotopes combinations of a chemical
             mzs = self._get_all_mz_peaks(chemical, scan_time, use_ms_level, isolation_windows)
             peaks = []
+            peaks_ms1_intensities = []
+            peaks_which_isotopes = []
+            peaks_which_adducts = []
             if mzs is not None:
                 chem_mzs = []
                 chem_intensities = []
-                for peak_mz, peak_intensity in mzs:
+                for peak_mz, peak_intensity, peak_ms1_int, peak_isotope, peak_adduct in mzs:
                     if peak_mz >= min_measurement_mz and peak_mz <= max_measurement_mz and peak_intensity > 0:
                         chem_mzs.append(peak_mz)
                         chem_intensities.append(peak_intensity)
                         p = Peak(peak_mz, scan_time, peak_intensity, use_ms_level)
                         peaks.append(p)
-
+                        peaks_ms1_intensities.append(peak_ms1_int)
+                        peaks_which_isotopes.append(peak_isotope)
+                        peaks_which_adducts.append(peak_adduct)
                 scan_mzs.extend(chem_mzs)
                 scan_intensities.extend(chem_intensities)
             # for benchmarking purpose
             if len(peaks) > 0:
-                frag = FragmentationEvent(chemical, scan_time, use_ms_level, peaks, scan_id)
+                frag = ScanEvent(chemical, scan_time, use_ms_level, peaks, scan_id,
+                                          parents_intensity=peaks_ms1_intensities,
+                                          parent_adduct=peaks_which_adducts,
+                                          parent_isotope=peaks_which_isotopes,
+                                          precursor_mz=params.get(ScanParameters.PRECURSOR_MZ),
+                                          isolation_window=isolation_windows,
+                                          scan_params=params)
                 self.fragmentation_events.append(frag)
 
         if self.spike_noise is not None:
@@ -541,8 +568,8 @@ class IndependentMassSpectrometer(object):
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
-
-        sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params)
+        sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time, scan_duration=None, scan_params=params,
+                  fragevent=frag)
 
         # Note: at this point, the scan duration is not set yet because we don't know what the next scan is going to be
         # We will set it later in the get_next_scan() method after we've notified the controller that this scan is produced.
@@ -572,10 +599,11 @@ class IndependentMassSpectrometer(object):
         # apply noise if any
         noisy_mz_peaks = []
         for i in range(len(mz_peaks)):
-            original_mz, original_intensity = mz_peaks[i]
+            original_mz = mz_peaks[i][0]
+            original_intensity = mz_peaks[i][1]
             noisy_mz = self.mz_noise.get(original_mz, ms_level)
             noisy_intensity = self.intensity_noise.get(original_intensity, ms_level)
-            noisy_mz_peaks.append((noisy_mz, noisy_intensity))
+            noisy_mz_peaks.append((noisy_mz, noisy_intensity, mz_peaks[i][2], mz_peaks[i][3], mz_peaks[i][4]))
         return noisy_mz_peaks
 
     def _get_mz_peaks(self, chemical, query_rt, ms_level, isolation_windows, which_isotope, which_adduct):
@@ -590,10 +618,11 @@ class IndependentMassSpectrometer(object):
                 if self._isolation_match(chemical, query_rt, isolation_windows[0], which_isotope, which_adduct):
                     intensity = self._get_intensity(chemical, query_rt, which_isotope, which_adduct)
                     mz = self._get_mz(chemical, query_rt, which_isotope, which_adduct)
-                    mz_peaks.extend([(mz, intensity)])
+                    mz_peaks.extend([(mz, intensity, None, None, None)])
         elif ms_level == chemical.ms_level:
             # returns ms2 fragments if chemical and scan are both ms2, 
             # returns ms3 fragments if chemical and scan are both ms3, etc, etc
+            ms1_intensity = self._get_intensity(chemical.parent, query_rt, which_isotope, which_adduct)
             intensity = self._get_intensity(chemical, query_rt, which_isotope, which_adduct)
             mz = self._get_mz(chemical, query_rt, which_isotope, which_adduct)
             if self.isolation_transition_window == 'gaussian':
@@ -602,7 +631,8 @@ class IndependentMassSpectrometer(object):
                     parent_mz - sum(isolation_windows[ms_level - 2][0]) / 2)
                 scale_factor /= scipy.stats.norm(0, self.isolation_transition_window_params[0]).pdf(0)
                 intensity *= scale_factor
-            return [(mz, intensity)]
+            return [(mz, intensity, ms1_intensity, which_isotope, which_adduct)]
+            # return extra information here for logging
             # TODO: Potential improve how the isotope spectra are generated
         else:
             # check isolation window for ms2+ scans, queries children if isolation windows ok

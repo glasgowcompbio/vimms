@@ -9,6 +9,9 @@ from mass_spec_utils.data_import.mzmine import load_picked_boxes,map_boxes_to_sc
 import torch
 import numpy as np
 from ax.service.managed_loop import optimize
+from ax.service.utils.instantiation import parameter_from_json
+import ax
+from ax.modelbridge.registry import Models
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -40,41 +43,96 @@ def top_n_evaluation(param_dict):
                                        param_dict['half_isolation_window'])
     return coverage
 
-
-
 ########################################################################################################################
 # Optimisation methods
 ########################################################################################################################
 
-def top_n_bayesian_optimisation(n_range, rt_tol_range, save_file_name, mass_spec_file,
+
+def top_n_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, save_file_name, mass_spec_file,
                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
-                               min_rt, max_rt, box_file, half_isolation_window):
-    # create param_dict
-    best_parameters, values, experiment, model = optimize(
-        parameters=[
-            # the variable controller bits
-            {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
-            {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
-            # the mass spec bits
-            {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
-            # the controller bits
-            {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
-            {"name": "isolation_width", "type": "fixed", "value": isolation_width},
-            {"name": "mz_tol", "type": "fixed", "value": mz_tol},
-            {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
-            {"name": "params_file", "type": "fixed", "value": params_file},
-            # the env bits
-            {"name": "min_rt", "type": "fixed", "value": min_rt},
-            {"name": "max_rt", "type": "fixed", "value": max_rt},
-            {"name": "save_file_name", "type": "fixed", "value": save_file_name},
-            # the evaluation bits
-            {"name": "box_file", "type": "fixed", "value": box_file},
-            {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
-        ],
+                               min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
+    parameters = [
+        # the variable controller bits
+        {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
+        {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
+        # the mass spec bits
+        {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
+        # the controller bits
+        {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
+        {"name": "isolation_width", "type": "fixed", "value": isolation_width},
+        {"name": "mz_tol", "type": "fixed", "value": mz_tol},
+        {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
+        {"name": "params_file", "type": "fixed", "value": params_file},
+        # the env bits
+        {"name": "min_rt", "type": "fixed", "value": min_rt},
+        {"name": "max_rt", "type": "fixed", "value": max_rt},
+        {"name": "save_file_name", "type": "fixed", "value": save_file_name},
+        # the evaluation bits
+        {"name": "box_file", "type": "fixed", "value": box_file},
+        {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+    ]
+    param_list = [parameter_from_json(p) for p in parameters]
+    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
+
+    exp = ax.SimpleExperiment(
+        name="test_experiment",
+        search_space=search_space,
         evaluation_function=top_n_evaluation,
-        objective_name='coverage',
-        )
-    return best_parameters, values, experiment, model
+        objective_name="score",
+        minimize=False
+    )
+
+    sobol = Models.SOBOL(exp.search_space)
+    for i in range(n_sobol):
+        print(f"Running Sobol trial {i + 1}")
+        exp.new_batch_trial(generator_run=sobol.gen(1))
+        exp.eval()
+
+    model = None
+    for i in range(n_gpei):
+        model = Models.GPEI(experiment=exp, data=exp.eval())
+        print(f"Running GPEI trial {i + 1}")
+        exp.new_trial(generator_run=model.gen(batch_size))
+
+    parameter_inputs = [trial.arms[0].parameters for trial in exp.trials.values()]
+    scores = np.array(exp.eval().df['mean'])
+    max_score = scores.max()
+    optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
+    return exp, parameter_inputs, scores, max_score, optimal_parameters, model
+
+
+# def top_n_bayesian_optimisation(n_range, rt_tol_range, save_file_name, mass_spec_file,
+#                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
+#                                min_rt, max_rt, box_file, half_isolation_window):
+#     # create param_dict
+#     best_parameters, values, experiment, model = optimize(
+#         parameters=[
+#             # the variable controller bits
+#             {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
+#             {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
+#             # the mass spec bits
+#             {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
+#             # the controller bits
+#             {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
+#             {"name": "isolation_width", "type": "fixed", "value": isolation_width},
+#             {"name": "mz_tol", "type": "fixed", "value": mz_tol},
+#             {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
+#             {"name": "params_file", "type": "fixed", "value": params_file},
+#             # the env bits
+#             {"name": "min_rt", "type": "fixed", "value": min_rt},
+#             {"name": "max_rt", "type": "fixed", "value": max_rt},
+#             {"name": "save_file_name", "type": "fixed", "value": save_file_name},
+#             # the evaluation bits
+#             {"name": "box_file", "type": "fixed", "value": box_file},
+#             {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
+#         ],
+#         evaluation_function=top_n_evaluation,
+#         objective_name='coverage',
+#         )
+#     return best_parameters, values, experiment, model
+
+
+
 
 
 ####################################################################################################################

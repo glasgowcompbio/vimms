@@ -11,6 +11,7 @@ from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_ISOLATION_WIDTH, DEFAU
 from vimms.Controller import TopNController, PurityController
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
+from vimms.Common import save_obj
 
 
 class Environment(object):
@@ -87,6 +88,7 @@ class Environment(object):
 
     def handle_acquisition_closing(self):
         logger.debug('Acquisition closing')
+        self.controller.after_injection_cleanup()
 
     def handle_state_changed(self, state):
         logger.debug('State changed!')
@@ -191,3 +193,11 @@ class Environment(object):
             return self.controller.N, self.controller.rt_tol
         else:
             return None, None
+
+    def save(self, outname):
+        data_to_save = {
+            'scans': self.controller.scans,
+            # etc
+        }
+        save_obj(data_to_save, outname)
+

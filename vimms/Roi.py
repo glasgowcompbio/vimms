@@ -12,6 +12,7 @@ from scipy.stats import pearsonr
 # from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
+from vimms.Box import GenericBox
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
@@ -36,7 +37,11 @@ POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.033823
 # When a new point (mz,rt,intensity) is added, it updates the 
 # list and the mean mz which is required.
 class Roi(object):
-    def __init__(self, mz, rt, intensity):
+    def __init__(self, mz, rt, intensity, id=None):
+        self.id = id
+        self.fragmentation_events = []
+        self.fragmentation_intensities = []
+        self.max_fragmentation_intensity = 0.0
         if type(mz) == list:
             self.mz_list = mz
         else:
@@ -64,6 +69,9 @@ class Roi(object):
 
     def get_autocorrelation(self, lag=1):
         return pd.Series(self.intensity_list).autocorr(lag=lag)
+        
+    def estimate_apex(self): 
+        return self.rt_list[np.argmax(self.intensity_list)]
 
     def add(self, mz, rt, intensity):
         self.mz_list.append(mz)
@@ -72,6 +80,11 @@ class Roi(object):
         self.mz_sum += mz
         self.n += 1
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+
+    def add_fragmentation_event(self, scan, precursor_intensity):
+        self.fragmentation_events.append(scan)
+        self.fragmentation_intensities.append(precursor_intensity)
+        self.max_fragmentation_intensity = max(self.fragmentation_intensities)
 
     def __lt__(self, other):
         return self.get_mean_mz() <= other.get_mean_mz()
@@ -83,11 +96,20 @@ class Roi(object):
         return chrom
 
     def __repr__(self):
-        return 'ROI with data points=%d mz (%.4f-%.4f) rt (%.4f-%.4f)' % (
+        return 'ROI with data points=%d fragmentations=%d mz (%.4f-%.4f) rt (%.4f-%.4f)' % (
             self.n,
+            len(self.fragmentation_events),
             self.mz_list[0], self.mz_list[-1],
             self.rt_list[0], self.rt_list[-1])
 
+    def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0): 
+        return GenericBox(min(self.rt_list) + rt_shift, max(self.rt_list) + rt_shift, min(self.mz_list) + mz_shift, max(self.mz_list) + mz_shift,
+                          min_xwidth=min_rt_width, min_ywidth=min_mz_width)
+
+    def get_boxes_overlap(self, boxes):
+        roi_box = self.to_box()
+        overlaps = [roi_box.overlap_2(box) for box in boxes]
+        return overlaps
 
 INITIAL_WAITING = 0
 CAN_FRAGMENT = 1

@@ -121,7 +121,7 @@ class UnknownChemical(Chemical):
     Chemical from an unknown chemical formula
     """
 
-    def __init__(self, mz, rt, max_intensity, chromatogram, children=None):
+    def __init__(self, mz, rt, max_intensity, chromatogram, children=None, base_chemical=None):
         self.max_intensity = max_intensity
         self.isotopes = [(mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
         self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
@@ -131,6 +131,7 @@ class UnknownChemical(Chemical):
         self.ms_level = 1
         self.mz_diff = 0
         self.mass = mz
+        self.base_chemical = base_chemical
 
     def __repr__(self):
         return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
@@ -151,6 +152,9 @@ class UnknownChemical(Chemical):
     def __hash__(self):
         return hash(self.get_key())
 
+    def get_apex_rt(self):
+        return self.rt + self.chromatogram.get_apex_rt()
+
 
 class KnownChemical(Chemical):
     """
@@ -158,7 +162,7 @@ class KnownChemical(Chemical):
     """
 
     def __init__(self, formula, isotopes, adducts, rt, max_intensity, chromatogram, children=None,
-                 include_adducts_isotopes=True, total_proportion=0.99, database_accession=None):
+                 include_adducts_isotopes=True, total_proportion=0.99, database_accession=None, base_chemical=None):
         self.formula = formula
         self.mz_diff = isotopes.mz_diff
         if include_adducts_isotopes is True:
@@ -175,6 +179,7 @@ class KnownChemical(Chemical):
         self.ms_level = 1
         self.mass = self.formula.mass
         self.database_accession = database_accession
+        self.base_chemical = base_chemical
 
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
@@ -190,6 +195,9 @@ class KnownChemical(Chemical):
 
     def __hash__(self):
         return hash(self.get_key())
+
+    def get_apex_rt(self):
+        return self.rt + self.chromatogram.get_apex_rt()
 
 
 class MSN(Chemical):
@@ -544,8 +552,11 @@ class RoiToChemicalCreator(ChemicalCreator):
 
 class MultiSampleCreator(object):
 
-    def __init__(self, original_dataset, n_samples, classes, intensity_noise_sd,
-                 change_probabilities, change_differences_means, change_differences_sds, dropout_probabilities=None,
+    def __init__(self, original_dataset,
+                 n_samples,  # a list of the number of samples for each class, e.g. [2,2] for ['class1', 'class2']
+                 classes,  # a list of the classes, e.g. ['class1', 'class2']
+                 intensity_noise_sd, change_probabilities, change_differences_means, change_differences_sds,
+                 dropout_probabilities=None,
                  dropout_numbers=None, experimental_classes=None, experimental_probabilitities=None,
                  experimental_sds=None, save_location=None):
         self.original_dataset = original_dataset
@@ -576,6 +587,8 @@ class MultiSampleCreator(object):
         for index_sample in range(sum(self.n_samples)):
             logger.debug("Dataset {} of {} created.".format(index_sample + 1, sum(self.n_samples)))
             new_sample = copy.deepcopy(self.original_dataset)
+            for i in range(len(new_sample)):
+                new_sample[i].base_chemical = self.original_dataset[i]
             which_class = np.where(np.array(self.classes) == self.sample_classes[index_sample])
             for index_chemical in range(len(new_sample)):
                 if not np.array(self.chemical_statuses)[which_class][0][index_chemical] == "missing":

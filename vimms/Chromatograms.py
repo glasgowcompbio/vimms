@@ -172,8 +172,8 @@ class FunctionalChromatogram(Chromatogram):
 
     def get_apex_rt(self):
         if self.distribution_name == 'uniform':
-            return self.min_rt
+            return (self.max_rt - self.min_rt)/2
         elif self.distribution_name == 'normal':
-            return self.parameters[0]
+            return (self.max_rt - self.min_rt)/2
         else:
             raise NotImplementedError()

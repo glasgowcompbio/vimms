@@ -624,10 +624,11 @@ class MultiSampleCreator(object):
                                                                len(self.original_dataset)))[0])
             if self.dropout_probabilities is None and self.dropout_numbers is not None:
                 # new_missing = random.sample(range(0, len(self.original_dataset)), self.dropout_numbers)
-                #  CHANGED BY SR, no testing. 
+                #  CHANGED BY SR, no testing.
                 new_missing = list(np.random.choice(range(0, len(self.original_dataset)), self.dropout_numbers))
             missing.append(new_missing)
-            missing = [list(x) for x in set(tuple(sorted(x)) for x in missing)]
+            if missing[-1]!=[]:
+                missing = [list(x) for x in set(tuple(sorted(x)) for x in missing)]
         return missing
 
     def _get_experimental_statuses(self):

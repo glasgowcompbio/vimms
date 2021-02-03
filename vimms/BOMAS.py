@@ -53,6 +53,7 @@ def smart_roi_evaluation(param_dict):
                                         param_dict['min_roi_intensity'], param_dict['min_roi_length'],
                                         N=param_dict['N'], rt_tol = param_dict['rt_tol'],
                                         min_roi_length_for_fragmentation=param_dict['min_roi_length_for_fragmentation'],
+                                        reset_length_seconds=param_dict['reset_length_seconds'],
                                         intensity_increase_factor=param_dict['intensity_increase_factor'],
                                         drop_perc=param_dict['drop_perc'], ms1_shift=param_dict['ms1_shift'],
                                         params=params)
@@ -136,7 +137,8 @@ def top_n_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, save_fil
 def smart_roi_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, iff_range, dp_range, save_file_name,
                                     mass_spec_file, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
                                     params_file, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
-                                    ms1_shift, min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
+                                    reset_length_seconds, ms1_shift, min_rt, max_rt, box_file, half_isolation_window,
+                                    batch_size=1):
     parameters = [
         # the variable controller bits
         {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
@@ -155,6 +157,7 @@ def smart_roi_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, iff_
         {"name": "min_roi_length", "type": "fixed", "value": min_roi_length},
         {"name": "min_roi_length_for_fragmentation", "type": "fixed", "value": min_roi_length_for_fragmentation},
         {"name": "ms1_shift", "type": "fixed", "value": ms1_shift},
+        {"name": "reset_length_seconds", "type": "fixed", "value": reset_length_seconds},
         # the env bits
         {"name": "min_rt", "type": "fixed", "value": min_rt},
         {"name": "max_rt", "type": "fixed", "value": max_rt},
@@ -165,7 +168,6 @@ def smart_roi_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, iff_
     ]
     param_list = [parameter_from_json(p) for p in parameters]
     search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
-    print(search_space)
 
     exp = ax.SimpleExperiment(
         name="test_experiment",

@@ -11,7 +11,7 @@ from collections import Counter
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     '''Evaluates a single simulated injection against the chemicals present in that injection'''
     true_chems = env.mass_spec.chemicals if base_chemicals is None else base_chemicals
-    fragmented = {} #map chem to highest observed intensity
+    fragmented = {}  #map chem to highest observed intensity
     for event in env.mass_spec.fragmentation_events:
         if(event.ms_level > 1):
             chem = event.chem if event.chem.base_chemical is None else event.chem.base_chemical
@@ -21,9 +21,9 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     raw_intensities = np.array([fragmented.get(chem, 0) for chem in true_chems])
     coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
     
-    max_coverage = sum(1 for chem in true_chems if chem in fragmented)
+    max_coverage = len(true_chems)
     coverage_prop = np.sum(coverage) / max_coverage
-    max_coverage_intensity = sum(chem.max_intensity for chem in true_chems if chem in fragmented)
+    max_coverage_intensity = sum(chem.max_intensity for chem in true_chems)
     coverage_intensity_prop = np.sum(coverage_intensities) / max_coverage_intensity
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
     
@@ -31,12 +31,13 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
             'num_frags': num_frags,
             'fragmented': fragmented,
             'coverage': coverage,
-            'raw_intensity' : raw_intensities,
+            'raw_intensity': raw_intensities,
             'intensity': coverage_intensities,
             'coverage_proportion': coverage_prop,
             'intensity_proportion': coverage_intensity_prop,
             'chemicals_fragmented': chemicals_fragmented
     }
+
 
 def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0):
     '''Evaluates_multiple simulated injections against a base set of chemicals that were used to derive the datasets'''

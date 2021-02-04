@@ -26,6 +26,7 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     max_coverage_intensity = sum(chem.max_intensity for chem in true_chems)
     coverage_intensity_prop = np.sum(coverage_intensities) / max_coverage_intensity
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
+    max_possible_intensities = [chem.max_intensity for chem in true_chems]
     
     return {
             'num_frags': num_frags,
@@ -35,7 +36,8 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
             'intensity': coverage_intensities,
             'coverage_proportion': coverage_prop,
             'intensity_proportion': coverage_intensity_prop,
-            'chemicals_fragmented': chemicals_fragmented
+            'chemicals_fragmented': chemicals_fragmented,
+            'max_possible_intensities': max_possible_intensities
     }
 
 
@@ -44,6 +46,7 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     results = [evaluate_simulated_env(env, min_intensity=min_intensity, base_chemicals=base_chemicals) for env in env_list]
     num_frags = [r["num_frags"] for r in results]
     fragmented = [r["fragmented"] for r in results]
+    max_possible_intensities = [r["max_possible_intensities"] for r in results]
     
     coverage = [r["coverage"] for r in results]
     observed_chems = set(itertools.chain(*(env.mass_spec.chemicals for env in env_list)))
@@ -53,13 +56,16 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     cumulative_coverage_prop = [np.sum(cov) / max_coverage for cov in cumulative_coverage]
     
     raw_intensities = [r["raw_intensity"] for r in results]
-    cumulative_raw_intensities = list(itertools.accumulate(coverage, np.fmax))
+    cumulative_raw_intensities = list(itertools.accumulate(raw_intensities, np.fmax))
     
     coverage_intensities = [r["intensity"] for r in results]
-    max_coverage_intensity = sum(reduce(np.fmax, coverage_intensities))
+    max_coverage_intensity = sum(reduce(np.fmax, max_possible_intensities))
     coverage_intensities_prop = [np.sum(c_i) / max_coverage_intensity for c_i in coverage_intensities]
-    cumulative_coverage_intensities = list(itertools.accumulate(coverage, np.fmax))
-    cumulative_coverage_intensities_prop = [np.sum(c_i) / max_coverage_intensity for c_i in cumulative_coverage_intensities]
+    cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
+    cumulative_coverage_intensities_prop = [np.sum(c_i) / max_coverage_intensity for c_i in
+                                            cumulative_coverage_intensities]
+    cumulative_raw_intensities_prop = [np.sum(c_i) / max_coverage_intensity for c_i in
+                                       cumulative_raw_intensities]
     
     chemicals_fragmented = [r["chemicals_fragmented"] for r in results]
     times_fragmented = np.sum([r["coverage"] for r in results], axis=0)
@@ -81,10 +87,12 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
             
             'cumulative_coverage': cumulative_coverage,
             'cumulative_raw_intensity': cumulative_raw_intensities,
+            'cumulative_raw_intensities_prop': cumulative_raw_intensities_prop,
             'cumulative_intensity': cumulative_coverage_intensities,
             'cumulative_coverage_proportion': cumulative_coverage_prop,
             'cumulative_intensity_proportion': cumulative_coverage_intensities_prop
     }
+
 
 def evaluate_mzml(mzml_file, picked_peaks_file, half_isolation_window):
     boxes = load_picked_boxes(picked_peaks_file)

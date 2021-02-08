@@ -866,3 +866,18 @@ class ChemicalMixtureFromMZML(object):
         return chemicals
 
 
+def get_pooled_sample(dataset_list):
+    '''takes a list of datasets and creates a pooled dataset from them'''
+    n_datasets = len(dataset_list)
+    all_chems = np.array([item for sublist in dataset_list for item in sublist])
+    unique_parents = list(set([chem.base_chemical for chem in all_chems]))
+    # create dataset
+    dataset = []
+    for chem in unique_parents:
+        matched_chemicals = all_chems[np.where(all_chems == chem)[0]]
+        new_intensity = sum([mchem.max_intensity for mchem in matched_chemicals]) / n_datasets
+        new_chem = copy.deepcopy(chem)
+        new_chem.max_intensity = new_intensity
+        dataset.append(new_chem)
+    return dataset
+

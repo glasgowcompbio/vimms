@@ -106,8 +106,8 @@ class Roi(object):
         return GenericBox(min(self.rt_list) + rt_shift, max(self.rt_list) + rt_shift, min(self.mz_list) + mz_shift, max(self.mz_list) + mz_shift,
                           min_xwidth=min_rt_width, min_ywidth=min_mz_width)
 
-    def get_boxes_overlap(self, boxes):
-        roi_box = self.to_box()
+    def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
+        roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
         overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
 

@@ -14,6 +14,8 @@ from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
 from vimms.Box import GenericBox
 
+from mass_spec_utils.data_processing.alignment import JoinAligner, Peak
+
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
 POS_TRANSFORMATIONS['[M+ACN]+H'] = lambda mz: (mz + 42.033823)
@@ -403,8 +405,6 @@ def greedy_roi_cluster(roi_list, corr_thresh=0.75, corr_type='cosine'):
     return roi_clusters
 
 
-
-
 def plot_roi(roi, statuses=None, log=False):
     if log:
         intensities = np.log(roi.intensity_list)
@@ -428,3 +428,32 @@ def plot_roi(roi, statuses=None, log=False):
         plt.scatter(roi.rt_list, intensities)
     plt.xlabel('RT')
     plt.show()
+
+
+class RoiAligner(JoinAligner):
+    def __init__(self, mz_tolerance_absolute=0.01,
+                 mz_tolerance_ppm=10,
+                 rt_tolerance=0.5,
+                 mz_column_pos=1,
+                 rt_column_pos=2,
+                 intensity_column_pos=3):
+        super().__init__(mz_tolerance_absolute,
+                         mz_tolerance_ppm,
+                         rt_tolerance,
+                         mz_column_pos,
+                         rt_column_pos,
+                         intensity_column_pos)
+        self.sample_names = []
+        self.sample_types = []
+
+    def add_sample(self, rois, sample_name, sample_type=None, source_id=None):
+        self.sample_names.append(sample_name)
+        self.sample_types.append(sample_type)
+        these_peaks = []
+        for roi in rois:
+            peak_mz = roi.get_mean_mz()
+            peak_rt = roi.estimate_apex()
+            peak_intensity = roi.get_max_intensity()
+            these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
+        self._align(these_peaks, sample_name)
+

@@ -8,13 +8,14 @@ import pylab as plt
 import pymzml
 from loguru import logger
 from scipy.stats import pearsonr
+import statsmodels.api as sm
 
 # from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
 from vimms.Box import GenericBox
 
-from mass_spec_utils.data_processing.alignment import JoinAligner, Peak
+from mass_spec_utils.data_processing.alignment import BoxJoinAligner, Peak
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
@@ -430,13 +431,17 @@ def plot_roi(roi, statuses=None, log=False):
     plt.show()
 
 
-class RoiAligner(JoinAligner):
+class RoiAligner(BoxJoinAligner):
     def __init__(self, mz_tolerance_absolute=0.01,
                  mz_tolerance_ppm=10,
                  rt_tolerance=0.5,
                  mz_column_pos=1,
                  rt_column_pos=2,
-                 intensity_column_pos=3):
+                 intensity_column_pos=3,
+                 min_rt_width=0.01,
+                 min_mz_width=0.01,
+                 rt_shift=0,
+                 mz_shift=0):
         super().__init__(mz_tolerance_absolute,
                          mz_tolerance_ppm,
                          rt_tolerance,
@@ -445,15 +450,55 @@ class RoiAligner(JoinAligner):
                          intensity_column_pos)
         self.sample_names = []
         self.sample_types = []
+        self.min_rt_width = min_rt_width
+        self.min_mz_width = min_mz_width
+        self.rt_shift = rt_shift
+        self.mz_shift = mz_shift
 
-    def add_sample(self, rois, sample_name, sample_type=None, source_id=None):
+    def add_sample(self, rois, sample_name, sample_type=None):
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
         these_peaks = []
-        for roi in rois:
+        for i, roi in enumerate(rois):
+            source_id = sample_name + str(i)
             peak_mz = roi.get_mean_mz()
             peak_rt = roi.estimate_apex()
             peak_intensity = roi.get_max_intensity()
             these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
+
+        # create boxes
+        temp_boxes = [roi.to_box(self.min_rt_width, self.min_mz_width, self.rt_shift, self.mz_shift) for roi in rois]
+        # convert to dictionary for speedy lookup
+        temp_boxes = {sample_name + str(i): box for i, box in enumerate(temp_boxes)}
+        n_peaksets = len(self.peaksets)
+        # do the alignment
         self._align(these_peaks, sample_name)
+
+        # add boxes to the *new* peaksets
+        self._add_boxes_to_peaksets(temp_boxes, sample_name, n_peaksets)
+
+    def get_pvalues(self):
+        p_values = []
+        boxes = [self.peaksets2boxes[ps] for ps in self.peaksets]
+        # sort X
+        X = np.array(self.to_matrix())
+        # sort y
+        categories = np.unique(np.array(self.sample_types))
+        if len(categories) < 2:
+            return p_values, boxes
+        elif len(categories) == 2:  # logistic regression
+            y = np.array([1 for i in self.sample_types])
+            if 'control' in categories:
+                control_type = 'control'
+            else:
+                control_type = categories[0]
+            y[np.where(np.array(self.sample_types) == control_type)] = 0
+            for i in range(X.shape[0]):
+                x = np.log(X[i,])
+                x = x / np.linalg.norm(x)
+                model = sm.Logit(y, x)
+                p_values.append(model.fit(disp=0).pvalues[0])
+        else:  # classification
+            pass
+        return p_values, boxes
 

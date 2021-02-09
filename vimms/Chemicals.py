@@ -795,7 +795,7 @@ class MultipleMixtureCreator(object):
                 # make a new known chemical
                 new_chemical = copy.deepcopy(chemical)
                 new_chemical.max_intensity = new_intensity
-                new_chemical.original_chemical = chemical
+                new_chemical.base_chemical = chemical
                 new_list.append(new_chemical)
             chemical_lists.append(new_list)
         return chemical_lists

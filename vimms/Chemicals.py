@@ -751,6 +751,10 @@ class ChemicalMixtureCreator(object):
 class MultipleMixtureCreator(object):
     def __init__(self, master_chemical_list, group_list, group_dict,
                  intensity_noise=GaussianPeakNoise(sigma=0.001, log_space=True), overall_missing_probability=0.0):
+        # example
+        # group_list = ['control', 'control', 'case', 'case']
+        # group_dict = {'control': {'missing_probability': 0.0, 'changing_probability': 0.0},
+        #               'case': {'missing_probability': 0.0, 'changing_probability': 0.0}}
         self.master_chemical_list = master_chemical_list
         self.group_list = group_list
         self.group_dict = group_dict

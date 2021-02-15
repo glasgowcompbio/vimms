@@ -5,6 +5,8 @@ from decimal import Decimal
 from collections import defaultdict
 from abc import ABC, abstractmethod
 
+from mass_spec_utils.data_import.mzmine import PickedBox
+
 class Point():
     def __init__(self, x, y): self.x, self.y = float(x), float(y)
     def __repr__(self): return "Point({}, {})".format(self.x, self.y)
@@ -35,7 +37,13 @@ class Box():
         self.pt2.y += yshift
     def num_overlaps(self): return 1 if len(self.parents) == 0 else len(self.parents)
     def top_level_boxes(self): return [self.copy()] if self.parents == [] else self.parents
-        
+
+    def to_pickedbox(self, peak_id):
+        rts = [self.pt1.x, self.pt2.x]
+        mzs = [self.pt1.y, self.pt2.y]
+        return PickedBox(peak_id, sum(mzs)/2, sum(rts)/2, mzs[0], mzs[1], rts[0], rts[1])
+
+
 class GenericBox(Box):
     '''Makes no particular assumptions about bounding boxes.'''
     

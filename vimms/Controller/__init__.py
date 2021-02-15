@@ -6,3 +6,5 @@ from vimms.Controller.roi import *
 from vimms.Controller.topN import *
 from vimms.Controller.targeted import *
 from vimms.Controller.abc import *
+from vimms.Controller.model import *
+from vimms.Controller.box import *

@@ -16,6 +16,7 @@ from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
 from vimms.Box import GenericBox
 
 from mass_spec_utils.data_processing.alignment import BoxJoinAligner, Peak
+import statsmodels.api as sm
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
@@ -487,17 +488,17 @@ class RoiAligner(BoxJoinAligner):
         if len(categories) < 2:
             return p_values, boxes
         elif len(categories) == 2:  # logistic regression
-            y = np.array([1 for i in self.sample_types])
+            x = np.array([1 for i in self.sample_types])
             if 'control' in categories:
                 control_type = 'control'
             else:
                 control_type = categories[0]
-            y[np.where(np.array(self.sample_types) == control_type)] = 0
+            x[np.where(np.array(self.sample_types) == control_type)] = 0
+            x = sm.add_constant(x)
             for i in range(X.shape[0]):
-                x = np.log(X[i,])
-                x = x / np.linalg.norm(x)
-                model = sm.Logit(y, x)
-                p_values.append(model.fit(disp=0).pvalues[0])
+                y = np.log(X[i, :] + 1)
+                model = sm.OLS(y, x)
+                p_values.append(model.fit(disp=0).pvalues[1])
         else:  # classification
             pass
         return p_values, boxes

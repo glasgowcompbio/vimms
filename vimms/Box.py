@@ -1,4 +1,5 @@
 import math
+import random
 import itertools
 import numpy as np
 from decimal import Decimal
@@ -6,6 +7,7 @@ from collections import defaultdict
 from abc import ABC, abstractmethod
 
 from mass_spec_utils.data_import.mzmine import PickedBox
+import GPy
 
 class Point():
     def __init__(self, x, y): self.x, self.y = float(x), float(y)
@@ -184,18 +186,111 @@ class LocatorGrid(Grid):
 class DriftModel():
     @abstractmethod
     def get_estimator(self, injection_number): pass
+    @abstractmethod
+    def _next_model(self): pass
+    def send_training_data(self, scan, inj_num): pass
+    def send_training_pair(self, x, y): pass
+    def update(self, **kwargs): pass
 
 class IdentityDrift(DriftModel):
     '''Dummy drift model which does nothing, for testing purposes.'''
-    def get_estimator(self, injection_number): return lambda roi, inj_num: 0
+    def get_estimator(self, injection_number): return lambda roi, inj_num: (0, {})
+    def _next_model(self, **kwargs): return self
     
 class OracleDrift(DriftModel):
-    '''Drift model that cheats by being given the 'true' rt drift in simulation, for testing purposes.'''
+    '''Drift model that cheats by being given a 'true' rt drift fn. for every injection in simulation, for testing purposes.'''
     def __init__(self, drift_fns):
         self.drift_fns = drift_fns
+    def _next_model(self, **kwargs): return self
     def get_estimator(self, injection_number): 
         if(type(self.drift_fns) == type([])): return self.drift_fns[injection_number]
         return self.drift_fns
+        
+class OraclePointMatcher():
+    MODE_ALLPOINTS = 0
+    MODE_RTENABLED = 1
+    MODE_FRAGPAIRS = 2
+
+    def __init__(self, chem_rts_by_injection, chemicals, max_points=None, mode=None):
+        if(not max_points is None and max_points < len(chem_rts_by_injection[0])):
+            idxes = random.sample([i for i, _ in enumerate(chem_rts_by_injection[0])], max_points)
+            self.chem_rts_by_injection = [[sample[i] for i in idxes] for sample in chem_rts_by_injection]
+        else: 
+            self.chem_rts_by_injection = chem_rts_by_injection
+        self.chem_to_idx = {chem if chem.base_chemical is None else chem.base_chemical : idx for chem, idx in zip(chemicals, range(len(chem_rts_by_injection[0])))}
+        self.not_sent = [True] * len(self.chem_rts_by_injection[0])
+        self.available = [False] * len(self.chem_rts_by_injection[0])
+        self.mode = OraclePointMatcher.MODE_FRAGPAIRS if mode is None else mode
+        
+    def _next_model(self):
+        self.not_sent = [True] * len(self.chem_rts_by_injection[0])
+
+    def send_training_data(self, model, scan, inj_num):
+        if(self.mode == OraclePointMatcher.MODE_FRAGPAIRS and not scan.fragevent is None):
+            parent_chem = scan.fragevent.chem if scan.fragevent.chem.base_chemical is None else scan.fragevent.chem.base_chemical
+            if(parent_chem in self.chem_to_idx):
+                i = self.chem_to_idx[parent_chem]
+                if(inj_num == 0): self.available[i] = True
+                elif(self.available[i] and self.not_sent[i]):
+                    model.send_training_pair(Y[i], X[i])
+                    self.not_sent[i] = False
+        else:
+            if(self.mode == OraclePointMatcher.MODE_RTENABLED): enable = lambda y: scan.rt > y
+            else: enable = lambda y: True
+            
+            for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num], self.chem_rts_by_injection[0])):
+                if(self.not_sent[i] and enable(y)):
+                    model.send_training_pair(y, x)
+                    self.not_sent[i] = False
+        
+class GPDrift(DriftModel):
+    '''Drift model that uses a Gaussian Process and known training points to learn a drift function with reference to points in the first injection.'''
+    def __init__(self, kernel, point_matcher, max_points=None):
+        self.kernel = kernel
+        self.point_matcher = point_matcher
+        self.Y, self.X = [], []
+        self.model = None
+        self.max_points = max_points
+        
+    #TODO: Ideally this would use _online_ learning rather than retraining the whole model every time...
+    def get_estimator(self, injection_number): 
+        if(injection_number == 0 or self.Y == []): return lambda roi, inj_num: (0, {})
+        else: 
+            def predict(roi, inj_num):
+                if(self.model is None):
+                    if(self.max_points is None or self.max_points >= len(self.Y)): Y, X = self.Y, self.X
+                    else: Y, X = self.Y[-self.max_points:], self.X[-self.max_points:]
+                    self.model = GPy.models.GPRegression(np.array(Y).reshape((len(Y), 1)), np.array(X).reshape((len(X), 1)), kernel=self.kernel)
+                    self.model.optimize()
+                mean, variance = self.model.predict(np.array(roi.estimate_apex()).reshape((1, 1)))
+                return roi.estimate_apex() - mean[0], {"variance" : variance[0]}
+            return predict
+        
+    def _next_model(self, **kwargs):
+        Y, X = kwargs.get("Y", []), kwargs.get("X", [])
+        new_model = GPDrift(self.kernel, self.point_matcher, max_points=self.max_points)
+        self.point_matcher._next_model()
+        new_model.Y, new_model.X = Y, X
+        return new_model
+        
+    def send_training_data(self, scan, inj_num): self.point_matcher.send_training_data(self, scan, inj_num)
+        
+    def send_training_pair(self, y, x):
+        self.Y.append(y)
+        self.X.append(x)
+        self.model = None
+        
+    def update(self, **kwargs): Y, X = kwargs.get("Y", []), kwargs.get("X", [])
+    
+    #X is RoIs from first injection
+    #Y is RoIs from injection we are currently at
+    #we need some way of matching Y -> X in training points
+    #then we can learn general drift fn. for points not seen in Y
+    
+    #receive every point we fragment
+    #create matched pairs of ms1, ms2 spectra
+    #return uncertainty
+    #uncertainty used to acquire new matchable points
             
 class GridEstimator():
     '''Wrapper class letting internal grid be updated with rt drift estimates.'''
@@ -203,22 +298,32 @@ class GridEstimator():
     def __init__(self, grid, drift_model, min_rt_width=0.01, min_mz_width=0.01):
         self.observed_rois = [[]]
         self.grid = grid
-        self.drift_model = drift_model
+        self.drift_models = [drift_model]
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.injection_count = 0
     
     def non_overlap(self, box): return self.grid.non_overlap(box)
     def register_roi(self, roi): self.observed_rois[self.injection_count].append(roi)
     def get_estimator(self):
-        fn = self.drift_model.get_estimator(self.injection_count)
+        fn = self.drift_models[self.injection_count].get_estimator(self.injection_count)
         return lambda roi: fn(roi, self.injection_count)
     
-    def update_after_injection(self):
+    def _update_grid(self):
         self.grid.boxes = self.grid.init_boxes(self.grid.rtboxes, self.grid.mzboxes)
-        for injection_number, injection in enumerate(self.observed_rois):
-            fn = self.drift_model.get_estimator(injection_number)
-            for roi in injection:
-                drift = fn(roi, injection_number)
+        for inj_num, inj in enumerate(self.observed_rois):
+            fn = self.drift_models[inj_num].get_estimator(inj_num)
+            for roi in inj:
+                drift = fn(roi, inj_num)[0]
                 self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)))
+    
+    def _next_model(self):
         self.injection_count += 1
         self.observed_rois.append([])
+        self.drift_models.append(self.drift_models[-1]._next_model())
+        
+    def send_training_data(self, scan): self.drift_models[-1].send_training_data(scan, self.injection_count)
+    
+    #TODO: later we could have arbitrary update points rather than after injection
+    def update_after_injection(self):
+        self._update_grid()
+        self._next_model()

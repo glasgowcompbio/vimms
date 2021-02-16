@@ -1,5 +1,4 @@
 import copy
-import itertools
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -81,7 +80,7 @@ class LinearColumn(Column):
         rt(1 + m) = f(rt) - c
         rt = (f(rt) - c) / (1 + m)'''
         rt = roi.estimate_apex()
-        return rt - (rt - self.intercept_term) / (1 + self.linear_term) #this doesn't account for noise?
+        return rt - (rt - self.intercept_term) / (1 + self.linear_term), {} #this doesn't account for noise?
 
 
 class GaussianProcessColumn(Column):

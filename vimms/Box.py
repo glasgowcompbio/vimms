@@ -105,8 +105,8 @@ class Grid():
         self.boxes = self.init_boxes(self.rtboxes, self.mzboxes)
         
     def get_box_ranges(self, box):
-        rt_box_range = (int(box.pt1.x / self.rt_box_size), int(box.pt2.x / self.rt_box_size) + 1)
-        mz_box_range = (int(box.pt1.y / self.mz_box_size), int(box.pt2.y / self.mz_box_size) + 1)
+        rt_box_range = (int((box.pt1.x - self.min_rt) / self.rt_box_size), int((box.pt2.x - self.min_rt) / self.rt_box_size) + 1)
+        mz_box_range = (int((box.pt1.y - self.min_mz) / self.mz_box_size), int((box.pt2.y - self.min_mz) / self.mz_box_size) + 1)
         total_boxes = (rt_box_range[1] - rt_box_range[0]) * (mz_box_range[1] - mz_box_range[0])
         return rt_box_range, mz_box_range, total_boxes
 

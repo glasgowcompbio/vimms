@@ -480,7 +480,7 @@ class RoiAligner(BoxJoinAligner):
 
     def get_pvalues(self):
         p_values = []
-        boxes = [self.peaksets2boxes[ps] for ps in self.peaksets]
+        boxes = self.to_boxes()
         # sort X
         X = np.array(self.to_matrix())
         # sort y
@@ -503,3 +503,5 @@ class RoiAligner(BoxJoinAligner):
             pass
         return p_values, boxes
 
+    def to_boxes(self):
+        return [self.peaksets2boxes[ps] for ps in self.peaksets]

@@ -35,6 +35,7 @@ pysmiles = "*"
 intervaltree = "*"
 ax-platform = "*"
 torch = "*"
+gpy = "*"
 
 [dev-packages]
 pipenv-setup = "*"

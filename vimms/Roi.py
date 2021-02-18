@@ -657,4 +657,62 @@ class RoiAligner(object):
     def get_max_frag_intensities(self):
         return [max(self.peaksets2fragintensities[ps]) for ps in self.peaksets]
 
+    def get_p_values(self):
+        # need to match boxes, not base chemicals
+        p_values = []
+        # sort X
+        X = np.array(self.to_matrix())
+        print(X)
+        # sort y
+        categories = np.unique(np.array(self.sample_types))
+        if len(categories) < 2:
+            pass
+        elif len(categories) == 2:  # logistic regression
+            x = np.array([1 for i in self.sample_types])
+            if 'control' in categories:
+                control_type = 'control'
+            else:
+                control_type = categories[0]
+            x[np.where(np.array(self.sample_types) == control_type)] = 0
+            x = sm.add_constant(x)
+            for i in range(X.shape[0]):
+                y = np.log(X[i, :] + 1)
+                model = sm.OLS(y, x)
+                p_values.append(model.fit(disp=0).pvalues[1])
+        else:  # classification
+            pass
+        return p_values
+
+
+def calculate_chemical_p_values(datasets, group_list, base_chemicals):
+    # only accepts case control currently
+    p_values = []
+    # create y here
+    categories = np.unique(np.array(group_list))
+    if len(categories) < 2:
+        pass
+    elif len(categories):
+        x = np.array([1 for i in group_list])
+        if 'control' in categories:
+            control_type = 'control'
+        else:
+            control_type = categories[0]
+        x[np.where(np.array(group_list) == control_type)] = 0
+        x = sm.add_constant(x)
+    else:
+        pass
+    # create each x and calculate p-value
+    ds_parents = [[chem.base_chemical for chem in ds] for ds in datasets]
+    for chem in base_chemicals:
+        y = []
+        for i, ds in enumerate(ds_parents):
+            if chem in base_chemicals:
+                new_chem = np.array(datasets[i])[np.where(np.array(ds)==chem)[0]][0]
+                intensity = np.log(new_chem.max_intensity + 1)
+            else:
+                intensity = 0.0
+            y.append(intensity)
+        model = sm.OLS(y, x)
+        p_values.append(model.fit(disp=0).pvalues[1])
+    return p_values
 

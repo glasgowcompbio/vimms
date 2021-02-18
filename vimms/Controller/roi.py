@@ -401,8 +401,6 @@ class TopNBoxRoiController(RoiController):
 
     def _get_scores(self):
         dda_scores = self._get_dda_scores()
-        #print(' ')
-        #print('dda_scores', dda_scores)
         if self.boxes is not None:
             overlap_scores = []
             for i in range(len(dda_scores)):
@@ -411,14 +409,8 @@ class TopNBoxRoiController(RoiController):
                 prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)),[0 for i in self.boxes_intensity])
                 intensity_differences = np.log(np.array(self.live_roi[i].intensity_list[-1])) - prev_intensity
 
-                #print('int1', np.log(np.array(self.live_roi[i].intensity_list[-1])))
-                #print('int2', prev_intensity)
                 overlap_scores.append(sum((intensity_differences * overlaps)))
-                #print('overlaps', overlaps)
-                #print('intensity_differences', intensity_differences)
-                #print('overlap_scores', overlap_scores)
             initial_scores = dda_scores + np.array(overlap_scores) * self.boxes_params['theta1'] * (dda_scores > 0)*1
-            #print('initial_scores', initial_scores)
         else:
             initial_scores = dda_scores
         # self.boxes_intensities plus need to take into account current box intensity

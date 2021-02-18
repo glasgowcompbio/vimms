@@ -641,6 +641,15 @@ class RoiAligner(object):
                 self.peaksets2fragintensities[self.peaksets[-1]] = [frag_intensities[i]]
         self.files_loaded.append(short_name)
 
+    def to_matrix(self):
+        n_peaksets = len(self.peaksets)
+        n_files = len(self.files_loaded)
+        intensity_matrix = np.zeros((n_peaksets,n_files),np.double)
+        for i,peakset in enumerate(self.peaksets):
+            for j,filename in enumerate(self.files_loaded):
+                intensity_matrix[i,j] = peakset.get_intensity(filename)
+        return intensity_matrix
+
     def get_boxes(self):
         return [self.peaksets2boxes[ps][0] for ps in self.peaksets]
         # TODO: method currently gets the first box, needs updating

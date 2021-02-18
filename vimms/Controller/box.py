@@ -76,8 +76,10 @@ class NonOverlapController(RoiController):
         
         return new_tasks
         
+    def update_state_after_scan(self, last_scan): self.grid.send_training_data(last_scan)
+        
     def _non_overlaps(self): 
         fn = self.grid.get_estimator()
-        return [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)))) for r in self.live_roi]
+        return [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for r in self.live_roi]
     def _get_scores(self): return self._get_top_N_scores(self._get_dda_scores() * self._non_overlaps())
     def after_injection_cleanup(self): self.grid.update_after_injection()

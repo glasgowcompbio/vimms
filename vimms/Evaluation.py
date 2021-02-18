@@ -52,7 +52,7 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     max_possible_intensities = [r["max_possible_intensities"] for r in results]
     
     coverage = [r["coverage"] for r in results]
-    observed_chems = set(itertools.chain(*(env.mass_spec.chemicals for env in env_list)))
+    observed_chems = set(itertools.chain(*([chem.base_chemical for chem in env.mass_spec.chemicals] for env in env_list)))
     max_coverage = sum(chem in observed_chems for chem in base_chemicals)
     coverage_prop = [np.sum(cov) / max_coverage for cov in coverage]
     cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))

@@ -9,6 +9,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from vimms.Controller.topN import TopNController
 from vimms.PeakDetector import calculate_window_change
 from vimms.Roi import match, Roi, SmartRoi
+from copy import deepcopy
 
 
 class RoiController(TopNController):
@@ -403,8 +404,11 @@ class TopNBoxRoiController(RoiController):
         dda_scores = self._get_dda_scores()
         if self.boxes is not None:
             overlap_scores = []
+            copy_boxes = deepcopy(self.boxes)
+            for box in copy_boxes:
+                box.pt2.x = min(box.pt2.x, max(self.last_ms1_rt, box.pt1.x))
             for i in range(len(dda_scores)):
-                overlaps = np.array(self.live_roi[i].get_boxes_overlap(self.boxes, self.box_min_rt_width,
+                overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
                 prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)),[0 for i in self.boxes_intensity])
                 intensity_differences = np.log(np.array(self.live_roi[i].intensity_list[-1])) - prev_intensity

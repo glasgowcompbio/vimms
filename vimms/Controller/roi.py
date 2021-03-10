@@ -410,11 +410,25 @@ class TopNBoxRoiController(RoiController):
             for i in range(len(dda_scores)):
                 overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
+                #print(' ')
+                #print('overlaps', overlaps)
                 prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)),[0 for i in self.boxes_intensity])
                 intensity_differences = np.log(np.array(self.live_roi[i].intensity_list[-1])) - prev_intensity
+                #print('prev_intensity', prev_intensity)
+                #print('intensity_differences', intensity_differences)
 
                 overlap_scores.append(sum((intensity_differences * overlaps)))
+                # print('score', sum((intensity_differences * overlaps)))
             initial_scores = dda_scores + np.array(overlap_scores) * self.boxes_params['theta1'] * (dda_scores > 0)*1
+            # if len(dda_scores) > 0:
+            #     print(' ')
+            #     print('rt', self.last_ms1_rt)
+            #     print('Overlap Scores', overlap_scores)
+            #     print('dda scores', dda_scores)
+            #     # print('dda greater', (dda_scores > 0)*1)
+            #     # print('next part', self.boxes_params['theta1'] * (dda_scores > 0)*1)
+            #     # print('second part', np.array(overlap_scores) * self.boxes_params['theta1'] * (dda_scores > 0)*1)
+            #     print('initial scores', initial_scores)
         else:
             initial_scores = dda_scores
         # self.boxes_intensities plus need to take into account current box intensity
@@ -446,8 +460,8 @@ class TopNBoxModelRoiController(TopNBoxRoiController):
                 overlap_scores.append(sum((intensity_differences * overlaps)))
 
             if self.boxes_p_values is not None:
-                p_value_scores = 1 + (1 - np.array(self.boxes_p_values))
-                initial_scores = self.boxes_params['theta2'] * dda_scores + (
+                p_value_scores = self.boxes_params['theta2'] * (1 + (1 - np.array(self.boxes_p_values)))
+                initial_scores = dda_scores + (
                         np.array(overlap_scores) * p_value_scores * self.boxes_params['theta1'] * (dda_scores > 0) * 1)
             else:
                 initial_scores = dda_scores + np.array(overlap_scores) * self.boxes_params['theta1'] * (

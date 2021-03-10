@@ -112,8 +112,15 @@ class Roi(object):
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
+       #print(roi_box)
         overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
+
+    def get_roi_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
+        roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
+        overlaps = [roi_box.overlap_3(box) for box in boxes]
+        return overlaps
+
 
 INITIAL_WAITING = 0
 CAN_FRAGMENT = 1

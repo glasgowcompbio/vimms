@@ -68,6 +68,11 @@ class GenericBox(Box):
         if(not self.overlaps_with_box(other_box)): return 0.0
         b = Box(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x), max(self.pt1.y, other_box.pt1.y), min(self.pt2.y, other_box.pt2.y))
         return b.area() / (self.area() + other_box.area() - b.area())
+
+    def overlap_3(self, other_box):
+        if(not self.overlaps_with_box(other_box)): return 0.0
+        b = Box(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x), max(self.pt1.y, other_box.pt1.y), min(self.pt2.y, other_box.pt2.y))
+        return b.area() / self.area()
                
     def non_overlap_split(self, other_box):
         '''Finds 1 to 4 boxes describing the polygon of area of this box not overlapped by other_box.

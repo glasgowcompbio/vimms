@@ -116,8 +116,15 @@ class Roi(object):
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
+       #print(roi_box)
         overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
+
+    def get_roi_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
+        roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
+        overlaps = [roi_box.overlap_3(box) for box in boxes]
+        return overlaps
+
 
 INITIAL_WAITING = 0
 CAN_FRAGMENT = 1
@@ -655,8 +662,11 @@ class RoiAligner(object):
         return intensity_matrix
 
     def get_boxes(self):
-        return [self.peaksets2boxes[ps][0] for ps in self.peaksets]
-        # TODO: method currently gets the first box, needs updating
+        boxes = []
+        for ps in self.peaksets:
+            box = self.peaksets2boxes[ps][0]  # TODO: method currently gets the first box, needs updating
+            boxes.append(GenericBox(box.pt1.x, box.pt2.x, box.pt1.y, box.pt2.y, self.min_rt_width, self.min_mz_width))
+        return boxes
 
     def get_max_frag_intensities(self):
         return [max(self.peaksets2fragintensities[ps]) for ps in self.peaksets]

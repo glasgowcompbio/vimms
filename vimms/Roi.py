@@ -74,6 +74,10 @@ class Roi(object):
     def get_autocorrelation(self, lag=1):
         return pd.Series(self.intensity_list).autocorr(lag=lag)
         
+    def get_nth_point(self, n):
+        if(n >= len(self.rt_list)): return None
+        return self.rt_list[n], self.mz_list[n], self.intensity_list[n] 
+        
     def estimate_apex(self): 
         return self.rt_list[np.argmax(self.intensity_list)]
 

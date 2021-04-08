@@ -26,6 +26,8 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     env_chem_parents = np.array([chem.base_chemical for chem in env.mass_spec.chemicals])
     max_possible_intensities = [np.array(env.mass_spec.chemicals)[
                                    np.where(env_chem_parents == chem)[0]][0].max_intensity for chem in true_chems]
+    #ms_chem_parents = {chem.base_chemical : chem.max_intensity for chem in env.mass_spec.chemicals}
+    #max_possible_intensities = [ms_chem_parents.get(chem, 0) for chem in true_chems]
     coverage_intensity_prop = np.sum(coverage_intensities[i]/ max_possible_intensities[i]
                                      for i in range(len(coverage_intensities))) / len(coverage_intensities)
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]

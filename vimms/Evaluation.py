@@ -25,7 +25,7 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     coverage_prop = np.sum(coverage) / max_coverage
     env_chem_parents = np.array([chem.base_chemical for chem in env.mass_spec.chemicals])
     max_possible_intensities = [np.array(env.mass_spec.chemicals)[
-                                    np.where(env_chem_parents == chem)[0]][0].max_intensity for chem in true_chems]
+                                   np.where(env_chem_parents == chem)[0]][0].max_intensity for chem in true_chems]
     coverage_intensity_prop = np.sum(coverage_intensities[i]/ max_possible_intensities[i]
                                      for i in range(len(coverage_intensities))) / len(coverage_intensities)
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
@@ -74,7 +74,9 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     chemicals_fragmented = [r["chemicals_fragmented"] for r in results]
     times_fragmented = np.sum([r["coverage"] for r in results], axis=0)
     times_fragmented_summary = Counter(times_fragmented)
-    
+
+    cumulative_intensity_proportion_of_coverage = [cumulative_coverage_intensities[0][np.where(final_evaluation_topn['coverage'][0])] /
+
     return {
             'num_frags': num_frags,
             'fragmented': fragmented,
@@ -95,6 +97,8 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
             'cumulative_intensity': cumulative_coverage_intensities,
             'cumulative_coverage_proportion': cumulative_coverage_prop,
             'cumulative_intensity_proportion': cumulative_coverage_intensities_prop
+
+            #'cumulative_intensity_proportion_of_coverage': cumulative_intensity_proportion_of_coverage
     }
 
 

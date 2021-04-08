@@ -419,19 +419,65 @@ class TopNBoxRoiController(RoiController):
 
                 overlap_scores.append(sum((intensity_differences * overlaps)))
                 # print('score', sum((intensity_differences * overlaps)))
-            initial_scores = dda_scores + np.array(overlap_scores) * self.boxes_params['theta1'] * (dda_scores > 0)*1
-            # if len(dda_scores) > 0:
-            #     print(' ')
-            #     print('rt', self.last_ms1_rt)
-            #     print('Overlap Scores', overlap_scores)
-            #     print('dda scores', dda_scores)
-            #     # print('dda greater', (dda_scores > 0)*1)
-            #     # print('next part', self.boxes_params['theta1'] * (dda_scores > 0)*1)
-            #     # print('second part', np.array(overlap_scores) * self.boxes_params['theta1'] * (dda_scores > 0)*1)
-            #     print('initial scores', initial_scores)
+            initial_scores = dda_scores + np.array(overlap_scores) * self.boxes_params['theta1']# * (dda_scores > 0)*1
+            if len(dda_scores) > 0:
+                print(' ')
+                print('rt', self.last_ms1_rt)
+                print('Overlap Scores', overlap_scores)
+                print('dda scores', dda_scores)
+                # print('dda greater', (dda_scores > 0)*1)
+                # print('next part', self.boxes_params['theta1'] * (dda_scores > 0)*1)
+                # print('second part', np.array(overlap_scores) * self.boxes_params['theta1'] * (dda_scores > 0)*1)
+                print('initial scores', initial_scores)
         else:
             initial_scores = dda_scores
         # self.boxes_intensities plus need to take into account current box intensity
+        scores = self._get_top_N_scores(initial_scores)
+        return scores
+
+
+class TopNBoxRoiController2(RoiController):
+    def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+                 min_roi_length, boxes_params=None, boxes=None, boxes_intensity=None, N=None, rt_tol=10,
+                 min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, params=None,
+                 box_min_rt_width=0.01, box_min_mz_width=0.01):
+
+        self.boxes_params = boxes_params
+        self.boxes = boxes
+        self.boxes_intensity = boxes_intensity  # the intensity the boxes have been fragmented at before
+        self.box_min_rt_width = box_min_rt_width
+        self.box_min_mz_width = box_min_mz_width
+        super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+                         min_roi_length, N, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         length_units=length_units, ms1_shift=ms1_shift, params=params)
+
+    def _get_scores(self):
+        if self.boxes is not None:
+            # calculate dda stuff
+            log_intensities = np.log(self.current_roi_intensities)
+            intensity_filter = (np.array(self.current_roi_intensities) > self.min_ms1_intensity)
+            time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
+            time_filter[time_filter == 0] = (
+                    (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
+            # calculate overlap stuff
+            initial_scores = []
+            copy_boxes = deepcopy(self.boxes)
+            for box in copy_boxes:
+                box.pt2.x = min(box.pt2.x, max(self.last_ms1_rt, box.pt1.x))
+            prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)), [0 for i in self.boxes_intensity])
+            for i in range(len(log_intensities)):
+                overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
+                                                                       self.box_min_mz_width))
+                score = max(0, (1-sum(overlaps))) * log_intensities[i] * time_filter[i]  # new peaks
+                score += self.boxes_params['theta1'] * sum(overlaps * (log_intensities[i] - prev_intensity))  # old peaks
+                score *= intensity_filter  # check intensity meets minimal requirement
+                score *= (score > self.boxes_params['min_score'])
+                initial_scores.append(score[0])
+            initial_scores = np.array(initial_scores)
+        else:
+            initial_scores = self._get_dda_scores()
+
         scores = self._get_top_N_scores(initial_scores)
         return scores
 

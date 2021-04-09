@@ -457,6 +457,7 @@ class TopNBoxRoiController2(RoiController):
             # calculate dda stuff
             log_intensities = np.log(self.current_roi_intensities)
             intensity_filter = (np.array(self.current_roi_intensities) > self.min_ms1_intensity)
+            #print('frag', self.live_roi_fragmented)
             time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
             time_filter[time_filter == 0] = (
                     (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
@@ -470,15 +471,18 @@ class TopNBoxRoiController2(RoiController):
                 overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
                 score = max(0, (1-sum(overlaps))) * log_intensities[i] * time_filter[i]  # new peaks
-                score += self.boxes_params['theta1'] * sum(overlaps * (log_intensities[i] - prev_intensity))  # old peaks
+                old_peaks_score = self.boxes_params['theta1'] * sum(overlaps * time_filter * (log_intensities[i] - prev_intensity))  # old peaks
+                score += old_peaks_score
                 score *= intensity_filter  # check intensity meets minimal requirement
-                score *= (score > self.boxes_params['min_score'])
+                score *= (score > self.boxes_params['min_score']) # check meets min score
                 initial_scores.append(score[0])
             initial_scores = np.array(initial_scores)
         else:
             initial_scores = self._get_dda_scores()
 
         scores = self._get_top_N_scores(initial_scores)
+        #print(' ')
+        #print('scores', scores)
         return scores
 
 

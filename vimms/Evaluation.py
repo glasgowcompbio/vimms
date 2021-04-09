@@ -77,7 +77,7 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     times_fragmented = np.sum([r["coverage"] for r in results], axis=0)
     times_fragmented_summary = Counter(times_fragmented)
 
-    cumulative_intensity_proportion_of_coverage = [cumulative_coverage_intensities[0][np.where(final_evaluation_topn['coverage'][0])] /
+    # cumulative_intensity_proportion_of_coverage = [cumulative_coverage_intensities[0][np.where(final_evaluation_topn['coverage'][0])] /
 
     return {
             'num_frags': num_frags,

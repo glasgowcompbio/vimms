@@ -1,11 +1,12 @@
 import numpy as np
 from loguru import logger
+from abc import ABC, abstractmethod
 
 from vimms.Box import GenericBox
 from vimms.Roi import match, Roi, SmartRoi
 from vimms.Controller.roi import RoiController
         
-class NonOverlapController(RoiController):
+class GridController(RoiController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
@@ -62,6 +63,7 @@ class NonOverlapController(RoiController):
             self.live_roi_fragmented[i] = True
             self.live_roi_last_rt[i] = rt
             self.grid.register_roi(self.live_roi[i])
+            self.live_roi[i].max_fragmentation_intensity = max(self.live_roi[i].max_fragmentation_intensity, intensity)
 
             ms2s.schedule_ms2s(new_tasks, ms2_tasks, mz, intensity)
             if ms2s.fragmented_count == self.N - self.ms1_shift:
@@ -77,9 +79,18 @@ class NonOverlapController(RoiController):
         return new_tasks
         
     def update_state_after_scan(self, last_scan): self.grid.send_training_data(last_scan)
-        
-    def _non_overlaps(self): 
-        fn = self.grid.get_estimator()
-        return [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for r in self.live_roi]
-    def _get_scores(self): return self._get_top_N_scores(self._get_dda_scores() * self._non_overlaps())
+    @abstractmethod
+    def _get_scores(self): pass
     def after_injection_cleanup(self): self.grid.update_after_injection()
+    
+class NonOverlapController(GridController):
+    def _get_scores(self):
+        fn = self.grid.get_estimator()
+        non_overlaps = [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for r in self.live_roi]
+        return self._get_top_N_scores(self._get_dda_scores() * non_overlaps)
+    
+class IntensityNonOverlapController(GridController):
+    def _get_scores(self):
+        fn = self.grid.get_estimator()
+        scores = np.log([self.grid.intensity_non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])), self.current_roi_intensities[i]) for i, r in enumerate(self.live_roi)])
+        return self._get_top_N_scores(scores * self._score_filters())

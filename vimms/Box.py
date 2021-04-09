@@ -1,5 +1,6 @@
 import math
 import random
+from functools import reduce
 import itertools
 import numpy as np
 from decimal import Decimal
@@ -13,13 +14,15 @@ import GPy
 
 class Point():
     def __init__(self, x, y): self.x, self.y = float(x), float(y)
+    def __eq__(self, other_point): return self.x == other_point.x and self.y == other_point.y
     def __repr__(self): return "Point({}, {})".format(self.x, self.y)
 
 class Box():
-    def __init__(self, x1, x2, y1, y2, parents=[], min_xwidth=0, min_ywidth=0):
+    def __init__(self, x1, x2, y1, y2, parents=[], min_xwidth=0, min_ywidth=0, intensity=0):
         self.pt1 = Point(min(x1, x2), min(y1, y2))
         self.pt2 = Point(max(x1, x2), max(y1, y2))
         self.parents = parents
+        self.intensity = intensity
         
         if(self.pt2.x - self.pt1.x < min_xwidth):
             midpoint = self.pt1.x + ((self.pt2.x - self.pt1.x) / 2)
@@ -33,7 +36,7 @@ class Box():
     def __eq__(self, other_box): return self.pt1 == other_box.pt1 and self.pt2 == other_box.pt2
     def __hash__(self): return (self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y).__hash__()
     def area(self): return (self.pt2.x - self.pt1.x) * (self.pt2.y - self.pt1.y)
-    def copy(self, xshift=0, yshift=0): return type(self)(self.pt1.x + xshift, self.pt2.x + xshift, self.pt1.y + yshift, self.pt2.y + yshift)
+    def copy(self, xshift=0, yshift=0): return type(self)(self.pt1.x + xshift, self.pt2.x + xshift, self.pt1.y + yshift, self.pt2.y + yshift, parents=self.parents, intensity=self.intensity)
     def shift(self, xshift=0, yshift=0):
         self.pt1.x += xshift
         self.pt2.x += xshift
@@ -83,17 +86,25 @@ class GenericBox(Box):
         split_boxes = []
         if(other_box.pt1.x > self.pt1.x):
             x1 = other_box.pt1.x
-            split_boxes.append(GenericBox(self.pt1.x, x1, y1, y2, parents=self.parents))
+            split_boxes.append(GenericBox(self.pt1.x, x1, y1, y2, parents=self.parents, intensity=self.intensity))
         if(other_box.pt2.x < self.pt2.x):
             x2 = other_box.pt2.x
-            split_boxes.append(GenericBox(x2, self.pt2.x, y1, y2, parents=self.parents))
+            split_boxes.append(GenericBox(x2, self.pt2.x, y1, y2, parents=self.parents, intensity=self.intensity))
         if(other_box.pt1.y > self.pt1.y):
             y1 = other_box.pt1.y
-            split_boxes.append(GenericBox(x1, x2, self.pt1.y, y1, parents=self.parents))
+            split_boxes.append(GenericBox(x1, x2, self.pt1.y, y1, parents=self.parents, intensity=self.intensity))
         if(other_box.pt2.y < self.pt2.y):
             y2 = other_box.pt2.y
-            split_boxes.append(GenericBox(x1, x2, y2, self.pt2.y, parents=self.parents))
+            split_boxes.append(GenericBox(x1, x2, y2, self.pt2.y, parents=self.parents, intensity=self.intensity))
         return split_boxes
+        
+    def split_all(self, other_box):
+        if(not self.overlaps_with_box(other_box)): return None, None, None
+        both_parents = self.top_level_boxes() + other_box.top_level_boxes()
+        both_box = type(self)(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x), max(self.pt1.y, other_box.pt1.y), min(self.pt2.y, other_box.pt2.y), parents=both_parents, intensity=max(self.intensity, other_box.intensity))
+        b1_boxes = self.non_overlap_split(other_box)
+        b2_boxes = other_box.non_overlap_split(self)
+        return b1_boxes, b2_boxes, both_box
         
 class Grid():
 
@@ -154,21 +165,24 @@ class LocatorGrid(Grid):
     def init_boxes(rtboxes, mzboxes):
         arr = np.empty((max(rtboxes), max(mzboxes)), dtype=object)
         for i, row in enumerate(arr):
-            for j, _ in enumerate(row): arr[i, j] = list() 
+            for j, _ in enumerate(row): arr[i, j] = set()
         return arr
     
     def get_boxes(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
-        boxes = []
+        boxes = set()
         for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
-            for ls in row: boxes.append(ls)
+            for s in row: boxes |= s
         return boxes
         
-    @staticmethod
-    def dummy_non_overlap(box, *other_boxes): return 1.0   
+    def all_boxes(self):
+        return reduce(lambda s1, s2: s1 | s2, (s for row in self.boxes for s in row))
         
     @staticmethod
-    def splitting_non_overlap(box, *other_boxes):
+    def dummy_non_overlap(box, other_boxes): return 1.0
+        
+    @staticmethod
+    def splitting_non_overlap(box, other_boxes):
         new_boxes = [box]
         for b in other_boxes: #filter boxes down via grid with large boxes for this loop + boxes could be potentially sorted by size (O(n) insert time in worst-case)?
             if(box.overlaps_with_box(b)): #quickly exits any box not overlapping new box
@@ -183,12 +197,70 @@ class LocatorGrid(Grid):
         return sum(b.area() for b in new_boxes) / box.area()
         
     def non_overlap(self, box):
-        return self.splitting_non_overlap(box, *itertools.chain(*self.get_boxes(box)))
+        return self.splitting_non_overlap(box, self.get_boxes(box))
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
-            for ls in row: ls.append(box)
+            for s in row: s.add(box)
+            
+class AllOverlapGrid(LocatorGrid):
+    @staticmethod
+    def split_all_boxes(box, other_boxes):
+        this_non, other_non, overlaps = [box], [], []
+        for other in other_boxes:
+            if(box.overlaps_with_box(other)):
+                updated_this, others = [], [other]
+                for i, this in enumerate(this_non):
+                    if(others == []):
+                        updated_this.extend(this_non[i:])
+                        break
+                    updated_others, split = [], False
+                    for o in others:
+                        this_bs, other_bs, both_b = this.split_all(o)
+                        if(not both_b is None):
+                            overlaps.append(both_b)
+                            split = True
+                            updated_this.extend(this_bs)
+                            updated_others.extend(other_bs)
+                        else: updated_others.append(o)
+                    if(not split): updated_this.append(this)
+                    others = updated_others
+                other_non.extend(others)
+                this_non = updated_this
+            else:
+                other_non.append(other)
+        return this_non, other_non, overlaps
+            
+    def intensity_non_overlap(self, box, current_intensity):
+        box = box.copy()
+        box.intensity = 0.0
+        other_boxes = self.get_boxes(box)
+        this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
+        non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
+        refragment = sum(max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
+        return non_overlap + refragment
+            
+    def register_box(self, box):
+        other_boxes = self.get_boxes(box)
+        this_non, other_non, overlaps = self.split_all_boxes(box, other_boxes)
+        for b in other_boxes:
+            if(box.overlaps_with_box(b)):
+                rt_box_range, mz_box_range, _ = self.get_box_ranges(b)
+                for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
+                    for s in row: s.remove(b)
+        
+        for b in itertools.chain(this_non, other_non, overlaps):
+            rt_box_range, mz_box_range, _ = self.get_box_ranges(b)
+            for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
+                for s in row: s.add(b)
+                
+    def boxes_by_overlaps(self, boxes=None):
+        binned, boxes = [], self.all_boxes() if boxes is None else reduce(lambda bs, b: [bx for t in self.split_all_boxes(b, bs) for bx in t], boxes, [])
+        for b in boxes:
+            while(len(binned) < b.num_overlaps()): binned.append([])
+            binned[b.num_overlaps() - 1].append(b)
+        return binned
 
 class DriftModel():
     @abstractmethod
@@ -337,6 +409,7 @@ class GridEstimator():
         self.injection_count = 0
     
     def non_overlap(self, box): return self.grid.non_overlap(box)
+    def intensity_non_overlap(self, box, current_intensity): return self.grid.intensity_non_overlap(box, current_intensity)
     def register_roi(self, roi): self.pending_ms2s.append(roi)
     def get_estimator(self):
         fn = self.drift_models[self.injection_count].get_estimator(self.injection_count)

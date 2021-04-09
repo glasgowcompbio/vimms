@@ -110,13 +110,13 @@ class Roi(object):
             self.mz_list[0], self.mz_list[-1],
             self.rt_list[0], self.rt_list[-1])
 
-    def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0): 
+    def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         return GenericBox(min(self.rt_list) + rt_shift, max(self.rt_list) + rt_shift, min(self.mz_list) + mz_shift, max(self.mz_list) + mz_shift,
-                          min_xwidth=min_rt_width, min_ywidth=min_mz_width)
+                          min_xwidth=min_rt_width, min_ywidth=min_mz_width, intensity=self.max_fragmentation_intensity)
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
-       #print(roi_box)
+        #print(roi_box)
         overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
 

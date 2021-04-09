@@ -187,16 +187,15 @@ class RoiController(TopNController):
 
     def _get_scores(self):
         NotImplementedError()
+        
+    def _score_filters(self):
+        intensity_filter = (np.array(self.current_roi_intensities) > self.min_ms1_intensity)
+        time_filter = np.logical_not(self.scan_to_process.rt - np.array(self.live_roi_last_rt, dtype=np.double) < self.rt_tol) #Handles None values by converting to NaN for which all comparisons return 0
+        length_filter = (self.current_roi_length >= self.min_roi_length_for_fragmentation)
+        return intensity_filter * time_filter * length_filter
 
     def _get_dda_scores(self):
-        scores = np.log(self.current_roi_intensities)  # log intensities
-        scores *= (np.array(self.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
-        time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
-        time_filter[time_filter == 0] = (
-                (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
-        scores *= time_filter
-        scores *= (self.current_roi_length >= self.min_roi_length_for_fragmentation)
-        return scores
+        return np.log(self.current_roi_intensities) * self._score_filters()
 
     def _get_top_N_scores(self, scores):
         if len(scores) > self.N:  # number of fragmentation events filter

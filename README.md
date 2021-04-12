@@ -67,7 +67,7 @@ ViMMS requires Python 3+. Unfortunately it is not compatible with Python 2. You 
 You can download the latest stable release (1.0) used in our original ViMMS paper from here: <a href="https://zenodo.org/badge/latestdoi/196360601"><img src="https://zenodo.org/badge/196360601.svg" alt="DOI"></a>
 The stable version contains the simulator element up to the first paper, but it is fairly out-of-date now. 
 
-A newer stable (2.0) release that contained many new controllers and code improvements can be found here: https://github.com/sdrogers/vimms/releases/tag/2.0.0.
+A newer stable (2.0) release that contained many new controllers and code improvements as featured in the [Analytical Chemistry](https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895) paper can be found here: https://github.com/glasgowcompbio/vimms/releases/tag/V2.0.0.
 
 For more cutting-edge stuff, please check out the development version below. 
 
@@ -115,7 +115,7 @@ To reference the ViMMS simulator in your work, please cite our paper:
 - Wandy, Joe, et al. "*In Silico Optimization of Mass Spectrometry Fragmentation Strategies in Metabolomics.*" Metabolites 9.10 (2019): 219. https://www.mdpi.com/2218-1989/9/10/219
 
 If you develop new controllers on top of ViMMS, please also cite the following paper: 
-- Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" bioRxiv (2020). https://www.biorxiv.org/content/10.1101/2020.09.11.293092v1.abstract (**pre-print**)
+- Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" Analytical Chemistry (2020). https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895
 
 Conferences and Poster Presentations
 ------------------------------------

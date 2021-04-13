@@ -111,11 +111,13 @@ To see test output, add the `-s` switch, e.g.:
 Publications
 ------------
 
+The following publications have been written for works on ViMMS.
+
 To reference the ViMMS simulator in your work, please cite our paper:
 - Wandy, Joe, et al. "*In Silico Optimization of Mass Spectrometry Fragmentation Strategies in Metabolomics.*" Metabolites 9.10 (2019): 219. https://www.mdpi.com/2218-1989/9/10/219
 
 If you develop new controllers on top of ViMMS, please also cite the following paper: 
-- Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" Analytical Chemistry (2020). https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895
+- Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" Analytical Chemistry (2020). https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895 ([data](http://researchdata.gla.ac.uk/1137/))
 
 Conferences and Poster Presentations
 ------------------------------------

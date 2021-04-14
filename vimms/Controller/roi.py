@@ -413,12 +413,21 @@ class TopNBoxRoiController(RoiController):
             for box in copy_boxes:
                 box.pt2.x = min(box.pt2.x, max(self.last_ms1_rt, box.pt1.x))
             prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)), [0 for i in self.boxes_intensity])
+            box_fragmented = (np.array(self.boxes_intensity) == 0) * 1
             for i in range(len(log_intensities)):
                 overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
-                score = max(0, (1-sum(overlaps))) * log_intensities[i] * time_filter[i]  # new peaks
-                old_peaks_score = self.boxes_params['theta1'] * sum(overlaps * (log_intensities[i] - prev_intensity))  # old peaks
-                score += old_peaks_score * time_filter[i]
+                # new peaks not in list of boxes
+                new_peaks_score = max(0, (1-sum(overlaps))) * log_intensities[i]
+                # previously fragmented peaks
+                old_peaks_score1 = sum(overlaps * (log_intensities[i] - prev_intensity) * (1 - box_fragmented))
+                # peaks seen before, but not fragmented
+                old_peaks_score2 = sum(overlaps * log_intensities[i] * box_fragmented)
+                # get the score
+                score = self.boxes_params['theta1'] * new_peaks_score
+                score += self.boxes_params['theta2'] * old_peaks_score1
+                score += self.boxes_params['theta3'] * old_peaks_score2
+                score *= time_filter[i]
                 score *= intensity_filter  # check intensity meets minimal requirement
                 score *= (score > self.boxes_params['min_score']) # check meets min score
                 initial_scores.append(score[0])

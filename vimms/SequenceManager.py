@@ -18,8 +18,7 @@ from sklearn.linear_model import LogisticRegression
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import create_if_not_exist, save_obj, load_obj
 from vimms.Controller import TopNController, PurityController, WeightedDEWController
-from vimms.Controller.roi import get_box_intensity, TopN_RoiController, TopN_SmartRoiController, \
-    Repeated_SmartRoiController, CaseControl_SmartRoiController, DsDA_RoiController, Probability_RoiController
+from vimms.Controller.roi import get_box_intensity, TopN_RoiController, TopN_SmartRoiController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
@@ -585,12 +584,9 @@ class CompletedExperiment(BasicExperiment):
 
 
 POSSIBLE_CONTROLLER_DICT = {'TopN_RoiController': TopNController,
-                            'DsDA_RoiController': DsDA_RoiController,
                             'TopNController': TopNController,
                             'PurityController': PurityController,
                             'TopN_SmartRoiController': TopN_SmartRoiController,
-                            'Repeated_SmartRoiController': Repeated_SmartRoiController,
-                            'CaseControl_SmartRoiController': CaseControl_SmartRoiController,
                             'WeightedDewController': WeightedDEWController}
 
 
@@ -630,51 +626,6 @@ def create_controller(controller_method, param_dict):
                                              param_dict['reset_length_seconds'],
                                              param_dict['intensity_increase_factor'], param_dict['length_units'],
                                              param_dict['drop_perc'], param_dict['ms1_shift'], param_dict['params'])
-
-    elif controller_method == "Repeated_SmartRoiController":
-        controller = Repeated_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
-                                                 param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                                 param_dict['min_roi_intensity'], param_dict['min_roi_length'],
-                                                 param_dict['N'], param_dict['rt_tol'],
-                                                 param_dict['min_roi_length_for_fragmentation'],
-                                                 param_dict['reset_length_seconds'],
-                                                 param_dict['intensity_increase_factor'], param_dict['length_units'],
-                                                 param_dict['drop_perc'], param_dict['peak_boxes'],
-                                                 param_dict['peak_box_scores'], param_dict['box_increase_factor'],
-                                                 param_dict['box_decrease_factor'], param_dict['box_mz_tol'],
-                                                 param_dict['ms1_shift'], param_dict['params'])
-
-    elif controller_method == "CaseControl_SmartRoiController":
-        controller = CaseControl_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
-                                                    param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                                    param_dict['min_roi_intensity'], param_dict['min_roi_length'],
-                                                    param_dict['N'], param_dict['rt_tol'],
-                                                    param_dict['min_roi_length_for_fragmentation'],
-                                                    param_dict['reset_length_seconds'],
-                                                    param_dict['intensity_increase_factor'], param_dict['length_units'],
-                                                    param_dict['drop_perc'], param_dict['peak_boxes'],
-                                                    param_dict['peak_box_scores'], param_dict['box_increase_factor'],
-                                                    param_dict['box_decrease_factor'], param_dict['box_mz_tol'],
-                                                    param_dict['coef_scale'], param_dict['model_scores'],
-                                                    param_dict['ms1_shift'], param_dict['params'])
-
-    elif controller_method == 'DsDA_RoiController':
-        controller = DsDA_RoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
-                                        param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                        param_dict['min_roi_intensity'], param_dict['min_roi_length'], param_dict['N'],
-                                        param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
-                                        param_dict['length_units'], param_dict['peak_df'], param_dict['peak_scores'],
-                                        param_dict['ms1_shift'], param_dict['params'])
-
-    elif controller_method == 'Probability_RoiController':
-        controller = Probability_RoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
-                                               param_dict['mz_tol'], param_dict['min_ms1_intensity'],
-                                               param_dict['min_roi_intensity'], param_dict['probability_method'],
-                                               param_dict['model_params'], param_dict['min_roi_length'],
-                                               param_dict['N'], param_dict['rt_tol'],
-                                               param_dict['min_roi_length_for_fragmentation'],
-                                               param_dict['length_units'], param_dict['ms1_shift'],
-                                               param_dict['params'])
 
     elif controller_method == 'TopNController':
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],

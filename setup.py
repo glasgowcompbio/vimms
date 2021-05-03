@@ -25,7 +25,7 @@ setup(
         "atomicwrites==1.4.0; sys_platform == 'win32'",
         "attrs==20.2.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "backcall==0.2.0",
-        "bleach==3.2.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
+        "bleach==3.3.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
         "certifi==2020.6.20",
         "cffi==1.14.3; os_name == 'nt' and implementation_name != 'pypy'",
         "chardet==3.0.4",

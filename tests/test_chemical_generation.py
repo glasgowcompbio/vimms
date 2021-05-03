@@ -106,10 +106,10 @@ class TestDatabaseCreation:
         for c in cl:
             check_chems(c)
             # with these settings all chemicals should be in all lists with identical intensities
-            originals = [f.original_chemical for f in c]
+            originals = [f.base_chemical for f in c]
             assert len(set(originals)) == len(d)
             for f in c:
-                assert f.max_intensity == f.original_chemical.max_intensity
+                assert f.max_intensity == f.base_chemical.max_intensity
 
         group_dict = {'case': {'missing_probability': 1., 'changing_probability': 0}}
 
@@ -139,7 +139,7 @@ class TestDatabaseCreation:
         for i, c in enumerate(cl):
             if group_list[i] == 'case':
                 for f in c:
-                    assert not f.max_intensity == f.original_chemical.max_intensity
+                    assert not f.max_intensity == f.base_chemical.max_intensity
 
 
 class TestMS2Sampling:

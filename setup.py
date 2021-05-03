@@ -82,7 +82,7 @@ setup(
         "patsy==0.5.1",
         "pbr==5.5.0; python_version >= '2.6'",
         "pickleshare==0.7.5",
-        "pillow==7.2.0; python_version >= '3.5'",
+        "pillow==8.1.1; python_version >= '3.5'",
         "pluggy==0.13.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "prometheus-client==0.8.0",
         "prompt-toolkit==3.0.7; python_full_version >= '3.6.1'",

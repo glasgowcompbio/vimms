@@ -46,7 +46,7 @@ setup(
         "ipython-genutils==0.2.0",
         "ipywidgets==7.5.1",
         "jedi==0.17.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
-        "jinja2==2.11.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
+        "jinja2==2.11.3; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
         "joblib==0.17.0",
         "json5==0.9.5",
         "jsonpickle==1.4.1",

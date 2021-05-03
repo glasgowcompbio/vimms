@@ -624,10 +624,11 @@ class MultiSampleCreator(object):
                                                                len(self.original_dataset)))[0])
             if self.dropout_probabilities is None and self.dropout_numbers is not None:
                 # new_missing = random.sample(range(0, len(self.original_dataset)), self.dropout_numbers)
-                #  CHANGED BY SR, no testing. 
+                #  CHANGED BY SR, no testing.
                 new_missing = list(np.random.choice(range(0, len(self.original_dataset)), self.dropout_numbers))
             missing.append(new_missing)
-            missing = [list(x) for x in set(tuple(sorted(x)) for x in missing)]
+            if missing[-1]!=[]:
+                missing = [list(x) for x in set(tuple(sorted(x)) for x in missing)]
         return missing
 
     def _get_experimental_statuses(self):
@@ -750,6 +751,10 @@ class ChemicalMixtureCreator(object):
 class MultipleMixtureCreator(object):
     def __init__(self, master_chemical_list, group_list, group_dict,
                  intensity_noise=GaussianPeakNoise(sigma=0.001, log_space=True), overall_missing_probability=0.0):
+        # example
+        # group_list = ['control', 'control', 'case', 'case']
+        # group_dict = {'control': {'missing_probability': 0.0, 'changing_probability': 0.0},
+        #               'case': {'missing_probability': 0.0, 'changing_probability': 0.0}}
         self.master_chemical_list = master_chemical_list
         self.group_list = group_list
         self.group_dict = group_dict
@@ -790,7 +795,7 @@ class MultipleMixtureCreator(object):
                 # make a new known chemical
                 new_chemical = copy.deepcopy(chemical)
                 new_chemical.max_intensity = new_intensity
-                new_chemical.original_chemical = chemical
+                new_chemical.base_chemical = chemical
                 new_list.append(new_chemical)
             chemical_lists.append(new_list)
         return chemical_lists
@@ -864,4 +869,19 @@ class ChemicalMixtureFromMZML(object):
 
         return chemicals
 
+
+def get_pooled_sample(dataset_list):
+    '''takes a list of datasets and creates a pooled dataset from them'''
+    n_datasets = len(dataset_list)
+    all_chems = np.array([item for sublist in dataset_list for item in sublist])
+    unique_parents = list(set([chem.base_chemical for chem in all_chems]))
+    # create dataset
+    dataset = []
+    for chem in unique_parents:
+        matched_chemicals = all_chems[np.where(all_chems == chem)[0]]
+        new_intensity = sum([mchem.max_intensity for mchem in matched_chemicals]) / n_datasets
+        new_chem = copy.deepcopy(chem)
+        new_chem.max_intensity = new_intensity
+        dataset.append(new_chem)
+    return dataset
 

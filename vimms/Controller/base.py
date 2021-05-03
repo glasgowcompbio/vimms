@@ -68,6 +68,7 @@ class Controller(object):
         self.initial_scan_id = INITIAL_SCAN_ID
         self.current_task_id = self.initial_scan_id
         self.processing_times = []
+        self.last_ms1_rt = 0.0
 
     def get_ms1_scan_params(self, metadata=None):
         task = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode,
@@ -127,6 +128,10 @@ class Controller(object):
         # plot scan if there are peaks
         if scan.num_peaks > 0:
             self._plot_scan(scan)
+
+        # update ms1 time (used for ROI matching)
+        if scan.ms_level == 1:
+            self.last_ms1_rt = scan.rt
 
         # we get an ms1 scan and it has some peaks AND all the pending tasks have been sent and processed AND
         # this ms1 scan is a custom scan we'd sent before (not a method scan)

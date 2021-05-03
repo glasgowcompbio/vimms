@@ -9,7 +9,7 @@ from vimms.Controller.box import NonOverlapController
 from vimms.Environment import Environment
 from vimms.Noise import GaussianPeakNoise
 from vimms.Common import *
-from vimms.Box import GenericBox, Grid, DictGrid, ArrayGrid, LocatorGrid
+from vimms.Box import GenericBox, Grid, DictGrid, ArrayGrid, LocatorGrid, AllOverlapGrid, GridEstimator, IdentityDrift
 
 class BoxEnv():
     def __init__(self, min_rt, max_rt, max_mz, min_xlen, max_xlen, min_ylen, max_ylen):
@@ -27,7 +27,7 @@ class BoxEnv():
         y1 = random.uniform(0, self.max_mz-self.max_ylen)
         xlen = random.uniform(self.min_xlen, self.max_xlen)
         ylen = random.uniform(self.min_ylen, self.max_ylen)
-        return GenericBox(x1, x1 + xlen, y1, y1 + ylen)
+        return GenericBox(x1, x1 + xlen, y1, y1 + ylen, intensity=1)
         
     @classmethod
     def random_boxenv(cls):
@@ -55,12 +55,20 @@ class TestEnv(BoxEnv):
         return boxenv
     
     def test_simple_splitter(self):
-        return [[LocatorGrid.splitting_non_overlap(box, *itertools.chain(*self.boxes_by_injection[:i]), *inj[:j]) for j, box in enumerate(inj)] for i, inj in enumerate(self.boxes_by_injection)]
+        return [[LocatorGrid.splitting_non_overlap(box, itertools.chain(*self.boxes_by_injection[:i], inj[:j])) for j, box in enumerate(inj)] for i, inj in enumerate(self.boxes_by_injection)]
 
     def test_non_overlap(self, grid_class, rt_box_size, mz_box_size):
         self.init_grid(grid_class, rt_box_size, mz_box_size)
         def score_box(box):
             score = self.grid.non_overlap(box)
+            self.grid.register_box(box)
+            return score
+        return [[score_box(b) for b in inj] for inj in self.boxes_by_injection]
+        
+    def test_intensity_non_overlap(self, grid_class, rt_box_size, mz_box_size):
+        self.init_grid(grid_class, rt_box_size, mz_box_size)
+        def score_box(box):
+            score = self.grid.intensity_non_overlap(box, box.intensity)
             self.grid.register_box(box)
             return score
         return [[score_box(b) for b in inj] for inj in self.boxes_by_injection]
@@ -71,7 +79,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
     ionisation_mode, isolation_width = POSITIVE, 1
     N, rt_tol, mz_tol, min_ms1_intensity = 10, 15, 10, 5000
     min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation = 500, 3, 3
-    grid = LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size)
+    grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
     
     hmdbpath = os.path.join(os.path.abspath(os.getcwd()), "..", "..", "tests", "fixtures", "hmdb_compounds.p")
     hmdb = load_obj(hmdbpath)
@@ -124,6 +132,13 @@ def main():
         scores_by_injection_4, exact_grid_time = Timer().time_f(lambda: boxenv.test_non_overlap(LocatorGrid, rt_box_size, mz_box_size))
         pretty_print(scores_by_injection_4)
         
+        def compare_scores(scores_1, scores_2):
+           return {i : (x, y) for i, (x, y) in enumerate(zip(itertools.chain(*scores_1), itertools.chain(*scores_2))) if not math.isclose(x, y)}
+        
+        print("Differences between grid + no grid:", compare_scores(scores_by_injection_3, scores_by_injection_4))
+        #note: below non_overlap (not multiplied by intensity) + intensity_non_overlap should have same behaviour assuming that all box intensities are 1
+        print("Differences between no intensity and intensity overlap:", compare_scores(scores_by_injection_4, boxenv.test_intensity_non_overlap(AllOverlapGrid, rt_box_size, mz_box_size)))
+        
         print("\nDictGrid Time Taken: {}".format(dict_time))
         print("BoolArray Time Taken: {}".format(array_time))
         print("BoxSplitting Time Taken: {}".format(exact_time))
@@ -139,8 +154,9 @@ def main():
     run_area_calcs(boxenv, (boxenv.max_rt - boxenv.min_rt) / 10000, boxenv.max_mz / 10000)
     
     boxenv = TestEnv(0, 50, 50, 2, 3, 2, 3)
-    boxenv.boxes_by_injection = [[GenericBox(0, 10, 0, 30), GenericBox(5, 15, 0, 30), GenericBox(0, 10, 15, 45), GenericBox(0, 17, 0, 30)]]
+    boxenv.boxes_by_injection = [[GenericBox(0, 10, 0, 30, intensity=1), GenericBox(5, 15, 0, 30, intensity=2), GenericBox(0, 10, 15, 45, intensity=3), GenericBox(0, 17, 0, 30, intensity=4)]]
     run_area_calcs(boxenv, 0.2, 0.2)
+    print("Intensity Non-Overlap Scores: ", boxenv.test_intensity_non_overlap(AllOverlapGrid, 0.2, 0.2))
     
     print()
     
@@ -152,7 +168,8 @@ def main():
     print()
     
     boxenv = TestEnv(0, 1440, 1500, 0, 0, 0, 0)
-    boxenv.boxes_by_injection = run_vimms(20, (boxenv.max_rt - boxenv.min_rt) / 150, boxenv.max_mz / 150)
+    vimms_boxes = run_vimms(20, (boxenv.max_rt - boxenv.min_rt) / 150, boxenv.max_mz / 150)
+    boxenv.boxes_by_injection = vimms_boxes
     run_area_calcs(boxenv, 0.2, 0.01)
     
     print()
@@ -163,4 +180,16 @@ def main():
     from statistics import mean
     def box_lengths(b): return b.pt2.x - b.pt1.x, b.pt2.y - b.pt1.y
     print("Avg. xlen == {}, Avg. ylen == {}".format(*map(mean, zip(*(box_lengths(b) for inj in boxenv.boxes_by_injection for b in inj)))))
-main()
+
+    boxenv = TestEnv(0, 1440, 1500, 0, 0, 0, 0)
+    boxenv.boxes_by_injection = vimms_boxes
+    grid = AllOverlapGrid(0, 2000, 100, 0, 3000, 100)
+    _, time = Timer().time_f(lambda: grid.boxes_by_overlaps(boxes=itertools.chain(*boxenv.boxes_by_injection)))
+    print(f"Time taken for split all no grid: {time}")
+    def split_all():
+        for b in itertools.chain(*boxenv.boxes_by_injection): grid.register_box(b)
+        return grid.boxes_by_overlaps()
+    _, time = Timer().time_f(split_all)
+    print(f"Time taken for split all grid: {time}")
+
+if __name__ == "__main__": main()

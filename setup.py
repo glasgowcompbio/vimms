@@ -87,7 +87,7 @@ setup(
         "prometheus-client==0.8.0",
         "prompt-toolkit==3.0.7; python_full_version >= '3.6.1'",
         "psims==0.1.31",
-        "py==1.9.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+        "py==1.10.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "pycodestyle==2.6.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "pycparser==2.20; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
         "pydoe==0.3.8",

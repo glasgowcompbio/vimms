@@ -3,6 +3,7 @@ import math
 from collections import OrderedDict
 
 import numpy as np
+import sys
 import pandas as pd
 import pylab as plt
 import pymzml
@@ -14,6 +15,7 @@ import statsmodels.api as sm
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
 from vimms.Box import GenericBox
+from vimms.Evaluation import *
 
 from mass_spec_utils.data_processing.alignment import BoxJoinAligner, Peak, PeakSet
 import statsmodels.api as sm
@@ -443,123 +445,6 @@ def plot_roi(roi, statuses=None, log=False):
     plt.show()
 
 
-# class RoiAligner(BoxJoinAligner):
-#     def __init__(self, mz_tolerance_absolute=0.01,
-#                  mz_tolerance_ppm=10,
-#                  rt_tolerance=0.5,
-#                  mz_column_pos=1,
-#                  rt_column_pos=2,
-#                  intensity_column_pos=3,
-#                  min_rt_width=0.01,
-#                  min_mz_width=0.01,
-#                  rt_shift=0,
-#                  mz_shift=0):
-#         super().__init__(mz_tolerance_absolute,
-#                          mz_tolerance_ppm,
-#                          rt_tolerance,
-#                          mz_column_pos,
-#                          rt_column_pos,
-#                          intensity_column_pos)
-#         self.sample_names = []
-#         self.sample_types = []
-#         self.min_rt_width = min_rt_width
-#         self.min_mz_width = min_mz_width
-#         self.rt_shift = rt_shift
-#         self.mz_shift = mz_shift
-#         self.peaksets2fragintensities = {}
-#
-#     def add_sample(self, rois, sample_name, sample_type=None):
-#         self.sample_names.append(sample_name)
-#         self.sample_types.append(sample_type)
-#         these_peaks = []
-#         frag_intensities = []
-#         for i, roi in enumerate(rois):
-#             source_id = sample_name + '_' + str(i)
-#             peak_mz = roi.get_mean_mz()
-#             peak_rt = roi.estimate_apex()
-#             peak_intensity = roi.get_max_intensity()
-#             these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
-#             frag_intensities.append(roi.max_fragmentation_intensity)
-#
-#         # create boxes
-#         temp_boxes = [roi.to_box(self.min_rt_width, self.min_mz_width, self.rt_shift, self.mz_shift) for roi in rois]
-#         # convert to dictionary for speedy lookup
-#         temp_boxes = {sample_name + '_' + str(i): box for i, box in enumerate(temp_boxes)}
-#         n_peaksets = len(self.peaksets)
-#         # do the alignment
-#         self._align(these_peaks, sample_name)
-#
-#         # add boxes to the *new* peaksets
-#         self._add_boxes_to_peaksets(temp_boxes, sample_name, n_peaksets)
-#
-#         # add fragmentation intensities
-#         frag_intensities = {sample_name + '_' + str(i): fint for i, fint in enumerate(frag_intensities)}
-#         self._update_fragmentation_intensity_to_peaksets(frag_intensities, sample_name, n_peaksets)
-#
-#     def _update_fragmentation_intensity_to_peaksets(self, frag_intensities, short_name, n_peaksets):
-#         for peakset in self.peaksets:
-#             if peakset in self.peaksets2fragintensities:
-#                 peak = peakset.peaks[-1]  # should only be one peak in the set
-#                 peak_id = peak.source_id
-#                 if peak_id not in frag_intensities:
-#                     print(peakset.peaks)
-#                     print(' ')
-#                     print(peak_id)
-#                     print(' ')
-#                     print(frag_intensities)
-#                 assert peak_id in frag_intensities
-#                 self.peaksets2fragintensities[peakset] = max(self.peaksets2fragintensities[peakset], frag_intensities[peak_id])
-#             else:
-#                 peak = peakset.peaks[0]  # should only be one peak in the set
-#                 assert peak.source_file == short_name
-#                 # get the box
-#                 peak_id = peak.source_id
-#                 assert peak_id in frag_intensities
-#                 self.peaksets2fragintensities[peakset] = frag_intensities[peak_id]
-#
-#     def _add_boxes_to_peaksets(self,temp_boxes,short_name,n_peaksets):
-#         for peakset in self.peaksets[n_peaksets:]:
-#             assert not peakset in self.peaksets2boxes
-#             peak = peakset.peaks[0] # should only be one peak in the set
-#             assert peak.source_file == short_name
-#             # get the box
-#             peak_id = peak.source_id
-#             assert peak_id in temp_boxes
-#
-#             self.peaksets2boxes[peakset] = temp_boxes[peak_id]
-#
-#     def get_pvalues(self):
-#         p_values = []
-#         boxes = self.to_boxes()
-#         # sort X
-#         X = np.array(self.to_matrix())
-#         # sort y
-#         categories = np.unique(np.array(self.sample_types))
-#         if len(categories) < 2:
-#             return p_values, boxes
-#         elif len(categories) == 2:  # logistic regression
-#             x = np.array([1 for i in self.sample_types])
-#             if 'control' in categories:
-#                 control_type = 'control'
-#             else:
-#                 control_type = categories[0]
-#             x[np.where(np.array(self.sample_types) == control_type)] = 0
-#             x = sm.add_constant(x)
-#             for i in range(X.shape[0]):
-#                 y = np.log(X[i, :] + 1)
-#                 model = sm.OLS(y, x)
-#                 p_values.append(model.fit(disp=0).pvalues[1])
-#         else:  # classification
-#             pass
-#         return p_values, boxes
-#
-#     def to_boxes(self):
-#         return [self.peaksets2boxes[ps] for ps in self.peaksets]
-#
-#     def to_intensities(self):
-#         return [self.peaksets2fragintensities[ps] for ps in self.peaksets]
-
-
 class RoiAligner(object):
     def __init__(self,mz_tolerance_absolute = 0.01,
                  mz_tolerance_ppm = 10,
@@ -589,24 +474,67 @@ class RoiAligner(object):
         self.mz_shift = mz_shift
         self.peaksets2boxes = {}
         self.peaksets2fragintensities = {}
+        self.addition_method = None
 
     def add_sample(self, rois, sample_name, sample_type=None):
-        self.sample_names.append(sample_name)
-        self.sample_types.append(sample_type)
-        these_peaks = []
-        frag_intensities = []
-        temp_boxes = []
-        for i, roi in enumerate(rois):
-            source_id = sample_name + '_' + str(i)
-            peak_mz = roi.get_mean_mz()
-            peak_rt = roi.estimate_apex()
-            peak_intensity = roi.get_max_intensity()
-            these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
-            frag_intensities.append(roi.max_fragmentation_intensity)
-            temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, self.rt_shift, self.mz_shift))
+        if self.addition_method is None or self.addition_method == 'rois':
+            self.addition_method == 'rois'
+            self.sample_names.append(sample_name)
+            self.sample_types.append(sample_type)
+            these_peaks = []
+            frag_intensities = []
+            temp_boxes = []
+            for i, roi in enumerate(rois):
+                source_id = sample_name + '_' + str(i)
+                peak_mz = roi.get_mean_mz()
+                peak_rt = roi.estimate_apex()
+                peak_intensity = roi.get_max_intensity()
+                these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
+                frag_intensities.append(roi.max_fragmentation_intensity)
+                temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, self.rt_shift, self.mz_shift))
 
-        # do alignment, adding the peaks and boxes, and recalculating max frag intensity
-        self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
+            # do alignment, adding the peaks and boxes, and recalculating max frag intensity
+            self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
+        else:
+            print('Can only align Rois with Rois. File not added to alignment.')
+            pass
+
+    def add_picked_peaks(self, mzml_file, peak_file, sample_name, picking_method='mzmine', sample_type=None,
+                         half_isolation_window=1, allow_last_overlap=False, scan_shift_seconds=0):
+        if self.addition_method is None or self.addition_method == 'peaks':
+            self.addition_method == 'peaks'
+            self.sample_names.append(sample_name)
+            self.sample_types.append(sample_type)
+            these_peaks = []
+            frag_intensities = []
+            # load boxes
+            if picking_method == 'mzmine':
+                temp_boxes = load_picked_boxes(peak_file)
+            elif picking_method == 'peakonly':
+                temp_boxes = load_peakonly_boxes(peak_file)  # not tested
+            elif picking_method == 'xcms':
+                temp_boxes = load_xcms_boxes(peak_file)  # not tested
+            else:
+                sys.exit('Method not supported')
+            # Searching in boxes
+            mzml = MZMLFile(mzml_file)
+            scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
+                                                          allow_last_overlap=allow_last_overlap,
+                                                          scan_shift_seconds=scan_shift_seconds)
+            precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, 'max')
+            for i, box in enumerate(temp_boxes):
+                source_id = sample_name + '_' + str(i)
+                peak_mz = box.mz
+                peak_rt = box.rt_in_seconds
+                these_peaks.append(Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
+                frag_intensities.append(precursor_intensities[i])
+
+            # do alignment, adding the peaks and boxes, and recalculating max frag intensity
+            self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
+        else:
+            print('Can only align Peaks with Peaks. File not added to alignment.')
+            pass
+        print('peaksets', len(self.peaksets))
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
         if len(self.peaksets) == 0:
@@ -729,4 +657,48 @@ def calculate_chemical_p_values(datasets, group_list, base_chemicals):
         model = sm.OLS(y, x)
         p_values.append(model.fit(disp=0).pvalues[1])
     return p_values
+
+
+def get_precursor_intensities(boxes2scans, boxes, method):
+    assert method in ['max', 'first']
+    precursor_intensities = []
+    scores = []
+    for i, box in enumerate(boxes):
+        if box in boxes2scans:
+            scans = boxes2scans[box]
+            scans = sorted(scans, key=lambda s: s.rt_in_seconds)
+
+            # A box can be linked to multiple ms2 scans.
+            # Here we get all the ms2 scans that overlap a box.
+            # For each ms2 scan, we then find its precursor intensity using the last ms1 scan
+            box_intensities = []
+            for ms2_scan in scans:
+                precursor = ms2_scan.previous_ms1.get_precursor(ms2_scan.precursor_mz)
+                if precursor is not None:
+                    box_intensities.append(precursor[1]) # precursor is (mz, intensity)
+
+            if method == 'max':
+                # for each box, get the max precursor intensity
+                if len(box_intensities) > 0:
+                    intensity = max(box_intensities)
+                    score = intensity / box.height
+                    precursor_intensities.append(intensity)
+                    scores.append(score)
+                else:
+                    precursor_intensities.append(0.0)
+                    scores.append(0.0)
+
+            elif method == 'first':
+                # for each box, get the first precursor intensity (smallest RT)
+                intensity = box_intensities[0]
+                score = intensity / box.height
+                precursor_intensities.append(intensity)
+                scores.append(score)
+        else:
+            precursor_intensities.append(0.0)
+            scores.append(0.0)
+
+    precursor_intensities = np.array(precursor_intensities)
+    scores = np.array(scores)
+    return precursor_intensities, scores
 

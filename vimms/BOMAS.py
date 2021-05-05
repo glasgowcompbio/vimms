@@ -1,29 +1,25 @@
+import ax
+import numpy as np
+from ax import *
+from ax.modelbridge.registry import Models
+from ax.service.utils.instantiation import parameter_from_json
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
+from mass_spec_utils.data_import.mzml import MZMLFile
+
+from vimms.Box import *
 from vimms.Common import *
-from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import TopNController,TopN_SmartRoiController,WeightedDEWController, TopN_RoiController, \
+from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
-from vimms.Box import *
-from vimms.Roi import RoiAligner, calculate_chemical_p_values
-
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_import.mzmine import load_picked_boxes,map_boxes_to_scans
-
-import torch
-import numpy as np
-from ax.service.managed_loop import optimize
-from ax.service.utils.instantiation import parameter_from_json
-import ax
-from ax import *
-from ax.modelbridge.registry import Models
+from vimms.Roi import RoiAligner
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
     boxes = load_picked_boxes(box_file)
     mz_file = MZMLFile(mzml_file)
-    scans2boxes,boxes2scans = map_boxes_to_scans(mz_file, boxes, half_isolation_window=half_isolation_window)
-    coverage = len(boxes2scans)
+    scans2boxes, boxes2scans = map_boxes_to_scans(mz_file, boxes, half_isolation_window=half_isolation_window)
+    coverage = len(boxes2scans) / len(boxes)
     return coverage
 
 
@@ -31,6 +27,9 @@ def run_env(mass_spec, controller, min_rt, max_rt, mzml_file):
     env = Environment(mass_spec, controller, min_rt, max_rt)
     env.run()
     env.write_mzML(None, mzml_file)
+    chems = [event.chem.__repr__() for event in env.mass_spec.fragmentation_events if event.ms_level > 1]
+    chemical_coverage = len(np.unique(np.array(chems))) / len(env.mass_spec.chemicals)
+    return chemical_coverage
 
 
 ########################################################################################################################
@@ -43,10 +42,39 @@ def top_n_evaluation(param_dict):
     params = load_obj(param_dict['params_file'])
     topn = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                           param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'], params=params)
-    run_env(mass_spec, topn, param_dict['min_rt'], param_dict['max_rt'], param_dict['save_file_name'])
+    chemical_coverage = run_env(mass_spec, topn, param_dict['min_rt'], param_dict['max_rt'],
+                                param_dict['save_file_name'])
     coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
                                        param_dict['half_isolation_window'])
-    return coverage
+    print('coverage', coverage)
+    print('chemical_coverage', chemical_coverage)
+    if param_dict['coverage_type'] == 'coverage':
+        return coverage
+    else:
+        return chemical_coverage
+
+
+def smart_roi_evaluation(param_dict):
+    mass_spec = load_obj(param_dict['mass_spec_file'])
+    params = load_obj(param_dict['params_file'])
+    smartroi = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_window'],
+                                       param_dict['mz_tol'], param_dict['min_ms1_intensity'],
+                                       param_dict['min_roi_intensity'], param_dict['min_roi_length'],
+                                       param_dict['N'], param_dict['rt_tol'],
+                                       param_dict['min_roi_length_for_fragmentation'],
+                                       param_dict['reset_length_seconds'],
+                                       param_dict['iif'], length_units="scans", drop_perc=param_dict['dp'] / 100,
+                                       ms1_shift=0, params=params)
+    chemical_coverage = run_env(mass_spec, smartroi, param_dict['min_rt'], param_dict['max_rt'],
+                                param_dict['save_file_name'])
+    coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
+                                       param_dict['half_isolation_window'])
+    print('coverage', coverage)
+    print('chemical_coverage', chemical_coverage)
+    if param_dict['coverage_type'] == 'coverage':
+        return coverage
+    else:
+        return chemical_coverage
 
 
 def smart_roi_evaluation(param_dict):
@@ -55,7 +83,7 @@ def smart_roi_evaluation(param_dict):
     smart_roi = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
                                         param_dict['min_roi_intensity'], param_dict['min_roi_length'],
-                                        N=param_dict['N'], rt_tol = param_dict['rt_tol'],
+                                        N=param_dict['N'], rt_tol=param_dict['rt_tol'],
                                         min_roi_length_for_fragmentation=param_dict['min_roi_length_for_fragmentation'],
                                         reset_length_seconds=param_dict['reset_length_seconds'],
                                         intensity_increase_factor=param_dict['intensity_increase_factor'],
@@ -78,6 +106,7 @@ def weighted_dew_evaluation(param_dict):
     coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
                                        param_dict['half_isolation_window'])
     return coverage
+
 
 ########################################################################################################################
 # Experiment evaluation methods
@@ -135,7 +164,7 @@ def smart_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N,
 
 
 def weighted_dew_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
-                                    min_ms1_intensity):
+                                       min_ms1_intensity):
     env_list = []
     for i in range(len(datasets)):
         mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
@@ -209,10 +238,9 @@ def intensity_non_overlap_experiment_evaluation(datasets, base_chemicals, min_rt
 # Optimisation methods
 ########################################################################################################################
 
-
 def top_n_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, save_file_name, mass_spec_file,
-                               ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
-                               min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
+                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
+                                min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
     parameters = [
         # the variable controller bits
         {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
@@ -326,8 +354,9 @@ def smart_roi_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, iff_
 
 
 def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t0_range, save_file_name, mass_spec_file,
-                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, log_intensity, params_file,
-                                min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
+                                       ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, log_intensity,
+                                       params_file,
+                                       min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
     parameters = [
         # the variable controller bits
         {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
@@ -378,43 +407,6 @@ def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t
     max_score = scores.max()
     optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
     return exp, parameter_inputs, scores, max_score, optimal_parameters, model
-
-
-
-
-# def top_n_bayesian_optimisation(n_range, rt_tol_range, save_file_name, mass_spec_file,
-#                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
-#                                min_rt, max_rt, box_file, half_isolation_window):
-#     # create param_dict
-#     best_parameters, values, experiment, model = optimize(
-#         parameters=[
-#             # the variable controller bits
-#             {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
-#             {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
-#             # the mass spec bits
-#             {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
-#             # the controller bits
-#             {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
-#             {"name": "isolation_width", "type": "fixed", "value": isolation_width},
-#             {"name": "mz_tol", "type": "fixed", "value": mz_tol},
-#             {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
-#             {"name": "params_file", "type": "fixed", "value": params_file},
-#             # the env bits
-#             {"name": "min_rt", "type": "fixed", "value": min_rt},
-#             {"name": "max_rt", "type": "fixed", "value": max_rt},
-#             {"name": "save_file_name", "type": "fixed", "value": save_file_name},
-#             # the evaluation bits
-#             {"name": "box_file", "type": "fixed", "value": box_file},
-#             {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
-#         ],
-#         evaluation_function=top_n_evaluation,
-#         objective_name='coverage',
-#         )
-#     return best_parameters, values, experiment, model
-
-
-
-
 
 ####################################################################################################################
 # Old code - don't think its used anywhere. but saving just in case...

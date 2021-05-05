@@ -813,8 +813,6 @@ class ChemicalMixtureFromMZML(object):
         self.good_rois = self._extract_rois()
         assert len(self.good_rois) > 0
 
-
-
     def _extract_rois(self):
         good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
                               min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \

@@ -133,3 +133,49 @@ def load_peakonly_boxes(box_file):
     boxes.sort(key=lambda x: x.rt)
     return boxes
 
+
+def evaluate_peak_roi_aligner(roi_aligner, source_file):
+    coverage = []
+    coverage_intensities = []
+    max_possible_intensities = []
+    for peakset in roi_aligner.peaksets:
+        source_files = [peak.source_file for peak in peakset.peaks]
+        if source_file in source_files:
+            which_peak = np.where(source_file in np.array(source_files))[0][0]
+            max_possible_intensities.append(peakset.peaks[which_peak].intensity)
+            fragint = np.array(roi_aligner.peaksets2fragintensities[peakset])[which_peak]
+            coverage_intensities.append(fragint)
+            if fragint > 1:
+                coverage.append(1)
+            else:
+                coverage.append(0)
+        else:
+            coverage.append(0)  # standard coverage
+            coverage_intensities.append(0.0)  # fragmentation intensity
+            max_possible_intensities.append(0.0)  # max possible intensity (so highest observed ms1 intensity)
+    coverage = np.array(coverage)
+    coverage_intensities = np.array(coverage_intensities)
+    max_possible_intensities = np.array(max_possible_intensities)
+    coverage_prop = sum(coverage)/len(coverage)
+    coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
+    return {
+            'coverage': coverage,
+            'intensity': coverage_intensities,
+            'coverage_proportion': coverage_prop,
+            'intensity_proportion': coverage_intensity_prop,
+            'max_possible_intensities': max_possible_intensities
+    }
+
+
+def evaluate_multi_peak_roi_aligner(roi_aligner, source_files):
+    results = [evaluate_peak_roi_aligner(roi_aligner, file) for file in source_files]
+    coverage = [r['coverage'] for r in results]
+    coverage_intensities = [r['intensity'] for r in results]
+    max_possible_intensities = [r['max_possible_intensities'] for r in results]
+    cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
+
+    return {
+        'coverage': coverage,
+        'intensity': coverage_intensities,
+        'cumulative_coverage': cumulative_coverage,
+    }

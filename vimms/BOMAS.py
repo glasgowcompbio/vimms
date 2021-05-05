@@ -113,19 +113,21 @@ def weighted_dew_evaluation(param_dict):
 ########################################################################################################################
 
 
-def top_n_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
-                                min_ms1_intensity):
-    env_list = []
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
-                                    initial_exclusion_list=None, force_N=False)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
-
+def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+                                base_chemicals=None, roi_aligner=None, source_files=None):
+    if base_chemicals is not None or (roi_aligner is not None and source_files is not None):
+        env_list = []
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+                                        initial_exclusion_list=None, force_N=False)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+        evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        return env_list, evaluation
+    else:
+        return None, None
 
 def top_n_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                     min_ms1_intensity, min_roi_intensity, min_roi_length):

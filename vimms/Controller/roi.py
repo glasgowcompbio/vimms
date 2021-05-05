@@ -385,13 +385,14 @@ class TopN_RoiController(RoiController):
 
 class TopNBoxRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, boxes_params=None, boxes=None, boxes_intensity=None, N=None, rt_tol=10,
+                 min_roi_length, boxes_params=None, boxes=None, boxes_intensity=None, boxes_pvalues=None, N=None, rt_tol=10,
                  min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
 
         self.boxes_params = boxes_params
         self.boxes = boxes
         self.boxes_intensity = boxes_intensity  # the intensity the boxes have been fragmented at before
+        self.boxes_pvalues = boxes_pvalues
         self.box_min_rt_width = box_min_rt_width
         self.box_min_mz_width = box_min_mz_width
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
@@ -423,10 +424,18 @@ class TopNBoxRoiController(RoiController):
                 old_peaks_score1 = sum(overlaps * (log_intensities[i] - prev_intensity) * (1 - box_fragmented))
                 # peaks seen before, but not fragmented
                 old_peaks_score2 = sum(overlaps * log_intensities[i] * box_fragmented)
+                if self.boxes_pvalues is not None:
+                    # based on p values, previously fragmented
+                    p_value_scores1 = sum(overlaps * (log_intensities[i] - prev_intensity) * (1 - np.array(self.boxes_pvalues)))
+                    # based on p values, not previously fragmented
+                    p_value_scores2 = sum(overlaps * log_intensities[i] * (1 - np.array(self.boxes_pvalues)))
                 # get the score
                 score = self.boxes_params['theta1'] * new_peaks_score
                 score += self.boxes_params['theta2'] * old_peaks_score1
                 score += self.boxes_params['theta3'] * old_peaks_score2
+                if self.boxes_pvalues is not None:
+                    score += self.boxes_params['theta4'] * p_value_scores1
+                    score += self.boxes_params['theta5'] * p_value_scores2
                 score *= time_filter[i]
                 score *= intensity_filter  # check intensity meets minimal requirement
                 score *= (score > self.boxes_params['min_score']) # check meets min score

@@ -1,5 +1,4 @@
 import ax
-import numpy as np
 from ax import *
 from ax.modelbridge.registry import Models
 from ax.service.utils.instantiation import parameter_from_json
@@ -128,6 +127,7 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
         return env_list, evaluation
     else:
         return None, None
+
 
 def top_n_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                     min_ms1_intensity, min_roi_intensity, min_roi_length):

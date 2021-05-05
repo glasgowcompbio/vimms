@@ -1,9 +1,10 @@
-from vimms.Controller.base import Controller
-from vimms.Roi import match, Roi, SmartRoi
+import bisect
 
 import numpy as np
-import bisect
 from loguru import logger
+
+from vimms.Controller.base import Controller
+from vimms.Roi import match, Roi, SmartRoi
 
 
 # For controller that consider doing an ms1 scans because of RT drift uncertainty, do this by forcing ms2 scores below 0
@@ -175,7 +176,7 @@ class RoiController2(BaseController):
 
 class SmartRoiController2(RoiController2):
     def __init__(self, ionisation_mode, mz_tol, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
-             length_units, reset_length_seconds, intensity_increase_factor, rt_tol, drop_perc, params=None):
+                 length_units, reset_length_seconds, intensity_increase_factor, rt_tol, drop_perc, params=None):
         super().__init__(ionisation_mode=ionisation_mode, mz_tol=mz_tol, min_roi_intensity=min_roi_intensity,
                          min_roi_length=min_roi_length,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -188,9 +189,10 @@ class SmartRoiController2(RoiController2):
 
     def _create_new_roi(self, mz, current_ms1_scan_rt, intensity):  # this is overwritten here to update the ROI type
         new_roi = SmartRoi(mz, current_ms1_scan_rt, intensity, self.min_roi_length_for_fragmentation,
-                 self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol,
-                 drop_perc=self.drop_perc)
+                           self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol,
+                           drop_perc=self.drop_perc)
         return new_roi
+
 
 # Precursor Controllers
 
@@ -213,6 +215,7 @@ class TargettedController2(PrecursorController2):
 
     def _get_scores(self, scan):
         NotImplementedError()
+
 
 # Roi Controllers
 

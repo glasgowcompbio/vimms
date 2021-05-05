@@ -4,12 +4,12 @@ Sampling classes for ChemicalMixtureCreator
 
 import numpy as np
 from loguru import logger
-from mass_spec_utils.library_matching.gnps import load_mgf
 from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, EmpiricalChromatogram
 from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW, \
-                        POSITIVE, NEGATIVE, PROTON_MASS
+    POSITIVE, NEGATIVE, PROTON_MASS
 from vimms.Roi import make_roi, RoiParams
 
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
@@ -60,7 +60,8 @@ class DatabaseFormulaSampler(FormulaSampler):
         offset = 20  # to ensure that we have room for at least M+H
         formulas = list(set([(x.chemical_formula, x.name) for x in self.database]))
         sub_formulas = list(
-            filter(lambda x: Formula(x[0]).mass >= self.min_mz and Formula(x[0]).mass <= self.max_mz - offset, formulas))
+            filter(lambda x: Formula(x[0]).mass >= self.min_mz and Formula(x[0]).mass <= self.max_mz - offset,
+                   formulas))
         logger.debug('{} unique formulas in filtered database'.format(len(sub_formulas)))
         chosen_formula_positions = np.random.choice(len(sub_formulas), size=n_formulas, replace=False)
         logger.debug('Sampled formulas')
@@ -127,6 +128,7 @@ class EvenMZFormulaSampler(FormulaSampler):
             self.n_sampled += 1
         return [(DummyFormula(m), None) for m in mz_list]
 
+
 class MZMLFormulaSampler(FormulaSampler):
     def __init__(self, mzml_file_name, source_polarity=POSITIVE):
         self.mzml_file_name = mzml_file_name
@@ -152,8 +154,8 @@ class MZMLFormulaSampler(FormulaSampler):
                 else:
                     mz_bins[mz_bin] += intensity
         total_intensity = sum(mz_bins.values())
-        self.mz_bins = [(k, k+1) for k in mz_bins.keys()]
-        self.mz_probs = [v/total_intensity for v in mz_bins.values()]
+        self.mz_bins = [(k, k + 1) for k in mz_bins.keys()]
+        self.mz_probs = [v / total_intensity for v in mz_bins.values()]
 
     def sample(self, n_formulas):
         mz_list = []
@@ -163,6 +165,7 @@ class MZMLFormulaSampler(FormulaSampler):
             mz = np.random.rand() * (mz_bin[1] - mz_bin[0]) + mz_bin[0]
             mz_list.append(mz)
         return [(DummyFormula(m), None) for m in mz_list]
+
 
 ###############################################################################################################
 # Samplers for RT and intensity when initialising a Formula
@@ -208,8 +211,10 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
         log_intensity = np.random.rand() * (self.max_log_intensity - self.min_log_intensity) + self.min_log_intensity
         return rt, np.exp(log_intensity)
 
+
 class MZMLRTandIntensitySampler(RTAndIntensitySampler):
-    def __init__(self, mzml_file_name, n_intensity_bins=10, min_rt=0, max_rt=1600, min_log_intensity=np.log(1e4), max_log_intensity=np.log(1e7), roi_params=None):
+    def __init__(self, mzml_file_name, n_intensity_bins=10, min_rt=0, max_rt=1600, min_log_intensity=np.log(1e4),
+                 max_log_intensity=np.log(1e7), roi_params=None):
         self.min_rt = min_rt
         self.max_rt = max_rt
         self.min_log_intensity = min_log_intensity
@@ -239,20 +244,23 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
             else:
                 rt_bins[rt_bin] += total_intensity
         total_intensity = sum(rt_bins.values())
-        self.rt_bins = [(k,k+1) for k in rt_bins.keys()]
-        self.rt_probs = [v/total_intensity for v in rt_bins.values()]
-        
-        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
+        self.rt_bins = [(k, k + 1) for k in rt_bins.keys()]
+        self.rt_probs = [v / total_intensity for v in rt_bins.values()]
+
+        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
+                              mz_units=self.roi_params.mz_units, \
                               min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
-                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt, length_units=self.roi_params.length_units, \
+                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
+                              length_units=self.roi_params.length_units, \
                               ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
         log_roi_intensities = [np.log(max(r.intensity_list)) for r in good]
-        log_roi_intensities = list(filter(lambda x: x >= self.min_log_intensity and x <= self.max_log_intensity, log_roi_intensities))
+        log_roi_intensities = list(
+            filter(lambda x: x >= self.min_log_intensity and x <= self.max_log_intensity, log_roi_intensities))
         hist, bin_edges = np.histogram(log_roi_intensities, bins=self.n_intensity_bins)
         total_i = hist.sum()
-        hist = [h/total_i for h in hist]
+        hist = [h / total_i for h in hist]
 
-        self.intensity_bins = [(b, bin_edges[i+1]) for i, b in enumerate(bin_edges[:-1])]
+        self.intensity_bins = [(b, bin_edges[i + 1]) for i, b in enumerate(bin_edges[:-1])]
         self.intensity_probs = [h for h in hist]
 
     def sample(self, formula):
@@ -308,31 +316,32 @@ class ConstantChromatogramSampler(ChromatogramSampler):
     def sample(self, formula, rt, intensity):
         return ConstantChromatogram()
 
+
 class MZMLChromatogramSampler(ChromatogramSampler):
-    def __init__(self, mzml_file_name, roi_params = None):
+    def __init__(self, mzml_file_name, roi_params=None):
         self.mzml_file_name = mzml_file_name
         self.roi_params = roi_params
         if self.roi_params is None:
             self.roi_params = RoiParams()
-        
+
         self.good_rois = self._extract_rois()
 
     def _extract_rois(self):
-        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
-                                min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
-                                start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt, length_units=self.roi_params.length_units, \
-                                ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
+        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
+                              mz_units=self.roi_params.mz_units, \
+                              min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
+                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
+                              length_units=self.roi_params.length_units, \
+                              ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
         logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
-    
+
     def sample(self, formula, rt, intensity):
         roi_idx = np.random.choice(len(self.good_rois))
         r = self.good_rois[roi_idx]
         chromatogram = EmpiricalChromatogram(np.array(r.rt_list), np.array(r.mz_list), \
-                                            np.array(r.intensity_list), single_point_length=0.9)
+                                             np.array(r.intensity_list), single_point_length=0.9)
         return chromatogram
-
-
 
 
 ###############################################################################################################
@@ -387,10 +396,12 @@ class UniformMS2Sampler(MS2Sampler):
 
         return mz_list, intensity_list, parent_proportion
 
+
 class FixedMS2Sampler(MS2Sampler):
     """
     Generates n_frags fragments, where each is chemical - i*10 mz
     """
+
     def __init__(self, n_frags=2):
         self.n_frags = n_frags
 
@@ -400,14 +411,11 @@ class FixedMS2Sampler(MS2Sampler):
         intensity_list = []
         parent_proportion = 0.5
         for i in range(self.n_frags):
-            mz_list.append(initial_mz - (i+1)*10)
+            mz_list.append(initial_mz - (i + 1) * 10)
             intensity_list.append(1)
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         return mz_list, intensity_list, parent_proportion
-        
-
-
 
 
 class CRPMS2Sampler(MS2Sampler):
@@ -455,7 +463,8 @@ class CRPMS2Sampler(MS2Sampler):
 
 
 class MGFMS2Sampler(MS2Sampler):
-    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False, id_field="SPECTRUMID"):
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, max_peaks=0, replace=False,
+                 id_field="SPECTRUMID"):
         self.mgf_file = mgf_file
         self.min_proportion = min_proportion
         self.max_proportion = max_proportion
@@ -505,16 +514,19 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
     # to be completed. Where we have particular formulas and we
     # have a particular spectrum for each exact formula...
     def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, id_field="SPECTRUMID"):
-        super().__init__(mgf_file,min_proportion=min_proportion, max_proportion=max_proportion, id_field=id_field)
+        super().__init__(mgf_file, min_proportion=min_proportion, max_proportion=max_proportion, id_field=id_field)
+
     def sample(self, chemical):
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)
         parent_proportion = np.random.rand() * (self.max_proportion - self.min_proportion) + \
-                    self.min_proportion
+                            self.min_proportion
         return mz_list, intensity_list, parent_proportion
 
+
 class MZMLMS2Sampler(MS2Sampler):
-    def __init__(self, mzml_file, min_n_peaks = 1, min_total_intensity=1e3, min_proportion=0.1, max_proportion=0.8, with_replacement=False):
+    def __init__(self, mzml_file, min_n_peaks=1, min_total_intensity=1e3, min_proportion=0.1, max_proportion=0.8,
+                 with_replacement=False):
         self.mzml_file_name = mzml_file
         self.mzml_object = MZMLFile(str(mzml_file))
         self.min_n_peaks = min_n_peaks
@@ -529,23 +541,25 @@ class MZMLMS2Sampler(MS2Sampler):
 
     def _filter_scans(self):
         ms2_scans = list(filter(lambda x: x.ms_level == 2 and
-                                          len(x.peaks) >= self.min_n_peaks and 
-                                          sum([i for mz,i in x.peaks]) >= self.min_total_intensity, self.mzml_object.scans))
+                                          len(x.peaks) >= self.min_n_peaks and
+                                          sum([i for mz, i in x.peaks]) >= self.min_total_intensity,
+                                self.mzml_object.scans))
         assert len(ms2_scans) > 0, "After filtering no ms2 scans remain - consider loosening filter parameters"
         logger.debug("{} MS2 scansn remaining".format(len(ms2_scans)))
         self.ms2_scans = ms2_scans
 
-    def sample(self,chemical):
-        assert len(self.ms2_scans) > 0, "MS2 sampler ran out of scans. Consider an alternative, or setting with_replacement to True"
+    def sample(self, chemical):
+        assert len(
+            self.ms2_scans) > 0, "MS2 sampler ran out of scans. Consider an alternative, or setting with_replacement to True"
         # pick a scan and removoe
-        scan_idx = np.random.choice(len(self.ms2_scans),1)[0]
+        scan_idx = np.random.choice(len(self.ms2_scans), 1)[0]
         scan = self.ms2_scans[scan_idx]
         if not self.with_replacement:
             del self.ms2_scans[scan_idx]
 
         parent_proportion = np.random.rand() * (self.max_proportion - self.min_proportion) + \
                             self.min_proportion
-        
+
         mz_list, intensity_list = zip(*scan.peaks)
 
         return mz_list, intensity_list, parent_proportion

@@ -350,7 +350,7 @@ def set_log_level(level, remove_id=None):
     if remove_id is None:
         try:
             logger.remove(0)  # try to remove the default handler with id 0
-        except ValueError: # no default handler has been set
+        except ValueError:  # no default handler has been set
             pass
     else:
         logger.remove(remove_id)  # remove previously set handler by id

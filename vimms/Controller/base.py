@@ -224,4 +224,5 @@ class Controller(object):
         assert first_mass is not None
         assert last_mass is not None
 
-    def after_injection_cleanup(self): pass
+    def after_injection_cleanup(self):
+        pass

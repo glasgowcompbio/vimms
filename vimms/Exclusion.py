@@ -1,5 +1,6 @@
 from intervaltree import IntervalTree
 
+
 # Exclusion.py
 class ExclusionItem(object):
     """
@@ -33,7 +34,7 @@ class ExclusionItem(object):
             return True
         else:
             return False
-    
+
     def mz_match(self, mz):
         if mz >= self.from_mz and mz <= self.to_mz:
             return True
@@ -50,7 +51,6 @@ class ExclusionItem(object):
             return False
 
 
-
 class BoxHolder(object):
     """
     A class to allow quick lookup of boxes (e.g. exclusion items, targets, etc)
@@ -58,6 +58,7 @@ class BoxHolder(object):
     Also has a method for returning an rt interval tree for a particular mz
     and an mz interval tree for a particular rt
     """
+
     def __init__(self):
         self.boxes_mz = IntervalTree()
         self.boxes_rt = IntervalTree()
@@ -95,7 +96,6 @@ class BoxHolder(object):
         inter = mz_regions.intersection(rt_regions)
         return [r.data for r in inter]
 
-        
     def is_in_box(self, mz, rt):
         """
         Check if this mz and rt is in *any* box
@@ -105,7 +105,7 @@ class BoxHolder(object):
             return True
         else:
             return False
-        
+
     def is_in_box_mz(self, mz):
         """
         Check if an mz value is in any box
@@ -126,7 +126,6 @@ class BoxHolder(object):
         else:
             return False
 
-    
     def get_subset_rt(self, rt):
         """
         Create an interval tree based upon mz for all boxes active at rt
@@ -151,9 +150,9 @@ class BoxHolder(object):
 
 
 if __name__ == '__main__':
-    e = ExclusionItem(1.1,1.2,3.4,3.5,3.45)
-    f = ExclusionItem(1.0,1.4,3.3,3.6,3.45)
-    g = ExclusionItem(2.1,2.2,3.2,3.5,3.45)
+    e = ExclusionItem(1.1, 1.2, 3.4, 3.5, 3.45)
+    f = ExclusionItem(1.0, 1.4, 3.3, 3.6, 3.45)
+    g = ExclusionItem(2.1, 2.2, 3.2, 3.5, 3.45)
     b = BoxHolder()
     b.add_box(e)
     b.add_box(f)

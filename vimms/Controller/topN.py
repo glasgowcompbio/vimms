@@ -25,7 +25,7 @@ class TopNController(Controller):
         self.rt_tol = rt_tol  # the rt window to prevent the same precursor ion to be fragmented again
         self.min_ms1_intensity = min_ms1_intensity  # minimum ms1 intensity to fragment
         self.ms1_shift = ms1_shift  # number of scans to move ms1 scan forward in list of new_tasks
-        self.force_N = force_N # force it to do N MS2 scans regardless
+        self.force_N = force_N  # force it to do N MS2 scans regardless
 
         if self.force_N and ms1_shift > 0:
             logger.warning("Setting force_N to True with non-zero shift can lead to strange behaviour")
@@ -87,19 +87,19 @@ class TopNController(Controller):
                     self.next_processed_scan_id = self.current_task_id
                     new_tasks.append(ms1_scan_params)
                     done_ms1 = True
-            
+
             if self.force_N and len(new_tasks) < self.N:
                 # add some extra tasks.
                 n_tasks_remaining = self.N - len(new_tasks)
                 for i in range(n_tasks_remaining):
                     precursor_scan_id = self.scan_to_process.scan_id
-                    dda_scan_params = self.get_ms2_scan_params(DUMMY_PRECURSOR_MZ, 100.0, precursor_scan_id, self.isolation_width,
+                    dda_scan_params = self.get_ms2_scan_params(DUMMY_PRECURSOR_MZ, 100.0, precursor_scan_id,
+                                                               self.isolation_width,
                                                                self.mz_tol, self.rt_tol)
                     new_tasks.append(dda_scan_params)
                     ms2_tasks.append(dda_scan_params)
                     fragmented_count += 1
                     self.current_task_id += 1
-
 
             # if no ms1 has been added, then add at the end
             if not done_ms1:
@@ -566,7 +566,8 @@ class PurityController(TopNController):
                         ms2_tasks.append(dda_scan_params)
                         self.current_task_id += 1
                         if self.purity_add_ms1 and purity_idx != purity_randomise_idx[-1]:
-                            ms1_scan_params = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode)
+                            ms1_scan_params = get_default_scan_params(
+                                polarity=self.environment.mass_spec.ionisation_mode)
                             new_tasks.append(ms1_scan_params)
                             self.current_task_id += 1
                         fragmented_count += 1
@@ -617,4 +618,3 @@ class PurityController(TopNController):
 #             if new_task == None:
 #                 pass  # stop looping through scans
 #         return new_tasks
-

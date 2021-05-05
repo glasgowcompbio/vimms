@@ -1,15 +1,12 @@
 import bisect
+from copy import deepcopy
 
 import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
-from sklearn import linear_model
-from sklearn.preprocessing import PolynomialFeatures
 
 from vimms.Controller.topN import TopNController
-from vimms.PeakDetector import calculate_window_change
 from vimms.Roi import match, Roi, SmartRoi
-from copy import deepcopy
 
 
 class RoiController(TopNController):
@@ -142,8 +139,6 @@ class RoiController(TopNController):
         else:
             pass  # hopefully shouldnt happen
 
-
-
     def _update_roi(self, new_scan):
         if new_scan.ms_level == 1:
             order = np.argsort(self.live_roi)
@@ -187,10 +182,11 @@ class RoiController(TopNController):
 
     def _get_scores(self):
         NotImplementedError()
-        
+
     def _score_filters(self):
         intensity_filter = (np.array(self.current_roi_intensities) > self.min_ms1_intensity)
-        time_filter = np.logical_not(self.scan_to_process.rt - np.array(self.live_roi_last_rt, dtype=np.double) < self.rt_tol) #Handles None values by converting to NaN for which all comparisons return 0
+        time_filter = np.logical_not(self.scan_to_process.rt - np.array(self.live_roi_last_rt,
+                                                                        dtype=np.double) < self.rt_tol)  # Handles None values by converting to NaN for which all comparisons return 0
         length_filter = (self.current_roi_length >= self.min_roi_length_for_fragmentation)
         return intensity_filter * time_filter * length_filter
 
@@ -385,7 +381,8 @@ class TopN_RoiController(RoiController):
 
 class TopNBoxRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, boxes_params=None, boxes=None, boxes_intensity=None, boxes_pvalues=None, N=None, rt_tol=10,
+                 min_roi_length, boxes_params=None, boxes=None, boxes_intensity=None, boxes_pvalues=None, N=None,
+                 rt_tol=10,
                  min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
 
@@ -419,14 +416,15 @@ class TopNBoxRoiController(RoiController):
                 overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
                 # new peaks not in list of boxes
-                new_peaks_score = max(0, (1-sum(overlaps))) * log_intensities[i]
+                new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]
                 # previously fragmented peaks
                 old_peaks_score1 = sum(overlaps * (log_intensities[i] - prev_intensity) * (1 - box_fragmented))
                 # peaks seen before, but not fragmented
                 old_peaks_score2 = sum(overlaps * log_intensities[i] * box_fragmented)
                 if self.boxes_pvalues is not None:
                     # based on p values, previously fragmented
-                    p_value_scores1 = sum(overlaps * (log_intensities[i] - prev_intensity) * (1 - np.array(self.boxes_pvalues)))
+                    p_value_scores1 = sum(
+                        overlaps * (log_intensities[i] - prev_intensity) * (1 - np.array(self.boxes_pvalues)))
                     # based on p values, not previously fragmented
                     p_value_scores2 = sum(overlaps * log_intensities[i] * (1 - np.array(self.boxes_pvalues)))
                 # get the score
@@ -438,7 +436,7 @@ class TopNBoxRoiController(RoiController):
                     score += self.boxes_params['theta5'] * p_value_scores2
                 score *= time_filter[i]
                 score *= intensity_filter  # check intensity meets minimal requirement
-                score *= (score > self.boxes_params['min_score']) # check meets min score
+                score *= (score > self.boxes_params['min_score'])  # check meets min score
                 initial_scores.append(score[0])
             initial_scores = np.array(initial_scores)
         else:
@@ -455,9 +453,9 @@ class TopNBoxModelRoiController(TopNBoxRoiController):
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         self.boxes_p_values = boxes_p_values
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, boxes_params, boxes, boxes_intensity, N, rt_tol,
-                 min_roi_length_for_fragmentation, length_units, ms1_shift, params,
-                 box_min_rt_width, box_min_mz_width)
+                         min_roi_length, boxes_params, boxes, boxes_intensity, N, rt_tol,
+                         min_roi_length_for_fragmentation, length_units, ms1_shift, params,
+                         box_min_rt_width, box_min_mz_width)
 
     def _get_scores(self):
         if self.boxes is not None:
@@ -479,13 +477,14 @@ class TopNBoxModelRoiController(TopNBoxRoiController):
             for i in range(len(log_intensities)):
                 overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
-                score = max(0, (1-sum(overlaps))) * log_intensities[i] * time_filter[i]  # new peaks
-                old_peaks_score = self.boxes_params['theta1'] * sum(overlaps * (log_intensities[i] - prev_intensity))  # old peaks
+                score = max(0, (1 - sum(overlaps))) * log_intensities[i] * time_filter[i]  # new peaks
+                old_peaks_score = self.boxes_params['theta1'] * sum(
+                    overlaps * (log_intensities[i] - prev_intensity))  # old peaks
                 score += old_peaks_score * time_filter[i]
                 if self.boxes_p_values is not None:
                     score += self.boxes_params['theta2'] * sum(overlaps * p_value_scores)
                 score *= intensity_filter  # check intensity meets minimal requirement
-                score *= (score > self.boxes_params['min_score']) # check meets min score
+                score *= (score > self.boxes_params['min_score'])  # check meets min score
                 initial_scores.append(score[0])
             initial_scores = np.array(initial_scores)
         else:

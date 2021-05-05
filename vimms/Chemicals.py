@@ -3,21 +3,18 @@ import math
 from pathlib import Path
 
 import numpy as np
+import pylab as plt
 import scipy
 import scipy.stats
 from loguru import logger
-import pylab as plt
-
-from mass_spec_utils.data_import.mzmine import PickedBox
-
 
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.ChineseRestaurantProcess import Restricted_Crp
+from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import CHEM_DATA, POS_TRANSFORMATIONS, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, load_obj, save_obj, \
     Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE, CHEM_NOISE
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiParams
-from vimms.Chromatograms import EmpiricalChromatogram
 
 
 class DatabaseCompound(object):
@@ -95,7 +92,7 @@ class Adducts(object):
 
     def _get_adduct_proportions(self):
         # TODO: replace this with something proper
-        proportions  = {}
+        proportions = {}
         for k in self.adduct_prior:
             proportions[k] = np.random.dirichlet(self.adduct_prior[k])
             while max(proportions[k]) < 0.2:
@@ -413,7 +410,7 @@ class ChemicalCreator(object):
                 if children_ms_level < self.ms_levels:
                     kid.children = self._get_children(self.get_children_method, kid)
                 kids.append(kid)
-        
+
         return kids
 
     def _get_msn_proportions(self, children_ms_level=None, n_peaks=None, children_intensities=None):
@@ -434,7 +431,7 @@ class ChemicalCreator(object):
         if ms_level == 1:
             return int(self.n_ms1_peaks)
         elif ms_level == 2:
-            while True: # Hack here added by simon to prevent zeros
+            while True:  # Hack here added by simon to prevent zeros
                 n_peaks = int(self.peak_sampler.n_peaks(2, 1))
                 if n_peaks > 0:
                     return n_peaks
@@ -469,6 +466,7 @@ class ChemicalCreator(object):
         elif chem.rt > self.rt_range[0][1]:
             return False
         return True
+
 
 class RoiToChemicalCreator(ChemicalCreator):
     """
@@ -627,7 +625,7 @@ class MultiSampleCreator(object):
                 #  CHANGED BY SR, no testing.
                 new_missing = list(np.random.choice(range(0, len(self.original_dataset)), self.dropout_numbers))
             missing.append(new_missing)
-            if missing[-1]!=[]:
+            if missing[-1] != []:
                 missing = [list(x) for x in set(tuple(sorted(x)) for x in missing)]
         return missing
 
@@ -683,7 +681,6 @@ class MultiSampleCreator(object):
         return noisy_intensity
 
 
-
 class ChemicalMixtureCreator(object):
     # class to create a list of known chemical objects
     # using simplified, cleaned methods
@@ -728,7 +725,8 @@ class ChemicalMixtureCreator(object):
                 adducts = Adducts(formula, self.adduct_proportion_cutoff, adduct_prior_dict=self.adduct_prior_dict)
 
                 chemicals.append(KnownChemical(formula, isotopes, adducts, rt, max_intensity, chromatogram,
-                                               include_adducts_isotopes=include_adducts_isotopes, database_accession=db_accession))
+                                               include_adducts_isotopes=include_adducts_isotopes,
+                                               database_accession=db_accession))
             elif isinstance(formula, DummyFormula):
                 chemicals.append(UnknownChemical(formula.mass, rt, max_intensity, chromatogram))
             else:
@@ -778,7 +776,7 @@ class MultipleMixtureCreator(object):
                 self.group_multipliers[group][chemical] = 1.0  # default is no change
                 if np.random.rand() <= changing_probability:
                     self.group_multipliers[group][chemical] = np.exp(np.random.rand() * (
-                                np.log(5) - np.log(0.2) + np.log(0.2)))  # uniform between doubling and halving
+                            np.log(5) - np.log(0.2) + np.log(0.2)))  # uniform between doubling and halving
                 if np.random.rand() <= missing_probability:
                     self.group_multipliers[group][chemical] = 0.0
 
@@ -814,9 +812,11 @@ class ChemicalMixtureFromMZML(object):
         assert len(self.good_rois) > 0
 
     def _extract_rois(self):
-        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol, mz_units=self.roi_params.mz_units, \
+        good, junk = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
+                              mz_units=self.roi_params.mz_units, \
                               min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
-                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt, length_units=self.roi_params.length_units, \
+                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
+                              length_units=self.roi_params.length_units, \
                               ms_level=self.roi_params.ms_level, skip=self.roi_params.skip)
         logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
@@ -843,10 +843,10 @@ class ChemicalMixtureFromMZML(object):
                 mz += PROTON_MASS
             else:
                 logger.warning("Unknown source polarity {}".format(source_polarity))
-            rt = r.rt_list[0] # this is in seconds
+            rt = r.rt_list[0]  # this is in seconds
             max_intensity = max(r.intensity_list)
 
-            # make a chromatogram object
+            #  make a chromatogram object
             chromatogram = EmpiricalChromatogram(np.array(r.rt_list), np.array(r.mz_list), \
                                                  np.array(r.intensity_list), single_point_length=0.9)
 
@@ -882,4 +882,3 @@ def get_pooled_sample(dataset_list):
         new_chem.max_intensity = new_intensity
         dataset.append(new_chem)
     return dataset
-

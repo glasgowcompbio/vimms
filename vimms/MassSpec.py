@@ -106,9 +106,9 @@ class ScanEvent(object):
         self.ms_level = ms_level
         self.peaks = peaks
         self.scan_id = scan_id
-        self.parents_intensity = parents_intensity   # only ms2
-        self.parent_adduct = parent_adduct   # only ms2
-        self.parent_isotope = parent_isotope   # only ms2
+        self.parents_intensity = parents_intensity  # only ms2
+        self.parent_adduct = parent_adduct  # only ms2
+        self.parent_isotope = parent_isotope  # only ms2
         self.precursor_mz = precursor_mz
         self.isolation_window = isolation_window
         self.scan_params = scan_params
@@ -117,11 +117,11 @@ class ScanEvent(object):
         return 'MS%d ScanEvent for %s at %f' % (self.ms_level, self.chem, self.query_rt)
 
 
-
 class TaskManager(object):
     """
     A class to track how many new tasks (scan commands) that we can send, given the buffer size of the mass spec.
     """
+
     def __init__(self, buffer_size=5):
         """
         Initialises the task manager.
@@ -254,7 +254,7 @@ class IndependentMassSpectrometer(object):
 
         # the list of all chemicals in the dataset
         self.chemicals = chemicals
-        self.ionisation_mode = ionisation_mode  
+        self.ionisation_mode = ionisation_mode
 
         # stores the chromatograms start and end rt for quick retrieval
         chem_rts = np.array([chem.rt for chem in self.chemicals])
@@ -303,7 +303,7 @@ class IndependentMassSpectrometer(object):
             params_list = self.get_params()
         else:
             logger.debug('Got an initial task from controller')
-            params_list = [params] # initial param passed from the controller
+            params_list = [params]  # initial param passed from the controller
 
         # Send params away. In the simulated case, no sending actually occurs,
         # instead we just track these params we've sent by adding them to self.environment.pending_tasks
@@ -552,12 +552,12 @@ class IndependentMassSpectrometer(object):
             # for benchmarking purpose
             if len(peaks) > 0:
                 frag = ScanEvent(chemical, scan_time, use_ms_level, peaks, scan_id,
-                                          parents_intensity=peaks_ms1_intensities,
-                                          parent_adduct=peaks_which_adducts,
-                                          parent_isotope=peaks_which_isotopes,
-                                          precursor_mz=params.get(ScanParameters.PRECURSOR_MZ),
-                                          isolation_window=isolation_windows,
-                                          scan_params=params)
+                                 parents_intensity=peaks_ms1_intensities,
+                                 parent_adduct=peaks_which_adducts,
+                                 parent_isotope=peaks_which_isotopes,
+                                 precursor_mz=params.get(ScanParameters.PRECURSOR_MZ),
+                                 isolation_window=isolation_windows,
+                                 scan_params=params)
                 self.fragmentation_events.append(frag)
 
         if self.spike_noise is not None:

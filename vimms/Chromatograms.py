@@ -153,8 +153,10 @@ class FunctionalChromatogram(Chromatogram):
         if self._rt_match(query_rt) == False:
             return None
         elif self.distribution_name == 'normal':
-            rv = np.exp((-0.5*(query_rt + self.distrib.ppf(self.cutoff / 2) - self.parameters[0])**2)/self.parameters[1]**2)
-            return rv 
+            rv = np.exp(
+                (-0.5 * (query_rt + self.distrib.ppf(self.cutoff / 2) - self.parameters[0]) ** 2) / self.parameters[
+                    1] ** 2)
+            return rv
         else:
             return (self.distrib.pdf(query_rt + self.distrib.ppf(self.cutoff / 2)) * (1 / (1 - self.cutoff)))
 
@@ -172,8 +174,8 @@ class FunctionalChromatogram(Chromatogram):
 
     def get_apex_rt(self):
         if self.distribution_name == 'uniform':
-            return (self.max_rt - self.min_rt)/2
+            return (self.max_rt - self.min_rt) / 2
         elif self.distribution_name == 'normal':
-            return (self.max_rt - self.min_rt)/2
+            return (self.max_rt - self.min_rt) / 2
         else:
             raise NotImplementedError()

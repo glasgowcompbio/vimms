@@ -534,7 +534,6 @@ class RoiAligner(object):
         else:
             print('Can only align Peaks with Peaks. File not added to alignment.')
             pass
-        print('peaksets', len(self.peaksets))
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
         if len(self.peaksets) == 0:

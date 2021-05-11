@@ -1,5 +1,4 @@
 import ax
-import numpy as np
 from ax import *
 from ax.modelbridge.registry import Models
 from ax.service.utils.instantiation import parameter_from_json
@@ -143,6 +142,7 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
         return None, None
 
 
+<<<<<<< HEAD
 def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                     min_ms1_intensity, min_roi_intensity, min_roi_length, base_chemicals=None,
                                     mzmine_files=None, rt_tolerance=100, experiment_dir=None):
@@ -174,6 +174,23 @@ def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
 
 
 def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+=======
+def top_n_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                    min_ms1_intensity, min_roi_intensity, min_roi_length):
+    env_list = []
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                        min_roi_length, N=N, rt_tol=rt_tol)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
+
+
+def smart_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+>>>>>>> 2162c09203fa8899015ff658bf57642259f857bb
                                     min_ms1_intensity, min_roi_intensity, min_roi_length,
                                     min_roi_length_for_fragmentation, reset_length_seconds, intensity_increase_factor,
                                     drop_perc, ms1_shift, base_chemicals=None, mzmine_files=None,

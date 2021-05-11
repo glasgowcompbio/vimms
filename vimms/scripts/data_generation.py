@@ -8,8 +8,7 @@ from loguru import logger
 from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, load_obj, ADDUCT_DICT_POS_MH, set_log_level_warning
 
 sys.path.append('..')
-sys.path.append('../..') # if running in this folder
-
+sys.path.append('../..')  # if running in this folder
 
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.ChemicalSamplers import DatabaseFormulaSampler, UniformRTAndIntensitySampler, UniformMS2Sampler
@@ -19,9 +18,7 @@ from vimms.Noise import UniformSpikeNoise
 from vimms.Environment import Environment
 from vimms.Utils import write_msp
 
-
-
-DEFAULT_RT_RANGE = (100,500)
+DEFAULT_RT_RANGE = (100, 500)
 POSITIVE_IONISATION_MODE = "positive"
 
 if __name__ == '__main__':
@@ -41,7 +38,6 @@ if __name__ == '__main__':
     parser.add_argument('--output_swath_file', dest='output_swath_file', type=str, default=None)
     parser.add_argument('--print_chems', dest='print_chems', action='store_true')
 
-
     args = parser.parse_args()
 
     formula_database = load_obj(args.formula_database_file)
@@ -50,13 +46,12 @@ if __name__ == '__main__':
 
     fs = DatabaseFormulaSampler(formula_database, min_mz=args.min_mz, max_mz=args.max_mz)
 
-    
-
-    ri = UniformRTAndIntensitySampler(min_rt=args.min_rt, max_rt=args.max_rt, min_log_intensity=np.log(args.min_ms1_sampling_intensity), max_log_intensity=np.log(args.max_ms1_sampling_intensity))
+    ri = UniformRTAndIntensitySampler(min_rt=args.min_rt, max_rt=args.max_rt,
+                                      min_log_intensity=np.log(args.min_ms1_sampling_intensity),
+                                      max_log_intensity=np.log(args.max_ms1_sampling_intensity))
     cs = UniformMS2Sampler()
 
     cm = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, ms2_sampler=cs, adduct_prior_dict=ADDUCT_DICT_POS_MH)
-
 
     dataset = cm.sample(args.n_chems, args.ms_levels)
 
@@ -64,7 +59,6 @@ if __name__ == '__main__':
         logger.debug("Sampled chems")
         for chem in dataset:
             logger.debug(chem)
-
 
     if args.output_msp_file is not None:
         write_msp(dataset, args.output_msp_file)
@@ -75,7 +69,7 @@ if __name__ == '__main__':
 
     controller = TopNController(POSITIVE_IONISATION_MODE, 10, 0.7, 0.01, 15, 1e3)
 
-    env = Environment(ms, controller, min_time=args.min_rt-50,max_time=args.max_rt+50)
+    env = Environment(ms, controller, min_time=args.min_rt - 50, max_time=args.max_rt + 50)
 
     set_log_level_warning()
     env.run()
@@ -85,8 +79,6 @@ if __name__ == '__main__':
     if args.output_swath_file is not None:
         sw = SWATH(args.min_mz, args.max_mz, 100, 0.0)
         ms = IndependentMassSpectrometer(POSITIVE_IONISATION_MODE, dataset, None, spike_noise=spike_noise)
-        env = Environment(ms, sw, min_time=args.min_rt-50,max_time=args.max_rt+50)
+        env = Environment(ms, sw, min_time=args.min_rt - 50, max_time=args.max_rt + 50)
         env.run()
         env.write_mzML(None, args.output_swath_file)
-
-

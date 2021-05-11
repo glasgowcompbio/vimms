@@ -1,8 +1,9 @@
 import os
 
 import numpy as np
-from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 from loguru import logger
+from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
+
 from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW, POSITIVE, NEGATIVE, \
     ScanParameters
 
@@ -132,7 +133,6 @@ class MzmlWriter(object):
             last_mz = scan.scan_params.get(ScanParameters.LAST_MASS)
         except AttributeError:  # if it's a method scan (not a custom scan), there's no scan_params to get first_mz and last_mz
             first_mz, last_mz = DEFAULT_MS1_SCAN_WINDOW
-
 
         polarity = scan.scan_params.get(ScanParameters.POLARITY)
         if polarity == POSITIVE:

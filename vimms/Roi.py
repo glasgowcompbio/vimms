@@ -1,24 +1,20 @@
 import bisect
-import math
+import sys
 from collections import OrderedDict
 
-import numpy as np
-import sys
 import pandas as pd
 import pylab as plt
 import pymzml
-from loguru import logger
-from scipy.stats import pearsonr
 import statsmodels.api as sm
+from loguru import logger
+from mass_spec_utils.data_processing.alignment import Peak, PeakSet
+from scipy.stats import pearsonr
 
+from vimms.Box import GenericBox
 # from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import PROTON_MASS, CHEM_NOISE, GET_MS2_BY_PEAKS
-from vimms.Box import GenericBox
+from vimms.Common import PROTON_MASS
 from vimms.Evaluation import *
-
-from mass_spec_utils.data_processing.alignment import BoxJoinAligner, Peak, PeakSet
-import statsmodels.api as sm
 
 POS_TRANSFORMATIONS = OrderedDict()
 POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
@@ -75,12 +71,12 @@ class Roi(object):
 
     def get_autocorrelation(self, lag=1):
         return pd.Series(self.intensity_list).autocorr(lag=lag)
-        
+
     def get_nth_point(self, n):
-        if(n >= len(self.rt_list)): return None
-        return self.rt_list[n], self.mz_list[n], self.intensity_list[n] 
-        
-    def estimate_apex(self): 
+        if (n >= len(self.rt_list)): return None
+        return self.rt_list[n], self.mz_list[n], self.intensity_list[n]
+
+    def estimate_apex(self):
         return self.rt_list[np.argmax(self.intensity_list)]
 
     def add(self, mz, rt, intensity):
@@ -113,12 +109,13 @@ class Roi(object):
             self.rt_list[0], self.rt_list[-1])
 
     def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
-        return GenericBox(min(self.rt_list) + rt_shift, max(self.rt_list) + rt_shift, min(self.mz_list) + mz_shift, max(self.mz_list) + mz_shift,
+        return GenericBox(min(self.rt_list) + rt_shift, max(self.rt_list) + rt_shift, min(self.mz_list) + mz_shift,
+                          max(self.mz_list) + mz_shift,
                           min_xwidth=min_rt_width, min_ywidth=min_mz_width, intensity=self.max_fragmentation_intensity)
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
-        #print(roi_box)
+        # print(roi_box)
         overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
 
@@ -311,7 +308,7 @@ def cosine_score(u, v):
 
 class RoiParams(object):
     def __init__(self, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
-             length_units="scans", ms_level=1, skip=None):
+                 length_units="scans", ms_level=1, skip=None):
         self.mz_tol = mz_tol
         self.mz_units = mz_units
         self.min_length = min_length
@@ -321,6 +318,7 @@ class RoiParams(object):
         self.length_units = length_units
         self.ms_level = ms_level
         self.skip = skip
+
 
 # Make the RoI from an input file
 # mz_units = Da for Daltons
@@ -446,12 +444,12 @@ def plot_roi(roi, statuses=None, log=False):
 
 
 class RoiAligner(object):
-    def __init__(self,mz_tolerance_absolute = 0.01,
-                 mz_tolerance_ppm = 10,
-                 rt_tolerance = 0.5,
-                 mz_column_pos = 1,
-                 rt_column_pos = 2,
-                 intensity_column_pos = 3,
+    def __init__(self, mz_tolerance_absolute=0.01,
+                 mz_tolerance_ppm=10,
+                 rt_tolerance=0.5,
+                 mz_column_pos=1,
+                 rt_column_pos=2,
+                 intensity_column_pos=3,
                  min_rt_width=0.01,
                  min_mz_width=0.01,
                  rt_shift=0,
@@ -573,7 +571,7 @@ class RoiAligner(object):
                     del these_peaks[pos]
                     del temp_boxes[pos]
                     del frag_intensities[pos]
-            for i, peak in enumerate(these_peaks): # remaining ones
+            for i, peak in enumerate(these_peaks):  # remaining ones
                 self.peaksets.append(PeakSet(peak))
                 self.peaksets2boxes[self.peaksets[-1]] = [temp_boxes[i]]
                 self.peaksets2fragintensities[self.peaksets[-1]] = [frag_intensities[i]]
@@ -582,10 +580,10 @@ class RoiAligner(object):
     def to_matrix(self):
         n_peaksets = len(self.peaksets)
         n_files = len(self.files_loaded)
-        intensity_matrix = np.zeros((n_peaksets,n_files),np.double)
-        for i,peakset in enumerate(self.peaksets):
-            for j,filename in enumerate(self.files_loaded):
-                intensity_matrix[i,j] = peakset.get_intensity(filename)
+        intensity_matrix = np.zeros((n_peaksets, n_files), np.double)
+        for i, peakset in enumerate(self.peaksets):
+            for j, filename in enumerate(self.files_loaded):
+                intensity_matrix[i, j] = peakset.get_intensity(filename)
         return intensity_matrix
 
     def get_boxes(self):
@@ -648,7 +646,7 @@ def calculate_chemical_p_values(datasets, group_list, base_chemicals):
         y = []
         for i, ds in enumerate(ds_parents):
             if chem in base_chemicals:
-                new_chem = np.array(datasets[i])[np.where(np.array(ds)==chem)[0]][0]
+                new_chem = np.array(datasets[i])[np.where(np.array(ds) == chem)[0]][0]
                 intensity = np.log(new_chem.max_intensity + 1)
             else:
                 intensity = 0.0
@@ -674,7 +672,7 @@ def get_precursor_intensities(boxes2scans, boxes, method):
             for ms2_scan in scans:
                 precursor = ms2_scan.previous_ms1.get_precursor(ms2_scan.precursor_mz)
                 if precursor is not None:
-                    box_intensities.append(precursor[1]) # precursor is (mz, intensity)
+                    box_intensities.append(precursor[1])  # precursor is (mz, intensity)
 
             if method == 'max':
                 # for each box, get the max precursor intensity
@@ -700,4 +698,3 @@ def get_precursor_intensities(boxes2scans, boxes, method):
     precursor_intensities = np.array(precursor_intensities)
     scores = np.array(scores)
     return precursor_intensities, scores
-

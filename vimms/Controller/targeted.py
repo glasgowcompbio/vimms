@@ -1,19 +1,21 @@
 # vimms.Controller.targeted
 
 import csv
-from molmass import Formula
+
 from mass_spec_utils.adduct_calculator.adduct_rules import AdductTransformer
+from molmass import Formula
 
-from vimms.Controller.base import Controller
 from vimms.Common import DEFAULT_ISOLATION_WIDTH, ScanParameters
-from loguru import logger
+from vimms.Controller.base import Controller
 
-def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60., polarity_filter=['+'], adducts_to_use=['[M+H]+', '[M+K]+', '[M+Na]+']):
+
+def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60.,
+                              polarity_filter=['+'], adducts_to_use=['[M+H]+', '[M+K]+', '[M+Na]+']):
     """
     Note: mz_delta is in ppm
     """
     target_list = []
-    
+
     with open(str(toxid_file_name), 'r') as f:
         reader = csv.reader(f)
         line = [None]
@@ -23,7 +25,7 @@ def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta
         at = AdductTransformer()
 
         for line in reader:
-            if len(line) == 0 or line[0] == '-': # empty line, or undetected compound
+            if len(line) == 0 or line[0] == '-':  # empty line, or undetected compound
                 continue
             name = line[1]
             formula = line[2]
@@ -34,24 +36,25 @@ def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta
             if file_rt_units == 'minutes':
                 expected_rt *= 60.
             for val in line[8:]:
-                assert val == '-' or val  ==  ''
+                assert val == '-' or val == ''
             metadata = {'name': name, 'formula': formula, 'polarity': polarity, \
                         'expected_rt': expected_rt}
-            
+
             for adduct in adducts_to_use:
                 theoretical_mz = at.mass2ion(Formula(formula).isotope.mass, adduct)
                 min_mz = theoretical_mz - theoretical_mz * mz_delta / 1e6
                 max_mz = theoretical_mz + theoretical_mz * mz_delta / 1e6
                 min_rt = expected_rt - rt_delta
                 max_rt = expected_rt + rt_delta
-                new_target = Target(theoretical_mz, min_mz, max_mz, min_rt, max_rt, name=name, metadata=metadata, adduct=adduct)
+                new_target = Target(theoretical_mz, min_mz, max_mz, min_rt, max_rt, name=name, metadata=metadata,
+                                    adduct=adduct)
                 target_list.append(new_target)
 
     return target_list
-    
+
 
 class Target(object):
-    def __init__(self, mz, min_mz, max_mz, min_rt, max_rt, name=None, adduct=None,metadata=None):
+    def __init__(self, mz, min_mz, max_mz, min_rt, max_rt, name=None, adduct=None, metadata=None):
         self.mz = mz
         self.from_mz = min_mz
         self.to_mz = max_mz
@@ -60,7 +63,7 @@ class Target(object):
         self.name = name
         self.metadata = metadata
         self.adduct = adduct
-    
+
     def peak_in(self, mz, rt):
         if mz >= self.from_mz and mz <= self.to_mz and rt >= self.from_rt and rt <= self.to_rt:
             return True
@@ -71,26 +74,32 @@ class Target(object):
         # check if there is a peak inside this box
         # if there is, return true, else return false
         # mzi is a zip of the mz and intensity lists from a scan
-        if rt < self.from_rt or rt >  self.to_rt:
+        if rt < self.from_rt or rt > self.to_rt:
             return False
-        sub_mzi = list(filter(lambda x: x[0] >= self.from_mz and x[0] <= self.to_mz and x[1] >= min_intensity_for_fragmentation, mz_intensity))
+        sub_mzi = list(
+            filter(lambda x: x[0] >= self.from_mz and x[0] <= self.to_mz and x[1] >= min_intensity_for_fragmentation,
+                   mz_intensity))
         if len(sub_mzi) > 0:
             return True
         else:
             return False
-    
+
     def __str__(self):
         if self.name is not None:
-            return "{}{} (m/z: {}->{}, rt: {}->{})".format(self.name, self.adduct, self.from_mz, self.to_mz, self.from_rt, self.to_rt)
+            return "{}{} (m/z: {}->{}, rt: {}->{})".format(self.name, self.adduct, self.from_mz, self.to_mz,
+                                                           self.from_rt, self.to_rt)
         else:
             return "(m/z: {}->{}, rt: {}->{})".format(self.from_mz, self.to_mz, self.from_rt, self.to_rt)
+
 
 class TargetedController(Controller):
     """
     A controller that is given a list of m/z and RT values to target
     Attempts to acquire n_replicates of each target at each CE
     """
-    def __init__(self, targets, ce_values, N=10, n_replicates=1, min_ms1_intensity=5e3, isolation_width=DEFAULT_ISOLATION_WIDTH, params=None, limit_acquisition=True):
+
+    def __init__(self, targets, ce_values, N=10, n_replicates=1, min_ms1_intensity=5e3,
+                 isolation_width=DEFAULT_ISOLATION_WIDTH, params=None, limit_acquisition=True):
         super().__init__(params=params)
         self.targets = targets
         self.ce_values = ce_values
@@ -108,7 +117,7 @@ class TargetedController(Controller):
         for t in self.targets:
             self.target_counts[t] = {c: 0 for c in self.ce_values}
 
-        self.scan_record = [] # keeps track of which scan is which
+        self.scan_record = []  # keeps track of which scan is which
         self.seen_targets = set()
 
     def update_state_after_scan(self, last_scan):
@@ -134,9 +143,9 @@ class TargetedController(Controller):
                     else:
                         target_list.append((t, ce, self.target_counts[t][ce]))
 
-            
             if len(target_list) > 0:
-                target_list.sort(key = lambda x: x[2]) # prioritise by how far we are below the number of repetitions we want
+                target_list.sort(
+                    key=lambda x: x[2])  # prioritise by how far we are below the number of repetitions we want
                 # make some MS2 scans, upto N
                 for i in range(min(len(target_list), self.N)):
                     t, ce, _ = target_list[i]
@@ -144,15 +153,15 @@ class TargetedController(Controller):
                     if t.adduct is not None:
                         metadata['adduct'] = t.adduct
                     if t.metadata is not None:
-                        metadata.update(t.metadata) # copy the rest of metadata from target
+                        metadata.update(t.metadata)  # copy the rest of metadata from target
                     dda_scan_params = self.get_ms2_scan_params(t.mz, 1e3, precursor_scan_id, self.isolation_width, \
-                                                        self.mz_tol, self.rt_tol, metadata=metadata)
+                                                               self.mz_tol, self.rt_tol, metadata=metadata)
                     dda_scan_params.set(ScanParameters.COLLISION_ENERGY, ce)
                     new_tasks.append(dda_scan_params)
                     self.current_task_id += 1
                     self.target_counts[t][ce] += 1
                     self.scan_record.append([self.current_task_id, t, ce])
-            
+
             # make the MS1 scan
             ms1_scan_params = self.get_ms1_scan_params()
             self.current_task_id += 1
@@ -178,5 +187,3 @@ class TargetedController(Controller):
         output_method("========")
         output_method("{} out of {} have one or more scans".format(len(found), len(self.targets)))
         output_method("{} of the {} unique names have more than one scan".format(len(found_names), len(unique_names)))
-
-

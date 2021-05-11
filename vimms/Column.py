@@ -1,7 +1,7 @@
 import copy
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Column(object):
@@ -54,6 +54,7 @@ class CleanColumn(Column):
     def __init__(self, dataset):
         super().__init__(dataset, 0.0)
 
+
 class LinearColumn(Column):
     def __init__(self, dataset, noise_sd, intercept_params, linear_params):
         self.intercept_params = intercept_params
@@ -61,7 +62,7 @@ class LinearColumn(Column):
         self.intercept_term = np.random.normal(self.intercept_params[0], self.intercept_params[1])
         self.linear_term = np.random.normal(self.linear_params[0], self.linear_params[1])
         super().__init__(dataset, noise_sd)
-        
+
     @staticmethod
     def from_fixed_offsets(dataset, noise_sd, intercept_term, linear_term):
         new = LinearColumn(dataset, noise_sd, (0, 0), (0, 0))
@@ -73,14 +74,14 @@ class LinearColumn(Column):
         true_offset_function = self.intercept_term + self.linear_term * self.dataset_apex_rts
         offsets = true_offset_function + np.random.normal(0, self.noise_sd, len(self.dataset))
         return offsets, true_offset_function
-        
+
     def drift_fn(self, roi, injection_number):
         '''f(rt) = rt + (m * rt + c)
         rt + m * rt = f(rt) - c
         rt(1 + m) = f(rt) - c
         rt = (f(rt) - c) / (1 + m)'''
         rt = roi.estimate_apex()
-        return rt - (rt - self.intercept_term) / (1 + self.linear_term), {} #this doesn't account for noise?
+        return rt - (rt - self.intercept_term) / (1 + self.linear_term), {}  # this doesn't account for noise?
 
 
 class GaussianProcessColumn(Column):
@@ -101,9 +102,8 @@ class GaussianProcessColumn(Column):
         K = np.zeros((N, N), np.double)
         for n in range(N):
             for m in range(N):
-                K[n, m] = self.rbf_params[0] * np.exp(-(1. / self.rbf_params[1]) * (self.dataset_apex_rts[n] - self.dataset_apex_rts[m]) ** 2)
+                K[n, m] = self.rbf_params[0] * np.exp(
+                    -(1. / self.rbf_params[1]) * (self.dataset_apex_rts[n] - self.dataset_apex_rts[m]) ** 2)
         true_offset_function = np.random.multivariate_normal(mean, K)
         offsets = true_offset_function + np.random.normal(0, self.noise_sd, N)
         return offsets, true_offset_function
-
-

@@ -1,8 +1,8 @@
 import os
 
+from vimms.Chemicals import RoiToChemicalCreator
 from vimms.Common import DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, save_obj
 from vimms.Roi import make_roi
-from vimms.Chemicals import RoiToChemicalCreator
 
 
 def extract_roi(file_names, out_dir, pattern, mzml_path, ps, param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):

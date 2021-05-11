@@ -45,9 +45,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     input_file_names = args.input_file_names
-    if ',' in input_file_names: # multiple items
+    if ',' in input_file_names:  # multiple items
         input_file_names = input_file_names.split(',')
-    else: # single item
+    else:  # single item
         input_file_names = [input_file_names]
     assert len(input_file_names) > 0
 

@@ -8,7 +8,6 @@ class ModelRoiController(RoiController):
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
                  min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
-
         self.boxes = boxes
         self.p_values = np.array(p_values)
         self.box_min_rt_width = box_min_rt_width
@@ -26,9 +25,9 @@ class FullPrioritisationModelRoiController(ModelRoiController):
                  min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, boxes, p_values, N, rt_tol,
-                 min_roi_length_for_fragmentation, length_units, ms1_shift, params,
-                 box_min_rt_width, box_min_mz_width)
+                         min_roi_length, boxes, p_values, N, rt_tol,
+                         min_roi_length_for_fragmentation, length_units, ms1_shift, params,
+                         box_min_rt_width, box_min_mz_width)
 
         self.p_values_order = np.argsort(-np.array(self.p_values))  # this is highest to lowest
 
@@ -42,7 +41,6 @@ class FullPrioritisationModelRoiController(ModelRoiController):
         initial_scores = dda_scores * overlap_scores
         scores = self._get_top_N_scores(initial_scores)
         return scores
-
 
 # class TopNBoxModelRoiController(ModelRoiController):
 #     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
@@ -67,4 +65,3 @@ class FullPrioritisationModelRoiController(ModelRoiController):
 #         initial_scores = dda_scores * overlap_scores
 #         scores = self._get_top_N_scores(initial_scores)
 #         return scores
-

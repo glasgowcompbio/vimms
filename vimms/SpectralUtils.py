@@ -4,10 +4,10 @@ import pandas as pd
 import pymzml
 from loguru import logger
 
+from vimms.Chemicals import RoiToChemicalCreator
 from vimms.Common import get_rt, ScanParameters, Precursor
 from vimms.MassSpec import Scan
 from vimms.Roi import make_roi
-from vimms.Chemicals import RoiToChemicalCreator
 
 
 ########################################################################################################################

@@ -4,6 +4,7 @@ import numpy as np
 from loguru import logger
 
 from vimms.Controller.roi import RoiController
+from vimms.Exclusion import _update_temp_exclusion_list
 
 
 class GridController(RoiController):
@@ -78,7 +79,7 @@ class GridController(RoiController):
         # if no ms1 has been added, then add at the end
         if not done_ms1: self.schedule_ms1(new_tasks)
 
-        self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+        self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
         self.scan_to_process = None  # set this ms1 scan as has been processed
 
         return new_tasks

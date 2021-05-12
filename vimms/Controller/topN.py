@@ -6,7 +6,7 @@ from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
 from vimms.Common import DUMMY_PRECURSOR_MZ, ScanParameters, get_default_scan_params
 from vimms.Controller.base import Controller
-from vimms.Exclusion import ExclusionItem
+from vimms.Exclusion import _get_exclusion_item, _update_temp_exclusion_list
 
 
 class TopNController(Controller):
@@ -110,28 +110,11 @@ class TopNController(Controller):
                 new_tasks.append(ms1_scan_params)
 
             # create temp exclusion items
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
         return new_tasks
-
-    def _update_temp_exclusion_list(self, tasks):
-        temp_exclusion_list = []
-        rt = self.scan_to_process.rt
-        for task in tasks:
-            for precursor in task.get('precursor_mz'):
-                mz = precursor.precursor_mz
-                mz_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
-                rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
-                x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
-                logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
-                    rt,
-                    x.from_mz, x.to_mz, x.from_rt, x.to_rt
-                ))
-                x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
-                temp_exclusion_list.append(x)
-        return temp_exclusion_list
 
     def update_state_after_scan(self, last_scan):
         # the DEW list update must be done after time has been increased
@@ -164,7 +147,7 @@ class TopNController(Controller):
 
                 mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
                 rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
-                x = self._get_exclusion_item(precursor.precursor_mz, current_time, mz_tol, rt_tol)
+                x = _get_exclusion_item(precursor.precursor_mz, current_time, mz_tol, rt_tol)
                 logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
                     current_time,
                     x.from_mz, x.to_mz, x.from_rt, x.to_rt
@@ -174,15 +157,6 @@ class TopNController(Controller):
 
         # remove expired items from dynamic exclusion list
         self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))
-
-    def _get_exclusion_item(self, mz, rt, mz_tol, rt_tol):
-        mz_lower = mz * (1 - mz_tol / 1e6)
-        mz_upper = mz * (1 + mz_tol / 1e6)
-        rt_lower = rt - rt_tol
-        rt_upper = rt + rt_tol
-        x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
-                          frag_at=rt)
-        return x
 
     def _is_excluded(self, mz, rt):
         """
@@ -310,7 +284,7 @@ class WeightedDEWController(TopNController):
             # create temp exclusion items
             # tasks = new_tasks[min(self.N - self.ms1_shift+1, len(new_tasks)):max(self.N - self.ms1_shift+1, len(new_tasks))]
             # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
@@ -587,7 +561,7 @@ class PurityController(TopNController):
             self.next_processed_scan_id = self.current_task_id
 
             # create temp exclusion items
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

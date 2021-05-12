@@ -1,7 +1,10 @@
 from intervaltree import IntervalTree
-
+from loguru import logger
 
 # Exclusion.py
+from vimms.Common import ScanParameters
+
+
 class ExclusionItem(object):
     """
     A class to store the item to exclude when computing dynamic exclusion window
@@ -147,6 +150,33 @@ class BoxHolder(object):
             box = r.data
             it.add_box(box)
         return it
+
+
+def _update_temp_exclusion_list(rt, tasks):
+    temp_exclusion_list = []
+    for task in tasks:
+        for precursor in task.get('precursor_mz'):
+            mz = precursor.precursor_mz
+            mz_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
+            rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
+            x = _get_exclusion_item(mz, rt, mz_tol, rt_tol)
+            logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
+                rt,
+                x.from_mz, x.to_mz, x.from_rt, x.to_rt
+            ))
+            x = _get_exclusion_item(mz, rt, mz_tol, rt_tol)
+            temp_exclusion_list.append(x)
+    return temp_exclusion_list
+
+
+def _get_exclusion_item(mz, rt, mz_tol, rt_tol):
+    mz_lower = mz * (1 - mz_tol / 1e6)
+    mz_upper = mz * (1 + mz_tol / 1e6)
+    rt_lower = rt - rt_tol
+    rt_upper = rt + rt_tol
+    x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
+                      frag_at=rt)
+    return x
 
 
 if __name__ == '__main__':

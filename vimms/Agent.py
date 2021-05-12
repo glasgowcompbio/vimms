@@ -195,6 +195,7 @@ class ReinforceAgent(AbstractAgent):
         self.isolation_width = 0.7
         self.min_mz = min_mz
         self.max_mz = max_mz
+        self.seen_chems = {}
 
     def _get_state(self, mzs, rt, intensities):
         grid = int(self.max_mz - self.min_mz)
@@ -285,9 +286,15 @@ class ReinforceAgent(AbstractAgent):
             event = last_scan.fragevent
             if event is not None: # fragmenting chems
                 frag_intensity = event.parents_intensity[0]
+                chem = event.chem
+                if chem in self.seen_chems:
+                    self.seen_chems[chem] += 1
+                else:
+                    self.seen_chems[chem] = 1
+
                 reward = 0
                 if frag_intensity is not None:
-                    reward = np.log(frag_intensity)
+                    reward = np.log(frag_intensity) * 1.0/self.seen_chems[chem]
                 # reward = +1
 
                 parent_scan_id = event.precursor_mz[0].precursor_scan_id
@@ -299,7 +306,7 @@ class ReinforceAgent(AbstractAgent):
 
             else: # fragmenting noise
                 parent_scan_id = controller.last_ms1_scan.scan_id
-                reward = -10
+                reward = -1
                 if parent_scan_id not in self.pi.scan_id_rewards:
                     self.pi.scan_id_rewards[parent_scan_id] = reward
                 else:

@@ -6,6 +6,7 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Controller.topN import TopNController
+from vimms.Exclusion import generate_exclusion
 from vimms.Roi import match, Roi, SmartRoi
 
 
@@ -112,14 +113,13 @@ class RoiController(TopNController):
                 logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
                 new_tasks.append(ms1_scan_params)
 
-            # create temp exclusion items
-            # tasks = new_tasks[
-            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
-            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            # create new exclusion items
+            new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
+            self.exclusion_list.extend(new_items)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
+
         if scan.ms_level == 2:  # add ms2 scans to Rois
             self.add_scan_to_roi(scan)
         return new_tasks
@@ -283,8 +283,9 @@ class SmartRoiController(RoiController):
 
                 new_tasks.append(ms1_scan_params)
 
-            # create temp exclusion items
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            # create new exclusion items
+            new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
+            self.exclusion_list.extend(new_items)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

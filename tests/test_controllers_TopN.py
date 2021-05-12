@@ -392,7 +392,7 @@ class TestExclusion:
         mz_tol = 10
         ionisation_mode = POSITIVE
 
-        initial_exclusion_list = None
+        initial_exclusion_list = []
         for i in range(3):
             mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
@@ -401,9 +401,7 @@ class TestExclusion:
             env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
             run_environment(env)
 
-            if initial_exclusion_list is None:
-                initial_exclusion_list = []
-            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
+            initial_exclusion_list = controller.exclusion_list
 
             # check that there is at least one non-empty MS2 scan
             check_non_empty_MS2(controller)
@@ -423,14 +421,14 @@ class TestExclusion:
         n_chems = 3
         dataset = cs.sample(n_chems, 2)
         ionisation_mode = POSITIVE
-        initial_exclusion_list = None
+        initial_exclusion_list = []
         min_ms1_intensity = 0
         N = 10
         mz_tol = 10
         rt_tol = 30
         isolation_width = 1
         all_controllers = []
-        for i in range(2):
+        for i in range(3):
             mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, None)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
                                         initial_exclusion_list=initial_exclusion_list)
@@ -438,12 +436,11 @@ class TestExclusion:
             env = Environment(mass_spec, controller, 0, 20, progress_bar=True)
             run_environment(env)
 
-            if initial_exclusion_list is None:
-                initial_exclusion_list = []
-            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
+            initial_exclusion_list = controller.exclusion_list
             all_controllers.append(controller)
         assert len(all_controllers[0].scans[2]) == n_chems
         assert len(all_controllers[1].scans[2]) == 0
+        assert len(all_controllers[2].scans[2]) == 0
 
 
 class TestPurityController:

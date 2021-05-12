@@ -43,7 +43,7 @@ class TestMS2Matching:
         output_folder = os.path.join(OUT_DIR, 'ms2_matching')
         write_msp(d, 'mmm.msp', out_dir=output_folder)
 
-        initial_exclusion_list = None
+        initial_exclusion_list = []
         for i, chem_list in enumerate(cl):
             controller = TopNController(POSITIVE, N, isolation_width, \
                                         mz_tol, rt_tol, min_ms1_intensity, \
@@ -53,9 +53,7 @@ class TestMS2Matching:
             env.run()
             env.write_mzML(output_folder,'{}.mzML'.format(i))
 
-            if initial_exclusion_list is None:
-                initial_exclusion_list = []
-            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
+            initial_exclusion_list = controller.exclusion_list
             logger.warning(len(initial_exclusion_list))
 
 

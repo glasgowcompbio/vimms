@@ -4,9 +4,9 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
-from vimms.Common import DUMMY_PRECURSOR_MZ, ScanParameters, get_default_scan_params
+from vimms.Common import DUMMY_PRECURSOR_MZ, get_default_scan_params
 from vimms.Controller.base import Controller
-from vimms.Exclusion import _get_exclusion_item, _update_temp_exclusion_list
+from vimms.Exclusion import generate_exclusion, _is_weightedDEW_excluded, _is_excluded, manage_exclusion
 
 
 class TopNController(Controller):
@@ -33,9 +33,6 @@ class TopNController(Controller):
         self.exclusion_list = []
         if initial_exclusion_list is not None:  # copy initial list, if provided
             self.exclusion_list = list(initial_exclusion_list)
-
-        self.temp_exclusion_list = []  # to deal with ms1_shift
-        self.all_exclusion_items = []  # keep track of all exclusion items through the whole run
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -68,7 +65,7 @@ class TopNController(Controller):
                     break
 
                 # skip ion in the dynamic exclusion list of the mass spec
-                if self._is_excluded(mz, rt):
+                if _is_excluded(self.exclusion_list, mz, rt):
                     continue
 
                 # create a new ms2 scan parameter to be sent to the mass spec
@@ -109,72 +106,17 @@ class TopNController(Controller):
                 self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
 
-            # create temp exclusion items
-            self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
+            # create new exclusion items
+            new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
+            self.exclusion_list.extend(new_items)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
         return new_tasks
 
     def update_state_after_scan(self, last_scan):
-        # the DEW list update must be done after time has been increased
-        self._manage_dynamic_exclusion_list(last_scan)
-
-    def _manage_dynamic_exclusion_list(self, scan):
-        """
-        Manages dynamic exclusion list
-        :param param: a scan parameter object
-        :param scan: the newly generated scan
-        :return: None
-        """
-        # FIXME: maybe not correct, see the step() method in IAPIMassSpec class
-        if scan.scan_duration is not None:
-            current_time = scan.rt + scan.scan_duration
-        else:
-            current_time = scan.rt
-
-        if scan.ms_level >= 2:  # if ms-level is 2, it's a custom scan and we should always know its scan parameters
-            assert scan.scan_params is not None
-            for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
-                # add dynamic exclusion item to the exclusion list to prevent the same precursor ion being fragmented
-                # multiple times in the same mz and rt window
-                # Note: at this point, fragmentation has occurred and time has been incremented! so the time when
-                # items are checked for dynamic exclusion is the time when MS2 fragmentation occurs
-                # TODO: we need to add a repeat count too, i.e. how many times we've seen a fragment peak before
-                #  it gets excluded (now it's basically 1)
-
-                # TODO: check if already excluded and, if so, just move the time
-
-                mz_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
-                rt_tol = scan.scan_params.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
-                x = _get_exclusion_item(precursor.precursor_mz, current_time, mz_tol, rt_tol)
-                logger.debug('Time {:.6f} Created dynamic exclusion window mz ({}-{}) rt ({}-{})'.format(
-                    current_time,
-                    x.from_mz, x.to_mz, x.from_rt, x.to_rt
-                ))
-                self.exclusion_list.append(x)
-                self.all_exclusion_items.append(x)
-
-        # remove expired items from dynamic exclusion list
-        self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))
-
-    def _is_excluded(self, mz, rt):
-        """
-        Checks if a pair of (mz, rt) value is currently excluded by dynamic exclusion window
-        :param mz: m/z value
-        :param rt: RT value
-        :return: True if excluded, False otherwise
-        """
-        # TODO: make this faster?
-        exclusion_list = self.exclusion_list + self.temp_exclusion_list
-        for x in exclusion_list:
-            exclude_mz = x.from_mz <= mz <= x.to_mz
-            exclude_rt = x.from_rt <= rt <= x.to_rt
-            if exclude_mz and exclude_rt:
-                logger.debug(
-                    'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                return True
-        return False
+        # update dynamic exclusion list after time has been increased
+        self.exclusion_list = manage_exclusion(last_scan, self.exclusion_list)
 
 
 class ScanItem(object):
@@ -226,7 +168,8 @@ class WeightedDEWController(TopNController):
                        intensities[i] >= self.min_ms1_intensity]
 
             for si in mzi:
-                is_exc, weight = self._is_excluded(si.mz, rt)
+                is_exc, weight = _is_weightedDEW_excluded(self.exclusion_list, si.mz, rt, self.rt_tol,
+                                                          self.exclusion_t_0)
                 si.weight = weight
 
             mzi.sort(reverse=True)
@@ -281,39 +224,13 @@ class WeightedDEWController(TopNController):
                 self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
 
-            # create temp exclusion items
-            # tasks = new_tasks[min(self.N - self.ms1_shift+1, len(new_tasks)):max(self.N - self.ms1_shift+1, len(new_tasks))]
-            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
-            self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
+            # create new exclusion items
+            new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
+            self.exclusion_list.extend(new_items)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
         return new_tasks
-
-    def _is_excluded(self, mz, rt):
-        """
-        Checks if a pair of (mz, rt) value is currently excluded by dynamic exclusion window
-        :param mz: m/z value
-        :param rt: RT value
-        :return: True if excluded, False otherwise
-        """
-        # TODO: make this faster?
-        exclusion_list = self.exclusion_list + self.temp_exclusion_list
-        exclusion_list.sort(key=lambda x: x.from_rt, reverse=True)
-        for x in exclusion_list:
-            exclude_mz = x.from_mz <= mz <= x.to_mz
-            exclude_rt = x.from_rt <= rt <= x.to_rt
-            if exclude_mz and exclude_rt:
-                logger.debug(
-                    'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                if rt <= x.frag_at + self.exclusion_t_0:
-                    return True, 0.0
-                else:
-                    weight = (rt - (self.exclusion_t_0 + x.frag_at)) / (self.rt_tol - self.exclusion_t_0)
-                    assert weight <= 1, weight
-                    # self.remove_exclusion_items.append(x)
-                    return True, weight
-        return False, 1
 
 
 class OptimalTopNController(TopNController):
@@ -518,7 +435,7 @@ class PurityController(TopNController):
                     break
 
                 # skip ion in the dynamic exclusion list of the mass spec
-                if self._is_excluded(mz, rt):
+                if _is_excluded(self.exclusion_list, mz, rt):
                     continue
 
                 if purity <= self.purity_threshold:
@@ -560,8 +477,9 @@ class PurityController(TopNController):
             self.current_task_id += 1
             self.next_processed_scan_id = self.current_task_id
 
-            # create temp exclusion items
-            self.temp_exclusion_list = _update_temp_exclusion_list(self.scan_to_process.rt, ms2_tasks)
+            # create new exclusion items
+            new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
+            self.exclusion_list.extend(new_items)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

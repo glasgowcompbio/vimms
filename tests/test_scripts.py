@@ -53,7 +53,7 @@ class TestMS2Matching:
             env.run()
             env.write_mzML(output_folder,'{}.mzML'.format(i))
 
-            initial_exclusion_list = controller.exclusion_list
+            initial_exclusion_list = controller.exclusion.exclusion_list
             logger.warning(len(initial_exclusion_list))
 
 

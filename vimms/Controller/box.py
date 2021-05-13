@@ -4,7 +4,6 @@ import numpy as np
 from loguru import logger
 
 from vimms.Controller.roi import RoiController
-from vimms.Exclusion import generate_exclusion
 
 
 class GridController(RoiController):
@@ -79,16 +78,16 @@ class GridController(RoiController):
         # if no ms1 has been added, then add at the end
         if not done_ms1: self.schedule_ms1(new_tasks)
 
-        # create new exclusion items
-        new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
-        self.exclusion_list.extend(new_items)
+        # create new exclusion items based on the scheduled ms2 tasks
+        self.exclusion.update(self.scan_to_process, ms2_tasks)
 
         self.scan_to_process = None  # set this ms1 scan as has been processed
 
         return new_tasks
 
-    def update_state_after_scan(self, last_scan):
-        self.grid.send_training_data(last_scan)
+    def update_state_after_scan(self, scan):
+        super().update_state_after_scan(scan)
+        self.grid.send_training_data(scan)
 
     @abstractmethod
     def _get_scores(self):

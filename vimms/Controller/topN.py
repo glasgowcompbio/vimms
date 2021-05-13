@@ -1,12 +1,9 @@
-import bisect
-
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import load_picked_boxes
 
-from vimms.Common import DUMMY_PRECURSOR_MZ, get_default_scan_params
+from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
-from vimms.Exclusion import generate_exclusion, _is_weightedDEW_excluded, _is_excluded, manage_exclusion
+from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
 
 
 class TopNController(Controller):
@@ -30,9 +27,7 @@ class TopNController(Controller):
         if self.force_N and ms1_shift > 0:
             logger.warning("Setting force_N to True with non-zero shift can lead to strange behaviour")
 
-        self.exclusion_list = []
-        if initial_exclusion_list is not None:  # copy initial list, if provided
-            self.exclusion_list = list(initial_exclusion_list)
+        self.exclusion = TopNExclusion(initial_exclusion_list=initial_exclusion_list)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -65,7 +60,7 @@ class TopNController(Controller):
                     break
 
                 # skip ion in the dynamic exclusion list of the mass spec
-                if _is_excluded(self.exclusion_list, mz, rt):
+                if self.exclusion.is_excluded(mz, rt):
                     continue
 
                 # create a new ms2 scan parameter to be sent to the mass spec
@@ -106,17 +101,16 @@ class TopNController(Controller):
                 self.next_processed_scan_id = self.current_task_id
                 new_tasks.append(ms1_scan_params)
 
-            # create new exclusion items
-            new_items = generate_exclusion(self.scan_to_process.rt, ms2_tasks)
-            self.exclusion_list.extend(new_items)
+            # create new exclusion items based on the scheduled ms2 tasks
+            self.exclusion.update(self.scan_to_process, ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
         return new_tasks
 
-    def update_state_after_scan(self, last_scan):
+    def update_state_after_scan(self, scan):
         # update dynamic exclusion list after time has been increased
-        self.exclusion_list = manage_exclusion(last_scan, self.exclusion_list)
+        self.exclusion.cleanup(scan)
 
 
 class ScanItem(object):
@@ -146,9 +140,8 @@ class WeightedDEWController(TopNController):
                  exclusion_t_0=15, log_intensity=False, params=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
                          params=params)
-        self.exclusion_t_0 = exclusion_t_0
         self.log_intensity = log_intensity
-        assert self.exclusion_t_0 <= self.rt_tol
+        self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -168,8 +161,7 @@ class WeightedDEWController(TopNController):
                        intensities[i] >= self.min_ms1_intensity]
 
             for si in mzi:
-                is_exc, weight = _is_weightedDEW_excluded(self.exclusion_list, si.mz, rt, self.rt_tol,
-                                                          self.exclusion_t_0)
+                is_exc, weight = self.exclusion.is_excluded(si.mz, rt)
                 si.weight = weight
 
             mzi.sort(reverse=True)

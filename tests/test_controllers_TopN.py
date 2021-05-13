@@ -397,11 +397,11 @@ class TestExclusion:
             mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                         initial_exclusion_list=initial_exclusion_list)
-            print('exclude = %d' % len(controller.exclusion_list))
+            print('exclude = %d' % len(controller.exclusion.exclusion_list))
             env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
             run_environment(env)
 
-            initial_exclusion_list = controller.exclusion_list
+            initial_exclusion_list = controller.exclusion.exclusion_list
 
             # check that there is at least one non-empty MS2 scan
             check_non_empty_MS2(controller)
@@ -432,11 +432,11 @@ class TestExclusion:
             mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, None)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
                                         initial_exclusion_list=initial_exclusion_list)
-            print('exclude = %d' % len(controller.exclusion_list))
+            print('exclude = %d' % len(controller.exclusion.exclusion_list))
             env = Environment(mass_spec, controller, 0, 20, progress_bar=True)
             run_environment(env)
 
-            initial_exclusion_list = controller.exclusion_list
+            initial_exclusion_list = controller.exclusion.exclusion_list
             all_controllers.append(controller)
         assert len(all_controllers[0].scans[2]) == n_chems
         assert len(all_controllers[1].scans[2]) == 0

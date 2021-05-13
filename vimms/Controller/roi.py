@@ -6,7 +6,6 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Controller.topN import TopNController
-from vimms.Exclusion import generate_exclusion
 from vimms.Roi import match, Roi, SmartRoi
 
 

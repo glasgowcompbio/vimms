@@ -17,7 +17,7 @@ from sklearn.linear_model import LogisticRegression
 
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import create_if_not_exist, save_obj, load_obj
-from vimms.Controller import TopNController, PurityController, WeightedDEWController
+from vimms.Controller import TopNController, WeightedDEWController
 from vimms.Controller.roi import get_box_intensity, TopN_RoiController, TopN_SmartRoiController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -585,7 +585,6 @@ class CompletedExperiment(BasicExperiment):
 
 POSSIBLE_CONTROLLER_DICT = {'TopN_RoiController': TopNController,
                             'TopNController': TopNController,
-                            'PurityController': PurityController,
                             'TopN_SmartRoiController': TopN_SmartRoiController,
                             'WeightedDewController': WeightedDEWController}
 
@@ -631,14 +630,6 @@ def create_controller(controller_method, param_dict):
         controller = TopNController(param_dict['ionisation_mode'], param_dict['N'], param_dict['isolation_width'],
                                     param_dict['mz_tol'], param_dict['rt_tol'], param_dict['min_ms1_intensity'],
                                     param_dict['ms1_shift'], param_dict['initial_exclusion_list'], param_dict['params'])
-
-    elif controller_method == 'PurityController':
-        controller = PurityController(param_dict['ionisation_mode'], param_dict['N'],
-                                      param_dict['scan_param_changepoints'], param_dict['isolation_width'],
-                                      param_dict['mz_tols'], param_dict['rt_tols'], param_dict['min_ms1_intensity'],
-                                      param_dict['n_purity_scans'], param_dict['purity_shift'],
-                                      param_dict['purity_threshold'], param_dict['purity_randomise'],
-                                      param_dict['purity_add_ms1'], param_dict['ms1_shift'], param_dict['params'])
 
     elif controller_method == 'WeightedDewController':
         controller = WeightedDEWController(param_dict['ionisation_mode'], param_dict['N'],

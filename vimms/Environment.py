@@ -4,7 +4,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from vimms.Common import save_obj
-from vimms.Controller import TopNController, PurityController
+from vimms.Controller import TopNController
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
 
@@ -181,10 +181,10 @@ class Environment(object):
         Gets the current N and DEW depending on which controller type it is
         :return: The current N and DEW values, None otherwise
         """
-        if isinstance(self.controller, PurityController):
-            current_N, current_rt_tol, idx = self.controller._get_current_N_DEW(time)
-            return current_N, current_rt_tol
-        elif isinstance(self.controller, TopNController):
+        # if isinstance(self.controller, PurityController):
+        #     current_N, current_rt_tol, idx = self.controller._get_current_N_DEW(time)
+        #     return current_N, current_rt_tol
+        if isinstance(self.controller, TopNController):
             return self.controller.N, self.controller.rt_tol
         else:
             return None, None

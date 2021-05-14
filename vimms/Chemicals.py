@@ -345,7 +345,7 @@ class ChemicalCreator(object):
                     formula_set.add(str(new_compound))
                     compound_found = True
                 list_index += 1
-        return list(formula_set)
+        return sorted(list(formula_set))
 
     def _get_children(self, get_children_method, parent, n_peaks=None):
         if get_children_method == GET_MS2_BY_SPECTRA:

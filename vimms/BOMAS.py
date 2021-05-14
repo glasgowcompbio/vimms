@@ -12,6 +12,7 @@ from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, Top
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.Roi import RoiAligner
+from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -113,9 +114,11 @@ def weighted_dew_evaluation(param_dict):
 
 
 def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
-                                base_chemicals=None, roi_aligner=None, source_files=None):
-    if base_chemicals is not None or (roi_aligner is not None and source_files is not None):
+                                base_chemicals=None, mzmine_files=None, rt_tolerance=100, experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
         env_list = []
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
@@ -123,117 +126,224 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
-        evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
         return env_list, evaluation
     else:
         return None, None
 
 
-def top_n_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
-                                    min_ms1_intensity, min_roi_intensity, min_roi_length):
-    env_list = []
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-                                        min_roi_length, N=N, rt_tol=rt_tol)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
+def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                    min_ms1_intensity, min_roi_intensity, min_roi_length, base_chemicals=None,
+                                    mzmine_files=None, rt_tolerance=100, experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                            min_roi_length, N=N, rt_tol=rt_tol)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
 
 
-def smart_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                     min_ms1_intensity, min_roi_intensity, min_roi_length,
                                     min_roi_length_for_fragmentation, reset_length_seconds, intensity_increase_factor,
-                                    drop_perc, ms1_shift, params):
-    env_list = []
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
-                                    initial_exclusion_list=None, force_N=False)
-        TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-                                min_roi_length, N=N, rt_tol=rt_tol,
-                                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                                reset_length_seconds=reset_length_seconds,
-                                intensity_increase_factor=intensity_increase_factor,
-                                drop_perc=drop_perc, ms1_shift=ms1_shift, params=params)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
+                                    drop_perc, ms1_shift, base_chemicals=None, mzmine_files=None,
+                                    rt_tolerance=100, experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                    min_roi_length, N=N, rt_tol=rt_tol,
+                                    min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                                    reset_length_seconds=reset_length_seconds,
+                                    intensity_increase_factor=intensity_increase_factor,
+                                    drop_perc=drop_perc, ms1_shift=ms1_shift)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
 
 
-def weighted_dew_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
-                                       min_ms1_intensity):
-    env_list = []
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
-                                    initial_exclusion_list=None, force_N=False)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
+def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, r, t0,
+                                       min_ms1_intensity, base_chemicals=None, mzmine_files=None, rt_tolerance=100,
+                                       experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = WeightedDEWController(POSITIVE, N, isolation_window, mz_tol, r, min_ms1_intensity,
+                                               exclusion_t_0=t0, log_intensity=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
 
 
-def box_controller_experiment_evaluation(datasets, base_chemicals, group_list, min_rt, max_rt, N, isolation_window,
+def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N, isolation_window,
                                          mz_tol, rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
-                                         boxes_params):
-    env_list = []
-    boxes = []
-    boxes_intensity = []
-    aligner = RoiAligner()
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = TopNBoxRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-                                          min_roi_length, boxes_params=boxes_params, boxes=boxes,
-                                          boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-        rois = env.controller.live_roi + env.controller.dead_roi
-        aligner.add_sample(rois, 'sample_' + str(i), group_list[i])
-        boxes = aligner.get_boxes()
-        boxes_intensity = aligner.get_max_frag_intensities()
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
+                                         boxes_params, base_chemicals=None, mzmine_files=None, rt_tolerance=100,
+                                         experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        boxes = []
+        boxes_intensity = []
+        aligner = RoiAligner()
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = TopNBoxRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                              min_roi_length, boxes_params=boxes_params, boxes=boxes,
+                                              boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            rois = env.controller.live_roi + env.controller.dead_roi
+            aligner.add_sample(rois, 'sample_' + str(i), group_list[i])
+            boxes = aligner.get_boxes()
+            boxes_intensity = aligner.get_max_frag_intensities()
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
 
 
-def non_overlap_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
-                                      min_ms1_intensity, min_roi_intensity, min_roi_length, rt_box_size, mz_box_size,
-                                      min_roi_length_for_fragmentation):
-    env_list = []
-    grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = NonOverlapController(
-            POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-            min_roi_length, N, grid, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
+def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+                                      min_roi_intensity, min_roi_length, rt_box_size, mz_box_size,
+                                      min_roi_length_for_fragmentation, base_chemicals=None, mzmine_files=None,
+                                      rt_tolerance=100, experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = NonOverlapController(
+                POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                min_roi_length, N, grid, rt_tol=rt_tol,
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
 
 
-def intensity_non_overlap_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol,
+def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
                                                 rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
-                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation):
-    env_list = []
-    grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
-    for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-        controller = IntensityNonOverlapController(
-            POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-            min_roi_length, N, grid, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
-        env.run()
-        env_list.append(env)
-    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
-    return env_list, evaluation
+                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
+                                                base_chemicals=None, mzmine_files=None, rt_tolerance=100,
+                                                experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = IntensityNonOverlapController(
+                POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                min_roi_length, N, grid, rt_tol=rt_tol,
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
 
 
 ########################################################################################################################

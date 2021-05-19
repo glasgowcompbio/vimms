@@ -187,7 +187,7 @@ class ReinforceAgent(TopNDEWAgent):
 
                 reward = 0
                 if frag_intensity is not None:
-                    reward = np.log(frag_intensity) * 1.0 / self.seen_chems[chem]
+                    reward = frag_intensity * 1.0 / self.seen_chems[chem]
 
                 parent_scan_id = event.precursor_mz[0].precursor_scan_id
                 assert controller.last_ms1_scan.scan_id == parent_scan_id
@@ -195,7 +195,7 @@ class ReinforceAgent(TopNDEWAgent):
             else:  # fragmenting noise
                 precursor = last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
                 intensity = precursor.precursor_intensity
-                reward = -np.log(intensity)
+                reward = -intensity
                 parent_scan_id = controller.last_ms1_scan.scan_id
 
             if parent_scan_id not in self.pi.scan_id_rewards:
@@ -246,6 +246,12 @@ def train(pi, optimizer, gamma):
         reward = 0
         if scan_id in pi.scan_id_rewards:
             reward = pi.scan_id_rewards[scan_id]
+        if reward == 0:
+            reward = 0
+        elif reward > 0:
+            reward = np.log(reward)
+        else:
+            reward = -np.log(abs(reward))
         rewards.append(reward)
     pi.rewards = np.array(rewards)
 

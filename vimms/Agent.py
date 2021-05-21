@@ -1,4 +1,5 @@
 # Agent.py
+import collections
 from random import randrange
 
 import numpy as np
@@ -24,6 +25,9 @@ class AbstractAgent(object):
     def act(self, scan_to_process):
         raise NotImplementedError
 
+    def reset(self):
+        raise NotImplementedError
+
 
 class FullScanAgent(AbstractAgent):
     def __init__(self):
@@ -44,6 +48,9 @@ class FullScanAgent(AbstractAgent):
     def act(self, scan_to_process):
         pass
 
+    def reset(self):
+        pass
+
 
 class TopNDEWAgent(AbstractAgent):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity):
@@ -55,6 +62,7 @@ class TopNDEWAgent(AbstractAgent):
         self.mz_tol = mz_tol
         self.rt_tol = rt_tol
         self.exclusion = TopNExclusion()
+        self.seen_actions = collections.Counter()
 
     def next_tasks(self, scan_to_process, controller, current_task_id):
         self.act(scan_to_process)
@@ -68,6 +76,10 @@ class TopNDEWAgent(AbstractAgent):
 
     def act(self, scan_to_process):
         pass
+
+    def reset(self):
+        self.exclusion = TopNExclusion()
+        self.seen_actions = collections.Counter()
 
     def _schedule_tasks(self, controller, current_task_id, scan_to_process):
         new_tasks = []
@@ -138,12 +150,19 @@ class ReinforceAgent(TopNDEWAgent):
         action = self.pi.act(state, scan_to_process.scan_id)
 
         # assume 10 states
-        # if 0 <= action < 5:
-        #     self.N = (action + 1) * 2  # N = {2, 4, 6, 8, 10}
-        # elif 5 <= action < 10:
-        #     self.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
+        if 0 <= action < 5:
+            self.N = (action + 1) * 5  # N = {5, 10, 15, 20, 25}
+            self.seen_actions.update(['N=%d' % self.N])
+        elif 5 <= action < 10:
+            self.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
+            self.seen_actions.update(['DEW=%.1f' % self.rt_tol])
 
-        self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
+        # self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
+        # self.N = (action + 1)
+
+    def reset(self):
+        super().reset()
+        self.seen_chems = {}
 
     def _get_state(self, mzs, rt, intensities):
         included_intensities = []
@@ -159,19 +178,18 @@ class ReinforceAgent(TopNDEWAgent):
         sum_above = np.log(sum(included_intensities[above_threshold]))
         sum_below = np.log(sum(included_intensities[below_threshold]))
         min_above = np.log(min(included_intensities[above_threshold]))
-        max_above = np.log(max(included_intensities[above_threshold]))
-        min_below = np.log(min(included_intensities[below_threshold]))
         max_below = np.log(max(included_intensities[below_threshold]))
 
-        features = np.zeros(8)
+        features = np.zeros(20)
         features[0] = num_above
         features[1] = num_below
         features[2] = sum_above
         features[3] = sum_below
         features[4] = min_above
-        features[5] = max_above
-        features[6] = min_below
-        features[7] = max_below
+        features[5] = max_below
+
+        sorted_intensities = sorted(included_intensities, reverse=True)
+        features[6:20] = np.log(sorted_intensities[0:14])
 
         for i in range(len(features)):
             if np.isnan(features[i]): features[i] = 0
@@ -216,14 +234,15 @@ class ReinforceAgent(TopNDEWAgent):
 class Pi(nn.Module):
     def __init__(self, hidden_dim):
         super().__init__()
-        self.in_dim = 8
+        self.in_dim = 20
         self.out_dim = 10
         self.hidden_dim = hidden_dim
         layers = [
             nn.Linear(self.in_dim, self.hidden_dim),
+            nn.Dropout(p=0.1),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.Dropout(p=0.1),
+            nn.Dropout(p=0.5),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.out_dim),
         ]
@@ -293,12 +312,15 @@ class RandomAgent(TopNDEWAgent):
         action = randrange(0, self.num_states)
 
         # assume 10 states
-        # if 0 <= action < 5:
-        #     self.N = (action + 1) * 2  # N = {2, 4, 6, 8, 10}
-        # elif 5 <= action < 10:
-        #     self.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
+        if 0 <= action < 5:
+            self.N = (action + 1) * 5  # N = {5, 10, 15, 20, 25}
+            self.seen_actions.update(['N=%d' % self.N])
+        elif 5 <= action < 10:
+            self.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
+            self.seen_actions.update(['DEW=%d' % self.rt_tol])
 
-        self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
+        # self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
+        # self.N = (action + 1)
 
     def update(self, last_scan, controller):
         super().update(last_scan, controller)

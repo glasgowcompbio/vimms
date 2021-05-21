@@ -7,10 +7,8 @@ import torch.nn as nn
 from loguru import logger
 from torch.distributions import Categorical
 
+from vimms.Common import ScanParameters
 from vimms.Exclusion import TopNExclusion
-from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, GET_MS2_BY_PEAKS, ADDUCT_DICT_POS_MH, \
-    GET_MS2_BY_SPECTRA, POSITIVE, ScanParameters
-
 
 
 class AbstractAgent(object):
@@ -148,28 +146,36 @@ class ReinforceAgent(TopNDEWAgent):
         self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
 
     def _get_state(self, mzs, rt, intensities):
-        grid = int(self.max_mz - self.min_mz)
-        bins = np.zeros(grid)
+        included_intensities = []
         for mz, intensity in zip(mzs, intensities):
-            if self.exclusion.is_excluded(mz, rt):
-                continue
-            if intensity < self.min_ms1_intensity:
-                continue
-            pos = int(np.floor(mz - self.min_mz))
-            try:
-                bins[pos] += intensity
-            except IndexError:
-                bins[-1] += intensity
-        bins = np.log(bins + 1)
+            if not self.exclusion.is_excluded(mz, rt):
+                included_intensities.append(intensity)
+        included_intensities = np.array(included_intensities)
 
-        features = np.zeros(4)
-        features[0] = np.sum(intensities > self.min_ms1_intensity)
-        features[1] = len(intensities) - features[0]
-        features[2] = np.log(min(intensities))
-        features[3] = np.log(max(intensities))
-        if np.isnan(features[2]): features[2] = 0
-        state = np.concatenate((bins, features), axis=0)
-        return state
+        above_threshold = included_intensities > self.min_ms1_intensity
+        below_threshold = included_intensities <= self.min_ms1_intensity
+        num_above = np.sum(above_threshold)
+        num_below = np.sum(below_threshold)
+        sum_above = np.log(sum(included_intensities[above_threshold]))
+        sum_below = np.log(sum(included_intensities[below_threshold]))
+        min_above = np.log(min(included_intensities[above_threshold]))
+        max_above = np.log(max(included_intensities[above_threshold]))
+        min_below = np.log(min(included_intensities[below_threshold]))
+        max_below = np.log(max(included_intensities[below_threshold]))
+
+        features = np.zeros(8)
+        features[0] = num_above
+        features[1] = num_below
+        features[2] = sum_above
+        features[3] = sum_below
+        features[4] = min_above
+        features[5] = max_above
+        features[6] = min_below
+        features[7] = max_below
+
+        for i in range(len(features)):
+            if np.isnan(features[i]): features[i] = 0
+        return features
 
     def update(self, last_scan, controller):
         super().update(last_scan, controller)
@@ -187,15 +193,18 @@ class ReinforceAgent(TopNDEWAgent):
 
                 reward = 0
                 if frag_intensity is not None:
-                    reward = frag_intensity * 1.0 / self.seen_chems[chem]
-
+                    if frag_intensity > self.min_ms1_intensity:
+                        reward = frag_intensity * 1.0 / self.seen_chems[chem]
+                        reward = np.log(reward)
                 parent_scan_id = event.precursor_mz[0].precursor_scan_id
                 assert controller.last_ms1_scan.scan_id == parent_scan_id
 
             else:  # fragmenting noise
                 precursor = last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
                 intensity = precursor.precursor_intensity
-                reward = -intensity
+                reward = 0
+                if intensity > self.min_ms1_intensity:
+                    reward = -np.log(intensity)
                 parent_scan_id = controller.last_ms1_scan.scan_id
 
             if parent_scan_id not in self.pi.scan_id_rewards:
@@ -205,14 +214,16 @@ class ReinforceAgent(TopNDEWAgent):
 
 
 class Pi(nn.Module):
-    def __init__(self, in_dim, out_dim, hidden_dim):
+    def __init__(self, hidden_dim):
         super().__init__()
-        self.in_dim = in_dim + 4
-        self.out_dim = out_dim
+        self.in_dim = 8
+        self.out_dim = 10
         self.hidden_dim = hidden_dim
         layers = [
             nn.Linear(self.in_dim, self.hidden_dim),
-            # nn.Dropout(p=0.5),
+            nn.ReLU(),
+            nn.Linear(self.hidden_dim, self.hidden_dim),
+            nn.Dropout(p=0.1),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.out_dim),
         ]
@@ -246,12 +257,6 @@ def train(pi, optimizer, gamma):
         reward = 0
         if scan_id in pi.scan_id_rewards:
             reward = pi.scan_id_rewards[scan_id]
-        if reward == 0:
-            reward = 0
-        elif reward > 0:
-            reward = np.log(reward)
-        else:
-            reward = -np.log(abs(reward))
         rewards.append(reward)
     pi.rewards = np.array(rewards)
 
@@ -279,9 +284,9 @@ def train(pi, optimizer, gamma):
 
 
 class RandomAgent(TopNDEWAgent):
-    def __init__(self, ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, num_states):
+    def __init__(self, ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity):
         super().__init__(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity)
-        self.num_states = num_states
+        self.num_states = 10
 
     def act(self, scan_to_process):
         # sample one action randomly

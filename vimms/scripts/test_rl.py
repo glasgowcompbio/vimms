@@ -59,9 +59,7 @@ mz_tol = 10
 min_ms1_intensity = 5000
 ionisation_mode = POSITIVE
 
-in_dim = int(max_mz - min_mz)
-out_dim = 10
-hidden_dim = 32
+hidden_dim = 64
 gamma = 0.99
 lr = 0.001
 
@@ -76,7 +74,7 @@ def run_experiment(datasets, controller_name, write_mzML=False, pbar=False):
     # initial setup
     pi = None
     if controller_name == 'REINFORCE':
-        pi = Pi(in_dim, out_dim, hidden_dim)
+        pi = Pi(hidden_dim)
         optimizer = optim.AdamW(pi.parameters(), lr=lr)
 
     # run episodes
@@ -109,8 +107,7 @@ def run_experiment(datasets, controller_name, write_mzML=False, pbar=False):
             controller = AgentBasedController(agent)
 
         elif controller_name == 'Random':
-            num_states = out_dim
-            agent = RandomAgent(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, out_dim)
+            agent = RandomAgent(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity)
             controller = AgentBasedController(agent)
 
             # run the simulation

@@ -158,7 +158,7 @@ class ReinforceAgent(TopNDEWAgent):
             self.seen_actions.update(['DEW=%.1f' % self.rt_tol])
 
         # self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
-        # self.N = (action + 1)
+        # self.seen_actions.update(['N=%d' % self.N])
 
     def reset(self):
         super().reset()
@@ -320,7 +320,7 @@ class RandomAgent(TopNDEWAgent):
             self.seen_actions.update(['DEW=%d' % self.rt_tol])
 
         # self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
-        # self.N = (action + 1)
+        # self.seen_actions.update(['N=%d' % self.N])
 
     def update(self, last_scan, controller):
         super().update(last_scan, controller)

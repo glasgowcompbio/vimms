@@ -102,7 +102,6 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
     logger.info('Running TopN simulation')
     logger.info(params)
 
-    warn_handler_id = set_log_level_warning()
     out_file = '%s_%s.mzML' % (params['controller_name'], params['sample_name'])
     controller = TopNController(params['ionisation_mode'], params['N'], params['isolation_width'], params['mz_tol'],
                                 params['rt_tol'], params['min_ms1_intensity'])
@@ -111,7 +110,6 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
                       out_file=out_file)
     logger.info('Generating %s' % out_file)
     env.run()
-    set_log_level_debug(remove_id=warn_handler_id)
 
 
 def run_SmartROI(chems, ps, time_dict, params, out_dir):

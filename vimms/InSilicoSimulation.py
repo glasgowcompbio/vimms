@@ -8,13 +8,13 @@ import ipyparallel as ipp
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import set_log_level_warning, set_log_level_debug
-from vimms.Controller import TopNController, load_picked_boxes, TopN_SmartRoiController, WeightedDEWController
+from vimms.Controller import TopNController, TopN_SmartRoiController, WeightedDEWController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiParams

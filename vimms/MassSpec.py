@@ -291,7 +291,7 @@ class IndependentMassSpectrometer(object):
     def set_environment(self, env):
         self.environment = env
 
-    def step(self, params=None):
+    def step(self, params=None, call_controller=True):
         """
         Performs one step of a mass spectrometry process
         :return:
@@ -322,7 +322,8 @@ class IndependentMassSpectrometer(object):
             new_scan = self._get_scan(self.time, params)
 
             # dispatch the generated scan to controller
-            self.dispatch_scan(new_scan)
+            if call_controller:
+                self.dispatch_scan(new_scan)
         return new_scan
 
     def dispatch_scan(self, scan):

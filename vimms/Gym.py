@@ -1,3 +1,4 @@
+import collections
 from random import randrange
 
 import gym
@@ -20,9 +21,10 @@ class FragmentEnv(gym.Env):
     """
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, params):
+    def __init__(self, params={}):
         super().__init__()
-        self.in_dim = 20
+        assert len(params) > 0
+        self.in_dim = 31
         self.out_dim = 10
         self.action_space = spaces.Discrete(self.out_dim)
         self.observation_space = spaces.Box(np.array([0.0] * self.in_dim), np.array([np.inf] * self.in_dim))
@@ -55,6 +57,7 @@ class FragmentEnv(gym.Env):
         self.last_processed_scan = None
         self.last_reward = 0.0
         self.seen_chems = {}
+        self.seen_actions = collections.Counter()
 
     def step(self, action):
         """
@@ -83,10 +86,15 @@ class FragmentEnv(gym.Env):
         """
         # assume 10 action space
         # TODO: would be good to have some kind of interface for this??
-        if 0 <= action < 5:
+        if action < 0:
+            self.seen_actions.update(['N=%d' % self.controller.N])
+            self.seen_actions.update(['DEW=%.1f' % self.controller.rt_tol])
+        elif 0 <= action < 5:
             self.controller.N = (action + 1) * 5  # N = {5, 10, 15, 20, 25}
+            self.seen_actions.update(['N=%d' % self.controller.N])
         elif 5 <= action < 10:
             self.controller.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
+            self.seen_actions.update(['DEW=%.1f' % self.controller.rt_tol])
 
     def _one_step(self, scan_to_process):
         """
@@ -305,7 +313,7 @@ class FragmentEnv(gym.Env):
         features[5] = max_below
 
         sorted_intensities = sorted(included_intensities, reverse=True)
-        features[6:20] = np.log(sorted_intensities[0:14])
+        features[6:31] = np.log(sorted_intensities[0:25])
 
         for i in range(len(features)):
             if np.isnan(features[i]): features[i] = 0
@@ -325,5 +333,6 @@ class FragmentEnv(gym.Env):
         """
         Render the environment to the screen
         """
-        logger.info('step %d %s reward %f done %s' % (self.step_no, self.last_processed_scan,
-                                                           self.last_reward, self.episode_done))
+        logger.info('step %d %s reward %f done %s seen_actions %s' % (self.step_no, self.last_processed_scan,
+                                                                      self.last_reward, self.episode_done,
+                                                                      self.seen_actions.most_common()))

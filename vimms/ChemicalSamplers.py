@@ -130,7 +130,9 @@ class EvenMZFormulaSampler(FormulaSampler):
 
 
 class MZMLFormulaSampler(FormulaSampler):
-    def __init__(self, mzml_file_name, source_polarity=POSITIVE):
+    def __init__(self, mzml_file_name, min_mz=MIN_MZ, max_mz=MAX_MZ, source_polarity=POSITIVE):
+        self.min_mz = min_mz
+        self.max_mz = max_mz
         self.mzml_file_name = mzml_file_name
         self.source_polarity = source_polarity
         self._get_distributions()

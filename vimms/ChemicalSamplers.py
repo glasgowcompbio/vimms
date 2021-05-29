@@ -148,6 +148,8 @@ class MZMLFormulaSampler(FormulaSampler):
                     mz += PROTON_MASS
                 else:
                     logger.warning("Unknown source polarity: {}".format(self.source_polarity))
+                if mz < self.min_mz or mz > self.max_mz:
+                    continue
                 mz_bin = int(mz)
                 if not mz_bin in mz_bins:
                     mz_bins[mz_bin] = intensity

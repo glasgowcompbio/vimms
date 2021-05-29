@@ -1,33 +1,33 @@
 import collections
+from abc import abstractmethod
 from random import randrange
 
 import gym
 import numpy as np
-from gym import spaces
 from loguru import logger
 
-from vimms.ChemicalSamplers import UniformMZFormulaSampler
-from vimms.Chemicals import ChemicalMixtureCreator, UniformRTAndIntensitySampler
-from vimms.Common import ScanParameters
+from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler
+from vimms.Chemicals import ChemicalMixtureCreator
+from vimms.Common import set_log_level_warning
 from vimms.Controller import TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import UniformSpikeNoise
 
 
-class FragmentEnv(gym.Env):
+class VimmsGymEnv(gym.Env):
     """
     Wrapper ViMMS Environment that follows gym interface
     """
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, params={}):
+    def __init__(self, in_dim, out_dim, params):
         super().__init__()
         assert len(params) > 0
-        self.in_dim = 31
-        self.out_dim = 10
-        self.action_space = spaces.Discrete(self.out_dim)
-        self.observation_space = spaces.Box(np.array([0.0] * self.in_dim), np.array([np.inf] * self.in_dim))
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.action_space = self._get_action_space()
+        self.observation_space = self._get_observation_space()
         self.step_no = 0
 
         self.chemical_creator_params = params['chemical_creator']
@@ -38,6 +38,26 @@ class FragmentEnv(gym.Env):
         self.controller = None
         self.vimms_env = None
         self._initial_values()
+
+    @abstractmethod
+    def _get_action_space(self):
+        pass
+
+    @abstractmethod
+    def _get_observation_space(self):
+        pass
+
+    @abstractmethod
+    def _get_state(self, scan_to_process):
+        pass
+
+    @abstractmethod
+    def _compute_reward(self, scan_to_process, results):
+        pass
+
+    @abstractmethod
+    def _take_action(self, action):
+        pass
 
     def _initial_values(self):
         """
@@ -59,6 +79,9 @@ class FragmentEnv(gym.Env):
         self.seen_chems = {}
         self.seen_actions = collections.Counter()
 
+        # needed for SubprocVecEnv
+        set_log_level_warning()
+
     def step(self, action):
         """
         Execute one time step within the environment
@@ -79,22 +102,6 @@ class FragmentEnv(gym.Env):
         self.episode_done = episode_done
         info = {}
         return self.state, self.last_reward, self.episode_done, info
-
-    def _take_action(self, action):
-        """
-        Modify controller variables based on the selected action
-        """
-        # assume 10 action space
-        # TODO: would be good to have some kind of interface for this??
-        if action < 0:
-            self.seen_actions.update(['N=%d' % self.controller.N])
-            self.seen_actions.update(['DEW=%.1f' % self.controller.rt_tol])
-        elif 0 <= action < 5:
-            self.controller.N = (action + 1) * 5  # N = {5, 10, 15, 20, 25}
-            self.seen_actions.update(['N=%d' % self.controller.N])
-        elif 5 <= action < 10:
-            self.controller.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
-            self.seen_actions.update(['DEW=%.1f' % self.controller.rt_tol])
 
     def _one_step(self, scan_to_process):
         """
@@ -135,43 +142,6 @@ class FragmentEnv(gym.Env):
 
         return results, next_scan_to_process, episode_done
 
-    def _compute_reward(self, scan_to_process, results):
-        """
-        Computes fragmentation reward
-        """
-        total_reward = 0.0
-        for last_scan in results:
-            if last_scan.ms_level >= 2:
-
-                event = last_scan.fragevent
-                if event is not None:  # fragmenting chems
-                    frag_intensity = event.parents_intensity[0]
-                    chem = event.chem
-                    if chem in self.seen_chems:
-                        self.seen_chems[chem] += 1
-                    else:
-                        self.seen_chems[chem] = 1
-
-                    reward = 0
-                    if frag_intensity is not None:
-                        if frag_intensity > self.controller.min_ms1_intensity:
-                            reward = frag_intensity * 1.0 / self.seen_chems[chem]
-                            reward = np.log(reward)
-                    parent_scan_id = event.precursor_mz[0].precursor_scan_id
-
-                else:  # fragmenting noise
-                    precursor = last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
-                    intensity = precursor.precursor_intensity
-                    reward = 0
-                    if intensity > self.controller.min_ms1_intensity:
-                        reward = -np.log(intensity)
-                    parent_scan_id = self.controller.last_ms1_scan.scan_id
-
-                assert scan_to_process.scan_id == parent_scan_id
-                total_reward += reward
-
-        return total_reward
-
     def _process_scan(self, scan):
         """
         Advance the simulation by processing one scan
@@ -190,7 +160,7 @@ class FragmentEnv(gym.Env):
         self._initial_values()
 
         # 2. Reset generated chemicals
-        self.chems = self._reset_chemicals(self.chemical_creator_params)
+        self.chems = self._get_chemicals(self.chemical_creator_params)
 
         # 3. Reset ViMMS environment
         self.mass_spec = self._reset_mass_spec(self.chems, self.env_params, self.noise_params)
@@ -213,28 +183,6 @@ class FragmentEnv(gym.Env):
         self.episode_done = False
         self.state = self._get_state(self.scan_to_process)
         return self.state
-
-    def _reset_chemicals(self, chemical_creator_params):
-        """
-        Generates new set of chemicals
-        """
-        min_mz = chemical_creator_params['mz_range'][0]
-        max_mz = chemical_creator_params['mz_range'][1]
-        min_rt = chemical_creator_params['rt_range'][0]
-        max_rt = chemical_creator_params['rt_range'][1]
-        min_log_intensity = np.log(chemical_creator_params['intensity_range'][0])
-        max_log_intensity = np.log(chemical_creator_params['intensity_range'][1])
-        n_chemicals_range = chemical_creator_params['n_chemicals']
-        if n_chemicals_range[0] == n_chemicals_range[1]:
-            n_chems = n_chemicals_range[0]
-        else:
-            n_chems = randrange(n_chemicals_range[0], n_chemicals_range[1])
-        df = UniformMZFormulaSampler(min_mz=min_mz, max_mz=max_mz)
-        ris = UniformRTAndIntensitySampler(min_rt=min_rt, max_rt=max_rt,
-                                           min_log_intensity=min_log_intensity, max_log_intensity=max_log_intensity)
-        cm = ChemicalMixtureCreator(df, rt_and_intensity_sampler=ris)
-        chems = cm.sample(n_chems, 2, include_adducts_isotopes=False)
-        return chems
 
     def _reset_mass_spec(self, chems, env_params, noise_params):
         """
@@ -273,6 +221,38 @@ class FragmentEnv(gym.Env):
         vimms_env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
         return vimms_env
 
+    def _get_chemicals(self, chemical_creator_params):
+        """
+        Generates new set of chemicals
+        """
+        min_mz = chemical_creator_params['mz_range'][0]
+        max_mz = chemical_creator_params['mz_range'][1]
+        min_rt = chemical_creator_params['rt_range'][0]
+        max_rt = chemical_creator_params['rt_range'][1]
+        min_log_intensity = np.log(chemical_creator_params['intensity_range'][0])
+        max_log_intensity = np.log(chemical_creator_params['intensity_range'][1])
+        n_chemicals_range = chemical_creator_params['n_chemicals']
+        if n_chemicals_range[0] == n_chemicals_range[1]:
+            n_chems = n_chemicals_range[0]
+        else:
+            n_chems = randrange(n_chemicals_range[0], n_chemicals_range[1])
+
+        if 'mz_sampler' in chemical_creator_params:
+            mz_sampler = chemical_creator_params['mz_sampler']
+        else:  # sample chemicals uniformly
+            mz_sampler = UniformMZFormulaSampler(min_mz=min_mz, max_mz=max_mz)
+
+        if 'rt_sampler' in chemical_creator_params:
+            ri_sampler = chemical_creator_params['ri_sampler']
+        else:
+            ri_sampler = UniformRTAndIntensitySampler(min_rt=min_rt, max_rt=max_rt,
+                                                      min_log_intensity=min_log_intensity,
+                                                      max_log_intensity=max_log_intensity)
+
+        cm = ChemicalMixtureCreator(mz_sampler, rt_and_intensity_sampler=ri_sampler)
+        chems = cm.sample(n_chems, 2, include_adducts_isotopes=False)
+        return chems
+
     def _handle_acquisition_open(self):
         """
         Open acquisition and generates an MS1 scan to process
@@ -283,41 +263,6 @@ class FragmentEnv(gym.Env):
 
         # unlike the normal Vimms environment, here we generate scan but don't call the controller yet (time is also not incremented)
         self.scan_to_process = self.mass_spec.step(params=params, call_controller=False)
-
-    def _get_state(self, scan_to_process):
-        """
-        Converts a scan to a state
-        """
-        mzs, rt, intensities = self._get_mzs_rt_intensities(scan_to_process)
-        included_intensities = []
-        for mz, intensity in zip(mzs, intensities):
-            if not self.controller.exclusion.is_excluded(mz, rt):
-                included_intensities.append(intensity)
-        included_intensities = np.array(included_intensities)
-
-        above_threshold = included_intensities > self.controller.min_ms1_intensity
-        below_threshold = included_intensities <= self.controller.min_ms1_intensity
-        num_above = np.sum(above_threshold)
-        num_below = np.sum(below_threshold)
-        sum_above = np.log(sum(included_intensities[above_threshold]))
-        sum_below = np.log(sum(included_intensities[below_threshold]))
-        min_above = np.log(min(included_intensities[above_threshold]))
-        max_below = np.log(max(included_intensities[below_threshold]))
-
-        features = np.zeros(self.in_dim)
-        features[0] = num_above
-        features[1] = num_below
-        features[2] = sum_above
-        features[3] = sum_below
-        features[4] = min_above
-        features[5] = max_below
-
-        sorted_intensities = sorted(included_intensities, reverse=True)
-        features[6:31] = np.log(sorted_intensities[0:25])
-
-        for i in range(len(features)):
-            if np.isnan(features[i]): features[i] = 0
-        return features
 
     def _get_mzs_rt_intensities(self, scan_to_process):
         """

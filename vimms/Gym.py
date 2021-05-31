@@ -152,7 +152,7 @@ class VimmsGymEnv(gym.Env):
         episode_done = True if self.mass_spec.time > self.vimms_env.max_time else False
         return episode_done
 
-    def reset(self):
+    def reset(self, chems=None):
         """
         Reset the state of the environment to an initial state
         """
@@ -160,7 +160,7 @@ class VimmsGymEnv(gym.Env):
         self._initial_values()
 
         # 2. Reset generated chemicals
-        self.chems = self._get_chemicals(self.chemical_creator_params)
+        self.chems = self._get_chemicals(self.chemical_creator_params) if chems is None else chems
 
         # 3. Reset ViMMS environment
         self.mass_spec = self._reset_mass_spec(self.chems, self.env_params, self.noise_params)

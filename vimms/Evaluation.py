@@ -26,7 +26,7 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     #env_chem_parents = np.array([chem.base_chemical for chem in env.mass_spec.chemicals])
     #max_possible_intensities = [np.array(env.mass_spec.chemicals)[
     #                                np.where(env_chem_parents == chem)[0]][0].max_intensity for chem in true_chems]
-    ms_chem_parents = {chem.base_chemical : chem.max_intensity for chem in env.mass_spec.chemicals}
+    ms_chem_parents = {chem if chem.base_chemical is None else chem.base_chemical : chem.max_intensity for chem in env.mass_spec.chemicals}
     max_possible_intensities = [ms_chem_parents.get(chem, 0) for chem in true_chems]
     coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
@@ -52,7 +52,7 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     max_possible_intensities = [r["max_possible_intensities"] for r in results]
     
     coverage = [r["coverage"] for r in results]
-    observed_chems = set(itertools.chain(*([chem.base_chemical for chem in env.mass_spec.chemicals] for env in env_list)))
+    observed_chems = set(chem if chem.base_chemical is None else chem.base_chemical for env in env_list for chem in env.mass_spec.chemicals)
     max_coverage = sum(chem in observed_chems for chem in base_chemicals)
     coverage_prop = [np.sum(cov) / max_coverage for cov in coverage]
     cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))

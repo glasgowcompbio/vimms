@@ -1,7 +1,11 @@
 from vimms.Common import *
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import TopNController,TopN_SmartRoiController,WeightedDEWController
+from vimms.Controller import TopNController,TopN_SmartRoiController,WeightedDEWController, TopN_RoiController, \
+    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController
 from vimms.Environment import *
+from vimms.Evaluation import evaluate_multiple_simulated_env
+from vimms.Box import *
+from vimms.Roi import RoiAligner, calculate_chemical_p_values
 
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_import.mzmine import load_picked_boxes,map_boxes_to_scans
@@ -74,6 +78,133 @@ def weighted_dew_evaluation(param_dict):
     coverage = run_coverage_evaluation(param_dict['box_file'], param_dict['save_file_name'],
                                        param_dict['half_isolation_window'])
     return coverage
+
+########################################################################################################################
+# Experiment evaluation methods
+########################################################################################################################
+
+
+def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+                                base_chemicals=None, roi_aligner=None, source_files=None):
+    if base_chemicals is not None or (roi_aligner is not None and source_files is not None):
+        env_list = []
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+                                        initial_exclusion_list=None, force_N=False)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+        evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        return env_list, evaluation
+    else:
+        return None, None
+
+def top_n_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                    min_ms1_intensity, min_roi_intensity, min_roi_length):
+    env_list = []
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                        min_roi_length, N=N, rt_tol=rt_tol)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
+
+
+def smart_roi_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                    min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                    min_roi_length_for_fragmentation, reset_length_seconds, intensity_increase_factor,
+                                    drop_perc, ms1_shift, params):
+    env_list = []
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+                                    initial_exclusion_list=None, force_N=False)
+        TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                min_roi_length, N=N, rt_tol=rt_tol,
+                                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                                reset_length_seconds=reset_length_seconds,
+                                intensity_increase_factor=intensity_increase_factor,
+                                drop_perc=drop_perc, ms1_shift=ms1_shift, params=params)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
+
+
+def weighted_dew_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                    min_ms1_intensity):
+    env_list = []
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+                                    initial_exclusion_list=None, force_N=False)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
+
+
+def box_controller_experiment_evaluation(datasets, base_chemicals, group_list, min_rt, max_rt, N, isolation_window,
+                                         mz_tol, rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                         boxes_params):
+    env_list = []
+    boxes = []
+    boxes_intensity = []
+    aligner = RoiAligner()
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = TopNBoxRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                                          min_roi_length, boxes_params=boxes_params, boxes=boxes,
+                                          boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+        rois = env.controller.live_roi + env.controller.dead_roi
+        aligner.add_sample(rois, 'sample_' + str(i), group_list[i])
+        boxes = aligner.get_boxes()
+        boxes_intensity = aligner.get_max_frag_intensities()
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
+
+
+def non_overlap_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                      min_ms1_intensity, min_roi_intensity, min_roi_length, rt_box_size, mz_box_size,
+                                      min_roi_length_for_fragmentation):
+    env_list = []
+    grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = NonOverlapController(
+            POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+            min_roi_length, N, grid, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
+
+
+def intensity_non_overlap_experiment_evaluation(datasets, base_chemicals, min_rt, max_rt, N, isolation_window, mz_tol,
+                                                rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation):
+    env_list = []
+    grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+        controller = IntensityNonOverlapController(
+            POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+            min_roi_length, N, grid, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+        env.run()
+        env_list.append(env)
+    evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    return env_list, evaluation
 
 
 ########################################################################################################################

@@ -5,7 +5,8 @@ from abc import ABC, abstractmethod
 from vimms.Box import GenericBox
 from vimms.Roi import match, Roi, SmartRoi
 from vimms.Controller.roi import RoiController
-        
+
+
 class GridController(RoiController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
@@ -78,19 +79,27 @@ class GridController(RoiController):
         
         return new_tasks
         
-    def update_state_after_scan(self, last_scan): self.grid.send_training_data(last_scan)
+    def update_state_after_scan(self, last_scan):
+        self.grid.send_training_data(last_scan)
+
     @abstractmethod
-    def _get_scores(self): pass
-    def after_injection_cleanup(self): self.grid.update_after_injection()
-    
+    def _get_scores(self):
+        pass
+
+    def after_injection_cleanup(self):
+        self.grid.update_after_injection()
+
+
 class NonOverlapController(GridController):
     def _get_scores(self):
         fn = self.grid.get_estimator()
         non_overlaps = [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for r in self.live_roi]
         return self._get_top_N_scores(self._get_dda_scores() * non_overlaps)
-    
+
+
 class IntensityNonOverlapController(GridController):
     def _get_scores(self):
         fn = self.grid.get_estimator()
         scores = np.log([self.grid.intensity_non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])), self.current_roi_intensities[i]) for i, r in enumerate(self.live_roi)])
         return self._get_top_N_scores(scores * self._score_filters())
+

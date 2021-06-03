@@ -177,7 +177,8 @@ class DictGrid(Grid):
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         for rt in range(*rt_box_range):
-            for mz in range(*mz_box_range): self.boxes[(rt, mz)].append(box)
+            for mz in range(*mz_box_range):
+                self.boxes[(rt, mz)].append(box)
 
 
 class ArrayGrid(Grid):
@@ -240,7 +241,8 @@ class LocatorGrid(Grid):
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
-            for s in row: s.add(box)
+            for s in row:
+                s.add(box)
 
 
 class AllOverlapGrid(LocatorGrid):
@@ -281,6 +283,16 @@ class AllOverlapGrid(LocatorGrid):
         refragment = sum(max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
         return non_overlap + refragment
 
+    def flexible_non_overlap(self, box, current_intensity, scoring_params):
+        box = box.copy()
+        box.intensity = 0.0
+        other_boxes = self.get_boxes(box)
+        this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
+        non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
+        refragment = sum(max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
+        nofragment = sum(min(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
+        return np.log(non_overlap + scoring_params['theta1'] * refragment + scoring_params['theta2'] * nofragment)
+
     def register_box(self, box):
         other_boxes = self.get_boxes(box)
         this_non, other_non, overlaps = self.split_all_boxes(box, other_boxes)
@@ -288,18 +300,21 @@ class AllOverlapGrid(LocatorGrid):
             if (box.overlaps_with_box(b)):
                 rt_box_range, mz_box_range, _ = self.get_box_ranges(b)
                 for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
-                    for s in row: s.remove(b)
+                    for s in row:
+                        s.remove(b)
 
         for b in itertools.chain(this_non, other_non, overlaps):
             rt_box_range, mz_box_range, _ = self.get_box_ranges(b)
             for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
-                for s in row: s.add(b)
+                for s in row:
+                    s.add(b)
 
     def boxes_by_overlaps(self, boxes=None):
         binned, boxes = [], self.all_boxes() if boxes is None else reduce(
             lambda bs, b: [bx for t in self.split_all_boxes(b, bs) for bx in t], boxes, [])
         for b in boxes:
-            while (len(binned) < b.num_overlaps()): binned.append([])
+            while (len(binned) < b.num_overlaps()):
+                binned.append([])
             binned[b.num_overlaps() - 1].append(b)
         return binned
 

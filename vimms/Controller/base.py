@@ -132,6 +132,7 @@ class Controller(object):
         # update ms1 time (used for ROI matching)
         if scan.ms_level == 1:
             self.last_ms1_rt = scan.rt
+            self.last_ms1_scan = scan
 
         # we get an ms1 scan and it has some peaks AND all the pending tasks have been sent and processed AND
         # this ms1 scan is a custom scan we'd sent before (not a method scan)

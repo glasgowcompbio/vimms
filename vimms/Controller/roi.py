@@ -112,20 +112,18 @@ class RoiController(TopNController):
                 logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
                 new_tasks.append(ms1_scan_params)
 
-            # create temp exclusion items
-            # tasks = new_tasks[
-            #         min(self.N - self.ms1_shift + 1, len(new_tasks)):max(self.N - self.ms1_shift + 1, len(new_tasks))]
-            # self.temp_exclusion_list = self._update_temp_exclusion_list(tasks)
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            # create new exclusion items based on the scheduled ms2 tasks
+            self.exclusion.update(self.scan_to_process, ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None
+
         if scan.ms_level == 2:  # add ms2 scans to Rois
             self.add_scan_to_roi(scan)
         return new_tasks
 
-    def update_state_after_scan(self, last_scan):
-        pass
+    def update_state_after_scan(self, scan):
+        super().update_state_after_scan(scan)
 
     def add_scan_to_roi(self, scan):
         frag_event_ids = np.array([event['scan_id'] for event in self.frag_roi_dicts])
@@ -283,8 +281,8 @@ class SmartRoiController(RoiController):
 
                 new_tasks.append(ms1_scan_params)
 
-            # create temp exclusion items
-            self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+            # create new exclusion items based on the scheduled ms2 tasks
+            self.exclusion.update(self.scan_to_process, ms2_tasks)
 
             # set this ms1 scan as has been processed
             self.scan_to_process = None

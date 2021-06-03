@@ -1,7 +1,10 @@
 from intervaltree import IntervalTree
-
+from loguru import logger
 
 # Exclusion.py
+from vimms.Common import ScanParameters
+
+
 class ExclusionItem(object):
     """
     A class to store the item to exclude when computing dynamic exclusion window
@@ -147,6 +150,109 @@ class BoxHolder(object):
             box = r.data
             it.add_box(box)
         return it
+
+
+class TopNExclusion(object):
+    def __init__(self, initial_exclusion_list=None):
+        self.exclusion_list = []
+        if initial_exclusion_list is not None:  # copy initial list, if provided
+            self.exclusion_list = list(initial_exclusion_list)
+
+    def is_excluded(self, mz, rt):
+        """
+        Checks if a pair of (mz, rt) value is currently excluded by dynamic exclusion window
+        :param mz: m/z value
+        :param rt: RT value
+        :return: True if excluded, False otherwise
+        """
+        # TODO: make this faster?
+        for x in self.exclusion_list:
+            exclude_mz = x.from_mz <= mz <= x.to_mz
+            exclude_rt = x.from_rt <= rt <= x.to_rt
+            if exclude_mz and exclude_rt:
+                logger.debug(
+                    'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
+                return True
+        return False
+
+    def update(self, current_scan, ms2_tasks):
+        """
+        Updates the state of this exclusion object based on the current ms1 scan and scheduled ms2 tasks
+        :param current_scan: the current MS1 scan
+        :param ms2_tasks: scheduled ms2 tasks
+        """
+        rt = current_scan.rt
+        temp_exclusion_list = []
+        for task in ms2_tasks:
+            for precursor in task.get('precursor_mz'):
+                mz = precursor.precursor_mz
+                mz_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_MZ_TOL)
+                rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
+                x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
+                logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
+                    rt,
+                    x.from_mz, x.to_mz, x.from_rt, x.to_rt
+                ))
+                x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
+                temp_exclusion_list.append(x)
+        self.exclusion_list.extend(temp_exclusion_list)
+
+    def cleanup(self, current_scan):
+        """
+        Clean-up dynamic exclusion list. Should typically be called once a scan has been processed
+        :param param: a scan parameter object
+        :param current_scan: the newly generated scan
+        :return: None
+        """
+        # current simulated time is scan start RT + scan duration
+        # in the real data, scan.duration is not set, so we just use the scan rt as the current time
+        current_time = current_scan.rt
+        if current_scan.scan_duration is not None:
+            current_time += current_scan.scan_duration
+
+        # remove expired items from dynamic exclusion list
+        self.exclusion_list = list(filter(lambda x: x.to_rt > current_time, self.exclusion_list))
+
+    def _get_exclusion_item(self, mz, rt, mz_tol, rt_tol):
+        mz_lower = mz * (1 - mz_tol / 1e6)
+        mz_upper = mz * (1 + mz_tol / 1e6)
+        rt_lower = rt - rt_tol
+        rt_upper = rt + rt_tol
+        x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
+                          frag_at=rt)
+        return x
+
+
+class WeightedDEWExclusion(TopNExclusion):
+    def __init__(self, rt_tol, exclusion_t_0):
+        super().__init__()
+        self.rt_tol = rt_tol
+        self.exclusion_t_0 = exclusion_t_0
+        assert self.exclusion_t_0 <= self.rt_tol
+
+    def is_excluded(self, mz, rt):
+        """
+        Checks if a pair of (mz, rt) value is currently excluded by the weighted dynamic exclusion window
+        :param mz: m/z value
+        :param rt: RT value
+        :return: True if excluded, False otherwise
+        """
+        # TODO: make this faster?
+        self.exclusion_list.sort(key=lambda x: x.from_rt, reverse=True)
+        for x in self.exclusion_list:
+            exclude_mz = x.from_mz <= mz <= x.to_mz
+            exclude_rt = x.from_rt <= rt <= x.to_rt
+            if exclude_mz and exclude_rt:
+                logger.debug(
+                    'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
+                if rt <= x.frag_at + self.exclusion_t_0:
+                    return True, 0.0
+                else:
+                    weight = (rt - (self.exclusion_t_0 + x.frag_at)) / (self.rt_tol - self.exclusion_t_0)
+                    assert weight <= 1, weight
+                    # self.remove_exclusion_items.append(x)
+                    return True, weight
+        return False, 1
 
 
 if __name__ == '__main__':

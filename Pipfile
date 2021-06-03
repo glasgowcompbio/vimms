@@ -10,7 +10,7 @@ scipy = "*"
 matplotlib = "*"
 seaborn = "*"
 scikit-learn = "*"
-jupyterlab = "==2.3.1"
+jupyterlab = "*"
 pymzml = "*"
 psims = "*"
 events = "*"
@@ -33,6 +33,8 @@ intervaltree = "*"
 ax-platform = "*"
 torch = "*"
 gpy = "*"
+gym = "*"
+stable-baselines3 = {extras = ["extra"], version = "*"}
 
 [dev-packages]
 

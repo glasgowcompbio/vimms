@@ -83,11 +83,13 @@ class GridController(RoiController):
         # if no ms1 has been added, then add at the end
         if not done_ms1: self.schedule_ms1(new_tasks)
 
-        self.temp_exclusion_list = self._update_temp_exclusion_list(ms2_tasks)
+        # create new exclusion items based on the scheduled ms2 tasks
+        self.exclusion.update(self.scan_to_process, ms2_tasks)
+
         self.scan_to_process = None  # set this ms1 scan as has been processed
 
         return new_tasks
-
+    
     def _update_roi(self, new_scan):
         if new_scan.ms_level == 1:
             order = np.argsort(self.live_roi)
@@ -131,8 +133,9 @@ class GridController(RoiController):
                 del self.live_roi_fragmented[pos]
                 del self.live_roi_last_rt[pos]
 
-    def update_state_after_scan(self, last_scan):
-        self.grid.send_training_data(last_scan)
+    def update_state_after_scan(self, scan):
+        super().update_state_after_scan(scan)
+        self.grid.send_training_data(scan)
 
     @abstractmethod
     def _get_scores(self):

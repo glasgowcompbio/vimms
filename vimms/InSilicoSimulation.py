@@ -8,13 +8,13 @@ import ipyparallel as ipp
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import set_log_level_warning, set_log_level_debug
-from vimms.Controller import TopNController, load_picked_boxes, TopN_SmartRoiController, WeightedDEWController
+from vimms.Controller import TopNController, TopN_SmartRoiController, WeightedDEWController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiParams
@@ -102,7 +102,6 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
     logger.info('Running TopN simulation')
     logger.info(params)
 
-    warn_handler_id = set_log_level_warning()
     out_file = '%s_%s.mzML' % (params['controller_name'], params['sample_name'])
     controller = TopNController(params['ionisation_mode'], params['N'], params['isolation_width'], params['mz_tol'],
                                 params['rt_tol'], params['min_ms1_intensity'])
@@ -111,7 +110,6 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
                       out_file=out_file)
     logger.info('Generating %s' % out_file)
     env.run()
-    set_log_level_debug(remove_id=warn_handler_id)
 
 
 def run_SmartROI(chems, ps, time_dict, params, out_dir):

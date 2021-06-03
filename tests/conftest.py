@@ -1,4 +1,5 @@
 import os
+import random as rand
 from pathlib import Path
 
 import numpy as np
@@ -95,8 +96,9 @@ def check_non_empty(controller, ms_level):
 
 @pytest.fixture(autouse=True)
 def random_seed():
-    """Reset numpy random seed generator."""
-    np.random.seed(1)
+    """Reset numpy and random seed generator."""
+    np.random.seed(0)
+    rand.seed(0)
 
 
 @pytest.fixture(scope="module")
@@ -117,6 +119,8 @@ def fragscan_ps():
 
 @pytest.fixture(scope="module")
 def fragscan_dataset_peaks(fragscan_ps):
+    np.random.seed(0)
+    rand.seed(0)
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_PEAKS)
@@ -124,6 +128,8 @@ def fragscan_dataset_peaks(fragscan_ps):
 
 @pytest.fixture(scope="module")
 def fragscan_dataset_peaks_onlyMH(fragscan_ps):
+    np.random.seed(0)
+    rand.seed(0)
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
                         get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=ADDUCT_DICT_POS_MH)
@@ -131,6 +137,8 @@ def fragscan_dataset_peaks_onlyMH(fragscan_ps):
 
 @pytest.fixture(scope="module")
 def fragscan_dataset_spectra(fragscan_ps):
+    np.random.seed(0)
+    rand.seed(0)
     chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
     return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
                         get_children_method=GET_MS2_BY_SPECTRA)
@@ -138,6 +146,8 @@ def fragscan_dataset_spectra(fragscan_ps):
 
 @pytest.fixture(scope="module")
 def simple_dataset():
+    np.random.seed(0)
+    rand.seed(0)
     um = UniformMZFormulaSampler(min_mz=515, max_mz=516)
     ri = UniformRTAndIntensitySampler(min_rt=150, max_rt=160)
     cs = GaussianChromatogramSampler(sigma=100)
@@ -147,6 +157,8 @@ def simple_dataset():
 
 @pytest.fixture(scope="module")
 def ten_chems():
+    np.random.seed(0)
+    rand.seed(0)
     um = UniformMZFormulaSampler(min_mz=MZ_RANGE[0][0], max_mz=MZ_RANGE[0][1])
     ri = UniformRTAndIntensitySampler(min_rt=200, max_rt=300)
     cs = GaussianChromatogramSampler()
@@ -156,6 +168,8 @@ def ten_chems():
 
 @pytest.fixture(scope="module")
 def two_fixed_chems():
+    np.random.seed(0)
+    rand.seed(0)
     em = EvenMZFormulaSampler()
     ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
     cs = ConstantChromatogramSampler()
@@ -165,6 +179,8 @@ def two_fixed_chems():
 
 @pytest.fixture(scope="module")
 def even_chems():
+    np.random.seed(0)
+    rand.seed(0)
     # four evenly spaced chems for more advanced SWATH testing
     em = EvenMZFormulaSampler()
     ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
@@ -176,6 +192,8 @@ def even_chems():
 
 @pytest.fixture(scope="module")
 def chems_from_mzml():
+    np.random.seed(0)
+    rand.seed(0)
     roi_params = RoiParams(min_intensity=10, min_length=5)
     cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
     return cm.sample(None, 2)
@@ -183,6 +201,8 @@ def chems_from_mzml():
 
 @pytest.fixture(scope="module")
 def chem_mz_rt_i_from_mzml():
+    np.random.seed(0)
+    rand.seed(0)
     fs = MZMLFormulaSampler(MZML_FILE)
     ri = MZMLRTandIntensitySampler(MZML_FILE)
     cs = MZMLChromatogramSampler(MZML_FILE)

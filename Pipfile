@@ -34,7 +34,8 @@ ax-platform = "*"
 torch = "*"
 gpy = "*"
 gym = "*"
-stable-baselines3 = {extras = ["extra"], version = "*"}
+stable-baselines3 = {editable = true, git = "git+https://github.com/DLR-RM/stable-baselines3"}
+tensorboard = "*"
 
 [dev-packages]
 

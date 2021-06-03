@@ -2,8 +2,11 @@ from abc import abstractmethod
 
 import numpy as np
 from loguru import logger
+from copy import deepcopy
+import bisect
 
 from vimms.Controller.roi import RoiController
+from vimms.Roi import match, Roi
 
 
 class GridController(RoiController):
@@ -11,7 +14,7 @@ class GridController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
-                 params=None):
+                 params=None, register_all_roi=False):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -20,6 +23,7 @@ class GridController(RoiController):
 
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid  # helps us understand previous RoIs
+        self.register_all_roi = register_all_roi
 
     def schedule_ms1(self, new_tasks):
         ms1_scan_params = self.get_ms1_scan_params()
@@ -67,7 +71,8 @@ class GridController(RoiController):
             mz, intensity = self.current_roi_mzs[i], self.current_roi_intensities[i]
             self.live_roi_fragmented[i] = True
             self.live_roi_last_rt[i] = rt
-            self.grid.register_roi(self.live_roi[i])
+            if self.register_all_roi is False:
+                self.grid.register_roi(self.live_roi[i])
             self.live_roi[i].max_fragmentation_intensity = max(self.live_roi[i].max_fragmentation_intensity, intensity)
 
             ms2s.schedule_ms2s(new_tasks, ms2_tasks, mz, intensity)
@@ -82,6 +87,49 @@ class GridController(RoiController):
         self.scan_to_process = None  # set this ms1 scan as has been processed
 
         return new_tasks
+
+    def _update_roi(self, new_scan):
+        if new_scan.ms_level == 1:
+            order = np.argsort(self.live_roi)
+            self.live_roi.sort()
+            self.live_roi_fragmented = np.array(self.live_roi_fragmented)[order].tolist()
+            self.live_roi_last_rt = np.array(self.live_roi_last_rt)[order].tolist()
+            current_ms1_scan_rt = new_scan.rt
+            not_grew = set(self.live_roi)
+            for idx in range(len(new_scan.intensities)):
+                intensity = new_scan.intensities[idx]
+                mz = new_scan.mzs[idx]
+                if intensity >= self.min_roi_intensity:
+                    match_roi = match(Roi(mz, 0, 0), self.live_roi, self.mz_tol, mz_units=self.mz_units)
+                    if match_roi:
+                        match_roi.add(mz, current_ms1_scan_rt, intensity)
+                        if match_roi in not_grew:
+                            not_grew.remove(match_roi)
+                    else:
+                        new_roi = Roi(mz, current_ms1_scan_rt, intensity, self.roi_id_counter)
+                        self.roi_id_counter += 1
+                        bisect.insort_right(self.live_roi, new_roi)
+                        self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
+                        self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
+                        if self.register_all_roi:
+                            self.grid.register_roi(new_roi)
+
+            for roi in not_grew:
+                if self.length_units == "scans":
+                    if roi.n >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+                else:
+                    if roi.length_in_seconds >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+
+                pos = self.live_roi.index(roi)
+                del self.live_roi[pos]
+                del self.live_roi_fragmented[pos]
+                del self.live_roi_last_rt[pos]
 
     def update_state_after_scan(self, last_scan):
         self.grid.send_training_data(last_scan)

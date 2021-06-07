@@ -35,6 +35,7 @@ torch = "*"
 gpy = "*"
 gym = "*"
 stable-baselines3 = {editable = true, git = "git+https://github.com/DLR-RM/stable-baselines3"}
+sb3-contrib = {editable = true, git = "git+https://github.com/Stable-Baselines-Team/stable-baselines3-contrib"}
 tensorboard = "*"
 
 [dev-packages]

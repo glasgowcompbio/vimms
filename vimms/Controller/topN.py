@@ -23,7 +23,6 @@ class TopNController(Controller):
         self.min_ms1_intensity = min_ms1_intensity  # minimum ms1 intensity to fragment
         self.ms1_shift = ms1_shift  # number of scans to move ms1 scan forward in list of new_tasks
         self.force_N = force_N  # force it to do N MS2 scans regardless
-        self.targets = None
 
         if self.force_N and ms1_shift > 0:
             logger.warning("Setting force_N to True with non-zero shift can lead to strange behaviour")
@@ -49,32 +48,25 @@ class TopNController(Controller):
                 mz = mzs[i]
                 intensity = intensities[i]
 
-                if self.targets is None: # standard TOpN
+                # stopping criteria is after we've fragmented N ions or we found ion < min_intensity
+                if fragmented_count >= self.N:
+                    logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
+                    break
 
-                    # stopping criteria is after we've fragmented N ions or we found ion < min_intensity
-                    if fragmented_count >= self.N:
-                        logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
-                        break
+                if intensity < self.min_ms1_intensity:
+                    logger.debug(
+                        'Time %f Minimum intensity threshold %f reached at %f, %d' % (
+                            rt, self.min_ms1_intensity, intensity, fragmented_count))
+                    break
 
-                    if intensity < self.min_ms1_intensity:
-                        logger.debug(
-                            'Time %f Minimum intensity threshold %f reached at %f, %d' % (
-                                rt, self.min_ms1_intensity, intensity, fragmented_count))
-                        break
-
-                    # skip ion in the dynamic exclusion list of the mass spec
-                    if self.exclusion.is_excluded(mz, rt):
-                        continue
-
-                else:
-                    to_check = (mz, intensity, )
-                    if to_check not in self.targets:
-                        continue
+                # skip ion in the dynamic exclusion list of the mass spec
+                if self.exclusion.is_excluded(mz, rt):
+                    continue
 
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
-                                                           self.mz_tol, self.rt_tol, metadata={'frag_at': rt})
+                                                           self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1

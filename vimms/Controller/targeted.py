@@ -2,11 +2,13 @@
 
 import csv
 
+import numpy as np
 from mass_spec_utils.adduct_calculator.adduct_rules import AdductTransformer
 from molmass import Formula
 
 from vimms.Common import DEFAULT_ISOLATION_WIDTH, ScanParameters
 from vimms.Controller.base import Controller
+from vimms.Exclusion import TopNExclusion
 
 
 def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes', mz_delta=10, rt_delta=60.,
@@ -187,3 +189,63 @@ class TargetedController(Controller):
         output_method("========")
         output_method("{} out of {} have one or more scans".format(len(found), len(self.targets)))
         output_method("{} of the {} unique names have more than one scan".format(len(found_names), len(unique_names)))
+
+
+class SimpleTargetController(Controller):
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, params=None):
+        super().__init__(params=params)
+        self.ionisation_mode = ionisation_mode
+        self.N = N
+        self.isolation_width = isolation_width  # the isolation width (in Dalton) to select a precursor ion
+        self.mz_tol = mz_tol  # the m/z window (ppm) to prevent the same precursor ion to be fragmented again
+        self.rt_tol = rt_tol  # the rt window to prevent the same precursor ion to be fragmented again
+        self.min_ms1_intensity = min_ms1_intensity  # minimum ms1 intensity to fragment
+        self.targets = None
+        self.exclusion = TopNExclusion()
+
+    def _process_scan(self, scan):
+        # if there's a previous ms1 scan to process
+        new_tasks = []
+        fragmented_count = 0
+        if self.scan_to_process is not None:
+            mzs = self.scan_to_process.mzs
+            intensities = self.scan_to_process.intensities
+            assert mzs.shape == intensities.shape
+            rt = self.scan_to_process.rt
+
+            # loop over points in decreasing intensity
+            idx = np.argsort(intensities)[::-1]
+
+            ms2_tasks = []
+            for i in idx:
+                mz = mzs[i]
+                intensity = intensities[i]
+                to_check = (mz, intensity,)
+                if to_check not in self.targets:
+                    continue
+
+                # create a new ms2 scan parameter to be sent to the mass spec
+                precursor_scan_id = self.scan_to_process.scan_id
+                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
+                                                           self.mz_tol, self.rt_tol, metadata={'frag_at': rt})
+                new_tasks.append(dda_scan_params)
+                ms2_tasks.append(dda_scan_params)
+                fragmented_count += 1
+                self.current_task_id += 1
+
+            # if no ms1 has been added, then add at the end
+            ms1_scan_params = self.get_ms1_scan_params()
+            self.current_task_id += 1
+            self.next_processed_scan_id = self.current_task_id
+            new_tasks.append(ms1_scan_params)
+
+            # create new exclusion items based on the scheduled ms2 tasks
+            self.exclusion.update(self.scan_to_process, ms2_tasks)
+
+            # set this ms1 scan as has been processed
+            self.scan_to_process = None
+        return new_tasks
+
+    def update_state_after_scan(self, scan):
+        # update dynamic exclusion list after time has been increased
+        self.exclusion.cleanup(scan)

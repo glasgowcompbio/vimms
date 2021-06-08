@@ -1,25 +1,28 @@
 # check ms2 matches
 # simple script that loads an msp and an mzml and sees how many of the spectra in the MSP file
 # can be matched to a spectrum in an ms2 scan in the .mzml
-import sys
-import os
-import pandas as pd
-import numpy as np
-import glob
 import argparse
+import glob
+import os
+import sys
+
+import numpy as np
+import pandas as pd
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
+
 from vimms.Common import load_obj
 
 sys.path.append('..')
-sys.path.append('../..') # if running in this folder
+sys.path.append('../..')  # if running in this folder
+
 
 def process_block(block, file_name):
     peak_start_pos = [b.startswith("Num") for b in block].index(True)
     peaks = []
-    for line in block[peak_start_pos+1:]:
+    for line in block[peak_start_pos + 1:]:
         line = line.rstrip()
         if ';' in line:
             # msp format has peak tuples separated by ';'
@@ -100,11 +103,11 @@ def make_queries_from_aligned_msdial(msdial_file_name):
 
 def make_queries_from_msdial(msdial_file_name):
     query_spectra = []
-    msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='PeakID')#
+    msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='PeakID')  #
     for i in range(msdial_df.shape[0]):
         precursor_mz = msdial_df['Precursor m/z'][i]
         peaks = []
-        if msdial_df['MSMS spectrum'][i] == msdial_df['MSMS spectrum'][i]: # checking if nan
+        if msdial_df['MSMS spectrum'][i] == msdial_df['MSMS spectrum'][i]:  # checking if nan
             for info in msdial_df['MSMS spectrum'][i].split():
                 mz, intensity = info.split(':')
                 peak = np.array([float(mz), float(intensity)])
@@ -147,14 +150,14 @@ def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):
     if os.path.isfile(mzml_file_name):
         mzml_file_objects[mzml_file_name] = MZMLFile(mzml_file_name)
     elif os.path.isdir(mzml_file_name):
-        mzml_files = glob.glob(os.path.join(mzml_file_name,'*.mzML'))
+        mzml_files = glob.glob(os.path.join(mzml_file_name, '*.mzML'))
         for m in mzml_files:
             mzml_file_objects[m] = MZMLFile(m)
     else:
         logger.debug("No mzML files found")
         sys.exit(0)
 
-    for m,mzml_file_object in mzml_file_objects.items():
+    for m, mzml_file_object in mzml_file_objects.items():
         logger.debug("Loaded {} scans from {}".format(len(mzml_file_object.scans), m))
 
     sl = library_from_msp(msp_file_name)
@@ -168,17 +171,16 @@ def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):
             for hit in hits:
                 hit_id = hit[0]
                 hit_ids.add(hit_id)
-    
+
     all_library_ids = set(sl.records.keys())
     n_library_ids = len(all_library_ids)
     n_hits = len(hit_ids)
-    logger.debug("Out of {} IDs, {} got hits".format(n_library_ids,n_hits))
+    logger.debug("Out of {} IDs, {} got hits".format(n_library_ids, n_hits))
     missing_ids = all_library_ids - hit_ids
     # print("Missing")
     # for i in missing_ids:
     #     print(i)
     return n_hits, n_library_ids
-
 
 
 if __name__ == '__main__':
@@ -190,4 +192,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    n_hits, out_of = main(str(args.mzml_file_name), str(args.msp_file_name), args.precursor_tolerance, args.hit_threshold)
+    n_hits, out_of = main(str(args.mzml_file_name), str(args.msp_file_name), args.precursor_tolerance,
+                          args.hit_threshold)

@@ -597,7 +597,7 @@ class PeakSampler(object):
         # returns number between 0 and 1
         if len(self.all_ms2_scans) > 0:
             prop = np.random.choice(self.intensity_props, replace=False, size=N)
-            if N  == 1: # flatten so that it isn't an array
+            if N == 1:  # flatten so that it isn't an array
                 prop = prop[0]
             return prop
         return None

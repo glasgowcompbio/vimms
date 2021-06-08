@@ -6,9 +6,7 @@ import sys
 
 import networkx as nx
 import numpy as np
-
 from loguru import logger
-
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 from mass_spec_utils.data_import.mzml import MZMLFile
 
@@ -104,11 +102,12 @@ def get_intensity(roi, rt, interpolate=False):
         if interpolate:
             prop = (rt - roi.rt_list[before_pos]) / (roi.rt_list[after_pos] - roi.rt_list[before_pos])
             return roi.intensity_list[before_pos] + prop * (
-                        roi.intensity_list[after_pos] - roi.intensity_list[before_pos])
+                    roi.intensity_list[after_pos] - roi.intensity_list[before_pos])
         else:
             return roi.intensity_list[before_pos]
 
-def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, chrom_min = 0.001):
+
+def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, chrom_min=0.001):
     # this currently only works for mono-isotope and M+H
     logger.warning('Making graph edges from chemicals only uses the monoisotopic M+H adduct')
     chem_id = 0
@@ -117,7 +116,7 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
     # min_scan_delta = min([scan_start_times[i+1] - scan_start_times[i] for i in range(len(scan_start_times)-1)])
     # delta_t = min_scan_delta / 2
     for chemical in chems:
-        
+
         adduct = 'M+H'
         which_isotope = 0
 
@@ -130,9 +129,9 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
         # rt_end = rt_start + delta_t
         # while chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) is not None and chemical.chromatogram.get_relative_intensity(rt_end - chemical.rt) > chrom_min and rt_end <= scan_start_times[-1]:
         #     rt_end += delta_t
-        
+
         # get the intensity at this RT
-        adduct_intensity = {a: i for a,i in chemical.adducts[POSITIVE]}
+        adduct_intensity = {a: i for a, i in chemical.adducts[POSITIVE]}
         max_intensity = chemical.isotopes[which_isotope][1] * adduct_intensity[adduct] * chemical.max_intensity
 
         # standard loop as in the ROI case
@@ -157,10 +156,6 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, ch
                 break
         chem_id += 1
     return edges
-
-
-
-        
 
 
 def make_edges(boxes, scan_start_times, scan_levels, min_ms1_intensity):

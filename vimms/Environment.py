@@ -3,15 +3,10 @@ from pathlib import Path
 from loguru import logger
 from tqdm import tqdm
 
-from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_ISOLATION_WIDTH, DEFAULT_MS1_COLLISION_ENERGY, \
-    DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, POSITIVE, DEFAULT_MSN_SCAN_WINDOW, \
-    DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ACTIVATION_TYPE, DEFAULT_MS1_ISOLATION_MODE, DEFAULT_MS2_MASS_ANALYSER, \
-    DEFAULT_MS2_ISOLATION_MODE, DEFAULT_SOURCE_CID_ENERGY, ScanParameters, Precursor
-from vimms.Controller import TopNController, PurityController
+from vimms.Common import save_obj
+from vimms.Controller import TopNController
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
-from vimms.Common import save_obj
 
 
 class Environment(object):
@@ -186,10 +181,10 @@ class Environment(object):
         Gets the current N and DEW depending on which controller type it is
         :return: The current N and DEW values, None otherwise
         """
-        if isinstance(self.controller, PurityController):
-            current_N, current_rt_tol, idx = self.controller._get_current_N_DEW(time)
-            return current_N, current_rt_tol
-        elif isinstance(self.controller, TopNController):
+        # if isinstance(self.controller, PurityController):
+        #     current_N, current_rt_tol, idx = self.controller._get_current_N_DEW(time)
+        #     return current_N, current_rt_tol
+        if isinstance(self.controller, TopNController):
             return self.controller.N, self.controller.rt_tol
         else:
             return None, None
@@ -200,4 +195,3 @@ class Environment(object):
             # etc
         }
         save_obj(data_to_save, outname)
-

@@ -33,7 +33,7 @@ class SimpleMs1Controller(Controller):
             task = self.get_ms1_scan_params()
             self.current_task_id += 1
             self.next_processed_scan_id = self.current_task_id
-            self.scan_to_process = None # set this scan as has been processed
+            self.scan_to_process = None  # set this scan as has been processed
             return [task]
 
     def update_state_after_scan(self, last_scan):

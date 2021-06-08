@@ -81,12 +81,18 @@ class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
 
 
 class UniformSpikeNoise(object):
-    def __init__(self, density, max_val, min_val=0):
+    def __init__(self, density, max_val, min_val=0, min_mz=None, max_mz=None):
         self.density = density  # number of spike peaks per mz unit
         self.max_val = max_val
         self.min_val = min_val
+        self.min_mz = min_mz
+        self.max_mz = max_mz
 
     def sample(self, min_measurement_mz, max_measurement_mz):
+        if self.min_mz is not None:
+            min_measurement_mz = self.min_mz
+        if self.max_mz is not None:
+            max_measurement_mz = self.max_mz
         mz_range = max_measurement_mz - min_measurement_mz
         n_points = max(int(mz_range * self.density), 1)
         mz_vals = uniform_list(n_points, min_measurement_mz, max_measurement_mz)

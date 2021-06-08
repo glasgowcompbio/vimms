@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 
 import pandas as pd
@@ -66,6 +67,7 @@ class Controller(object):
         self.next_processed_scan_id = INITIAL_SCAN_ID
         self.initial_scan_id = INITIAL_SCAN_ID
         self.current_task_id = self.initial_scan_id
+        self.processing_times = []
         self.last_ms1_rt = 0.0
 
     def get_ms1_scan_params(self, metadata=None):
@@ -130,6 +132,7 @@ class Controller(object):
         # update ms1 time (used for ROI matching)
         if scan.ms_level == 1:
             self.last_ms1_rt = scan.rt
+            self.last_ms1_scan = scan
 
         # we get an ms1 scan and it has some peaks AND all the pending tasks have been sent and processed AND
         # this ms1 scan is a custom scan we'd sent before (not a method scan)
@@ -145,7 +148,16 @@ class Controller(object):
         logger.debug('scan.scan_params = %s' % scan.scan_params)
 
         # implemented by subclass
-        new_tasks = self._process_scan(scan)
+        if self.scan_to_process is not None:
+            # track how long each scan takes to process
+            start = time.time()
+            new_tasks = self._process_scan(scan)
+            elapsed = time.time() - start
+            self.processing_times.append(elapsed)
+        else:
+            # this scan is not the one we want to process, but here we pass it to _process_scan anyway
+            # in case the subclass wants to do something with it
+            new_tasks = self._process_scan(scan)
         return new_tasks
 
     def update_state_after_scan(self, last_scan):
@@ -213,4 +225,5 @@ class Controller(object):
         assert first_mass is not None
         assert last_mass is not None
 
-    def after_injection_cleanup(self): pass
+    def after_injection_cleanup(self):
+        pass

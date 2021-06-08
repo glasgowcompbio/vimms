@@ -1,9 +1,11 @@
 import itertools
+
 import numpy as np
 from loguru import logger
 
-from vimms.Controller.base import Controller
 from vimms.Common import DEFAULT_ISOLATION_WIDTH
+from vimms.Controller.base import Controller
+
 
 class FixedScansController(Controller):
     """
@@ -58,6 +60,7 @@ class FixedScansController(Controller):
     def update_state_after_scan(self, last_scan):
         pass
 
+
 class MultiIsolationController(Controller):
     def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH, params=None):
         super().__init__(params=params)
@@ -71,12 +74,12 @@ class MultiIsolationController(Controller):
         # makes a list of tuples, each saying which precuror idx in the sorted
         # list should be in which MS2 scan
         initial_idx = range(N)
-        scan_order = []    
-        for L in range(1, len(initial_idx)+1):
+        scan_order = []
+        for L in range(1, len(initial_idx) + 1):
             for subset in itertools.combinations(initial_idx, L):
                 scan_order.append(subset)
         return scan_order
-    
+
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
@@ -87,7 +90,7 @@ class MultiIsolationController(Controller):
             rt = self.scan_to_process.rt
             idx = np.argsort(intensities)[::-1]
             precursor_scan_id = self.scan_to_process.scan_id
-            scan_order = self._make_scan_order(min(self.N,len(mzs)))
+            scan_order = self._make_scan_order(min(self.N, len(mzs)))
 
             for subset in scan_order:
                 mz = []
@@ -105,7 +108,7 @@ class MultiIsolationController(Controller):
             self.current_task_id += 1
             self.next_processed_scan_id = self.current_task_id
             new_tasks.append(ms1_scan_params)
-    
+
         return new_tasks
 
     def update_state_after_scan(self, scan):

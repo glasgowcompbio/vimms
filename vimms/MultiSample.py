@@ -1,12 +1,12 @@
-from vimms.Evaluation import evaluate_simulated_env,evaluate_multiple_simulated_env
-from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import TopNController, PurityController, TopN_RoiController, TopNBoxRoiController, NonOverlapController, TopNBoxModelRoiController
-from vimms.Environment import Environment
-from vimms.Column import *
-from vimms.Noise import GaussianPeakNoise
 from vimms.Box import *
-from vimms.Roi import RoiAligner, calculate_chemical_p_values
 from vimms.Common import *
+from vimms.Controller import TopNController, TopN_RoiController, TopNBoxRoiController, \
+    NonOverlapController
+from vimms.Environment import Environment
+from vimms.Evaluation import evaluate_multiple_simulated_env
+from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Roi import RoiAligner
+
 
 # import numpy as np
 #
@@ -147,8 +147,9 @@ def top_n_experiment(datasets, base_chemicals, rt_range, N, isolation_width, mz_
     return env_list, final_evaluation
 
 
-def top_n_roi_experiment(datasets, base_chemicals, rt_range, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                                        min_roi_length, N, rt_tol, ionisation_mode=POSITIVE):
+def top_n_roi_experiment(datasets, base_chemicals, rt_range, isolation_width, mz_tol, min_ms1_intensity,
+                         min_roi_intensity,
+                         min_roi_length, N, rt_tol, ionisation_mode=POSITIVE):
     env_list = []
     for i in range(len(datasets)):
         mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None)
@@ -186,7 +187,8 @@ def top_n_box_experiment(datasets, base_chemicals, rt_range, boxes_params, datas
     boxes_intensity = None
     for i in range(len(datasets)):
         mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None)
-        controller = TopNBoxRoiController(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+        controller = TopNBoxRoiController(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
+                                          min_roi_intensity,
                                           min_roi_length, boxes_params=boxes_params, boxes=boxes,
                                           boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
         env = Environment(mass_spec, controller, rt_range[0], rt_range[1], progress_bar=True)
@@ -198,5 +200,3 @@ def top_n_box_experiment(datasets, base_chemicals, rt_range, boxes_params, datas
         boxes_intensity = aligner.get_max_frag_intensities()
     final_evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
     return env_list, final_evaluation
-
-

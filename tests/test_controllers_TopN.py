@@ -7,7 +7,7 @@ from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, Unifor
     ConstantChromatogramSampler, DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import POSITIVE, set_log_level_warning, NEGATIVE, ScanParameters
-from vimms.Controller import TopNController, SimpleMs1Controller, PurityController, WeightedDEWController, \
+from vimms.Controller import TopNController, SimpleMs1Controller, WeightedDEWController, \
     AdvancedParams
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -392,18 +392,16 @@ class TestExclusion:
         mz_tol = 10
         ionisation_mode = POSITIVE
 
-        initial_exclusion_list = None
+        initial_exclusion_list = []
         for i in range(3):
             mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                         initial_exclusion_list=initial_exclusion_list)
-            print('exclude = %d' % len(controller.exclusion_list))
+            print('exclude = %d' % len(controller.exclusion.exclusion_list))
             env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
             run_environment(env)
 
-            if initial_exclusion_list is None:
-                initial_exclusion_list = []
-            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
+            initial_exclusion_list = controller.exclusion.exclusion_list
 
             # check that there is at least one non-empty MS2 scan
             check_non_empty_MS2(controller)
@@ -423,94 +421,26 @@ class TestExclusion:
         n_chems = 3
         dataset = cs.sample(n_chems, 2)
         ionisation_mode = POSITIVE
-        initial_exclusion_list = None
+        initial_exclusion_list = []
         min_ms1_intensity = 0
         N = 10
         mz_tol = 10
         rt_tol = 30
         isolation_width = 1
         all_controllers = []
-        for i in range(2):
+        for i in range(3):
             mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, None)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
                                         initial_exclusion_list=initial_exclusion_list)
-            print('exclude = %d' % len(controller.exclusion_list))
+            print('exclude = %d' % len(controller.exclusion.exclusion_list))
             env = Environment(mass_spec, controller, 0, 20, progress_bar=True)
             run_environment(env)
 
-            if initial_exclusion_list is None:
-                initial_exclusion_list = []
-            initial_exclusion_list = initial_exclusion_list + controller.all_exclusion_items
+            initial_exclusion_list = controller.exclusion.exclusion_list
             all_controllers.append(controller)
         assert len(all_controllers[0].scans[2]) == n_chems
         assert len(all_controllers[1].scans[2]) == 0
-
-
-class TestPurityController:
-    """
-    Tests the Purity controller that is used for purity experiments
-    """
-
-    def test_purity_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
-        logger.info('Testing purity controller with simulated chemicals')
-        assert len(fragscan_dataset_peaks) == N_CHEMS
-
-        # set different isolation widths, Ns, dynamic exclusion RT and mz tolerances at different timepoints
-        isolation_widths = [1, 1, 1, 1]
-        N = [5, 10, 15, 20]
-        rt_tol = [15, 30, 60, 120]
-        mz_tol = [10, 5, 15, 20]
-        scan_param_changepoints = [300, 600, 900]  # the timepoints when we will change the 4 parameters above
-        ionisation_mode = POSITIVE
-
-        # create a simulated mass spec with noise and purity controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
-        controller = PurityController(ionisation_mode, N, scan_param_changepoints, isolation_widths, mz_tol, rt_tol,
-                                      MIN_MS1_INTENSITY)
-
-        # create an environment to run both the mass spec and controller
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
-        run_environment(env)
-
-        # write simulated output to mzML file
-        filename = 'purity_controller_simulated_chems.mzML'
-        check_mzML(env, OUT_DIR, filename)
-
-    def test_purity_controller_with_beer_chems(self, fragscan_ps):
-        logger.info('Testing purity controller with QC beer chemicals')
-
-        isolation_window = [1]  # the isolation window in Dalton around a selected precursor ion
-        N = [5]
-        rt_tol = [10]
-        mz_tol = [10]
-        min_ms1_intensity = 1.75E5
-        scan_param_changepoints = None
-        n_purity_scans = N[0]
-        purity_shift = 0.2
-        purity_threshold = 1
-
-        # these settings change the Mass Spec type. They arent necessary to run the Top-N ROI Controller
-        isolation_transition_window = 'gaussian'
-        isolation_transition_window_params = [0.5]
-
-        purity_add_ms1 = True  # this seems to be the broken bit
-        purity_randomise = True
-
-        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fragscan_ps,
-                                                isolation_transition_window=isolation_transition_window,
-                                                isolation_transition_window_params=isolation_transition_window_params)
-        controller = PurityController(mass_spec, N, scan_param_changepoints, isolation_window, mz_tol, rt_tol,
-                                      min_ms1_intensity, n_purity_scans, purity_shift, purity_threshold,
-                                      purity_add_ms1=purity_add_ms1, purity_randomise=purity_randomise)
-
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
-        run_environment(env)
-
-        # write simulated output to mzML file
-        filename = 'purity_controller_qcbeer_chems.mzML'
-        check_mzML(env, OUT_DIR, filename)
+        assert len(all_controllers[2].scans[2]) == 0
 
 
 class TestTopNShiftedController:

@@ -3,163 +3,202 @@ import sys
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
-from random import randrange
+import torch
 import random as rand
-import matplotlib.pyplot as plt
-from pathlib import Path
-import torch.optim as optim
+from gym import spaces
+
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_checker import check_env
 
 from vimms.Common import *
-from vimms.Chemicals import ChemicalMixtureCreator, UniformRTAndIntensitySampler
-from vimms.ChemicalSamplers import UniformMZFormulaSampler
-from vimms.Evaluation import evaluate_simulated_env
-from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import TopNController, AgentBasedController
-from vimms.Agent import TopNDEWAgent, ReinforceAgent, Pi, train, RandomAgent
-from vimms.Environment import Environment
-from vimms.Noise import UniformSpikeNoise
+from vimms.Gym import VimmsGymEnv
+from vimms.ChemicalSamplers import MZMLFormulaSampler, MZMLRTandIntensitySampler
+from vimms.Controller import SimpleTargetController
 
-base_dir = os.path.abspath(
-    'C:\\Users\\joewa\\University of Glasgow\\Vinny Davies - CLDS Metabolomics Project\\Trained Models')
-hmdb = load_obj(Path(base_dir, 'hmdb_compounds.p'))
+np.random.seed(0)
+rand.seed(0)
+torch.manual_seed(0)
 
 set_log_level_warning()
 
-no_episodes = 10
-n_chemicals = (100, 100)
+n_chemicals = (200, 500)
 mz_range = (100, 600)
-rt_range = [(0, 300)]
+rt_range = (200, 1000)
 intensity_range = (1E5, 1E10)
 
 min_mz = mz_range[0]
 max_mz = mz_range[1]
-min_rt = rt_range[0][0]
-max_rt = rt_range[0][1]
+min_rt = rt_range[0]
+max_rt = rt_range[1]
 min_log_intensity = np.log(intensity_range[0])
 max_log_intensity = np.log(intensity_range[1])
 
-datasets = []
-for i in range(no_episodes):
-    if i % 10 == 0: print(i)
-
-    # df = DatabaseFormulaSampler(hmdb, min_mz=min_mz, max_mz=max_mz)
-    df = UniformMZFormulaSampler(min_mz=min_mz, max_mz=max_mz)
-    ris = UniformRTAndIntensitySampler(min_rt=rt_range[0][0], max_rt=rt_range[0][1],
-                                       min_log_intensity=min_log_intensity, max_log_intensity=max_log_intensity)
-
-    cm = ChemicalMixtureCreator(df, rt_and_intensity_sampler=ris)
-    n_chems = n_chemicals[0]
-    chems = cm.sample(n_chems, 2, include_adducts_isotopes=False)
-    datasets.append(chems)
-
 isolation_window = 0.7
 N = 10
-rt_tol = 5
+rt_tol = 15
 mz_tol = 10
 min_ms1_intensity = 5000
 ionisation_mode = POSITIVE
-
-hidden_dim = 64
-gamma = 0.99
-lr = 0.001
-
 noise_density = 0.3
 noise_max_val = 1e4
 
-pbar = False
-write_mzML = False
+in_dim = 50
+out_dim = 50
+
+mzml_filename = os.path.abspath(os.path.join('..', '..', 'experimental', 'Beer_multibeers_1_fullscan1.mzML'))
+mz_sampler = MZMLFormulaSampler(mzml_filename, min_mz=min_mz, max_mz=max_mz)
+ri_sampler = MZMLRTandIntensitySampler(mzml_filename, min_rt=min_rt, max_rt=max_rt,
+                                       min_log_intensity=min_log_intensity,
+                                       max_log_intensity=max_log_intensity)
+
+params = {
+    'chemical_creator': {
+        'mz_range': mz_range,
+        'rt_range': rt_range,
+        'intensity_range': intensity_range,
+        'n_chemicals': n_chemicals,
+        'mz_sampler': mz_sampler,
+        'ri_sampler': ri_sampler,
+    },
+    'noise': {
+        'noise_density': noise_density,
+        'noise_max_val': noise_max_val,
+        'mz_range': mz_range
+    },
+    'env': {
+        'ionisation_mode': ionisation_mode,
+        'rt_range': rt_range,
+        'N': N,
+        'isolation_window': isolation_window,
+        'mz_tol': mz_tol,
+        'rt_tol': rt_tol,
+        'min_ms1_intensity': min_ms1_intensity
+    }
+}
 
 
-def run_experiment(datasets, controller_name, write_mzML=False, pbar=False):
-    # initial setup
-    pi = None
-    if controller_name == 'REINFORCE':
-        pi = Pi(hidden_dim)
-        optimizer = optim.AdamW(pi.parameters(), lr=lr)
+class MaxIntensityEnv(VimmsGymEnv):
+    def __init__(self, in_dim, out_dim, params):
+        super().__init__(in_dim, out_dim, params)
+        self.last_excluded = []
+        self.selected_precursors = []
 
-    # run episodes
-    env_list = []
-    losses = []
-    total_rewards = []
-    total_rewards_per_chems = []
-    for i in range(len(datasets)):
-        if i % 20 == 0:
-            if pi is None: print(i)
-            write_mzML = True
-        else:
-            write_mzML = False
+    def _get_action_space(self):
+        """
+        Defines action space
+        """
+        return spaces.MultiBinary(self.out_dim)
 
-        if i == len(datasets) - 1:
-            write_mzML = True
+    def _get_observation_space(self):
+        """
+        Defines observation space
+        """
+        features = {
+            'intensity': spaces.Box(low=0.0, high=np.inf, shape=(self.in_dim,)),
+            'exclusion': spaces.Box(low=0.0, high=1.0, shape=(self.in_dim,))
+        }
+        return spaces.Dict(features)
 
-        if controller_name == 'TopN':
-            controller = TopNController(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
-                                        ms1_shift=0,
-                                        initial_exclusion_list=None, force_N=False)
+    def _get_state(self, scan_to_process):
+        """
+        Converts a scan to a state
+        """
+        self.last_scan_to_process = scan_to_process
+        mzs, rt, intensities = self._get_mzs_rt_intensities(scan_to_process)
 
-        elif controller_name == 'TopNAgent':
-            agent = TopNDEWAgent(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity)
-            controller = AgentBasedController(agent)
+        precursors = []
+        self.last_excluded = []
+        for mz, intensity in zip(mzs, intensities):
+            if self.controller.exclusion.is_excluded(mz, rt):
+                excluded = 1
+                self.last_excluded.append((mz, rt, intensity,))
+            else:
+                excluded = 0
+            precursor = (mz, intensity, excluded,)
+            precursors.append(precursor)
 
-        elif controller_name == 'REINFORCE':
-            agent = ReinforceAgent(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, pi, min_mz,
-                                   max_mz)
-            controller = AgentBasedController(agent)
+        sorted_precursors = sorted(precursors, key=lambda item: item[1], reverse=True)  # sort by intensity descending
+        self.selected_precursors = []
+        feature_intensity = []
+        feature_exclusion = []
+        for i in range(self.in_dim):  # get the first in_dim items
+            precursor = sorted_precursors[i]
+            mz, intensity, excluded = precursor
+            self.selected_precursors.append(precursor)
 
-        elif controller_name == 'Random':
-            agent = RandomAgent(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity)
-            controller = AgentBasedController(agent)
+            intensity = np.log(intensity)
+            if np.isnan(intensity):
+                intensity = 0
+            feature_intensity.append(intensity)
+            feature_exclusion.append(excluded)
 
-            # run the simulation
-        out_dir = 'results' if write_mzML is True else None
-        out_file = out_file = 'test_%s_%d.mzML' % (controller_name, i) if write_mzML is True else None
+        feature_intensity = np.array(feature_intensity)
+        feature_exclusion = np.array(feature_exclusion)
+        features = {
+            'intensity': feature_intensity,
+            'exclusion': feature_exclusion
+        }
+        return features
 
-        spike_noise = UniformSpikeNoise(noise_density, noise_max_val, min_mz=min_mz, max_mz=max_mz)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None, spike_noise=spike_noise)
-        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar, out_dir=out_dir, out_file=out_file)
-        env.run()
-        env_list.append(env)
+    def _compute_reward(self, scan_to_process, results):
+        """
+        Computes fragmentation reward
+        """
+        parent_scan_id = self.controller.last_ms1_scan.scan_id
+        assert scan_to_process.scan_id == parent_scan_id
 
-        # train REINFORCE model
-        if pi is not None:
-            loss = train(pi, optimizer, gamma)
-            total_reward = sum(pi.rewards)
-            num_chems = len(datasets[i])
-            reward_per_chems = total_reward / num_chems
-            print('Episode %d\tloss %8.2f\tnum_chems %4d\ttotal_reward %8.2f\ttotal_reward/num_chems %8.2f' % (
-                i, loss, num_chems, total_reward, reward_per_chems))
+        total_reward = 0.0
+        for last_scan in results:
+            if last_scan.ms_level >= 2:
+                precursor = last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
+                mz = precursor.precursor_mz
+                frag_rt = last_scan.scan_params.get(ScanParameters.METADATA)['frag_at']
+                intensity = precursor.precursor_intensity
+                time_filter = -1 if (mz, frag_rt, intensity, ) in self.last_excluded else 1
+                reward = np.log(intensity) * time_filter
+                total_reward += reward
+        return total_reward
 
-            pi.onpolicy_reset()
-            losses.append(loss.item())
-            total_rewards.append(total_reward)
-            total_rewards_per_chems.append(reward_per_chems)
+    def _take_action(self, action):
+        """
+        Modify controller variables based on the selected action
+        """
+        target_flag = action
+        assert len(target_flag) == len(self.selected_precursors)
 
-    if pi is not None:
-        return env_list, losses, total_rewards, total_rewards_per_chems, pi
-    else:
-        return env_list
+        targets = []
+        for i in range(len(target_flag)):
+            t = target_flag[i]
+            if t == 1:
+                mz, intensity, excluded = self.selected_precursors[i]
+                targets.append((mz, intensity))
+
+        # self.seen_actions.update(['targets=%s' % targets])
+        self.controller.targets = targets
+
+    def _reset_controller(self, env_params):
+        """
+        Generates new controller
+        """
+        ionisation_mode = env_params['ionisation_mode']
+        N = env_params['N']
+        isolation_window = env_params['isolation_window']
+        mz_tol = env_params['mz_tol']
+        rt_tol = env_params['rt_tol']
+        min_ms1_intensity = env_params['min_ms1_intensity']
+        controller = SimpleTargetController(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity)
+        return controller
 
 
-def plot_rewards(controller_name, env_list):
-    topN_rewards = get_rewards(env_list)
-    plt.plot(topN_rewards)
-    plt.title('%s Reward per Episode' % controller_name)
-    plt.ylabel('Reward (cov_prop * intensity_prop)')
-    plt.xlabel('Episode')
+set_log_level_info()
 
+env = MaxIntensityEnv(in_dim, out_dim, params)
+check_env(env)
 
-def get_rewards(env_list):
-    rewards = []
-    for env in env_list:
-        res = evaluate_simulated_env(env)
-        reward = res['coverage_proportion'] * res['intensity_proportion']
-        rewards.append(reward)
-    return rewards
+model_name = 'PPO'
+model = PPO("MultiInputPolicy", env, verbose=1, ent_coef=0.01,
+            tensorboard_log='./results/%s_MaxIntensityEnv_tensorboard' % model_name)
+model.learn(total_timesteps=10000)
 
-
-np.random.seed(0)
-rand.seed(0)
-
-rl_controller_name = 'REINFORCE'
-rl_env_list, losses, total_rewards, total_rewards_per_chems, pi = run_experiment(datasets, rl_controller_name,
-                                                                                 write_mzML=False, pbar=False)
+fname = 'results/%s_maxintensity_smallchems' % model_name
+model.save(fname)

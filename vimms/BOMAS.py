@@ -8,7 +8,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
-    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController
+    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.Roi import RoiAligner
@@ -118,7 +118,7 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
@@ -148,7 +148,7 @@ def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
@@ -180,7 +180,7 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
@@ -214,7 +214,7 @@ def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_wi
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = WeightedDEWController(POSITIVE, N, isolation_window, mz_tol, r, min_ms1_intensity,
@@ -245,7 +245,7 @@ def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         boxes = []
         boxes_intensity = []
         aligner = RoiAligner()
@@ -285,7 +285,7 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
         env_list = []
         grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = NonOverlapController(
@@ -314,19 +314,54 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
 def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
                                                 rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
                                                 rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
-                                                base_chemicals=None, mzmine_files=None, rt_tolerance=100,
-                                                experiment_dir=None):
+                                                scoring_params={'theta1': 1}, base_chemicals=None, mzmine_files=None,
+                                                rt_tolerance=100, experiment_dir=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
         mzml_files = []
-        source_files = ['sample_' + str(i) for i in range(len(mzmine_files))]
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = IntensityNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
-                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
+
+
+def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
+                                                rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
+                                                scoring_params={'theta1': 1}, base_chemicals=None, mzmine_files=None,
+                                                rt_tolerance=100, experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = FlexibleNonOverlapController(
+                POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                min_roi_length, N, grid, rt_tol=rt_tol,
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)

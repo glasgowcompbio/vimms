@@ -274,24 +274,31 @@ class AllOverlapGrid(LocatorGrid):
                 other_non.append(other)
         return this_non, other_non, overlaps
 
-    def intensity_non_overlap(self, box, current_intensity):
+    def intensity_non_overlap(self, box, current_intensity, scoring_params):
         box = box.copy()
         box.intensity = 0.0
         other_boxes = self.get_boxes(box)
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
         non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
         refragment = sum(max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
-        return non_overlap + refragment
+        return non_overlap + scoring_params['theta1'] * refragment
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
         box = box.copy()
         box.intensity = 0.0
         other_boxes = self.get_boxes(box)
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
-        non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
-        refragment = sum(max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
-        nofragment = sum(min(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) for b in overlaps)
-        return np.log(non_overlap + scoring_params['theta1'] * refragment + scoring_params['theta2'] * nofragment)
+        non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
+        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
+                                                    * b.area() / box.area()) for b in overlaps)
+        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
+                                                     (b.area() / box.area()) for b in overlaps)
+        new_peak = []
+        for b in overlaps:
+            if b.intensity == 0.0:
+                new_peak.append(np.log(current_intensity) * (b.area() / box.area()))
+        new_peak_score = scoring_params['theta3'] * sum(new_peak)
+        return non_overlap + refragment + refragment2 + new_peak_score
 
     def register_box(self, box):
         other_boxes = self.get_boxes(box)
@@ -497,8 +504,11 @@ class GridEstimator():
     def non_overlap(self, box):
         return self.grid.non_overlap(box)
 
-    def intensity_non_overlap(self, box, current_intensity):
-        return self.grid.intensity_non_overlap(box, current_intensity)
+    def intensity_non_overlap(self, box, current_intensity, scoring_params):
+        return self.grid.intensity_non_overlap(box, current_intensity, scoring_params)
+
+    def flexible_non_overlap(self, box, current_intensity, scoring_params):
+        return self.grid.flexible_non_overlap(box, current_intensity, scoring_params)
 
     def register_roi(self, roi):
         self.pending_ms2s.append(roi)

@@ -8,11 +8,13 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
-    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController
+    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController, \
+    FixedScansController
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.Roi import RoiAligner
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
+from vimms.DsDA import get_schedule, dsda_get_scan_params
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -369,6 +371,46 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
                 mzml_files.append(file_link)
                 env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
+
+
+def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+                                base_chemicals=None, mzmine_files=None, rt_tolerance=100):
+    data_dir = os.path.join(base_dir, 'Data')
+    schedule_dir = os.path.join(base_dir, 'settings')
+    template_file = os.path.join(base_dir, 'DsDA_Timing_schedule.csv')
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        mzml_files = []
+        source_files = ['sample_' + "%03d" % i for i in range(len(datasets))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            if i == 0:
+                controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+                                            ms1_shift=0, initial_exclusion_list=None, force_N=False)
+            else:
+                new_schedule = get_schedule(i, schedule_dir)
+                print(new_schedule)
+                schedule_param_list = dsda_get_scan_params(new_schedule, template_file, isolation_window, mz_tol,
+                                                           rt_tol)
+                controller = FixedScansController(schedule=schedule_param_list)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            file_link = os.path.join(data_dir, source_files[i] + '.mzml')
+            mzml_files.append(file_link)
+            print("Processed ", i+1, " files")
+            env.write_mzML(data_dir, source_files[i] + '.mzml')
+            print("Waiting for R to process .mzML files")
         if base_chemicals is not None:
             evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
         else:

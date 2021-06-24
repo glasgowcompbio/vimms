@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from vimms.Common import load_obj
+from vimms.Common import load_obj, get_default_scan_params, get_dda_scan_param
 
 
 def get_schedule(n, schedule_dir):
@@ -112,3 +112,22 @@ def multi_sample_fragmentation_performance_aligned(params):
         total_chemicals_found.append((chemicals_found_multi[0:(1 + i)].sum(axis=0) > 0).sum())
 
     return total_chemicals_found
+
+
+def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, rt_tol):
+    scan_list = []
+    schedule = pd.read_csv(schedule_file)
+    template = pd.read_csv(template_file)
+    masses = schedule['targetMass']
+    types = template['type']
+    for i in range(schedule.shape[0]):
+        if types[i] != 'msms':
+            scan_list.append(get_default_scan_params())
+        else:
+            if np.isnan(masses[i]):
+                mz = 100
+            else:
+                mz = masses[i]
+            scan_list.append(get_dda_scan_param(mz, 0.0, i, isolation_width, mz_tol, rt_tol))
+    return scan_list
+

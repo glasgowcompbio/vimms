@@ -9,23 +9,24 @@ from vimms.Controller.topN import TopNController
 from vimms.Roi import match, Roi, SmartRoi
 
 
-class RoiController(TopNController):
-    """
-    An ROI based controller with multiple options
-    """
+class RoiBuilder():
+    ROI_TYPE_NORMAL = 'roi'
+    ROI_TYPE_SMART = 'smart'
 
-    def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
-                 params=None):
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
-                         params=params)
+    def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation=1,
+                 reset_length_seconds=100, intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
+                 roi_type=ROI_TYPE_NORMAL, grid=None, register_all_roi=False):
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity
+        self.mz_tol = mz_tol
         self.mz_units = 'ppm'
+        self.rt_tol = rt_tol
         self.min_roi_length = min_roi_length
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
         self.length_units = length_units
+        self.roi_type = roi_type
+        assert self.roi_type in [RoiBuilder.ROI_TYPE_NORMAL, RoiBuilder.ROI_TYPE_SMART]
 
         # Create ROI
         self.live_roi = []
@@ -38,17 +39,58 @@ class RoiController(TopNController):
         self.frag_roi_dicts = []  # scan_id, roi_id, precursor_intensity
         self.roi_id_counter = 0
 
-    def get_rois(self):
-        return self.live_roi + self.dead_roi
+        # Only used by SmartROI
+        self.reset_length_seconds = reset_length_seconds
+        self.intensity_increase_factor = intensity_increase_factor
+        self.drop_perc = drop_perc
 
-    def _process_scan(self, scan):
-        # if there's a previous ms1 scan to process
-        new_tasks = []
-        ms2_tasks = []
-        fragmented_count = 0
-        if self.scan_to_process is not None:
-            # keep growing ROIs if we encounter a new ms1 scan
-            self._update_roi(scan)
+        # Grid stuff
+        self.grid = grid
+        self.register_all_roi = register_all_roi
+
+    def update_roi(self, new_scan):
+        if new_scan.ms_level == 1:
+            order = np.argsort(self.live_roi)
+            self.live_roi.sort()
+            self.live_roi_fragmented = np.array(self.live_roi_fragmented)[order].tolist()
+            self.live_roi_last_rt = np.array(self.live_roi_last_rt)[order].tolist()
+            current_ms1_scan_rt = new_scan.rt
+            not_grew = set(self.live_roi)
+            for idx in range(len(new_scan.intensities)):
+                intensity = new_scan.intensities[idx]
+                mz = new_scan.mzs[idx]
+                if intensity >= self.min_roi_intensity:
+                    roi = self._get_roi_obj(mz, 0, 0, None)
+                    match_roi = match(roi, self.live_roi, self.mz_tol, mz_units=self.mz_units)
+                    if match_roi:
+                        match_roi.add(mz, current_ms1_scan_rt, intensity)
+                        if match_roi in not_grew:
+                            not_grew.remove(match_roi)
+                    else:
+                        new_roi = self._get_roi_obj(mz, current_ms1_scan_rt, intensity, self.roi_id_counter)
+                        self.roi_id_counter += 1
+                        bisect.insort_right(self.live_roi, new_roi)
+                        self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
+                        self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
+                        if self.register_all_roi and self.grid is not None:
+                            self.grid.register_roi(new_roi)
+
+            for roi in not_grew:
+                if self.length_units == "scans":
+                    if roi.n >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+                else:
+                    if roi.length_in_seconds >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+
+                pos = self.live_roi.index(roi)
+                del self.live_roi[pos]
+                del self.live_roi_fragmented[pos]
+                del self.live_roi_last_rt[pos]
 
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
@@ -60,70 +102,33 @@ class RoiController(TopNController):
             else:
                 self.current_roi_length = np.array([roi.length_in_seconds for roi in self.live_roi])
 
-            rt = self.scan_to_process.rt
+    def _get_roi_obj(self, mz, rt, intensity, roi_id):
+        if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+            roi = Roi(mz, rt, intensity, id=roi_id)
+        elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            roi = SmartRoi(mz, rt, intensity, self.min_roi_length_for_fragmentation, self.reset_length_seconds,
+                           self.intensity_increase_factor, self.rt_tol, drop_perc=self.drop_perc)
+        return roi
 
-            # loop over points in decreasing score
-            scores = self._get_scores()
-            idx = np.argsort(scores)[::-1]
+    def get_mz_intensity(self, i):
+        mz = self.current_roi_mzs[i]
+        intensity = self.current_roi_intensities[i]
+        roi_id = self.current_roi_ids[i]
+        return mz, intensity, roi_id
 
-            done_ms1 = False
+    def set_fragmented(self, current_task_id, i, roi_id, rt, intensity):
+        # updated fragmented list and times
+        self.live_roi_fragmented[i] = True
+        self.live_roi_last_rt[i] = rt
+        self.live_roi[i].fragmented()
 
-            for i in idx:
-                mz = self.current_roi_mzs[i]
-                intensity = self.current_roi_intensities[i]
-                roi_id = self.current_roi_ids[i]
+        self.frag_roi_dicts.append({'scan_id': current_task_id, 'roi_id': roi_id,
+                                    'precursor_intensity': intensity})
 
-                # stopping criteria is done based on the scores
-                if scores[i] <= 0:
-                    logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
-                    break
-
-                # updated fragmented list and times
-                self.live_roi_fragmented[i] = True
-                self.live_roi_last_rt[i] = rt
-
-                # create a new ms2 scan parameter to be sent to the mass spec
-                precursor_scan_id = self.scan_to_process.scan_id
-                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
-                                                           self.mz_tol, self.rt_tol)
-                new_tasks.append(dda_scan_params)
-                ms2_tasks.append(dda_scan_params)
-                fragmented_count += 1
-                self.current_task_id += 1
-                self.frag_roi_dicts.append({'scan_id': self.current_task_id, 'roi_id': roi_id,
-                                            'precursor_intensity': intensity})
-
-                # add an ms1 here
-                if fragmented_count == self.N - self.ms1_shift:
-                    ms1_scan_params = self.get_ms1_scan_params()
-                    self.current_task_id += 1
-                    self.next_processed_scan_id = self.current_task_id
-                    logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
-
-                    new_tasks.append(ms1_scan_params)
-                    done_ms1 = True
-
-            # if no ms1 has been added, then add at the end
-            # if fragmented_count < self.N - self.ms1_shift:
-            if not done_ms1:
-                ms1_scan_params = self.get_ms1_scan_params()
-                self.current_task_id += 1
-                self.next_processed_scan_id = self.current_task_id
-                logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
-                new_tasks.append(ms1_scan_params)
-
-            # create new exclusion items based on the scheduled ms2 tasks
-            self.exclusion.update(self.scan_to_process, ms2_tasks)
-
-            # set this ms1 scan as has been processed
-            self.scan_to_process = None
-
-        if scan.ms_level == 2:  # add ms2 scans to Rois
-            self.add_scan_to_roi(scan)
-        return new_tasks
-
-    def update_state_after_scan(self, scan):
-        super().update_state_after_scan(scan)
+        # grid stuff
+        if self.register_all_roi is False and self.grid is not None:
+            self.grid.register_roi(self.live_roi[i])
+        self.live_roi[i].max_fragmentation_intensity = max(self.live_roi[i].max_fragmentation_intensity, intensity)
 
     def add_scan_to_roi(self, scan):
         frag_event_ids = np.array([event['scan_id'] for event in self.frag_roi_dicts])
@@ -137,59 +142,94 @@ class RoiController(TopNController):
         else:
             pass  # hopefully shouldnt happen
 
-    def _update_roi(self, new_scan):
-        if new_scan.ms_level == 1:
-            order = np.argsort(self.live_roi)
-            self.live_roi.sort()
-            self.live_roi_fragmented = np.array(self.live_roi_fragmented)[order].tolist()
-            self.live_roi_last_rt = np.array(self.live_roi_last_rt)[order].tolist()
-            current_ms1_scan_rt = new_scan.rt
-            not_grew = set(self.live_roi)
-            for idx in range(len(new_scan.intensities)):
-                intensity = new_scan.intensities[idx]
-                mz = new_scan.mzs[idx]
-                if intensity >= self.min_roi_intensity:
-                    match_roi = match(Roi(mz, 0, 0), self.live_roi, self.mz_tol, mz_units=self.mz_units)
-                    if match_roi:
-                        match_roi.add(mz, current_ms1_scan_rt, intensity)
-                        if match_roi in not_grew:
-                            not_grew.remove(match_roi)
-                    else:
-                        new_roi = Roi(mz, current_ms1_scan_rt, intensity, self.roi_id_counter)
-                        self.roi_id_counter += 1
-                        bisect.insort_right(self.live_roi, new_roi)
-                        self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
-                        self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
+    def get_rois(self):
+        return self.live_roi + self.dead_roi
 
-            for roi in not_grew:
-                if self.length_units == "scans":
-                    if roi.n >= self.min_roi_length:
-                        self.dead_roi.append(roi)
-                    else:
-                        self.junk_roi.append(roi)
-                else:
-                    if roi.length_in_seconds >= self.min_roi_length:
-                        self.dead_roi.append(roi)
-                    else:
-                        self.junk_roi.append(roi)
 
-                pos = self.live_roi.index(roi)
-                del self.live_roi[pos]
-                del self.live_roi_fragmented[pos]
-                del self.live_roi_last_rt[pos]
+class RoiController(TopNController):
+    """
+    An ROI based controller with multiple options
+    """
+
+    def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+                 min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
+                 params=None):
+        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
+                         params=params)
+        self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
+                                      min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL)
+
+    def schedule_ms1(self, new_tasks):
+        ms1_scan_params = self.get_ms1_scan_params()
+        self.current_task_id += 1
+        self.next_processed_scan_id = self.current_task_id
+        logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
+        new_tasks.append(ms1_scan_params)
+
+    class MS2Scheduler():
+        def __init__(self, parent):
+            self.parent = parent
+            self.fragmented_count = 0
+
+        def schedule_ms2s(self, new_tasks, ms2_tasks, mz, intensity):
+            precursor_scan_id = self.parent.scan_to_process.scan_id
+            dda_scan_params = self.parent.get_ms2_scan_params(mz, intensity, precursor_scan_id,
+                                                              self.parent.isolation_width, self.parent.mz_tol,
+                                                              self.parent.rt_tol)
+            new_tasks.append(dda_scan_params)
+            ms2_tasks.append(dda_scan_params)
+            self.parent.current_task_id += 1
+            self.fragmented_count += 1
+
+    def _process_scan(self, scan):
+        if self.scan_to_process is not None:
+            # keep growing ROIs if we encounter a new ms1 scan
+            self.roi_builder.update_roi(scan)
+            new_tasks, ms2_tasks = [], []
+            rt = self.scan_to_process.rt
+
+            done_ms1, ms2s, scores = False, self.MS2Scheduler(self), self._get_scores()
+            for i in np.argsort(scores)[::-1]:
+                if scores[i] <= 0:  # stopping criteria is done based on the scores
+                    logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
+                    break
+
+                mz, intensity, roi_id = self.roi_builder.get_mz_intensity(i)
+                ms2s.schedule_ms2s(new_tasks, ms2_tasks, mz, intensity)
+                self.roi_builder.set_fragmented(self.current_task_id, i, roi_id, rt, intensity)
+
+                if ms2s.fragmented_count == self.N - self.ms1_shift:
+                    self.schedule_ms1(new_tasks)
+                    done_ms1 = True
+
+            # if no ms1 has been added, then add at the end
+            if not done_ms1: self.schedule_ms1(new_tasks)
+
+            # create new exclusion items based on the scheduled ms2 tasks
+            self.exclusion.update(self.scan_to_process, ms2_tasks)
+            self.scan_to_process = None  # set this ms1 scan as has been processed
+            return new_tasks
+
+        elif scan.ms_level == 2:  # add ms2 scans to Rois
+            self.roi_builder.add_scan_to_roi(scan)
+            return []
+
+    def update_state_after_scan(self, scan):
+        super().update_state_after_scan(scan)
 
     def _get_scores(self):
         NotImplementedError()
 
     def _score_filters(self):
-        intensity_filter = (np.array(self.current_roi_intensities) > self.min_ms1_intensity)
-        time_filter = np.logical_not(self.scan_to_process.rt - np.array(self.live_roi_last_rt,
+        intensity_filter = (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
+        time_filter = np.logical_not(self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt,
                                                                         dtype=np.double) < self.rt_tol)  # Handles None values by converting to NaN for which all comparisons return 0
-        length_filter = (self.current_roi_length >= self.min_roi_length_for_fragmentation)
+        length_filter = (self.roi_builder.current_roi_length >= self.roi_builder.min_roi_length_for_fragmentation)
         return intensity_filter * time_filter * length_filter
 
     def _get_dda_scores(self):
-        return np.log(self.current_roi_intensities) * self._score_filters()
+        return np.log(self.roi_builder.current_roi_intensities) * self._score_filters()
 
     def _get_top_N_scores(self, scores):
         if len(scores) > self.N:  # number of fragmentation events filter
@@ -197,7 +237,7 @@ class RoiController(TopNController):
         return scores
 
 
-class SmartRoiController(RoiController):
+class TopN_SmartRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2, length_units="scans",
@@ -207,154 +247,17 @@ class SmartRoiController(RoiController):
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift,
                          params=params)
-        self.reset_length_seconds = reset_length_seconds
-        self.intensity_increase_factor = intensity_increase_factor
-        self.drop_perc = drop_perc
-
-    def _process_scan(self, scan):
-
-        # if there's a previous ms1 scan to process
-        new_tasks = []
-        fragmented_count = 0
-        if self.scan_to_process is not None:
-
-            # keep growing ROIs if we encounter a new ms1 scan
-            self._update_roi(scan)
-            logger.debug("Updated rois, currently %d rois" % (len(self.live_roi)))
-            self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
-            self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
-            self.current_rt = self.scan_to_process.rt
-
-            # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
-            if self.length_units == "scans":
-                self.current_roi_length = np.array([roi.n for roi in self.live_roi])
-            else:
-                self.current_roi_length = np.array([roi.length_in_seconds for roi in self.live_roi])
-
-            # loop over points in decreasing score
-            scores = self._get_scores()
-            idx = np.argsort(scores)[::-1]
-
-            done_ms1 = False
-            ms2_tasks = []
-
-            for i in idx:
-                mz = self.current_roi_mzs[i]
-                intensity = self.current_roi_intensities[i]
-
-                # stopping criteria is done based on the scores
-                if scores[i] <= 0:
-                    logger.debug('Time %f, %d ions have been selected' % (self.current_rt, len(ms2_tasks)))
-                    break
-
-                # updated fragmented list and times
-                self.live_roi_fragmented[i] = True
-                self.live_roi_last_rt[i] = self.current_rt
-
-                # create a new ms2 scan parameter to be sent to the mass spec
-                precursor_scan_id = self.scan_to_process.scan_id
-                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
-                                                           self.mz_tol, self.rt_tol)
-                new_tasks.append(dda_scan_params)
-                ms2_tasks.append(dda_scan_params)
-                self.live_roi[i].fragmented()
-                fragmented_count += 1
-                self.current_task_id += 1
-
-                # add an ms1 here
-                if fragmented_count == self.N - self.ms1_shift:
-                    ms1_scan_params = self.get_ms1_scan_params()
-                    self.current_task_id += 1
-                    self.next_processed_scan_id = self.current_task_id
-                    logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
-
-                    new_tasks.append(ms1_scan_params)
-                    done_ms1 = True
-
-            # if no ms1 has been added, then add at the end
-            # if fragmented_count < self.N - self.ms1_shift:
-            if not done_ms1:
-                ms1_scan_params = self.get_ms1_scan_params()
-                self.current_task_id += 1
-                self.next_processed_scan_id = self.current_task_id
-                logger.debug('Created the next processed scan %d' % (self.next_processed_scan_id))
-
-                new_tasks.append(ms1_scan_params)
-
-            # create new exclusion items based on the scheduled ms2 tasks
-            self.exclusion.update(self.scan_to_process, ms2_tasks)
-
-            # set this ms1 scan as has been processed
-            self.scan_to_process = None
-        return new_tasks
-
-    def _update_roi(self, new_scan):
-        if new_scan.ms_level == 1:
-            order = np.argsort(self.live_roi)
-            self.live_roi.sort()
-            self.live_roi_fragmented = np.array(self.live_roi_fragmented)[order].tolist()
-            self.live_roi_last_rt = np.array(self.live_roi_last_rt)[order].tolist()
-            current_ms1_scan_rt = new_scan.rt
-            not_grew = set(self.live_roi)
-            for idx in range(len(new_scan.intensities)):
-                intensity = new_scan.intensities[idx]
-                mz = new_scan.mzs[idx]
-                if intensity >= self.min_roi_intensity:
-                    match_roi = match(SmartRoi(mz, 0, 0, self.min_roi_length_for_fragmentation,
-                                               self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol),
-                                      self.live_roi, self.mz_tol, mz_units=self.mz_units)
-                    if match_roi:
-                        match_roi.add(mz, current_ms1_scan_rt, intensity)
-                        if match_roi in not_grew:
-                            not_grew.remove(match_roi)
-                    else:
-                        new_roi = SmartRoi(mz, current_ms1_scan_rt, intensity, self.min_roi_length_for_fragmentation,
-                                           self.reset_length_seconds, self.intensity_increase_factor, self.rt_tol,
-                                           drop_perc=self.drop_perc)
-                        bisect.insort_right(self.live_roi, new_roi)
-                        self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
-                        self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
-
-            for roi in not_grew:
-                if self.length_units == "scans":
-                    if roi.n >= self.min_roi_length:
-                        self.dead_roi.append(roi)
-                    else:
-                        self.junk_roi.append(roi)
-                else:
-                    if roi.length_in_seconds >= self.min_roi_length:
-                        self.dead_roi.append(roi)
-                    else:
-                        self.junk_roi.append(roi)
-
-                pos = self.live_roi.index(roi)
-                del self.live_roi[pos]
-                del self.live_roi_fragmented[pos]
-                del self.live_roi_last_rt[pos]
+        self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
+                                      min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                                      reset_length_seconds=reset_length_seconds,
+                                      intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
+                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_SMART)
 
     def _get_dda_scores(self):
-        scores = np.log(self.current_roi_intensities)  # log intensities
-        scores *= (np.array(self.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
-        scores *= ([roi.get_can_fragment() for roi in self.live_roi])
+        scores = np.log(self.roi_builder.current_roi_intensities)  # log intensities
+        scores *= (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
+        scores *= ([roi.get_can_fragment() for roi in self.roi_builder.live_roi])
         return scores
-
-
-########################################################################################################################
-# Extended ROI Controllers
-########################################################################################################################
-
-
-class TopN_SmartRoiController(SmartRoiController):
-    def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1,
-                 reset_length_seconds=100, intensity_increase_factor=2, length_units="scans", drop_perc=0.01,
-                 ms1_shift=0, params=None):
-        super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
-                         min_roi_length, N, rt_tol=rt_tol,
-                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         reset_length_seconds=reset_length_seconds, intensity_increase_factor=intensity_increase_factor,
-                         length_units=length_units, drop_perc=drop_perc, ms1_shift=ms1_shift,
-                         params=params)
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()
@@ -398,11 +301,11 @@ class TopNBoxRoiController(RoiController):
     def _get_scores(self):
         if self.boxes is not None:
             # calculate dda stuff
-            log_intensities = np.log(self.current_roi_intensities)
-            intensity_filter = (np.array(self.current_roi_intensities) > self.min_ms1_intensity)
-            time_filter = (1 - np.array(self.live_roi_fragmented).astype(int))
+            log_intensities = np.log(self.roi_builder.current_roi_intensities)
+            intensity_filter = (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
+            time_filter = (1 - np.array(self.roi_builder.live_roi_fragmented).astype(int))
             time_filter[time_filter == 0] = (
-                    (self.scan_to_process.rt - np.array(self.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
+                    (self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
             # calculate overlap stuff
             initial_scores = []
             copy_boxes = deepcopy(self.boxes)
@@ -411,7 +314,7 @@ class TopNBoxRoiController(RoiController):
             prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)), [0 for i in self.boxes_intensity])
             box_fragmented = (np.array(self.boxes_intensity) == 0) * 1
             for i in range(len(log_intensities)):
-                overlaps = np.array(self.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
+                overlaps = np.array(self.roi_builder.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
                                                                        self.box_min_mz_width))
                 # new peaks not in list of boxes
                 new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]

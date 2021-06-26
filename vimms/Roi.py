@@ -59,6 +59,10 @@ class Roi(object):
         self.n = len(self.mz_list)
         self.mz_sum = sum(self.mz_list)
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+        self.is_fragmented = False
+
+    def fragmented(self):
+        self.is_fragmented = True
 
     def get_mean_mz(self):
         return self.mz_sum / self.n

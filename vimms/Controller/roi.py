@@ -92,9 +92,12 @@ class RoiBuilder():
                 del self.live_roi_fragmented[pos]
                 del self.live_roi_last_rt[pos]
 
-            self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
-            self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
             self.current_roi_ids = [roi.id for roi in self.live_roi]
+            self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
+            if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+                self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
+            elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
+                self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
 
             # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":

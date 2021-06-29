@@ -58,12 +58,17 @@ class IntensityNonOverlapController(GridController):
                          min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi)
         self.scoring_params = scoring_params
 
-    def _get_scores(self):
+    def _overlap_scores(self):
         fn = self.grid.get_estimator()
         scores = np.log([self.grid.intensity_non_overlap(
-            r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])), self.roi_builder.current_roi_intensities[i],
+            r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])),
+            self.roi_builder.current_roi_intensities[i],
             self.scoring_params) for i, r in enumerate(self.roi_builder.live_roi)])
-        return self._get_top_N_scores(scores * self._score_filters())
+        return scores
+
+    def _get_scores(self):
+        overlap_scores = self._overlap_scores()
+        return self._get_top_N_scores(overlap_scores * self._score_filters())
 
 
 class FlexibleNonOverlapController(GridController):
@@ -80,12 +85,17 @@ class FlexibleNonOverlapController(GridController):
         if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
             print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
-    def _get_scores(self):
+    def _overlap_scores(self):
         fn = self.grid.get_estimator()
         scores = [self.grid.flexible_non_overlap(
-            r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])), self.roi_builder.current_roi_intensities[i],
+            r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])),
+            self.roi_builder.current_roi_intensities[i],
             self.scoring_params) for i, r in enumerate(self.roi_builder.live_roi)]
-        return self._get_top_N_scores(scores * self._score_filters())
+        return scores
+
+    def _get_scores(self):
+        overlap_scores = self._overlap_scores()
+        return self._get_top_N_scores(overlap_scores * self._score_filters())
 
 
 class TopNBoxRoiController2(GridController):
@@ -111,7 +121,8 @@ class TopNBoxRoiController2(GridController):
             intensity_filter = (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
             time_filter = (1 - np.array(self.roi_builder.live_roi_fragmented).astype(int))
             time_filter[time_filter == 0] = (
-                    (self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
+                    (self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt)[
+                        time_filter == 0]) > self.rt_tol)
             # calculate overlap stuff
             initial_scores = []
             copy_boxes = deepcopy(self.boxes)
@@ -121,7 +132,7 @@ class TopNBoxRoiController2(GridController):
             box_fragmented = (np.array(self.boxes_intensity) == 0) * 1
             for i in range(len(log_intensities)):
                 overlaps = np.array(self.roi_builder.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
-                                                                       self.box_min_mz_width))
+                                                                                   self.box_min_mz_width))
                 # new peaks not in list of boxes
                 new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]
                 # previously fragmented peaks

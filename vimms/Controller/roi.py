@@ -221,23 +221,42 @@ class RoiController(TopNController):
     def update_state_after_scan(self, scan):
         super().update_state_after_scan(scan)
 
-    def _get_scores(self):
-        NotImplementedError()
+    ####################################################################################################################
+    # Scoring functions
+    ####################################################################################################################
+
+    def _log_roi_intensities(self):
+        return np.log(self.roi_builder.current_roi_intensities)
+
+    def _min_intensity_filter(self):
+        return (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
+
+    def _time_filter(self):
+        # Handles None values by converting to NaN for which all comparisons return 0
+        return np.logical_not(self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt,
+                                                                 dtype=np.double) < self.rt_tol)
+
+    def _length_filter(self):
+        return (self.roi_builder.current_roi_length >= self.roi_builder.min_roi_length_for_fragmentation)
+
+    def _smartroi_filter(self):
+        # if this is a normal ROI object, always return True for everything
+        # otherwise track the status based on the SmartROI rules
+        return np.array([roi.get_can_fragment() for roi in self.roi_builder.live_roi])
 
     def _score_filters(self):
-        intensity_filter = (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
-        time_filter = np.logical_not(self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt,
-                                                                        dtype=np.double) < self.rt_tol)  # Handles None values by converting to NaN for which all comparisons return 0
-        length_filter = (self.roi_builder.current_roi_length >= self.roi_builder.min_roi_length_for_fragmentation)
-        return intensity_filter * time_filter * length_filter
+        return self._min_intensity_filter() * self._time_filter() * self._length_filter()
 
     def _get_dda_scores(self):
-        return np.log(self.roi_builder.current_roi_intensities) * self._score_filters()
+        return self._log_roi_intensities() * self._score_filters()
 
     def _get_top_N_scores(self, scores):
         if len(scores) > self.N:  # number of fragmentation events filter
             scores[scores.argsort()[:(len(scores) - self.N)]] = 0
         return scores
+
+    def _get_scores(self):
+        NotImplementedError()
 
 
 class TopN_SmartRoiController(RoiController):
@@ -257,10 +276,7 @@ class TopN_SmartRoiController(RoiController):
                                       length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_SMART)
 
     def _get_dda_scores(self):
-        scores = np.log(self.roi_builder.current_roi_intensities)  # log intensities
-        scores *= (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)  # intensity filter
-        scores *= ([roi.get_can_fragment() for roi in self.roi_builder.live_roi])
-        return scores
+        return self._log_roi_intensities() * self._min_intensity_filter() * self._smartroi_filter()
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()
@@ -304,11 +320,12 @@ class TopNBoxRoiController(RoiController):
     def _get_scores(self):
         if self.boxes is not None:
             # calculate dda stuff
-            log_intensities = np.log(self.roi_builder.current_roi_intensities)
-            intensity_filter = (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
+            log_intensities = self._log_roi_intensities()
+            intensity_filter = self._min_intensity_filter()
             time_filter = (1 - np.array(self.roi_builder.live_roi_fragmented).astype(int))
             time_filter[time_filter == 0] = (
-                    (self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt)[time_filter == 0]) > self.rt_tol)
+                    (self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt)[
+                        time_filter == 0]) > self.rt_tol)
             # calculate overlap stuff
             initial_scores = []
             copy_boxes = deepcopy(self.boxes)
@@ -318,7 +335,7 @@ class TopNBoxRoiController(RoiController):
             box_fragmented = (np.array(self.boxes_intensity) == 0) * 1
             for i in range(len(log_intensities)):
                 overlaps = np.array(self.roi_builder.live_roi[i].get_boxes_overlap(copy_boxes, self.box_min_rt_width,
-                                                                       self.box_min_mz_width))
+                                                                                   self.box_min_mz_width))
                 # new peaks not in list of boxes
                 new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]
                 # previously fragmented peaks

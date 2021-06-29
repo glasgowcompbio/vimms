@@ -107,7 +107,7 @@ class RoiBuilder():
             roi = Roi(mz, rt, intensity, id=roi_id)
         elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
             roi = SmartRoi(mz, rt, intensity, self.min_roi_length_for_fragmentation, self.reset_length_seconds,
-                           self.intensity_increase_factor, self.rt_tol, drop_perc=self.drop_perc)
+                           self.intensity_increase_factor, self.rt_tol, drop_perc=self.drop_perc, id=roi_id)
         return roi
 
     def get_mz_intensity(self, i):

@@ -11,7 +11,7 @@ class GridController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
-                 params=None, register_all_roi=False):
+                 params=None, register_all_roi=False, roi_type=RoiBuilder.ROI_TYPE_NORMAL):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -19,7 +19,7 @@ class GridController(RoiController):
         )
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
                                       min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                                      length_units=length_units, roi_type=roi_type,
                                       grid=grid, register_all_roi=register_all_roi)
 
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
@@ -39,11 +39,20 @@ class GridController(RoiController):
 
 
 class NonOverlapController(GridController):
-    def _get_scores(self):
+    def _overlap_scores(self):
         fn = self.grid.get_estimator()
-        non_overlaps = [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for
-                        r in self.roi_builder.live_roi]
-        return self._get_top_N_scores(self._get_dda_scores() * non_overlaps)
+        non_overlaps = np.array([self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for
+                        r in self.roi_builder.live_roi])
+        return non_overlaps
+
+    def _get_scores(self):
+        if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+            dda_scores = self._get_dda_scores()
+        elif self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            dda_scores = self._log_roi_intensities() * self._min_intensity_filter() * self._smartroi_filter()
+
+        non_overlaps = self._overlap_scores()
+        return self._get_top_N_scores(dda_scores * non_overlaps)
 
 
 class IntensityNonOverlapController(GridController):

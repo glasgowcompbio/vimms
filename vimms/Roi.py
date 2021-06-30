@@ -468,70 +468,60 @@ class RoiAligner(object):
         self.sample_types = []
         self.min_rt_width = min_rt_width
         self.min_mz_width = min_mz_width
-        self.rt_shift = rt_shift
-        self.mz_shift = mz_shift
         self.peaksets2boxes = {}
         self.peaksets2fragintensities = {}
         self.addition_method = None
 
-    def add_sample(self, rois, sample_name, sample_type=None):
-        if self.addition_method is None or self.addition_method == 'rois':
-            self.addition_method == 'rois'
-            self.sample_names.append(sample_name)
-            self.sample_types.append(sample_type)
-            these_peaks = []
-            frag_intensities = []
-            temp_boxes = []
-            for i, roi in enumerate(rois):
-                source_id = sample_name + '_' + str(i)
-                peak_mz = roi.get_mean_mz()
-                peak_rt = roi.estimate_apex()
-                peak_intensity = roi.get_max_intensity()
-                these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
-                frag_intensities.append(roi.max_fragmentation_intensity)
-                temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, self.rt_shift, self.mz_shift))
+    def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
+        self.sample_names.append(sample_name)
+        self.sample_types.append(sample_type)
+        these_peaks = []
+        frag_intensities = []
+        temp_boxes = []
+        for i, roi in enumerate(rois):
+            source_id = sample_name + '_' + str(i)
+            peak_mz = roi.get_mean_mz()
+            peak_rt = roi.estimate_apex()
+            peak_intensity = roi.get_max_intensity()
+            these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
+            frag_intensities.append(roi.max_fragmentation_intensity)
+            rt_shift = 0 if rt_shifts is None else rt_shifts[i]
+            mz_shift = 0 if mz_shifts is None else mz_shifts[i]
+            temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift, mz_shift))
 
-            # do alignment, adding the peaks and boxes, and recalculating max frag intensity
-            self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
-        else:
-            print('Can only align Rois with Rois. File not added to alignment.')
-            pass
+        # do alignment, adding the peaks and boxes, and recalculating max frag intensity
+        self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def add_picked_peaks(self, mzml_file, peak_file, sample_name, picking_method='mzmine', sample_type=None,
-                         half_isolation_window=1, allow_last_overlap=False, scan_shift_seconds=0):
-        if self.addition_method is None or self.addition_method == 'peaks':
-            self.addition_method == 'peaks'
-            self.sample_names.append(sample_name)
-            self.sample_types.append(sample_type)
-            these_peaks = []
-            frag_intensities = []
-            # load boxes
-            if picking_method == 'mzmine':
-                temp_boxes = load_picked_boxes(peak_file)
-            elif picking_method == 'peakonly':
-                temp_boxes = load_peakonly_boxes(peak_file)  # not tested
-            elif picking_method == 'xcms':
-                temp_boxes = load_xcms_boxes(peak_file)  # not tested
-            else:
-                sys.exit('Method not supported')
-            # Searching in boxes
-            mzml = MZMLFile(mzml_file)
-            scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
-                                                          allow_last_overlap=allow_last_overlap,
-                                                          scan_shift_seconds=scan_shift_seconds)
-            precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, 'max')
-            for i, box in enumerate(temp_boxes):
-                source_id = sample_name + '_' + str(i)
-                peak_mz = box.mz
-                peak_rt = box.rt_in_seconds
-                these_peaks.append(Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
-                frag_intensities.append(precursor_intensities[i])
-
-            # do alignment, adding the peaks and boxes, and recalculating max frag intensity
-            self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
+                         half_isolation_window=1, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
+        self.sample_names.append(sample_name)
+        self.sample_types.append(sample_type)
+        these_peaks = []
+        frag_intensities = []
+        # load boxes
+        if picking_method == 'mzmine':
+            temp_boxes = load_picked_boxes(peak_file)
+        elif picking_method == 'peakonly':
+            temp_boxes = load_peakonly_boxes(peak_file)  # not tested
+        elif picking_method == 'xcms':
+            temp_boxes = load_xcms_boxes(peak_file)  # not tested
         else:
-            print('Can only align Peaks with Peaks. File not added to alignment.')
-            pass
+            sys.exit('Method not supported')
+        temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
+        # Searching in boxes
+        mzml = MZMLFile(mzml_file)
+        scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
+                                                      allow_last_overlap=allow_last_overlap)
+        precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, 'max')
+        for i, box in enumerate(temp_boxes):
+            source_id = sample_name + '_' + str(i)
+            peak_mz = box.mz
+            peak_rt = box.rt_in_seconds
+            these_peaks.append(Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
+            frag_intensities.append(precursor_intensities[i])
+
+        # do alignment, adding the peaks and boxes, and recalculating max frag intensity
+        self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
         if len(self.peaksets) == 0:

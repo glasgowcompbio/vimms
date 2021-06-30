@@ -698,3 +698,22 @@ def get_precursor_intensities(boxes2scans, boxes, method):
     precursor_intensities = np.array(precursor_intensities)
     scores = np.array(scores)
     return precursor_intensities, scores
+
+
+def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
+    if rt_shifts is None and mz_shifts is None:
+        return picked_boxes
+    new_boxes = picked_boxes
+    if rt_shifts is not None:
+        for i, box in enumerate(new_boxes):
+            box.rt += float(rt_shifts[i])  / 60.0
+            box.rt_in_minutes += float(rt_shifts[i]) / 60.0
+            box.rt_in_seconds += float(rt_shifts[i])
+            box.rt_range = [box.rt_range[0] + rt_shifts[i] / 60.0, box.rt_range[1] + rt_shifts[i] / 60.0]
+            box.rt_range_in_seconds = [box.rt_range_in_seconds[0] + rt_shifts[i], box.rt_range_in_seconds[1] + rt_shifts[i]]
+    if mz_shifts is not None:
+        for i, box in enumerate(new_boxes):
+            box.mz += mz_shifts[i]
+            box.mz_range = [box.mz_range[0] + mz_shifts[i], box.mz_range[1] + mz_shifts[i]]
+    return new_boxes
+

@@ -5,6 +5,8 @@ from ax.service.utils.instantiation import parameter_from_json
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+import time
+
 from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
@@ -14,7 +16,7 @@ from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.Roi import RoiAligner
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
-from vimms.DsDA import get_schedule, dsda_get_scan_params
+from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -387,6 +389,10 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
                                 base_chemicals=None, mzmine_files=None, rt_tolerance=100):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
+    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0], None)  # necessary to get timings for schedule
+    create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir)
+    print('Please open and run R script now')
+    time.sleep(1)
     template_file = os.path.join(base_dir, 'DsDA_Timing_schedule.csv')
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
@@ -398,8 +404,10 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
                 controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
                                             ms1_shift=0, initial_exclusion_list=None, force_N=False)
             else:
+                print('Looking for next schedule')
                 new_schedule = get_schedule(i, schedule_dir)
-                print(new_schedule)
+                print('Found next schedule')
+                time.sleep(1)
                 schedule_param_list = dsda_get_scan_params(new_schedule, template_file, isolation_window, mz_tol,
                                                            rt_tol)
                 controller = FixedScansController(schedule=schedule_param_list)

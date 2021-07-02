@@ -17,6 +17,7 @@ from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.Roi import RoiAligner
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
+from vimms.GridEstimator import *
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -353,11 +354,47 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
 def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
                                                 rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
                                                 rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
-                                                scoring_params={'theta1': 1}, base_chemicals=None, mzmine_files=None,
+                                                scoring_params=None, base_chemicals=None, mzmine_files=None,
                                                 rt_tolerance=100, experiment_dir=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = FlexibleNonOverlapController(
+                POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                min_roi_length, N, grid, rt_tol=rt_tol,
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
+
+
+def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
+                                                rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
+                                                scoring_params=None, base_chemicals=None, mzmine_files=None,
+                                                rt_tolerance=100, experiment_dir=None, box_method='mean'):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        grid = CaseControlGridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
+                                        IdentityDrift(), rt_tolerance=rt_tolerance, box_method=box_method)
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):

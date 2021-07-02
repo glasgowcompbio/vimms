@@ -298,6 +298,28 @@ class AllOverlapGrid(LocatorGrid):
         new_peak_score = scoring_params['theta3'] * sum(new_peak)
         return non_overlap + refragment + refragment2 + new_peak_score
 
+    def case_control_non_overlap(self, box, current_intensity, scoring_params):
+        box = box.copy()
+        box.intensity = 0.0
+        other_boxes = self.get_boxes(box)
+        this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
+        non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
+        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
+                                                    * b.area() / box.area()) for b in overlaps)
+        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
+                                                     (b.area() / box.area()) for b in overlaps)
+        new_peak = []
+        for b in overlaps:
+            if b.intensity == 0.0:
+                new_peak.append(np.log(current_intensity) * (b.area() / box.area()))
+        new_peak_score = scoring_params['theta3'] * sum(new_peak)
+        if box.pvalue is None:
+            return non_overlap + refragment + refragment2 + new_peak_score
+        else:
+            model_score = scoring_params['theta4'] * (1 - box.pvalue) * sum(max(0.0, np.log(current_intensity) -
+                                            max(0.0, np.log(b.intensity)) * b.area() / box.area()) for b in overlaps)
+            return non_overlap + refragment + refragment2 + new_peak_score + model_score
+
     def register_box(self, box):
         other_boxes = self.get_boxes(box)
         this_non, other_non, overlaps = self.split_all_boxes(box, other_boxes)

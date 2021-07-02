@@ -195,6 +195,29 @@ class FlexibleNonOverlapController(GridController):
         return self._get_top_N_scores(scores * self._score_filters())
 
 
+class CaseControlNonOverlapController(GridController):
+    def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+                 min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
+                 ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
+                 params=None, register_all_roi=False,
+                 scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0, 'theta4': 0}):
+        super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
+                         min_roi_length, N, grid, rt_tol=rt_tol,
+                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                         length_units=length_units, ms1_shift=ms1_shift, min_rt_width=min_rt_width,
+                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi)
+        self.scoring_params = scoring_params
+        if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
+            print('Warning: register_all_roi should be set to True id theta3 is not 0')
+
+    def _get_scores(self):
+        fn = self.grid.get_estimator()
+        scores = [self.grid.case_control_non_overlap(
+            r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0])), self.current_roi_intensities[i],
+            self.scoring_params) for i, r in enumerate(self.live_roi)]
+        return self._get_top_N_scores(scores * self._score_filters())
+
+
 class TopNBoxRoiController2(GridController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
                  N, grid, boxes_params=None, boxes=None, boxes_intensity=None, boxes_pvalues=None, rt_tol=10,

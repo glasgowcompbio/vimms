@@ -9,6 +9,7 @@ import statsmodels.api as sm
 from loguru import logger
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from scipy.stats import pearsonr
+from collections import Counter
 
 from vimms.Box import GenericBox
 # from vimms.Chemicals import ChemicalCreator, UnknownChemical
@@ -452,8 +453,7 @@ class RoiAligner(object):
                  intensity_column_pos=3,
                  min_rt_width=0.01,
                  min_mz_width=0.01,
-                 rt_shift=0,
-                 mz_shift=0):
+                 n_categories=1):
         self.peaksets = []
         self.mz_tolerance_absolute = mz_tolerance_absolute
         self.mz_tolerance_ppm = mz_tolerance_ppm
@@ -471,6 +471,7 @@ class RoiAligner(object):
         self.peaksets2boxes = {}
         self.peaksets2fragintensities = {}
         self.addition_method = None
+        self.n_categories = n_categories
 
     def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
         self.sample_names.append(sample_name)
@@ -576,40 +577,67 @@ class RoiAligner(object):
                 intensity_matrix[i, j] = peakset.get_intensity(filename)
         return intensity_matrix
 
-    def get_boxes(self):
+    def get_boxes(self, method='mean'):
         boxes = []
         for ps in self.peaksets:
-            box = self.peaksets2boxes[ps][0]  # TODO: method currently gets the first box, needs updating
-            boxes.append(GenericBox(box.pt1.x, box.pt2.x, box.pt1.y, box.pt2.y, self.min_rt_width, self.min_mz_width))
+            box_list = self.peaksets2boxes[ps]
+            pt1x = np.array([box.pt1.x for box in box_list])
+            pt2x = np.array([box.pt2.x for box in box_list])
+            pt1y = np.array([box.pt1.y for box in box_list])
+            pt2y = np.array([box.pt2.y for box in box_list])
+            intensity = max(self.peaksets2fragintensities[ps])
+            if method == 'max':
+                x1 = min(pt1x)
+                x2 = max(pt2x)
+                y1 = min(pt1y)
+                y2 = max(pt2y)
+            else:
+                x1 = np.mean(pt1x)
+                x2 = np.mean(pt2x)
+                y1 = np.mean(pt1y)
+                y2 = np.mean(pt2y)
+            boxes.append(GenericBox(x1, x2, y1, y2, intensity=intensity, min_xwidth=self.min_rt_width,
+                                    min_ywidth=self.min_mz_width))
         return boxes
 
     def get_max_frag_intensities(self):
         return [max(self.peaksets2fragintensities[ps]) for ps in self.peaksets]
 
-    def get_p_values(self):
-        # need to match boxes, not base chemicals
-        p_values = []
-        # sort X
-        X = np.array(self.to_matrix())
-        print(X)
-        # sort y
+
+class FrequentistRoiAligner(RoiAligner):
+    def get_boxes(self, method='mean'):
+        boxes = super().get_boxes(method)
         categories = np.unique(np.array(self.sample_types))
-        if len(categories) < 2:
-            pass
-        elif len(categories) == 2:  # logistic regression
-            x = np.array([1 for i in self.sample_types])
-            if 'control' in categories:
-                control_type = 'control'
-            else:
-                control_type = categories[0]
-            x[np.where(np.array(self.sample_types) == control_type)] = 0
-            x = sm.add_constant(x)
-            for i in range(X.shape[0]):
-                y = np.log(X[i, :] + 1)
-                model = sm.OLS(y, x)
-                p_values.append(model.fit(disp=0).pvalues[1])
-        else:  # classification
-            pass
+        enough_categories = min(Counter(self.sample_types).values()) > 1 and len(categories) == self.n_categories
+        pvalues = self.get_p_values(enough_categories)
+        for i, box in enumerate(boxes):
+            box.pvalue = pvalues[i]
+        return boxes
+
+    def get_p_values(self, enough_catergories):
+        # need to match boxes, not base chemicals
+        if enough_catergories:
+            p_values = []
+            # sort X
+            X = np.array(self.to_matrix())
+            # sort y
+            categories = np.unique(np.array(self.sample_types))
+            if self.n_categories == 2:  # logistic regression
+                x = np.array([1 for i in self.sample_types])
+                if 'control' in categories:
+                    control_type = 'control'
+                else:
+                    control_type = categories[0]
+                x[np.where(np.array(self.sample_types) == control_type)] = 0
+                x = sm.add_constant(x)
+                for i in range(X.shape[0]):
+                    y = np.log(X[i, :] + 1)
+                    model = sm.OLS(y, x)
+                    p_values.append(model.fit(disp=0).pvalues[1])
+            else:  # classification
+                pass
+        else:
+            p_values = [None for ps in self.peaksets]
         return p_values
 
 

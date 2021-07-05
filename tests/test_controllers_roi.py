@@ -2,11 +2,12 @@ from loguru import logger
 
 from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE, run_environment, \
     check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND
-from vimms.Box import GridEstimator, LocatorGrid, IdentityDrift, AllOverlapGrid
+from vimms.Box import LocatorGrid, IdentityDrift, AllOverlapGrid
 from vimms.Common import POSITIVE
 from vimms.Controller import TopN_RoiController, TopN_SmartRoiController, NonOverlapController, \
     IntensityNonOverlapController, FlexibleNonOverlapController
 from vimms.Environment import Environment
+from vimms.GridEstimator import GridEstimator
 from vimms.MassSpec import IndependentMassSpectrometer
 
 

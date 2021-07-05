@@ -1,9 +1,7 @@
-import random
-from functools import reduce
 import itertools
 import random
 from abc import abstractmethod
-from collections import defaultdict, deque
+from collections import defaultdict
 from decimal import Decimal
 from functools import reduce
 
@@ -300,6 +298,28 @@ class AllOverlapGrid(LocatorGrid):
         new_peak_score = scoring_params['theta3'] * sum(new_peak)
         return non_overlap + refragment + refragment2 + new_peak_score
 
+    def case_control_non_overlap(self, box, current_intensity, scoring_params):
+        box = box.copy()
+        box.intensity = 0.0
+        other_boxes = self.get_boxes(box)
+        this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
+        non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
+        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
+                                                    * b.area() / box.area()) for b in overlaps)
+        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
+                                                     (b.area() / box.area()) for b in overlaps)
+        new_peak = []
+        for b in overlaps:
+            if b.intensity == 0.0:
+                new_peak.append(np.log(current_intensity) * (b.area() / box.area()))
+        new_peak_score = scoring_params['theta3'] * sum(new_peak)
+        if box.pvalue is None:
+            return non_overlap + refragment + refragment2 + new_peak_score
+        else:
+            model_score = scoring_params['theta4'] * (1 - box.pvalue) * sum(max(0.0, np.log(current_intensity) -
+                                            max(0.0, np.log(b.intensity)) * b.area() / box.area()) for b in overlaps)
+            return non_overlap + refragment + refragment2 + new_peak_score + model_score
+
     def register_box(self, box):
         other_boxes = self.get_boxes(box)
         this_non, other_non, overlaps = self.split_all_boxes(box, other_boxes)
@@ -490,53 +510,3 @@ class GPDrift(DriftModel):
         Y, X = kwargs.get("Y", []), kwargs.get("X", [])
 
 
-class GridEstimator():
-    '''Wrapper class letting internal grid be updated with rt drift estimates.'''
-
-    def __init__(self, grid, drift_model, min_rt_width=0.01, min_mz_width=0.01):
-        self.pending_ms2s = deque()
-        self.observed_rois = [[]]
-        self.grid = grid
-        self.drift_models = [drift_model]
-        self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
-        self.injection_count = 0
-
-    def non_overlap(self, box):
-        return self.grid.non_overlap(box)
-
-    def intensity_non_overlap(self, box, current_intensity, scoring_params):
-        return self.grid.intensity_non_overlap(box, current_intensity, scoring_params)
-
-    def flexible_non_overlap(self, box, current_intensity, scoring_params):
-        return self.grid.flexible_non_overlap(box, current_intensity, scoring_params)
-
-    def register_roi(self, roi):
-        self.pending_ms2s.append(roi)
-
-    def get_estimator(self):
-        fn = self.drift_models[self.injection_count].get_estimator(self.injection_count)
-        return lambda roi: fn(roi, self.injection_count)
-
-    def _update_grid(self):
-        self.grid.boxes = self.grid.init_boxes(self.grid.rtboxes, self.grid.mzboxes)
-        for inj_num, inj in enumerate(self.observed_rois):
-            fn = self.drift_models[inj_num].get_estimator(inj_num)
-            for roi in inj:
-                drift, _ = fn(roi, inj_num)
-                self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)))
-
-    def _next_model(self):
-        self.observed_rois.append([])
-        self.drift_models.append(self.drift_models[-1]._next_model())
-        self.injection_count += 1
-
-    def send_training_data(self, scan):
-        if (scan.ms_level != 2): return
-        roi = self.pending_ms2s.popleft()
-        self.drift_models[-1].send_training_data(scan, roi, self.injection_count)
-        self.observed_rois[self.injection_count].append(roi)
-
-    # TODO: later we could have arbitrary update points rather than after injection
-    def update_after_injection(self):
-        self._update_grid()
-        self._next_model()

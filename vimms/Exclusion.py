@@ -163,7 +163,7 @@ class TopNExclusion(object):
         Checks if a pair of (mz, rt) value is currently excluded by dynamic exclusion window
         :param mz: m/z value
         :param rt: RT value
-        :return: True if excluded, False otherwise
+        :return: True if excluded (with weight 0.0), False otherwise (weight 1.0)
         """
         # TODO: make this faster?
         for x in self.exclusion_list:
@@ -172,8 +172,8 @@ class TopNExclusion(object):
             if exclude_mz and exclude_rt:
                 logger.debug(
                     'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                return True
-        return False
+                return True, 0.0
+        return False, 1.0
 
     def update(self, current_scan, ms2_tasks):
         """
@@ -245,14 +245,18 @@ class WeightedDEWExclusion(TopNExclusion):
             if exclude_mz and exclude_rt:
                 logger.debug(
                     'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                if rt <= x.frag_at + self.exclusion_t_0:
-                    return True, 0.0
-                else:
-                    weight = (rt - (self.exclusion_t_0 + x.frag_at)) / (self.rt_tol - self.exclusion_t_0)
-                    assert weight <= 1, weight
-                    # self.remove_exclusion_items.append(x)
-                    return True, weight
-        return False, 1
+                return compute_weight(rt, x.frag_at, self.rt_tol, self.exclusion_t_0)
+        return False, 1.0
+
+
+def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
+    if current_rt <= frag_at + exclusion_t_0:
+        return True, 0.0
+    else:
+        weight = (current_rt - (exclusion_t_0 + frag_at)) / (rt_tol - exclusion_t_0)
+        assert weight <= 1, weight
+        return True, weight
+
 
 
 if __name__ == '__main__':

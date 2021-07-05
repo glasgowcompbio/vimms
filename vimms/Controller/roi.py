@@ -211,17 +211,13 @@ class RoiController(TopNController):
             # if no ms1 has been added, then add at the end
             if not done_ms1: self.schedule_ms1(new_tasks)
 
-            # create new exclusion items based on the scheduled ms2 tasks
-            self.exclusion.update(self.scan_to_process, ms2_tasks)
-            self.scan_to_process = None  # set this ms1 scan as has been processed
+            # set this ms1 scan as has been processed
+            self.scan_to_process = None
             return new_tasks
 
         elif scan.ms_level == 2:  # add ms2 scans to Rois
             self.roi_builder.add_scan_to_roi(scan)
             return []
-
-    def update_state_after_scan(self, scan):
-        super().update_state_after_scan(scan)
 
     ####################################################################################################################
     # Scoring functions

@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import numpy as np
 
+from vimms.Common import ROI_EXCLUSION_DEW
 from vimms.Controller.roi import RoiController, RoiBuilder
 
 
@@ -11,11 +12,13 @@ class GridController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
-                 params=None, register_all_roi=False, roi_type=RoiBuilder.ROI_TYPE_NORMAL):
+                 params=None, register_all_roi=False, roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift, params=params
+            length_units=length_units, ms1_shift=ms1_shift, params=params,
+            exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0
         )
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
                                       min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -59,12 +62,14 @@ class IntensityNonOverlapController(GridController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
-                 params=None, register_all_roi=False, scoring_params={'theta1': 1}):
+                 params=None, register_all_roi=False, scoring_params={'theta1': 1},
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift, min_rt_width=min_rt_width,
-                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi)
+                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi,
+                         exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
 
     def _overlap_scores(self):
@@ -84,12 +89,14 @@ class FlexibleNonOverlapController(GridController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
-                 params=None, register_all_roi=False, scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0}):
+                 params=None, register_all_roi=False, scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0},
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift, min_rt_width=min_rt_width,
-                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi)
+                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi,
+                         exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
         if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
             print('Warning: register_all_roi should be set to True id theta3 is not 0')
@@ -112,12 +119,14 @@ class CaseControlNonOverlapController(GridController):
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False,
-                 scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0, 'theta4': 0}):
+                 scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0, 'theta4': 0},
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift, min_rt_width=min_rt_width,
-                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi)
+                         min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi,
+                         exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
         if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
             print('Warning: register_all_roi should be set to True id theta3 is not 0')

@@ -5,6 +5,7 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller.topN import TopNController
 from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, WeightedDEWExclusion, DEWFilter, \
     WeightedDEWFilter
@@ -158,12 +159,20 @@ class RoiController(TopNController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
-                 params=None):
+                 params=None, exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
                          params=params)
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
                                       min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                                       length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL)
+
+        self.exclusion_method = exclusion_method
+        assert self.exclusion_method in [ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW]
+        if self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
+            assert exclusion_t_0 is not None, 'Must be a number'
+            assert exclusion_t_0 < rt_tol, 'Impossible combination'
+
+        self.exclusion_t_0 = exclusion_t_0
 
     def schedule_ms1(self, new_tasks):
         ms1_scan_params = self.get_ms1_scan_params()
@@ -288,11 +297,12 @@ class TopN_SmartRoiController(RoiController):
 class TopN_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N=None, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0, params=None):
+                 ms1_shift=0, params=None, exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         length_units=length_units, ms1_shift=ms1_shift, params=params)
+                         length_units=length_units, ms1_shift=ms1_shift, params=params,
+                         exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()

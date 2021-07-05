@@ -243,7 +243,7 @@ class RoiController(TopNController):
         if self.exclusion_method == ROI_EXCLUSION_DEW:
             f = DEWFilter(self.rt_tol)
         elif self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
-            f = WeightedDEWFilter(self.rt_tol. self.exclusion_t_0)
+            f = WeightedDEWFilter(self.rt_tol, self.exclusion_t_0)
         return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt)
 
     def _length_filter(self):

@@ -257,9 +257,14 @@ class WeightedDEWExclusion(TopNExclusion):
 
 
 def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
-    if current_rt <= frag_at + exclusion_t_0:
+    if frag_at is None:
+        # never been fragmented before, always include (weight 1.0)
+        return False, 1.0
+    elif current_rt <= frag_at + exclusion_t_0:
+        # fragmented but within exclusion_t_0, always exclude (weight 0.0)
         return True, 0.0
     else:
+        # compute weight according to the WeightedDEW scheme
         weight = (current_rt - (exclusion_t_0 + frag_at)) / (rt_tol - exclusion_t_0)
         assert weight <= 1, weight
         return True, weight
@@ -298,8 +303,11 @@ class WeightedDEWFilter(ScoreFilter):
         self.exclusion_t_0 = exclusion_t_0
 
     def filter(self, current_rt, last_frag_rts):
-        return np.array([compute_weight(current_rt, frag_at, self.rt_tol, self.exclusion_t_0)
-                         for frag_at in last_frag_rts])
+        weights = []
+        for frag_at in last_frag_rts:
+            is_exc, weight = compute_weight(current_rt, frag_at, self.rt_tol, self.exclusion_t_0)
+            weights.append(weight)
+        return np.array(weights)
 
 
 class LengthFilter(ScoreFilter):

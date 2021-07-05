@@ -1,8 +1,15 @@
+from abc import abstractmethod
+
+import numpy as np
 from intervaltree import IntervalTree
 from loguru import logger
 
-# Exclusion.py
 from vimms.Common import ScanParameters
+
+
+########################################################################################################################
+# DEW Exclusions
+########################################################################################################################
 
 
 class ExclusionItem(object):
@@ -257,6 +264,57 @@ def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
         assert weight <= 1, weight
         return True, weight
 
+
+########################################################################################################################
+# Filters
+########################################################################################################################
+
+
+class ScoreFilter():
+    @abstractmethod
+    def filter(self): pass
+
+
+class MinIntensityFilter(ScoreFilter):
+    def __init__(self, min_ms1_intensity):
+        self.min_ms1_intensity = min_ms1_intensity
+
+    def filter(self, intensities):
+        return np.array(intensities) > self.min_ms1_intensity
+
+
+class DEWFilter(ScoreFilter):
+    def __init__(self, rt_tol):
+        self.rt_tol = rt_tol
+
+    def filter(self, current_rt, last_frag_rts):
+        # Handles None values by converting to NaN for which all comparisons return 0
+        return np.logical_not(current_rt - np.array(last_frag_rts, dtype=np.double) < self.rt_tol)
+
+
+class WeightedDEWFilter(ScoreFilter):
+    def __init__(self, rt_tol, exclusion_t_0):
+        self.rt_tol = rt_tol
+        self.exclusion_t_0 = exclusion_t_0
+
+    def filter(self, current_rt, last_frag_rts):
+        return np.array([compute_weight(current_rt, frag_at, self.rt_tol, self.exclusion_t_0)
+                         for frag_at in last_frag_rts])
+
+
+class LengthFilter(ScoreFilter):
+    def __init__(self, min_roi_length_for_fragmentation):
+        self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
+
+    def filter(self, roi_lengths):
+        return roi_lengths >= self.min_roi_length_for_fragmentation
+
+
+class SmartROIFilter(ScoreFilter):
+    def filter(self, rois):
+        # if this is a normal ROI object, always return True for everything
+        # otherwise track the status based on the SmartROI rules
+        return np.array([roi.get_can_fragment() for roi in rois])
 
 
 if __name__ == '__main__':

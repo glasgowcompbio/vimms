@@ -6,6 +6,8 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Controller.topN import TopNController
+from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, WeightedDEWExclusion, DEWFilter, \
+    WeightedDEWFilter
 from vimms.Roi import match, Roi, SmartRoi
 
 
@@ -229,20 +231,23 @@ class RoiController(TopNController):
         return np.log(self.roi_builder.current_roi_intensities)
 
     def _min_intensity_filter(self):
-        return (np.array(self.roi_builder.current_roi_intensities) > self.min_ms1_intensity)
+        f = MinIntensityFilter(self.min_ms1_intensity)
+        return f.filter(self.roi_builder.current_roi_intensities)
 
     def _time_filter(self):
-        # Handles None values by converting to NaN for which all comparisons return 0
-        return np.logical_not(self.scan_to_process.rt - np.array(self.roi_builder.live_roi_last_rt,
-                                                                 dtype=np.double) < self.rt_tol)
+        if self.exclusion_method == ROI_EXCLUSION_DEW:
+            f = DEWFilter(self.rt_tol)
+        elif self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
+            f = WeightedDEWFilter(self.rt_tol. self.exclusion_t_0)
+        return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt)
 
     def _length_filter(self):
-        return (self.roi_builder.current_roi_length >= self.roi_builder.min_roi_length_for_fragmentation)
+        f = LengthFilter(self.roi_builder.min_roi_length_for_fragmentation)
+        return f.filter(self.roi_builder.current_roi_length)
 
     def _smartroi_filter(self):
-        # if this is a normal ROI object, always return True for everything
-        # otherwise track the status based on the SmartROI rules
-        return np.array([roi.get_can_fragment() for roi in self.roi_builder.live_roi])
+        f = SmartROIFilter()
+        return f.filter(self.roi_builder.live_roi)
 
     def _score_filters(self):
         return self._min_intensity_filter() * self._time_filter() * self._length_filter()

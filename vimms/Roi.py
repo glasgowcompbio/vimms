@@ -9,7 +9,6 @@ import statsmodels.api as sm
 from loguru import logger
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from scipy.stats import pearsonr
-from collections import Counter
 
 from vimms.Box import GenericBox
 # from vimms.Chemicals import ChemicalCreator, UnknownChemical
@@ -131,23 +130,25 @@ class Roi(object):
         overlaps = [roi_box.overlap_3(box) for box in boxes]
         return overlaps
 
-
-INITIAL_WAITING = 0
-CAN_FRAGMENT = 1
-AFTER_FRAGMENT = 2
-POST_PEAK = 3
+    def get_last_datum(self):
+        return (self.mz_list[-1], self.rt_list[-1], self.intensity_list[-1])
 
 
 class SmartRoi(Roi):
+    INITIAL_WAITING = 0
+    CAN_FRAGMENT = 1
+    AFTER_FRAGMENT = 2
+    POST_PEAK = 3
+
     def __init__(self, mz, rt, intensity, initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, dew=15, drop_perc=0.01, id=None):
         super().__init__(mz, rt, intensity, id=id)
 
         if initial_length_seconds > 0:
-            self.status = INITIAL_WAITING
+            self.status = SmartRoi.INITIAL_WAITING
             self.set_can_fragment(False)
         else:
-            self.status = CAN_FRAGMENT
+            self.status = SmartRoi.CAN_FRAGMENT
             self.set_can_fragment(True)
 
         self.min_frag_intensity = None
@@ -162,7 +163,7 @@ class SmartRoi(Roi):
         self.is_fragmented = True
         self.set_can_fragment(False)
         self.fragmented_index = len(self.mz_list) - 1
-        self.status = AFTER_FRAGMENT
+        self.status = SmartRoi.AFTER_FRAGMENT
 
     def get_status(self):
         if self.status == 0:
@@ -176,15 +177,15 @@ class SmartRoi(Roi):
 
     def add(self, mz, rt, intensity):
         super().add(mz, rt, intensity)
-        if self.status == INITIAL_WAITING:
+        if self.status == SmartRoi.INITIAL_WAITING:
             if self.length_in_seconds >= self.initial_length_seconds:
-                self.status = CAN_FRAGMENT
+                self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
-        elif self.status == AFTER_FRAGMENT:
+        elif self.status == SmartRoi.AFTER_FRAGMENT:
             # in a period after a fragmentation has happened
             # if enough time has elapsed, reset everything
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.reset_length_seconds:
-                self.status = CAN_FRAGMENT
+                self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
             elif self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.dew:
                 # standard DEW has expired
@@ -192,19 +193,19 @@ class SmartRoi(Roi):
                 # check current intensity -- if it is 5* when we fragmented, we can go again
                 min_since_frag = min(self.intensity_list[self.fragmented_index:])
                 if self.intensity_list[-1] > min_since_frag * self.intensity_increase_factor:
-                    self.status = CAN_FRAGMENT
+                    self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
                 elif self.intensity_list[-1] < self.drop_perc * self.intensity_list[self.fragmented_index]:
                     # signal has dropped, but ROI still exists.
-                    self.status = CAN_FRAGMENT
+                    self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
                     # self.min_frag_intensity = self.intensity_list[-1]*self.intensity_increase_factor
 
         # code below never happens
-        elif self.status == POST_PEAK:
+        elif self.status == SmartRoi.POST_PEAK:
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.dew:
                 if self.intensity_list[-1] > self.min_frag_intensity:
-                    self.status = CAN_FRAGMENT
+                    self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
 
     def get_can_fragment(self):
@@ -212,9 +213,6 @@ class SmartRoi(Roi):
 
     def set_can_fragment(self, status):
         self.can_fragment = status
-
-    def get_last_datum(self):
-        return (self.mz_list[-1], self.rt_list[-1], self.intensity_list[-1])
 
 
 # Find the RoI that a particular mz falls into
@@ -730,14 +728,14 @@ def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
     new_boxes = picked_boxes
     if rt_shifts is not None:
         for i, box in enumerate(new_boxes):
-            box.rt += float(rt_shifts[i])  / 60.0
+            box.rt += float(rt_shifts[i]) / 60.0
             box.rt_in_minutes += float(rt_shifts[i]) / 60.0
             box.rt_in_seconds += float(rt_shifts[i])
             box.rt_range = [box.rt_range[0] + rt_shifts[i] / 60.0, box.rt_range[1] + rt_shifts[i] / 60.0]
-            box.rt_range_in_seconds = [box.rt_range_in_seconds[0] + rt_shifts[i], box.rt_range_in_seconds[1] + rt_shifts[i]]
+            box.rt_range_in_seconds = [box.rt_range_in_seconds[0] + rt_shifts[i],
+                                       box.rt_range_in_seconds[1] + rt_shifts[i]]
     if mz_shifts is not None:
         for i, box in enumerate(new_boxes):
             box.mz += mz_shifts[i]
             box.mz_range = [box.mz_range[0] + mz_shifts[i], box.mz_range[1] + mz_shifts[i]]
     return new_boxes
-

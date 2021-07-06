@@ -63,12 +63,14 @@ class IntensityNonOverlapController(GridController):
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False, scoring_params={'theta1': 1},
+                 roi_type=RoiBuilder.ROI_TYPE_NORMAL,
                  exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift, min_rt_width=min_rt_width,
                          min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi,
+                         roi_type=roi_type,
                          exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
 
@@ -81,8 +83,13 @@ class IntensityNonOverlapController(GridController):
         return scores
 
     def _get_scores(self):
-        overlap_scores = self._overlap_scores()
-        return self._get_top_N_scores(overlap_scores * self._score_filters())
+        if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+            dda_scores = self._overlap_scores()
+        elif self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            overlap_scores = self._overlap_scores()
+            smartroi_scores = self._smartroi_filter()
+            dda_scores = overlap_scores * smartroi_scores
+        return self._get_top_N_scores(dda_scores * self._score_filters())
 
 
 class FlexibleNonOverlapController(GridController):
@@ -90,12 +97,14 @@ class FlexibleNonOverlapController(GridController):
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False, scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0},
+                 roi_type=RoiBuilder.ROI_TYPE_NORMAL,
                  exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                          length_units=length_units, ms1_shift=ms1_shift, min_rt_width=min_rt_width,
                          min_mz_width=min_mz_width, params=params, register_all_roi=register_all_roi,
+                         roi_type=roi_type,
                          exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
         if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
@@ -110,8 +119,13 @@ class FlexibleNonOverlapController(GridController):
         return scores
 
     def _get_scores(self):
-        overlap_scores = self._overlap_scores()
-        return self._get_top_N_scores(overlap_scores * self._score_filters())
+        if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+            dda_scores = self._overlap_scores()
+        elif self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            overlap_scores = self._overlap_scores()
+            smartroi_scores = self._smartroi_filter()
+            dda_scores = overlap_scores * smartroi_scores
+        return self._get_top_N_scores(dda_scores * self._score_filters())
 
 
 class CaseControlNonOverlapController(GridController):

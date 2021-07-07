@@ -59,6 +59,12 @@ class Roi(object):
         self.n = len(self.mz_list)
         self.mz_sum = sum(self.mz_list)
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+        self.is_fragmented = False
+        self.can_fragment = True
+
+    def fragmented(self):
+        self.is_fragmented = True
+        self.can_fragment = True
 
     def get_mean_mz(self):
         return self.mz_sum / self.n
@@ -124,23 +130,25 @@ class Roi(object):
         overlaps = [roi_box.overlap_3(box) for box in boxes]
         return overlaps
 
-
-INITIAL_WAITING = 0
-CAN_FRAGMENT = 1
-AFTER_FRAGMENT = 2
-POST_PEAK = 3
+    def get_last_datum(self):
+        return (self.mz_list[-1], self.rt_list[-1], self.intensity_list[-1])
 
 
 class SmartRoi(Roi):
+    INITIAL_WAITING = 0
+    CAN_FRAGMENT = 1
+    AFTER_FRAGMENT = 2
+    POST_PEAK = 3
+
     def __init__(self, mz, rt, intensity, initial_length_seconds=5, reset_length_seconds=100,
-                 intensity_increase_factor=2, dew=15, drop_perc=0.01):
-        super().__init__(mz, rt, intensity)
+                 intensity_increase_factor=2, dew=15, drop_perc=0.01, id=None):
+        super().__init__(mz, rt, intensity, id=id)
 
         if initial_length_seconds > 0:
-            self.status = INITIAL_WAITING
+            self.status = SmartRoi.INITIAL_WAITING
             self.set_can_fragment(False)
         else:
-            self.status = CAN_FRAGMENT
+            self.status = SmartRoi.CAN_FRAGMENT
             self.set_can_fragment(True)
 
         self.min_frag_intensity = None
@@ -155,7 +163,7 @@ class SmartRoi(Roi):
         self.is_fragmented = True
         self.set_can_fragment(False)
         self.fragmented_index = len(self.mz_list) - 1
-        self.status = AFTER_FRAGMENT
+        self.status = SmartRoi.AFTER_FRAGMENT
 
     def get_status(self):
         if self.status == 0:
@@ -169,15 +177,15 @@ class SmartRoi(Roi):
 
     def add(self, mz, rt, intensity):
         super().add(mz, rt, intensity)
-        if self.status == INITIAL_WAITING:
+        if self.status == SmartRoi.INITIAL_WAITING:
             if self.length_in_seconds >= self.initial_length_seconds:
-                self.status = CAN_FRAGMENT
+                self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
-        elif self.status == AFTER_FRAGMENT:
+        elif self.status == SmartRoi.AFTER_FRAGMENT:
             # in a period after a fragmentation has happened
             # if enough time has elapsed, reset everything
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.reset_length_seconds:
-                self.status = CAN_FRAGMENT
+                self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
             elif self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.dew:
                 # standard DEW has expired
@@ -185,19 +193,19 @@ class SmartRoi(Roi):
                 # check current intensity -- if it is 5* when we fragmented, we can go again
                 min_since_frag = min(self.intensity_list[self.fragmented_index:])
                 if self.intensity_list[-1] > min_since_frag * self.intensity_increase_factor:
-                    self.status = CAN_FRAGMENT
+                    self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
                 elif self.intensity_list[-1] < self.drop_perc * self.intensity_list[self.fragmented_index]:
                     # signal has dropped, but ROI still exists.
-                    self.status = CAN_FRAGMENT
+                    self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
                     # self.min_frag_intensity = self.intensity_list[-1]*self.intensity_increase_factor
 
         # code below never happens
-        elif self.status == POST_PEAK:
+        elif self.status == SmartRoi.POST_PEAK:
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.dew:
                 if self.intensity_list[-1] > self.min_frag_intensity:
-                    self.status = CAN_FRAGMENT
+                    self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
 
     def get_can_fragment(self):
@@ -205,9 +213,6 @@ class SmartRoi(Roi):
 
     def set_can_fragment(self, status):
         self.can_fragment = status
-
-    def get_last_datum(self):
-        return (self.mz_list[-1], self.rt_list[-1], self.intensity_list[-1])
 
 
 # Find the RoI that a particular mz falls into
@@ -452,8 +457,7 @@ class RoiAligner(object):
                  intensity_column_pos=3,
                  min_rt_width=0.01,
                  min_mz_width=0.01,
-                 rt_shift=0,
-                 mz_shift=0):
+                 n_categories=1):
         self.peaksets = []
         self.mz_tolerance_absolute = mz_tolerance_absolute
         self.mz_tolerance_ppm = mz_tolerance_ppm
@@ -468,70 +472,61 @@ class RoiAligner(object):
         self.sample_types = []
         self.min_rt_width = min_rt_width
         self.min_mz_width = min_mz_width
-        self.rt_shift = rt_shift
-        self.mz_shift = mz_shift
         self.peaksets2boxes = {}
         self.peaksets2fragintensities = {}
         self.addition_method = None
+        self.n_categories = n_categories
 
-    def add_sample(self, rois, sample_name, sample_type=None):
-        if self.addition_method is None or self.addition_method == 'rois':
-            self.addition_method == 'rois'
-            self.sample_names.append(sample_name)
-            self.sample_types.append(sample_type)
-            these_peaks = []
-            frag_intensities = []
-            temp_boxes = []
-            for i, roi in enumerate(rois):
-                source_id = sample_name + '_' + str(i)
-                peak_mz = roi.get_mean_mz()
-                peak_rt = roi.estimate_apex()
-                peak_intensity = roi.get_max_intensity()
-                these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
-                frag_intensities.append(roi.max_fragmentation_intensity)
-                temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, self.rt_shift, self.mz_shift))
+    def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
+        self.sample_names.append(sample_name)
+        self.sample_types.append(sample_type)
+        these_peaks = []
+        frag_intensities = []
+        temp_boxes = []
+        for i, roi in enumerate(rois):
+            source_id = sample_name + '_' + str(i)
+            peak_mz = roi.get_mean_mz()
+            peak_rt = roi.estimate_apex()
+            peak_intensity = roi.get_max_intensity()
+            these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
+            frag_intensities.append(roi.max_fragmentation_intensity)
+            rt_shift = 0 if rt_shifts is None else rt_shifts[i]
+            mz_shift = 0 if mz_shifts is None else mz_shifts[i]
+            temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift, mz_shift))
 
-            # do alignment, adding the peaks and boxes, and recalculating max frag intensity
-            self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
-        else:
-            print('Can only align Rois with Rois. File not added to alignment.')
-            pass
+        # do alignment, adding the peaks and boxes, and recalculating max frag intensity
+        self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def add_picked_peaks(self, mzml_file, peak_file, sample_name, picking_method='mzmine', sample_type=None,
-                         half_isolation_window=1, allow_last_overlap=False, scan_shift_seconds=0):
-        if self.addition_method is None or self.addition_method == 'peaks':
-            self.addition_method == 'peaks'
-            self.sample_names.append(sample_name)
-            self.sample_types.append(sample_type)
-            these_peaks = []
-            frag_intensities = []
-            # load boxes
-            if picking_method == 'mzmine':
-                temp_boxes = load_picked_boxes(peak_file)
-            elif picking_method == 'peakonly':
-                temp_boxes = load_peakonly_boxes(peak_file)  # not tested
-            elif picking_method == 'xcms':
-                temp_boxes = load_xcms_boxes(peak_file)  # not tested
-            else:
-                sys.exit('Method not supported')
-            # Searching in boxes
-            mzml = MZMLFile(mzml_file)
-            scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
-                                                          allow_last_overlap=allow_last_overlap,
-                                                          scan_shift_seconds=scan_shift_seconds)
-            precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, 'max')
-            for i, box in enumerate(temp_boxes):
-                source_id = sample_name + '_' + str(i)
-                peak_mz = box.mz
-                peak_rt = box.rt_in_seconds
-                these_peaks.append(Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
-                frag_intensities.append(precursor_intensities[i])
-
-            # do alignment, adding the peaks and boxes, and recalculating max frag intensity
-            self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
+                         half_isolation_window=1, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
+        self.sample_names.append(sample_name)
+        self.sample_types.append(sample_type)
+        these_peaks = []
+        frag_intensities = []
+        # load boxes
+        if picking_method == 'mzmine':
+            temp_boxes = load_picked_boxes(peak_file)
+        elif picking_method == 'peakonly':
+            temp_boxes = load_peakonly_boxes(peak_file)  # not tested
+        elif picking_method == 'xcms':
+            temp_boxes = load_xcms_boxes(peak_file)  # not tested
         else:
-            print('Can only align Peaks with Peaks. File not added to alignment.')
-            pass
+            sys.exit('Method not supported')
+        temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
+        # Searching in boxes
+        mzml = MZMLFile(mzml_file)
+        scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
+                                                      allow_last_overlap=allow_last_overlap)
+        precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, 'max')
+        for i, box in enumerate(temp_boxes):
+            source_id = sample_name + '_' + str(i)
+            peak_mz = box.mz
+            peak_rt = box.rt_in_seconds
+            these_peaks.append(Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
+            frag_intensities.append(precursor_intensities[i])
+
+        # do alignment, adding the peaks and boxes, and recalculating max frag intensity
+        self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
         if len(self.peaksets) == 0:
@@ -586,40 +581,67 @@ class RoiAligner(object):
                 intensity_matrix[i, j] = peakset.get_intensity(filename)
         return intensity_matrix
 
-    def get_boxes(self):
+    def get_boxes(self, method='mean'):
         boxes = []
         for ps in self.peaksets:
-            box = self.peaksets2boxes[ps][0]  # TODO: method currently gets the first box, needs updating
-            boxes.append(GenericBox(box.pt1.x, box.pt2.x, box.pt1.y, box.pt2.y, self.min_rt_width, self.min_mz_width))
+            box_list = self.peaksets2boxes[ps]
+            pt1x = np.array([box.pt1.x for box in box_list])
+            pt2x = np.array([box.pt2.x for box in box_list])
+            pt1y = np.array([box.pt1.y for box in box_list])
+            pt2y = np.array([box.pt2.y for box in box_list])
+            intensity = max(self.peaksets2fragintensities[ps])
+            if method == 'max':
+                x1 = min(pt1x)
+                x2 = max(pt2x)
+                y1 = min(pt1y)
+                y2 = max(pt2y)
+            else:
+                x1 = np.mean(pt1x)
+                x2 = np.mean(pt2x)
+                y1 = np.mean(pt1y)
+                y2 = np.mean(pt2y)
+            boxes.append(GenericBox(x1, x2, y1, y2, intensity=intensity, min_xwidth=self.min_rt_width,
+                                    min_ywidth=self.min_mz_width))
         return boxes
 
     def get_max_frag_intensities(self):
         return [max(self.peaksets2fragintensities[ps]) for ps in self.peaksets]
 
-    def get_p_values(self):
-        # need to match boxes, not base chemicals
-        p_values = []
-        # sort X
-        X = np.array(self.to_matrix())
-        print(X)
-        # sort y
+
+class FrequentistRoiAligner(RoiAligner):
+    def get_boxes(self, method='mean'):
+        boxes = super().get_boxes(method)
         categories = np.unique(np.array(self.sample_types))
-        if len(categories) < 2:
-            pass
-        elif len(categories) == 2:  # logistic regression
-            x = np.array([1 for i in self.sample_types])
-            if 'control' in categories:
-                control_type = 'control'
-            else:
-                control_type = categories[0]
-            x[np.where(np.array(self.sample_types) == control_type)] = 0
-            x = sm.add_constant(x)
-            for i in range(X.shape[0]):
-                y = np.log(X[i, :] + 1)
-                model = sm.OLS(y, x)
-                p_values.append(model.fit(disp=0).pvalues[1])
-        else:  # classification
-            pass
+        enough_categories = min(Counter(self.sample_types).values()) > 1 and len(categories) == self.n_categories
+        pvalues = self.get_p_values(enough_categories)
+        for i, box in enumerate(boxes):
+            box.pvalue = pvalues[i]
+        return boxes
+
+    def get_p_values(self, enough_catergories):
+        # need to match boxes, not base chemicals
+        if enough_catergories:
+            p_values = []
+            # sort X
+            X = np.array(self.to_matrix())
+            # sort y
+            categories = np.unique(np.array(self.sample_types))
+            if self.n_categories == 2:  # logistic regression
+                x = np.array([1 for i in self.sample_types])
+                if 'control' in categories:
+                    control_type = 'control'
+                else:
+                    control_type = categories[0]
+                x[np.where(np.array(self.sample_types) == control_type)] = 0
+                x = sm.add_constant(x)
+                for i in range(X.shape[0]):
+                    y = np.log(X[i, :] + 1)
+                    model = sm.OLS(y, x)
+                    p_values.append(model.fit(disp=0).pvalues[1])
+            else:  # classification
+                pass
+        else:
+            p_values = [None for ps in self.peaksets]
         return p_values
 
 
@@ -698,3 +720,22 @@ def get_precursor_intensities(boxes2scans, boxes, method):
     precursor_intensities = np.array(precursor_intensities)
     scores = np.array(scores)
     return precursor_intensities, scores
+
+
+def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
+    if rt_shifts is None and mz_shifts is None:
+        return picked_boxes
+    new_boxes = picked_boxes
+    if rt_shifts is not None:
+        for i, box in enumerate(new_boxes):
+            box.rt += float(rt_shifts[i]) / 60.0
+            box.rt_in_minutes += float(rt_shifts[i]) / 60.0
+            box.rt_in_seconds += float(rt_shifts[i])
+            box.rt_range = [box.rt_range[0] + rt_shifts[i] / 60.0, box.rt_range[1] + rt_shifts[i] / 60.0]
+            box.rt_range_in_seconds = [box.rt_range_in_seconds[0] + rt_shifts[i],
+                                       box.rt_range_in_seconds[1] + rt_shifts[i]]
+    if mz_shifts is not None:
+        for i, box in enumerate(new_boxes):
+            box.mz += mz_shifts[i]
+            box.mz_range = [box.mz_range[0] + mz_shifts[i], box.mz_range[1] + mz_shifts[i]]
+    return new_boxes

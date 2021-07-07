@@ -4,8 +4,9 @@ import os
 import numpy as np
 import pandas as pd
 from loguru import logger
+import time
 
-from vimms.Common import load_obj
+from vimms.Common import load_obj, get_default_scan_params, get_dda_scan_param, INITIAL_SCAN_ID
 
 
 def get_schedule(n, schedule_dir):
@@ -15,9 +16,8 @@ def get_schedule(n, schedule_dir):
             last_file = files[-1]
             try:
                 schedule = pd.read_csv(last_file)
-                if schedule.shape[0] == 11951:
-                    logger.debug("Schedule Found")
-                    return last_file
+                time.sleep(10)
+                return last_file
             except:
                 pass
 
@@ -112,3 +112,40 @@ def multi_sample_fragmentation_performance_aligned(params):
         total_chemicals_found.append((chemicals_found_multi[0:(1 + i)].sum(axis=0) > 0).sum())
 
     return total_chemicals_found
+
+
+def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, rt_tol):
+    scan_list = []
+    schedule = pd.read_csv(schedule_file)
+    template = pd.read_csv(template_file)
+    masses = schedule['targetMass']
+    types = template['type']
+    for i in range(schedule.shape[0]):
+        if types[i] != 'msms':
+            scan_list.append(get_default_scan_params())
+        else:
+            if np.isnan(masses[i]):
+                mz = 100
+            else:
+                mz = masses[i]
+            scan_list.append(get_dda_scan_param(mz, 0.0, INITIAL_SCAN_ID + i, isolation_width, mz_tol, rt_tol))
+    return scan_list
+
+
+def create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir):
+    timings = [min_rt]
+    total_time = mass_spec.scan_duration_dict[1]
+    timing_sequence = [0.0, mass_spec.scan_duration_dict[1]] + [mass_spec.scan_duration_dict[2] for i in range(N - 1)]
+    timing_sequence = list(np.cumsum(timing_sequence))
+    scan_numbers = [N + 2]
+    scan_types = ['lm']
+    scan_types_sequence = ['ms'] + ['msms' for i in range(N)]
+    while total_time < max_rt:
+        timings.extend([x + total_time for x in timing_sequence])
+        total_time += timing_sequence[-1] + mass_spec.scan_duration_dict[2]
+        scan_numbers.extend(list(range(1, N + 2)))
+        scan_types.extend(scan_types_sequence)
+    d = {'rt': timings,	'f': scan_numbers, 'type': scan_types}
+    df = pd.DataFrame(data=d)
+    df.to_csv(path_or_buf=os.path.join(base_dir, 'DsDA_Timing_schedule.csv'), index=False)
+

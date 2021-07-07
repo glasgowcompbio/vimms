@@ -23,16 +23,20 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
 
     max_coverage = len(true_chems)
     coverage_prop = np.sum(coverage) / max_coverage
-    # env_chem_parents = np.array([chem.base_chemical for chem in env.mass_spec.chemicals])
-    # max_possible_intensities = [np.array(env.mass_spec.chemicals)[
-    #                                np.where(env_chem_parents == chem)[0]][0].max_intensity for chem in true_chems]
-    ms_chem_parents = {}
-    for chem in env.mass_spec.chemicals:
-        chem = chem if chem.base_chemical is None else chem.base_chemical
-        ms_chem_parents[chem] = chem.max_intensity
-    max_possible_intensities = [ms_chem_parents.get(chem, 0) for chem in true_chems]
-    coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
+
+    if base_chemicals is None:
+        max_possible_intensities = [chem.max_intensity for chem in true_chems]
+    else:
+        max_possible_intensities = []
+        ms_chem_parents = np.array([chem.base_chemical for chem in env.mass_spec.chemicals])
+        for chem in base_chemicals:
+            if chem in ms_chem_parents:
+                max_intensity = np.array(env.mass_spec.chemicals)[np.where(ms_chem_parents == chem)][0].max_intensity
+            else:
+                max_intensity = 0.0
+            max_possible_intensities.append(max_intensity)
+    coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
 
     return {
         'num_frags': num_frags,
@@ -100,6 +104,8 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
         'cumulative_coverage_proportion': cumulative_coverage_prop,
         'cumulative_intensity_proportion': cumulative_coverage_intensities_prop,
 
+        'max_possible_intensities': max_possible_intensities
+
         # 'cumulative_intensity_proportion_of_coverage': cumulative_intensity_proportion_of_coverage
     }
 
@@ -146,7 +152,7 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
     for peakset in roi_aligner.peaksets:
         source_files = [peak.source_file for peak in peakset.peaks]
         if source_file in source_files:
-            which_peak = np.where(source_file in np.array(source_files))[0][0]
+            which_peak = np.where(source_file == np.array(source_files))[0][0]
             max_possible_intensities.append(peakset.peaks[which_peak].intensity)
             fragint = np.array(roi_aligner.peaksets2fragintensities[peakset])[which_peak]
             coverage_intensities.append(fragint)

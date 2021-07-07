@@ -110,7 +110,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
         env.run()
-        boxes.append([r.to_box(0.01, 0.01) for r in controller.get_rois()])
+        boxes.append([r.to_box(0.01, 0.01) for r in controller.roi_builder.get_rois()])
     return boxes
 
 

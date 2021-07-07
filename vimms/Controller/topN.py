@@ -60,7 +60,8 @@ class TopNController(Controller):
                     break
 
                 # skip ion in the dynamic exclusion list of the mass spec
-                if self.exclusion.is_excluded(mz, rt):
+                is_exc, weight = self.exclusion.is_excluded(mz, rt)
+                if is_exc:
                     continue
 
                 # create a new ms2 scan parameter to be sent to the mass spec

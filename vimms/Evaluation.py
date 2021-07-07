@@ -153,7 +153,7 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
     for peakset in roi_aligner.peaksets:
         source_files = [peak.source_file for peak in peakset.peaks]
         if source_file in source_files:
-            which_peak = np.where(source_file in np.array(source_files))[0][0]
+            which_peak = np.where(source_file == np.array(source_files))[0][0]
             max_possible_intensities.append(peakset.peaks[which_peak].intensity)
             fragint = np.array(roi_aligner.peaksets2fragintensities[peakset])[which_peak]
             coverage_intensities.append(fragint)

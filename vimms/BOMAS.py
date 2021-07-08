@@ -14,7 +14,7 @@ from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, Top
     FixedScansController
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
-from vimms.Roi import RoiAligner
+from vimms.Roi import FrequentistRoiAligner
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
 from vimms.GridEstimator import *
@@ -413,10 +413,10 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
         if base_chemicals is not None:
             evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
         else:
-            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            roi_aligner = FrequentistRoiAligner(rt_tolerance=rt_tolerance)
             for i in range(len(mzml_files)):
                 roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
-            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files, True)
         return env_list, evaluation
     else:
         return None, None

@@ -2,8 +2,9 @@ import csv
 import itertools
 from collections import Counter
 from functools import reduce
-
+import statsmodels.api as sm
 import numpy as np
+
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
 
@@ -51,7 +52,7 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     }
 
 
-def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0):
+def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0, group_list=None):
     '''Evaluates_multiple simulated injections against a base set of chemicals that were used to derive the datasets'''
     results = [evaluate_simulated_env(env, min_intensity=min_intensity, base_chemicals=base_chemicals) for env in
                env_list]
@@ -82,7 +83,11 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
     times_fragmented = np.sum([r["coverage"] for r in results], axis=0)
     times_fragmented_summary = Counter(times_fragmented)
 
-    # cumulative_intensity_proportion_of_coverage = [cumulative_coverage_intensities[0][np.where(final_evaluation_topn['coverage'][0])] /
+    if group_list is not None:
+        datasets = [env.mass_spec.chemicals for env in env_list]
+        true_pvalues = calculate_chemical_p_values(datasets, group_list, base_chemicals)
+    else:
+        true_pvalues = None
 
     return {
         'num_frags': num_frags,
@@ -105,10 +110,43 @@ def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0)
         'cumulative_coverage_proportion': cumulative_coverage_prop,
         'cumulative_intensity_proportion': cumulative_coverage_intensities_prop,
 
-        'max_possible_intensities': max_possible_intensities
+        'max_possible_intensities': max_possible_intensities,
 
-        # 'cumulative_intensity_proportion_of_coverage': cumulative_intensity_proportion_of_coverage
+        'true_pvalues': true_pvalues
     }
+
+
+def calculate_chemical_p_values(datasets, group_list, base_chemicals):
+    # only accepts case control currently
+    p_values = []
+    # create y here
+    categories = np.unique(np.array(group_list))
+    if len(categories) < 2:
+        pass
+    elif len(categories):
+        x = np.array([1 for i in group_list])
+        if 'control' in categories:
+            control_type = 'control'
+        else:
+            control_type = categories[0]
+        x[np.where(np.array(group_list) == control_type)] = 0
+        x = sm.add_constant(x)
+    else:
+        pass
+    # create each x and calculate p-value
+    ds_parents = [[chem.base_chemical for chem in ds] for ds in datasets]
+    for chem in base_chemicals:
+        y = []
+        for i, ds in enumerate(ds_parents):
+            if chem in base_chemicals:
+                new_chem = np.array(datasets[i])[np.where(np.array(ds) == chem)[0]][0]
+                intensity = np.log(new_chem.max_intensity + 1)
+            else:
+                intensity = 0.0
+            y.append(intensity)
+        model = sm.OLS(y, x)
+        p_values.append(model.fit(disp=0).pvalues[1])
+    return p_values
 
 
 def evaluate_mzml(mzml_file, picked_peaks_file, half_isolation_window):
@@ -170,6 +208,7 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
     max_possible_intensities = np.array(max_possible_intensities)
     coverage_prop = sum(coverage) / len(coverage)
     coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
+
     return {
         'coverage': coverage,
         'intensity': coverage_intensities,
@@ -179,16 +218,19 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
     }
 
 
-def evaluate_multi_peak_roi_aligner(roi_aligner, source_files):
-    results = [evaluate_peak_roi_aligner(roi_aligner, file) for file in source_files]
+def evaluate_multi_peak_roi_aligner(frequentist_roi_aligner, source_files, casecontrol=False):
+    results = [evaluate_peak_roi_aligner(frequentist_roi_aligner, file) for file in source_files]
     coverage = [r['coverage'] for r in results]
     coverage_intensities = [r['intensity'] for r in results]
     max_possible_intensities = [r['max_possible_intensities'] for r in results]
     cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
+    true_pvalues = frequentist_roi_aligner.get_p_values(casecontrol)
 
     return {
         'coverage': coverage,
         'intensity': coverage_intensities,
         'cumulative_coverage': cumulative_coverage,
-        'max_possible_intensities': max_possible_intensities
+        'max_possible_intensities': max_possible_intensities,
+        'true_pvalues': true_pvalues
     }
+

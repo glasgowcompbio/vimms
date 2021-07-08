@@ -645,39 +645,6 @@ class FrequentistRoiAligner(RoiAligner):
         return p_values
 
 
-def calculate_chemical_p_values(datasets, group_list, base_chemicals):
-    # only accepts case control currently
-    p_values = []
-    # create y here
-    categories = np.unique(np.array(group_list))
-    if len(categories) < 2:
-        pass
-    elif len(categories):
-        x = np.array([1 for i in group_list])
-        if 'control' in categories:
-            control_type = 'control'
-        else:
-            control_type = categories[0]
-        x[np.where(np.array(group_list) == control_type)] = 0
-        x = sm.add_constant(x)
-    else:
-        pass
-    # create each x and calculate p-value
-    ds_parents = [[chem.base_chemical for chem in ds] for ds in datasets]
-    for chem in base_chemicals:
-        y = []
-        for i, ds in enumerate(ds_parents):
-            if chem in base_chemicals:
-                new_chem = np.array(datasets[i])[np.where(np.array(ds) == chem)[0]][0]
-                intensity = np.log(new_chem.max_intensity + 1)
-            else:
-                intensity = 0.0
-            y.append(intensity)
-        model = sm.OLS(y, x)
-        p_values.append(model.fit(disp=0).pvalues[1])
-    return p_values
-
-
 def get_precursor_intensities(boxes2scans, boxes, method):
     assert method in ['max', 'first']
     precursor_intensities = []

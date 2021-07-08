@@ -190,4 +190,5 @@ def evaluate_multi_peak_roi_aligner(roi_aligner, source_files):
         'coverage': coverage,
         'intensity': coverage_intensities,
         'cumulative_coverage': cumulative_coverage,
+        'max_possible_intensities': max_possible_intensities
     }

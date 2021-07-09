@@ -11,7 +11,7 @@ from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController, \
-    FixedScansController
+    FixedScansController, RoiBuilder
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.Roi import RoiAligner
@@ -282,10 +282,14 @@ def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N
         return None, None
 
 
+# change roi_type to ROI_TYPE_SMART to toggle smartroi
+# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
 def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
                                       min_roi_intensity, min_roi_length, rt_box_size, mz_box_size,
                                       min_roi_length_for_fragmentation, base_chemicals=None, mzmine_files=None,
-                                      rt_tolerance=100, experiment_dir=None):
+                                      rt_tolerance=100, experiment_dir=None,
+                                      roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                                      exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -296,7 +300,8 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
             controller = NonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
-                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -315,12 +320,15 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
     else:
         return None, None
 
-
+# change roi_type to ROI_TYPE_SMART to toggle smartroi
+# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
 def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
                                                 rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
                                                 rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
                                                 scoring_params={'theta1': 1}, base_chemicals=None, mzmine_files=None,
-                                                rt_tolerance=100, experiment_dir=None):
+                                                rt_tolerance=100, experiment_dir=None,
+                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                                                exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -331,7 +339,8 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
             controller = IntensityNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
-                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params)
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params,
+                roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -351,11 +360,15 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
         return None, None
 
 
+# change roi_type to ROI_TYPE_SMART to toggle smartroi
+# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
 def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
                                                 rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
                                                 rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
                                                 scoring_params=None, base_chemicals=None, mzmine_files=None,
-                                                rt_tolerance=100, experiment_dir=None):
+                                                rt_tolerance=100, experiment_dir=None,
+                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                                                exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -366,7 +379,8 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
-                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params)
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params,
+                roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)

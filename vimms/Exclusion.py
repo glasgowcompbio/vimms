@@ -294,7 +294,7 @@ class DEWFilter(ScoreFilter):
 
     def filter(self, current_rt, last_frag_rts):
         # Handles None values by converting to NaN for which all comparisons return 0
-        return np.logical_not(current_rt - np.array(last_frag_rts, dtype=np.double) < self.rt_tol)
+        return np.logical_not(current_rt - np.array(last_frag_rts, dtype=np.double) <= self.rt_tol)
 
 
 class WeightedDEWFilter(ScoreFilter):

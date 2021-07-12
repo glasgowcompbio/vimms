@@ -2,7 +2,8 @@ import itertools
 import random
 from time import perf_counter
 
-from vimms.Box import GenericBox, DictGrid, ArrayGrid, LocatorGrid, AllOverlapGrid, GridEstimator, IdentityDrift
+from vimms.Box import GenericBox, DictGrid, ArrayGrid, LocatorGrid, AllOverlapGrid, IdentityDrift
+from vimms.GridEstimator import GridEstimator
 from vimms.ChemicalSamplers import DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import *
@@ -78,7 +79,7 @@ class TestEnv(BoxEnv):
         self.init_grid(grid_class, rt_box_size, mz_box_size)
 
         def score_box(box):
-            score = self.grid.intensity_non_overlap(box, box.intensity)
+            score = self.grid.intensity_non_overlap(box, box.intensity, {"theta1" : 1})
             self.grid.register_box(box)
             return score
 

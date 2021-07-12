@@ -439,9 +439,10 @@ class MS2PointMatcher():
     def send_training_data(self, model, scan, roi, inj_num):
         # TODO: put some limitation on mz(/rt?) of boxes that can be matched
         spectrum = Spectrum(roi.get_mean_mz(), list(zip(scan.mzs, scan.intensities)))
-        rt, _, __ = roi.get_nth_point(0)
-        if (inj_num > 0):
-            if (len(self.ms2s[0]) > 0):
+
+        rt, _, __ = roi[0]
+        if(inj_num > 0):
+            if(len(self.ms2s[0]) > 0):
                 original_idx, original_spectrum, score = -1, None, -1
                 for i, (_, s, __) in enumerate(self.ms2s[0]):
                     current_score, _ = cosine_similarity(spectrum, s, self.mass_tol, self.min_match)
@@ -482,9 +483,8 @@ class GPDrift(DriftModel):
                 self.model.optimize()
 
             def predict(roi, inj_num):
-                mean, variance = self.model.predict(np.array(roi.get_nth_point(0)[0]).reshape((1, 1)))
-                return roi.get_nth_point(0)[0] - mean[0, 0], {"variance": variance[0]}
-
+                mean, variance = self.model.predict(np.array(roi[0][0]).reshape((1, 1)))
+                return roi[0][0] - mean[0, 0], {"variance" : variance[0, 0]}
             return predict
 
     def _next_model(self, **kwargs):

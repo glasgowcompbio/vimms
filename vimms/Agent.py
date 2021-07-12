@@ -105,7 +105,8 @@ class TopNDEWAgent(AbstractAgent):
                 break
 
             # skip ion in the dynamic exclusion list of the mass spec
-            if self.exclusion.is_excluded(mz, rt):
+            is_exc, weight = self.exclusion.is_excluded(mz, rt)
+            if is_exc:
                 continue
 
             # create a new ms2 scan parameter to be sent to the mass spec
@@ -167,7 +168,8 @@ class ReinforceAgent(TopNDEWAgent):
     def _get_state(self, mzs, rt, intensities):
         included_intensities = []
         for mz, intensity in zip(mzs, intensities):
-            if not self.exclusion.is_excluded(mz, rt):
+            is_exc, weight = self.exclusion.is_excluded(mz, rt)
+            if not is_exc:
                 included_intensities.append(intensity)
         included_intensities = np.array(included_intensities)
 

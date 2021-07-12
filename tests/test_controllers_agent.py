@@ -1,4 +1,4 @@
-from tests.conftest import OUT_DIR, check_mzML
+from tests.conftest import OUT_DIR, check_mzML, check_non_empty_MS1, check_non_empty_MS2
 from vimms.Agent import TopNDEWAgent
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
     FixedMS2Sampler
@@ -31,10 +31,8 @@ class TestAgentBasedController:
         set_log_level_warning()
         env.run()
 
-        for level in controller.scans:
-            for scan in controller.scans[level]:
-                assert len(scan.mzs) > 0, scan.scan_id
-
+        check_non_empty_MS1(controller)
+        check_non_empty_MS2(controller)
         check_mzML(env, OUT_DIR, 'shell.mzML')
 
         controller = AgentBasedController(agent)
@@ -43,6 +41,8 @@ class TestAgentBasedController:
         set_log_level_warning()
         env.run()
 
+        check_non_empty_MS1(controller)
+        check_non_empty_MS2(controller)
         check_mzML(env, OUT_DIR, 'shell2.mzML')
 
         controller = AgentBasedController(agent)
@@ -51,4 +51,6 @@ class TestAgentBasedController:
         set_log_level_warning()
         env.run()
 
+        check_non_empty_MS1(controller)
+        check_non_empty_MS2(controller)
         check_mzML(env, OUT_DIR, 'shell3.mzML')

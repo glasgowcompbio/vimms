@@ -223,13 +223,16 @@ def evaluate_multi_peak_roi_aligner(frequentist_roi_aligner, source_files, casec
     coverage_intensities = [r['intensity'] for r in results]
     max_possible_intensities = [r['max_possible_intensities'] for r in results]
     cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
-    true_pvalues = frequentist_roi_aligner.get_p_values(casecontrol)
+    if casecontrol:
+        pvalues = frequentist_roi_aligner.get_p_values(casecontrol)
+    else:
+        pvalues = [None for ps in frequentist_roi_aligner.peaksets]
 
     return {
         'coverage': coverage,
         'intensity': coverage_intensities,
         'cumulative_coverage': cumulative_coverage,
         'max_possible_intensities': max_possible_intensities,
-        'true_pvalues': true_pvalues
+        'pvalues': pvalues
     }
 

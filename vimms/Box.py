@@ -287,9 +287,9 @@ class AllOverlapGrid(LocatorGrid):
         other_boxes = self.get_boxes(box)
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
         non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
-        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
+        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - np.log(max(1.0, b.intensity))
                                                     * b.area() / box.area()) for b in overlaps)
-        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
+        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - np.log(max(1.0, b.intensity)) *
                                                      (b.area() / box.area()) for b in overlaps)
         new_peak = []
         for b in overlaps:

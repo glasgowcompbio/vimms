@@ -374,11 +374,15 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
+        if scoring_params['theta3'] != 0:
+            register_all_roi = True
+        else:
+            register_all_roi = False
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-                min_roi_length, N, grid, rt_tol=rt_tol,
+                min_roi_length, N, grid, rt_tol=rt_tol, register_all_roi=register_all_roi,
                 min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params,
                 roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)

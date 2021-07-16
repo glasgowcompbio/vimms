@@ -98,7 +98,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
     hmdb = load_obj(hmdbpath)
     df = DatabaseFormulaSampler(hmdb, min_mz=100, max_mz=1000)
     cm = ChemicalMixtureCreator(df, adduct_prior_dict={POSITIVE: {"M+H": 1}})
-    chemicals = cm.sample(500, 1)
+    chemicals = cm.sample(2000, 1)
 
     boxes = []
     for i in range(no_injections):

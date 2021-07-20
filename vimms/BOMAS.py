@@ -154,7 +154,7 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
 def top_n_exclusion_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                           min_ms1_intensity,
                                           base_chemicals=None, mzmine_files=None, rt_tolerance=100,
-                                          experiment_dir=None):
+                                          experiment_dir=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
@@ -163,8 +163,10 @@ def top_n_exclusion_experiment_evaluation(datasets, min_rt, max_rt, N, isolation
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = AgentBasedController(agent)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')

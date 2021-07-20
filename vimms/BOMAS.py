@@ -120,7 +120,8 @@ def weighted_dew_evaluation(param_dict):
 
 
 def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
-                                base_chemicals=None, mzmine_files=None, rt_tolerance=100, experiment_dir=None):
+                                base_chemicals=None, mzmine_files=None, rt_tolerance=100, experiment_dir=None,
+                                progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
@@ -129,8 +130,10 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
                                         initial_exclusion_list=None, force_N=False)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -181,7 +184,7 @@ def top_n_exclusion_experiment_evaluation(datasets, min_rt, max_rt, N, isolation
 
 def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                     min_ms1_intensity, min_roi_intensity, min_roi_length, base_chemicals=None,
-                                    mzmine_files=None, rt_tolerance=100, experiment_dir=None):
+                                    mzmine_files=None, rt_tolerance=100, experiment_dir=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
@@ -190,8 +193,10 @@ def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                                             min_roi_length, N=N, rt_tol=rt_tol)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -213,7 +218,7 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
                                     min_ms1_intensity, min_roi_intensity, min_roi_length,
                                     min_roi_length_for_fragmentation, reset_length_seconds, intensity_increase_factor,
                                     drop_perc, ms1_shift, base_chemicals=None, mzmine_files=None,
-                                    rt_tolerance=100, experiment_dir=None):
+                                    rt_tolerance=100, experiment_dir=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
@@ -227,8 +232,10 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
                                                  reset_length_seconds=reset_length_seconds,
                                                  intensity_increase_factor=intensity_increase_factor,
                                                  drop_perc=drop_perc, ms1_shift=ms1_shift)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -248,7 +255,7 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
 
 def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, r, t0,
                                        min_ms1_intensity, base_chemicals=None, mzmine_files=None, rt_tolerance=100,
-                                       experiment_dir=None):
+                                       experiment_dir=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
@@ -257,8 +264,10 @@ def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_wi
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = WeightedDEWController(POSITIVE, N, isolation_window, mz_tol, r, min_ms1_intensity,
                                                exclusion_t_0=t0, log_intensity=True)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -279,7 +288,7 @@ def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_wi
 def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N, isolation_window,
                                          mz_tol, rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
                                          boxes_params, base_chemicals=None, mzmine_files=None, rt_tolerance=100,
-                                         experiment_dir=None):
+                                         experiment_dir=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         mzml_files = []
@@ -292,8 +301,10 @@ def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N
             controller = TopNBoxRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                                               min_roi_length, boxes_params=boxes_params, boxes=boxes,
                                               boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             rois = env.controller.live_roi + env.controller.dead_roi
             aligner.add_sample(rois, 'sample_' + str(i), group_list[i])
@@ -323,7 +334,7 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
                                       rt_tolerance=100, experiment_dir=None,
                                       roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                       intensity_increase_factor=10, drop_perc=0.1 / 100,
-                                      exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
+                                      exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -338,8 +349,10 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
                 roi_type=roi_type, reset_length_seconds=reset_length_seconds,
                 intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
                 exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -366,7 +379,8 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
                                                 rt_tolerance=100, experiment_dir=None,
                                                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                                 intensity_increase_factor=10, drop_perc=0.1 / 100,
-                                                exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
+                                                exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,
+                                                progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -381,8 +395,10 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
                 roi_type=roi_type, reset_length_seconds=reset_length_seconds,
                 intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
                 exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -409,7 +425,8 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
                                                rt_tolerance=100, experiment_dir=None,
                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                                intensity_increase_factor=10, drop_perc=0.1 / 100,
-                                               exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
+                                               exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,
+                                               progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -428,8 +445,10 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
                 roi_type=roi_type, reset_length_seconds=reset_length_seconds,
                 intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
                 exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -454,7 +473,8 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
                                                    rt_tolerance=100, experiment_dir=None, box_method='mean',
                                                    roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                                    intensity_increase_factor=10, drop_perc=0.1 / 100,
-                                                   exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
+                                                   exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,
+                                                   progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = CaseControlGridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
@@ -470,8 +490,10 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
                 roi_type=roi_type, reset_length_seconds=reset_length_seconds,
                 intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
                 exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             if base_chemicals is None:
                 file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
@@ -491,7 +513,7 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
 
 def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
                                min_ms1_intensity,
-                               base_chemicals=None, mzmine_files=None, rt_tolerance=100):
+                               base_chemicals=None, mzmine_files=None, rt_tolerance=100, progress_bar=False):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
     mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0], None)  # necessary to get timings for schedule
@@ -516,8 +538,10 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
                 schedule_param_list = dsda_get_scan_params(new_schedule, template_file, isolation_window, mz_tol,
                                                            rt_tol)
                 controller = FixedScansController(schedule=schedule_param_list)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
+            if progress_bar is False:
+                print('Processed dataset ' + str(i))
             env_list.append(env)
             file_link = os.path.join(data_dir, source_files[i] + '.mzml')
             mzml_files.append(file_link)

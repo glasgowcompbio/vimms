@@ -287,6 +287,13 @@ def save_obj(obj, filename):
     :param filename: the output file
     :return: None
     """
+
+    # workaround for
+    # TypeError: can't pickle _thread.lock objects
+    # when trying to pickle a progress bar
+    if hasattr(obj, 'bar'):
+        obj.bar = None
+
     out_dir = os.path.dirname(filename)
     create_if_not_exist(out_dir)
     logger.info('Saving %s to %s' % (type(obj), filename))

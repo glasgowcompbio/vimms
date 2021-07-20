@@ -7,11 +7,12 @@ from ax.service.utils.instantiation import parameter_from_json
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+from vimms.Agent import TopNDEWAgent
 from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController, \
-    FixedScansController, RoiBuilder
+    FixedScansController, RoiBuilder, AgentBasedController
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
@@ -128,6 +129,37 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
             controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
                                         initial_exclusion_list=None, force_N=False)
+            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+            env.run()
+            env_list.append(env)
+            if base_chemicals is None:
+                file_link = os.path.join(experiment_dir, source_files[i] + '.mzml')
+                mzml_files.append(file_link)
+                env.write_mzML(experiment_dir, source_files[i] + '.mzml')
+        if base_chemicals is not None:
+            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+        else:
+            roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
+            for i in range(len(mzml_files)):
+                roi_aligner.add_picked_peaks(mzml_files[i], mzmine_files[i], source_files[i], 'mzmine')
+            evaluation = evaluate_multi_peak_roi_aligner(roi_aligner, source_files)
+        return env_list, evaluation
+    else:
+        return None, None
+
+
+def top_n_exclusion_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                                          min_ms1_intensity,
+                                          base_chemicals=None, mzmine_files=None, rt_tolerance=100,
+                                          experiment_dir=None):
+    if base_chemicals is not None or mzmine_files is not None:
+        env_list = []
+        mzml_files = []
+        source_files = ['sample_' + str(i) for i in range(len(datasets))]
+        agent = TopNDEWAgent(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, remove_exclusion=False)
+        for i in range(len(datasets)):
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            controller = AgentBasedController(agent)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)

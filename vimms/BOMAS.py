@@ -1,3 +1,5 @@
+import time
+
 import ax
 from ax import *
 from ax.modelbridge.registry import Models
@@ -5,19 +7,17 @@ from ax.service.utils.instantiation import parameter_from_json
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-import time
-
 from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController, \
     FixedScansController, RoiBuilder
-from vimms.Environment import *
-from vimms.Evaluation import evaluate_multiple_simulated_env
-from vimms.Roi import FrequentistRoiAligner
-from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
+from vimms.Environment import *
+from vimms.Evaluation import evaluate_multi_peak_roi_aligner
+from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.GridEstimator import *
+from vimms.Roi import FrequentistRoiAligner
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -188,12 +188,13 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
-            controller = TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
-                                    min_roi_length, N=N, rt_tol=rt_tol,
-                                    min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                                    reset_length_seconds=reset_length_seconds,
-                                    intensity_increase_factor=intensity_increase_factor,
-                                    drop_perc=drop_perc, ms1_shift=ms1_shift)
+            controller = TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity,
+                                                 min_roi_intensity,
+                                                 min_roi_length, N=N, rt_tol=rt_tol,
+                                                 min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                                                 reset_length_seconds=reset_length_seconds,
+                                                 intensity_increase_factor=intensity_increase_factor,
+                                                 drop_perc=drop_perc, ms1_shift=ms1_shift)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -288,7 +289,8 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
                                       min_roi_intensity, min_roi_length, rt_box_size, mz_box_size,
                                       min_roi_length_for_fragmentation, base_chemicals=None, mzmine_files=None,
                                       rt_tolerance=100, experiment_dir=None,
-                                      roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                                      roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                      intensity_increase_factor=10, drop_perc=0.1 / 100,
                                       exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
@@ -301,7 +303,9 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
                 min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
+                roi_type=roi_type, reset_length_seconds=reset_length_seconds,
+                intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
+                exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -320,6 +324,7 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
     else:
         return None, None
 
+
 # change roi_type to ROI_TYPE_SMART to toggle smartroi
 # change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
 def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
@@ -327,7 +332,8 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
                                                 rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
                                                 scoring_params={'theta1': 1}, base_chemicals=None, mzmine_files=None,
                                                 rt_tolerance=100, experiment_dir=None,
-                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL,
+                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                                intensity_increase_factor=10, drop_perc=0.1 / 100,
                                                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
@@ -340,7 +346,9 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
                 min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params,
-                roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
+                roi_type=roi_type, reset_length_seconds=reset_length_seconds,
+                intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
+                exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -363,12 +371,13 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
 # change roi_type to ROI_TYPE_SMART to toggle smartroi
 # change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
 def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
-                                                rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
-                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
-                                                scoring_params=None, base_chemicals=None, mzmine_files=None,
-                                                rt_tolerance=100, experiment_dir=None,
-                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL,
-                                                exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
+                                               rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                               rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
+                                               scoring_params=None, base_chemicals=None, mzmine_files=None,
+                                               rt_tolerance=100, experiment_dir=None,
+                                               roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                               intensity_increase_factor=10, drop_perc=0.1 / 100,
+                                               exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = GridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
@@ -384,7 +393,9 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol, register_all_roi=register_all_roi,
                 min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params,
-                roi_type=roi_type, exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
+                roi_type=roi_type, reset_length_seconds=reset_length_seconds,
+                intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
+                exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -405,10 +416,13 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
 
 
 def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, mz_tol,
-                                                rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
-                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
-                                                scoring_params=None, base_chemicals=None, mzmine_files=None,
-                                                rt_tolerance=100, experiment_dir=None, box_method='mean'):
+                                                   rt_tol, min_ms1_intensity, min_roi_intensity, min_roi_length,
+                                                   rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
+                                                   scoring_params=None, base_chemicals=None, mzmine_files=None,
+                                                   rt_tolerance=100, experiment_dir=None, box_method='mean',
+                                                   roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                                   intensity_increase_factor=10, drop_perc=0.1 / 100,
+                                                   exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
         grid = CaseControlGridEstimator(AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
@@ -420,7 +434,10 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
-                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params)
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation, scoring_params=scoring_params,
+                roi_type=roi_type, reset_length_seconds=reset_length_seconds,
+                intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
+                exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
             env.run()
             env_list.append(env)
@@ -440,8 +457,9 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
         return None, None
 
 
-def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
-                                base_chemicals=None, mzmine_files=None, rt_tolerance=100):
+def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
+                               min_ms1_intensity,
+                               base_chemicals=None, mzmine_files=None, rt_tolerance=100):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
     mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0], None)  # necessary to get timings for schedule
@@ -471,7 +489,7 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
             env_list.append(env)
             file_link = os.path.join(data_dir, source_files[i] + '.mzml')
             mzml_files.append(file_link)
-            print("Processed ", i+1, " files")
+            print("Processed ", i + 1, " files")
             env.write_mzML(data_dir, source_files[i] + '.mzml')
             print("Waiting for R to process .mzML files")
         if base_chemicals is not None:
@@ -659,4 +677,3 @@ def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t
     max_score = scores.max()
     optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
     return exp, parameter_inputs, scores, max_score, optimal_parameters, model
-

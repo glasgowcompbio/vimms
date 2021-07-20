@@ -209,7 +209,6 @@ class TestNonOverlapController:
         filename = 'non_overlap_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-
     def test_non_overlap_controller_with_beer_chems_and_smartROI_rules(self, fragscan_ps):
         logger.info('Testing non-overlap controller with QC beer chemicals and SmartROI rules')
 
@@ -229,7 +228,11 @@ class TestNonOverlapController:
         controller = NonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                           min_roi_intensity, min_roi_length, N, grid,
                                           rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
-                                          roi_type=RoiBuilder.ROI_TYPE_SMART)
+                                          roi_type=RoiBuilder.ROI_TYPE_SMART,
+                                          reset_length_seconds=1e6,
+                                          intensity_increase_factor=10,
+                                          drop_perc=0.1 / 100
+                                          )
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -241,7 +244,6 @@ class TestNonOverlapController:
         # write simulated output to mzML file
         filename = 'non_overlap_qcbeer_chems_smartroi.mzML'
         check_mzML(env, OUT_DIR, filename)
-
 
     def test_non_overlap_controller_with_beer_chems_and_weighteddew_rules(self, fragscan_ps):
         logger.info('Testing non-overlap controller with QC beer chemicals and WeightedDEW rules')
@@ -343,6 +345,76 @@ class TestIntensityNonOverlapController:
         filename = 'intensity_non_overlap_qcbeer_chems.mzML'
         check_mzML(env, OUT_DIR, filename)
 
+    def test_intensity_non_overlap_controller_with_beer_chems_and_smartROI_rules(self, fragscan_ps):
+        logger.info('Testing intensity non-overlap controller with QC beer chemicals and SmartROI rules')
+
+        isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        min_roi_intensity = 5000
+        min_roi_length = 10
+        ionisation_mode = POSITIVE
+        rt_box_size, mz_box_size = 1, 0.3
+
+        # create a simulated mass spec with noise and ROI controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
+                             IdentityDrift())
+        controller = IntensityNonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
+                                                   min_roi_intensity, min_roi_length, N, grid,
+                                                   rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
+                                                   roi_type=RoiBuilder.ROI_TYPE_SMART,
+                                                   reset_length_seconds=1e6,
+                                                   intensity_increase_factor=10,
+                                                   drop_perc=0.1 / 100
+                                                   )
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'intensity_non_overlap_qcbeer_chems_smartroi.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_intensity_non_overlap_controller_with_beer_chems_and_weighteddew_rules(self, fragscan_ps):
+        logger.info('Testing intensity non-overlap controller with QC beer chemicals and WeightedDEW rules')
+
+        isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
+        N = 10
+        rt_tol = 120
+        exclusion_t_0 = 15
+        mz_tol = 10
+        min_roi_intensity = 5000
+        min_roi_length = 10
+        ionisation_mode = POSITIVE
+        rt_box_size, mz_box_size = 1, 0.3
+
+        # create a simulated mass spec with noise and ROI controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
+                             IdentityDrift())
+        controller = IntensityNonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
+                                                   min_roi_intensity, min_roi_length, N, grid,
+                                                   rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
+                                                   exclusion_method=ROI_EXCLUSION_WEIGHTED_DEW,
+                                                   exclusion_t_0=exclusion_t_0)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'intensity_non_overlap_qcbeer_chems_weighteddew.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
 
 class TestFlexibleNonOverlapController:
     def test_intensity_nonoverlap_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
@@ -408,4 +480,74 @@ class TestFlexibleNonOverlapController:
 
         # write simulated output to mzML file
         filename = 'flexible_non_overlap_qcbeer_chems.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_flexible_non_overlap_controller_with_beer_chems_and_smartROI_rules(self, fragscan_ps):
+        logger.info('Testing flexible non-overlap controller with QC beer chemicals and SmartROI rules')
+
+        isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        min_roi_intensity = 5000
+        min_roi_length = 10
+        ionisation_mode = POSITIVE
+        rt_box_size, mz_box_size = 1, 0.3
+
+        # create a simulated mass spec with noise and ROI controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
+                             IdentityDrift())
+        controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
+                                                  min_roi_intensity, min_roi_length, N, grid,
+                                                  rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
+                                                  roi_type=RoiBuilder.ROI_TYPE_SMART,
+                                                  reset_length_seconds=1e6,
+                                                  intensity_increase_factor=10,
+                                                  drop_perc=0.1 / 100
+                                                  )
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'flexible_non_overlap_qcbeer_chems_smartroi.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_flexible_non_overlap_controller_with_beer_chems_and_weighteddew_rules(self, fragscan_ps):
+        logger.info('Testing flexible non-overlap controller with QC beer chemicals and WeightedDEW rules')
+
+        isolation_width = 1  # the isolation window in Dalton around a selected precursor ion
+        N = 10
+        rt_tol = 120
+        exclusion_t_0 = 15
+        mz_tol = 10
+        min_roi_intensity = 5000
+        min_roi_length = 10
+        ionisation_mode = POSITIVE
+        rt_box_size, mz_box_size = 1, 0.3
+
+        # create a simulated mass spec with noise and ROI controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
+                             IdentityDrift())
+        controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
+                                                  min_roi_intensity, min_roi_length, N, grid,
+                                                  rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
+                                                  exclusion_method=ROI_EXCLUSION_WEIGHTED_DEW,
+                                                  exclusion_t_0=exclusion_t_0)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'flexible_non_overlap_qcbeer_chems_weighteddew.mzML'
         check_mzML(env, OUT_DIR, filename)

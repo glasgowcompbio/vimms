@@ -4,13 +4,13 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+
 numpy = "*"
-pandas = "==1.2.5"
+pandas = "*"
 scipy = "*"
 matplotlib = "*"
 seaborn = "*"
 scikit-learn = "*"
-jupyterlab = "*"
 pymzml = "==2.4.7"
 psims = "*"
 events = "*"
@@ -21,7 +21,6 @@ requests = "*"
 loguru = "*"
 networkx = "*"
 jsonpickle = "*"
-jupyter = "*"
 statsmodels = "*"
 mass-spec-utils = "*"
 tabulate = "*"
@@ -30,15 +29,13 @@ pipenv-setup = "*"
 flake8 = "*"
 pytest = "*"
 intervaltree = "*"
-ax-platform = "*"
-torch = "*"
+jupyterlab = "*"
+pywinpty = "==1.1.3"
 gpy = "*"
-gym = "*"
-stable-baselines3 = {editable = true, git = "git+https://github.com/DLR-RM/stable-baselines3"}
-sb3-contrib = {editable = true, git = "git+https://github.com/Stable-Baselines-Team/stable-baselines3-contrib"}
-tensorboard = "*"
 
 [dev-packages]
+twine = "*"
+build = "*"
 
 [requires]
 python_version = "3"

@@ -30,7 +30,6 @@ flake8 = "*"
 pytest = "*"
 intervaltree = "*"
 jupyterlab = "*"
-pywinpty = "==1.1.3"
 gpy = "*"
 
 [dev-packages]

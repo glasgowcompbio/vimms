@@ -23,7 +23,7 @@ class TestSimulatedMassSpec:
         ionisation_mode = POSITIVE
 
         task_manager = TaskManager(buffer_size=3)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps, task_manager=task_manager)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, task_manager=task_manager)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller

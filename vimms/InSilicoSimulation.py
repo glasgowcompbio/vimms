@@ -105,7 +105,7 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
     out_file = '%s_%s.mzML' % (params['controller_name'], params['sample_name'])
     controller = TopNController(params['ionisation_mode'], params['N'], params['isolation_width'], params['mz_tol'],
                                 params['rt_tol'], params['min_ms1_intensity'])
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, ps, scan_duration_dict=time_dict)
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, scan_duration=time_dict)
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True, out_dir=out_dir,
                       out_file=out_file)
     logger.info('Generating %s' % out_file)
@@ -183,8 +183,8 @@ def run_single_SmartROI(params):
                                          intensity_increase_factor=intensity_increase_factor,
                                          drop_perc=drop_perc)
 
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'], params['ps'],
-                                            scan_duration_dict=params['time_dict'])
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
+                                            scan_duration=params['time_dict'])
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()
@@ -254,8 +254,8 @@ def run_single_WeightedDEW(params):
     controller = WeightedDEWController(params['ionisation_mode'], params['N'], params['isolation_width'],
                                        params['mz_tol'], params['r'], params['min_ms1_intensity'],
                                        exclusion_t_0=params['t0'], log_intensity=True)
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'], params['ps'],
-                                            scan_duration_dict=params['time_dict'])
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
+                                            scan_duration=params['time_dict'])
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()

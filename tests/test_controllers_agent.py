@@ -26,7 +26,7 @@ class TestAgentBasedController:
         agent = TopNDEWAgent(ionisation_mode, 10, 0.7, 10, 15, 1500)
         controller = AgentBasedController(agent)
         spike_noise = UniformSpikeNoise(0.1, 1000)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None, spike_noise=spike_noise)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
         env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -36,7 +36,7 @@ class TestAgentBasedController:
         check_mzML(env, OUT_DIR, 'shell.mzML')
 
         controller = AgentBasedController(agent)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None, spike_noise=spike_noise)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
         env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -46,7 +46,7 @@ class TestAgentBasedController:
         check_mzML(env, OUT_DIR, 'shell2.mzML')
 
         controller = AgentBasedController(agent)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None, spike_noise=spike_noise)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
         env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
         set_log_level_warning()
         env.run()

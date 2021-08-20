@@ -16,7 +16,7 @@ from vimms.Noise import GaussianPeakNoise
 
 class TestNegative:
     def test_neg(self, even_chems):
-        mass_spec = IndependentMassSpectrometer(NEGATIVE, even_chems, None)
+        mass_spec = IndependentMassSpectrometer(NEGATIVE, even_chems)
         N = 10
         controller = TopNController(NEGATIVE, N, 0.7, 10, 15, 0, force_N=True)
         env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
@@ -48,7 +48,7 @@ class TestTopNForcedN:
     Test the TopN controller when N is forced to be N. I.e. always fragment enough
     """
     def test_TopN_forceN(self, ten_chems):
-        mass_spec = IndependentMassSpectrometer(POSITIVE, ten_chems, None)
+        mass_spec = IndependentMassSpectrometer(POSITIVE, ten_chems)
         N = 20
         controller = TopNController(POSITIVE, N, 0.7, 10, 15, 0, force_N=True)
         env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
@@ -82,7 +82,7 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
 
@@ -109,7 +109,7 @@ class TestTopNController:
         # create a simulated mass spec with noise and Top-N controller
         mz_noise = GaussianPeakNoise(0.1)
         intensity_noise = GaussianPeakNoise(1000.)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, fragscan_ps, mz_noise=mz_noise,
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, mz_noise=mz_noise,
                                                 intensity_noise=intensity_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
@@ -135,7 +135,7 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
@@ -162,7 +162,7 @@ class TestTopNController:
         scan_duration_dict = {1: 0.2, 2: 0.1}
 
         # create a simulated mass spec without noise and Top-N controller and passing in the scan_duration dict
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, ps, scan_duration_dict=scan_duration_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, scan_duration=scan_duration_dict)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
@@ -187,7 +187,7 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks_onlyMH, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks_onlyMH)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks_onlyMH, CENTRE_RANGE)
 
@@ -229,7 +229,7 @@ class TestTopNAdvanced:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY, params=params)
 
         # create an environment to run both the mass spec and controller
@@ -282,7 +282,7 @@ class TestTopNControllerSpectra:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra, fragscan_ps)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         min_bound, max_bound = get_rt_bounds(fragscan_dataset_spectra, CENTRE_RANGE)
 
@@ -311,7 +311,7 @@ class TestIonisationMode:
         mz_tol = 10
         rt_tol = 15
 
-        ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
+        ms = IndependentMassSpectrometer(POSITIVE, dataset)
         controller = TopNController(POSITIVE, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         env = Environment(ms, controller, 102, 110, progress_bar=True)
         set_log_level_warning()
@@ -340,7 +340,7 @@ class TestIonisationMode:
         mz_tol = 10
         rt_tol = 15
 
-        ms = IndependentMassSpectrometer(NEGATIVE, dataset, None)
+        ms = IndependentMassSpectrometer(NEGATIVE, dataset)
         controller = TopNController(NEGATIVE, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
         env = Environment(ms, controller, 102, 110, progress_bar=True)
         set_log_level_warning()
@@ -374,7 +374,7 @@ class TestIonisationMode:
         # should be 15 peaks or less all the time
         # some adducts might not be sampled if the probability is less than 0.2
         controller = SimpleMs1Controller()
-        ms = IndependentMassSpectrometer(POSITIVE, dataset, None)
+        ms = IndependentMassSpectrometer(POSITIVE, dataset)
         env = Environment(ms, controller, 102, 110, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -394,7 +394,7 @@ class TestExclusion:
 
         initial_exclusion_list = []
         for i in range(3):
-            mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps)
+            mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                         initial_exclusion_list=initial_exclusion_list)
             print('exclude = %d' % len(controller.exclusion.exclusion_list))
@@ -429,7 +429,7 @@ class TestExclusion:
         isolation_width = 1
         all_controllers = []
         for i in range(3):
-            mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset, None)
+            mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
                                         initial_exclusion_list=initial_exclusion_list)
             print('exclude = %d' % len(controller.exclusion.exclusion_list))
@@ -460,8 +460,7 @@ class TestTopNShiftedController:
         scan_duration_dict = {1: 0.2, 2: 0.1}
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
-                                                scan_duration_dict=scan_duration_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, scan_duration=scan_duration_dict)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                     ms1_shift=test_shift)
 
@@ -494,8 +493,7 @@ class TestWeightedDEWController:
         scan_duration_dict = {1: 0.2, 2: 0.1}
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, fragscan_ps,
-                                                scan_duration_dict=scan_duration_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, scan_duration=scan_duration_dict)
         controller = WeightedDEWController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                            ms1_shift=test_shift,
                                            exclusion_t_0=exclusion_t_0,

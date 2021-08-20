@@ -109,6 +109,7 @@ IN_SILICO_OPTIMISE_WEIGHTED_DEW = 'WeightedDEW'
 ROI_EXCLUSION_DEW = 'exclusion_dew'
 ROI_EXCLUSION_WEIGHTED_DEW = 'exclusion_weighted_dew'
 
+
 ########################################################################################################################
 # Common classes
 ########################################################################################################################

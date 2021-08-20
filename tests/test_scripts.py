@@ -48,7 +48,7 @@ class TestMS2Matching:
             controller = TopNController(POSITIVE, N, isolation_width, \
                                         mz_tol, rt_tol, min_ms1_intensity, \
                                         initial_exclusion_list=initial_exclusion_list)
-            ms = IndependentMassSpectrometer(POSITIVE, chem_list, None)
+            ms = IndependentMassSpectrometer(POSITIVE, chem_list)
             env = Environment(ms, controller, 10, 30, progress_bar=True)
             env.run()
             env.write_mzML(output_folder,'{}.mzML'.format(i))

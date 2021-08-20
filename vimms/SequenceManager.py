@@ -167,8 +167,7 @@ class VimmsSequenceManager(BaseSequenceManager):
             dataset = self.controller_schedule['Dataset'][idx]
             if method is not None and dataset is not None:
                 dataset = load_obj(self.controller_schedule['Dataset'][idx])
-                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset,
-                                                        ms_params['peak_sampler'])
+                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset)
                 # Run sample
                 env = Environment(mass_spec, controller, self.rt_range[0][0],
                                   self.rt_range[0][1], progress_bar=self.progress_bar)

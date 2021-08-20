@@ -9,7 +9,7 @@ from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, EmpiricalChromatogram
 from vimms.Common import Formula, DummyFormula, uniform_list, DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW, \
-    POSITIVE, NEGATIVE, PROTON_MASS
+    POSITIVE, NEGATIVE, PROTON_MASS, DEFAULT_SCAN_TIME_DICT
 from vimms.Roi import make_roi, RoiParams
 
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
@@ -567,3 +567,17 @@ class MZMLMS2Sampler(MS2Sampler):
         mz_list, intensity_list = zip(*scan.peaks)
 
         return mz_list, intensity_list, parent_proportion
+
+
+###############################################################################################################
+# Scan time samplers
+###############################################################################################################
+
+class DefaultScanTimeSampler():
+    def sample_time(self, current_level, next_level):
+        return DEFAULT_SCAN_TIME_DICT
+
+
+class MzMLScanTimeSampler():
+    def sample_time(self, current_level, next_level):
+        pass

@@ -203,7 +203,7 @@ class TestChemicalsFromMZML():
     def test_fullscan_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
-        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -218,7 +218,7 @@ class TestChemicalsFromMZML():
         rt_tol = 15
         min_ms1_intensity = 10
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
-        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -229,7 +229,7 @@ class TestChemicalsFromMZML():
     def test_mz_rt_i_from_mzml(self, chem_mz_rt_i_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
-        ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml, None)
+        ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=True)
         set_log_level_warning()
         env.run()

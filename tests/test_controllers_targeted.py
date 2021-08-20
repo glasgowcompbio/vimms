@@ -27,7 +27,7 @@ class TestTargetedController:
         ce_values = [10, 20, 30]
         n_replicates = 4
         controller = TargetedController(targets, ce_values, n_replicates=n_replicates, limit_acquisition=True)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, d, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, d)
         env = Environment(mass_spec, controller, 5, 25, progress_bar=True)
         set_log_level_warning()
         env.run()

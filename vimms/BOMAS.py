@@ -123,7 +123,7 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
                                         initial_exclusion_list=None, force_N=False)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
@@ -157,7 +157,7 @@ def top_n_exclusion_experiment_evaluation(datasets, min_rt, max_rt, N, isolation
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         agent = TopNDEWAgent(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, remove_exclusion=False)
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = AgentBasedController(agent)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
@@ -188,7 +188,7 @@ def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                                             min_roi_length, N=N, rt_tol=rt_tol)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
@@ -222,7 +222,7 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity,
                                                  min_roi_intensity,
                                                  min_roi_length, N=N, rt_tol=rt_tol,
@@ -259,7 +259,7 @@ def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_wi
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = WeightedDEWController(POSITIVE, N, isolation_window, mz_tol, r, min_ms1_intensity,
                                                exclusion_t_0=t0, log_intensity=True)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
@@ -295,7 +295,7 @@ def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N
         boxes_intensity = []
         aligner = RoiAligner()
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopNBoxRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                                               min_roi_length, boxes_params=boxes_params, boxes=boxes,
                                               boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
@@ -339,7 +339,7 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = NonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
@@ -385,7 +385,7 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = IntensityNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
@@ -435,7 +435,7 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
         else:
             register_all_roi = False
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol, register_all_roi=register_all_roi,
@@ -480,7 +480,7 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
@@ -514,7 +514,7 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
                                base_chemicals=None, mzmine_files=None, rt_tolerance=100, progress_bar=False):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
-    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0], None)  # necessary to get timings for schedule
+    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0])  # necessary to get timings for schedule
     create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir)
     print('Please open and run R script now')
     time.sleep(1)
@@ -524,7 +524,7 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
         mzml_files = []
         source_files = ['sample_' + "%03d" % i for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             if i == 0:
                 controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
                                             ms1_shift=0, initial_exclusion_list=None, force_N=False)

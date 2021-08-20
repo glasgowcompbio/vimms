@@ -33,7 +33,7 @@ class TestMultipleMS2Windows:
         ionisation_mode = POSITIVE
 
         controller = FixedScansController()
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
@@ -73,7 +73,7 @@ class TestFixedScansController:
         ionisation_mode = POSITIVE
 
         controller = FixedScansController(schedule=None)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
@@ -103,7 +103,7 @@ class TestMultiIsolationController:
         d = cs.sample(3, 2)  # sample chems with m/z = 100 and 200
         ionisation_mode = POSITIVE
         controller = MultiIsolationController(N)
-        ms = IndependentMassSpectrometer(POSITIVE, d, None)
+        ms = IndependentMassSpectrometer(POSITIVE, d)
         env = Environment(ms, controller, 10, 20, progress_bar=True)
         set_log_level_warning()
         env.run()

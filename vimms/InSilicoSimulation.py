@@ -52,7 +52,9 @@ def get_timing(time_dict_str):
 def extract_timing(seed_file):
     """
     Extracts timing information from a seed file
-    :param seed_file: the seed file in mzML format, should be a DDA file (containing MS1 and MS2 scans)
+    :param seed_file: the seed file in mzML format
+    If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and MS2 timing will be extracted.
+    If it's only a fullscan file (containing MS1 scans) then only MS1 timing will be extracted.
     :return: a dictionary of time information. Key should be the ms-level, 1 or 2, and
     value is the average time of scans at that level
     """
@@ -66,26 +68,38 @@ def extract_timing(seed_file):
         tup = (current, next_)
         time_dict[tup].append(60 * seed_mzml.scans[i + 1].rt_in_minutes - 60 * s.rt_in_minutes)
 
-    # seed_file must contain timing on (1,2) and (2,2)
-    # i.e. it must be a DDA file with MS1 and MS2 scans
-    assert (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0
-    assert (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0
+    is_frag_file = False
+    if (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0 and \
+        (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
+
+        # seed_file must contain timing on (1,2) and (2,2)
+        # i.e. it must be a DDA file with MS1 and MS2 scans
+        is_frag_file = True
 
     # construct timing dict in the right format for later use
     new_time_dict = {}
-    for k, v in time_dict.items():
-        if k == (1, 2):
-            key = 1
-        elif k == (2, 2):
-            key = 2
-        else:
-            continue
+    if is_frag_file:
+        # extract ms1 and ms2 timing from fragmentation mzML
+        for k, v in time_dict.items():
+            if k == (1, 2):
+                key = 1
+            elif k == (2, 2):
+                key = 2
+            else:
+                continue
 
+            mean = sum(v) / len(v)
+            new_time_dict[key] = mean
+            logger.debug('%d: %f' % (key, mean))
+        assert 1 in new_time_dict and 2 in new_time_dict
+    else:
+        # extract ms1 timing only from fullscan mzML
+        key = 1
+        v = time_dict[(1, 1)]
         mean = sum(v) / len(v)
         new_time_dict[key] = mean
         logger.debug('%d: %f' % (key, mean))
 
-    assert 1 in new_time_dict and 2 in new_time_dict
     return new_time_dict
 
 

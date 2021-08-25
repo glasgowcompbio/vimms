@@ -4,7 +4,6 @@ from loguru import logger
 from tqdm import tqdm
 
 from vimms.Common import save_obj
-from vimms.Controller import TopNController
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
 
@@ -95,11 +94,7 @@ class Environment(object):
         :return: None
         """
         if self.bar is not None and scan.scan_duration is not None:
-            N, DEW = self._get_N_DEW(self.mass_spec.time)
-            if N is not None and DEW is not None:
-                msg = '(%.3fs) ms_level=%d N=%d DEW=%d' % (self.mass_spec.time, scan.ms_level, N, DEW)
-            else:
-                msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
+            msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
             if self.bar.n + scan.scan_duration < self.bar.total:
                 self.bar.update(scan.scan_duration)
             self.bar.set_description(msg)
@@ -167,27 +162,8 @@ class Environment(object):
         # add the initial tasks from the controller to the mass spec task manager
         self.mass_spec.task_manager.add_current(self.controller.get_initial_tasks())
 
-        N, DEW = self._get_N_DEW(self.mass_spec.time)
-        if N is not None:
-            self.mass_spec.current_N = N
-        if DEW is not None:
-            self.mass_spec.current_DEW = DEW
-
     def get_initial_scan_params(self):
         return self.controller.get_initial_scan_params()
-
-    def _get_N_DEW(self, time):
-        """
-        Gets the current N and DEW depending on which controller type it is
-        :return: The current N and DEW values, None otherwise
-        """
-        # if isinstance(self.controller, PurityController):
-        #     current_N, current_rt_tol, idx = self.controller._get_current_N_DEW(time)
-        #     return current_N, current_rt_tol
-        if isinstance(self.controller, TopNController):
-            return self.controller.N, self.controller.rt_tol
-        else:
-            return None, None
 
     def save(self, outname):
         data_to_save = {

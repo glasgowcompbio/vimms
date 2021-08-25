@@ -1,9 +1,5 @@
 import time
 
-import ax
-from ax import *
-from ax.modelbridge.registry import Models
-from ax.service.utils.instantiation import parameter_from_json
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
@@ -127,7 +123,7 @@ def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window, m
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
                                         initial_exclusion_list=None, force_N=False)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
@@ -161,7 +157,7 @@ def top_n_exclusion_experiment_evaluation(datasets, min_rt, max_rt, N, isolation
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         agent = TopNDEWAgent(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity, remove_exclusion=False)
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = AgentBasedController(agent)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
             env.run()
@@ -192,7 +188,7 @@ def top_n_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopN_RoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                                             min_roi_length, N=N, rt_tol=rt_tol)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
@@ -226,7 +222,7 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_windo
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopN_SmartRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity,
                                                  min_roi_intensity,
                                                  min_roi_length, N=N, rt_tol=rt_tol,
@@ -263,7 +259,7 @@ def weighted_dew_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_wi
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = WeightedDEWController(POSITIVE, N, isolation_window, mz_tol, r, min_ms1_intensity,
                                                exclusion_t_0=t0, log_intensity=True)
             env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
@@ -299,7 +295,7 @@ def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt, N
         boxes_intensity = []
         aligner = RoiAligner()
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = TopNBoxRoiController(POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                                               min_roi_length, boxes_params=boxes_params, boxes=boxes,
                                               boxes_intensity=boxes_intensity, N=N, rt_tol=rt_tol)
@@ -343,7 +339,7 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = NonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
@@ -389,7 +385,7 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = IntensityNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
@@ -439,7 +435,7 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
         else:
             register_all_roi = False
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol, register_all_roi=register_all_roi,
@@ -484,7 +480,7 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             controller = FlexibleNonOverlapController(
                 POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
                 min_roi_length, N, grid, rt_tol=rt_tol,
@@ -518,7 +514,7 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
                                base_chemicals=None, mzmine_files=None, rt_tolerance=100, progress_bar=False):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
-    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0], None)  # necessary to get timings for schedule
+    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0])  # necessary to get timings for schedule
     create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir)
     print('Please open and run R script now')
     time.sleep(1)
@@ -528,7 +524,7 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
         mzml_files = []
         source_files = ['sample_' + "%03d" % i for i in range(len(datasets))]
         for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i], None)
+            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
             if i == 0:
                 controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
                                             ms1_shift=0, initial_exclusion_list=None, force_N=False)
@@ -560,178 +556,3 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
         return env_list, evaluation
     else:
         return None, None
-
-
-########################################################################################################################
-# Optimisation methods
-########################################################################################################################
-
-def top_n_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, save_file_name, mass_spec_file,
-                                ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, params_file,
-                                min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
-    parameters = [
-        # the variable controller bits
-        {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
-        {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
-        # the mass spec bits
-        {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
-        # the controller bits
-        {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
-        {"name": "isolation_width", "type": "fixed", "value": isolation_width},
-        {"name": "mz_tol", "type": "fixed", "value": mz_tol},
-        {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
-        {"name": "params_file", "type": "fixed", "value": params_file},
-        # the env bits
-        {"name": "min_rt", "type": "fixed", "value": min_rt},
-        {"name": "max_rt", "type": "fixed", "value": max_rt},
-        {"name": "save_file_name", "type": "fixed", "value": save_file_name},
-        # the evaluation bits
-        {"name": "box_file", "type": "fixed", "value": box_file},
-        {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
-    ]
-    param_list = [parameter_from_json(p) for p in parameters]
-    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
-
-    exp = ax.SimpleExperiment(
-        name="test_experiment",
-        search_space=search_space,
-        evaluation_function=top_n_evaluation,
-        objective_name="score",
-        minimize=False
-    )
-
-    sobol = Models.SOBOL(exp.search_space)
-    for i in range(n_sobol):
-        print(f"Running Sobol trial {i + 1}")
-        exp.new_batch_trial(generator_run=sobol.gen(1))
-        exp.eval()
-
-    model = None
-    for i in range(n_gpei):
-        model = Models.GPEI(experiment=exp, data=exp.eval())
-        print(f"Running GPEI trial {i + 1}")
-        exp.new_trial(generator_run=model.gen(batch_size))
-
-    parameter_inputs = [trial.arms[0].parameters for trial in exp.trials.values()]
-    scores = np.array(exp.eval().df['mean'])
-    max_score = scores.max()
-    optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
-    return exp, parameter_inputs, scores, max_score, optimal_parameters, model
-
-
-def smart_roi_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, iff_range, dp_range, save_file_name,
-                                    mass_spec_file, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
-                                    params_file, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation,
-                                    reset_length_seconds, ms1_shift, min_rt, max_rt, box_file, half_isolation_window,
-                                    batch_size=1):
-    parameters = [
-        # the variable controller bits
-        {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
-        {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
-        {"name": "intensity_increase_factor", "type": "range", "bounds": iff_range},
-        {"name": "drop_perc", "type": "range", "bounds": dp_range},
-        # the mass spec bits
-        {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
-        # the controller bits
-        {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
-        {"name": "isolation_width", "type": "fixed", "value": isolation_width},
-        {"name": "mz_tol", "type": "fixed", "value": mz_tol},
-        {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
-        {"name": "params_file", "type": "fixed", "value": params_file},
-        {"name": "min_roi_intensity", "type": "fixed", "value": min_roi_intensity},
-        {"name": "min_roi_length", "type": "fixed", "value": min_roi_length},
-        {"name": "min_roi_length_for_fragmentation", "type": "fixed", "value": min_roi_length_for_fragmentation},
-        {"name": "ms1_shift", "type": "fixed", "value": ms1_shift},
-        {"name": "reset_length_seconds", "type": "fixed", "value": reset_length_seconds},
-        # the env bits
-        {"name": "min_rt", "type": "fixed", "value": min_rt},
-        {"name": "max_rt", "type": "fixed", "value": max_rt},
-        {"name": "save_file_name", "type": "fixed", "value": save_file_name},
-        # the evaluation bits
-        {"name": "box_file", "type": "fixed", "value": box_file},
-        {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
-    ]
-    param_list = [parameter_from_json(p) for p in parameters]
-    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=None)
-
-    exp = ax.SimpleExperiment(
-        name="test_experiment",
-        search_space=search_space,
-        evaluation_function=smart_roi_evaluation,
-        objective_name="score",
-        minimize=False
-    )
-
-    sobol = Models.SOBOL(exp.search_space)
-    for i in range(n_sobol):
-        print(f"Running Sobol trial {i + 1}")
-        exp.new_batch_trial(generator_run=sobol.gen(1))
-        exp.eval()
-
-    model = None
-    for i in range(n_gpei):
-        model = Models.GPEI(experiment=exp, data=exp.eval())
-        print(f"Running GPEI trial {i + 1}")
-        exp.new_trial(generator_run=model.gen(batch_size))
-
-    parameter_inputs = [trial.arms[0].parameters for trial in exp.trials.values()]
-    scores = np.array(exp.eval().df['mean'])
-    max_score = scores.max()
-    optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
-    return exp, parameter_inputs, scores, max_score, optimal_parameters, model
-
-
-def weighted_dew_bayesian_optimisation(n_sobol, n_gpei, n_range, rt_tol_range, t0_range, save_file_name, mass_spec_file,
-                                       ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, log_intensity,
-                                       params_file,
-                                       min_rt, max_rt, box_file, half_isolation_window, batch_size=1):
-    parameters = [
-        # the variable controller bits
-        {"name": "N", "type": "range", "bounds": n_range, "value_type": "int"},
-        {"name": "rt_tol", "type": "range", "bounds": rt_tol_range},
-        {"name": "exclusion_t_0", "type": "range", "bounds": t0_range},
-        # the mass spec bits
-        {"name": "mass_spec_file", "type": "fixed", "value": mass_spec_file},
-        # the controller bits
-        {"name": "ionisation_mode", "type": "fixed", "value": ionisation_mode},
-        {"name": "isolation_width", "type": "fixed", "value": isolation_width},
-        {"name": "mz_tol", "type": "fixed", "value": mz_tol},
-        {"name": "min_ms1_intensity", "type": "fixed", "value": min_ms1_intensity},
-        {"name": "log_intensity", "type": "fixed", "value": log_intensity},
-        {"name": "params_file", "type": "fixed", "value": params_file},
-        # the env bits
-        {"name": "min_rt", "type": "fixed", "value": min_rt},
-        {"name": "max_rt", "type": "fixed", "value": max_rt},
-        {"name": "save_file_name", "type": "fixed", "value": save_file_name},
-        # the evaluation bits
-        {"name": "box_file", "type": "fixed", "value": box_file},
-        {"name": "half_isolation_window", "type": "fixed", "value": half_isolation_window}
-    ]
-    param_list = [parameter_from_json(p) for p in parameters]
-    param_constraints = [OrderConstraint(lower_parameter=param_list[2], upper_parameter=param_list[1])]  # t0 and rt_tol
-    search_space = ax.SearchSpace(parameters=param_list, parameter_constraints=param_constraints)
-
-    exp = ax.SimpleExperiment(
-        name="test_experiment",
-        search_space=search_space,
-        evaluation_function=weighted_dew_evaluation,
-        objective_name="score",
-        minimize=False
-    )
-    sobol = Models.SOBOL(exp.search_space)
-    for i in range(n_sobol):
-        print(f"Running Sobol trial {i + 1}")
-        exp.new_batch_trial(generator_run=sobol.gen(1))
-        exp.eval()
-
-    model = None
-    for i in range(n_gpei):
-        model = Models.GPEI(experiment=exp, data=exp.eval())
-        print(f"Running GPEI trial {i + 1}")
-        exp.new_trial(generator_run=model.gen(batch_size))
-
-    parameter_inputs = [trial.arms[0].parameters for trial in exp.trials.values()]
-    scores = np.array(exp.eval().df['mean'])
-    max_score = scores.max()
-    optimal_parameters = np.array(parameter_inputs)[np.where(scores == max_score)[0]]
-    return exp, parameter_inputs, scores, max_score, optimal_parameters, model

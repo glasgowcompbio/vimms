@@ -8,9 +8,9 @@ from mass_spec_utils.library_matching.gnps import load_mgf
 from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check_non_empty_MS2
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, UniformMZFormulaSampler, \
     CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, MZMLRTandIntensitySampler, MZMLFormulaSampler, \
-    MZMLChromatogramSampler
+    MZMLChromatogramSampler, MzMLScanTimeSampler
 from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning, set_log_level_debug
+from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning, DEFAULT_SCAN_TIME_DICT
 from vimms.Controller import SimpleMs1Controller, TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -23,6 +23,7 @@ from vimms.Utils import write_msp, mgf_to_database
 MZ_RANGE = [(300, 600)]
 RT_RANGE = [(300, 500)]
 N_CHEMS = 10
+
 
 @pytest.fixture(scope="module")
 def simple_dataset():
@@ -203,7 +204,7 @@ class TestChemicalsFromMZML():
     def test_fullscan_from_mzml(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
-        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -218,7 +219,7 @@ class TestChemicalsFromMZML():
         rt_tol = 15
         min_ms1_intensity = 10
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
-        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, None)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -229,9 +230,79 @@ class TestChemicalsFromMZML():
     def test_mz_rt_i_from_mzml(self, chem_mz_rt_i_from_mzml):
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
-        ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml, None)
+        ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=True)
         set_log_level_warning()
         env.run()
         filename = 'fullscan_mz_rt_i_from_mzml.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
+class TestScanTiming():
+    def test_default_scan_time(self, chems_from_mzml):
+        ionisation_mode = POSITIVE
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 0.01
+        rt_tol = 15
+        min_ms1_intensity = 10
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
+
+        # run simulation using default scan times
+        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml, scan_duration=DEFAULT_SCAN_TIME_DICT)
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'test_scan_time_default.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_scan_time_from_mzml(self):
+        ionisation_mode = POSITIVE
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 0.01
+        rt_tol = 15
+        min_ms1_intensity = 10
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
+
+        # extract chemicals from mzML
+        roi_params = RoiParams(min_intensity=10, min_length=5)
+        cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
+        chems = cm.sample(None, 2)
+
+        # extract timing from mzML and sample one value each time when generating a scan duration
+        sd = MzMLScanTimeSampler(MZML_FILE, use_mean=False)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems, scan_duration=sd)
+
+        # run simulation
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'test_scan_time_from_mzml.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
+    def test_mean_scan_time_from_mzml(self):
+        ionisation_mode = POSITIVE
+        N = 10
+        isolation_width = 0.7
+        mz_tol = 0.01
+        rt_tol = 15
+        min_ms1_intensity = 10
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
+
+        # extract chemicals from mzML
+        roi_params = RoiParams(min_intensity=10, min_length=5)
+        cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
+        chems = cm.sample(None, 2)
+
+        # extract mean timing per scan level from mzML
+        sd = MzMLScanTimeSampler(MZML_FILE, use_mean=True)
+        ms = IndependentMassSpectrometer(ionisation_mode, chems, scan_duration=sd)
+
+        # run simulation
+        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        set_log_level_warning()
+        env.run()
+        filename = 'test_scan_time_mean_from_mzml.mzML'
         check_mzML(env, OUT_DIR, filename)

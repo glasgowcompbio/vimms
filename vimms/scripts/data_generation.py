@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     spike_noise = UniformSpikeNoise(0.01, args.spike_max)
 
-    ms = IndependentMassSpectrometer(POSITIVE_IONISATION_MODE, dataset, None, spike_noise=spike_noise)
+    ms = IndependentMassSpectrometer(POSITIVE_IONISATION_MODE, dataset, spike_noise=spike_noise)
 
     controller = TopNController(POSITIVE_IONISATION_MODE, 10, 0.7, 0.01, 15, 1e3)
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     if args.output_swath_file is not None:
         sw = SWATH(args.min_mz, args.max_mz, 100, 0.0)
-        ms = IndependentMassSpectrometer(POSITIVE_IONISATION_MODE, dataset, None, spike_noise=spike_noise)
+        ms = IndependentMassSpectrometer(POSITIVE_IONISATION_MODE, dataset, spike_noise=spike_noise)
         env = Environment(ms, sw, min_time=args.min_rt - 50, max_time=args.max_rt + 50)
         env.run()
         env.write_mzML(None, args.output_swath_file)

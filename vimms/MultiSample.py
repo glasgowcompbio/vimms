@@ -137,7 +137,7 @@ def top_n_experiment(datasets, base_chemicals, rt_range, N, isolation_width, mz_
                      ionisation_mode=POSITIVE):
     env_list = []
     for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i])
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
                                     initial_exclusion_list=None, force_N=False)
         env = Environment(mass_spec, controller, rt_range[0], rt_range[1], progress_bar=True)
@@ -152,7 +152,7 @@ def top_n_roi_experiment(datasets, base_chemicals, rt_range, isolation_width, mz
                          min_roi_length, N, rt_tol, ionisation_mode=POSITIVE):
     env_list = []
     for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i])
         controller = TopN_RoiController(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                                         min_roi_length, N=N, rt_tol=rt_tol)
         env = Environment(mass_spec, controller, rt_range[0], rt_range[1], progress_bar=True)
@@ -168,7 +168,7 @@ def non_overlap_experiment(datasets, base_chemicals, rt_range, isolation_width, 
     env_list = []
     grid = GridEstimator(LocatorGrid(rt_range[0], rt_range[1], rt_box_size, 0, 3000, mz_box_size), IdentityDrift())
     for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i])
         controller = NonOverlapController(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, grid, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation)
@@ -186,7 +186,7 @@ def top_n_box_experiment(datasets, base_chemicals, rt_range, boxes_params, datas
     boxes = None
     boxes_intensity = None
     for i in range(len(datasets)):
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i], None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, datasets[i])
         controller = TopNBoxRoiController(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
                                           min_roi_intensity,
                                           min_roi_length, boxes_params=boxes_params, boxes=boxes,

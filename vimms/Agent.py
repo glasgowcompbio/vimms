@@ -3,10 +3,7 @@ import collections
 from random import randrange
 
 import numpy as np
-import torch
-import torch.nn as nn
 from loguru import logger
-from torch.distributions import Categorical
 
 from vimms.Common import ScanParameters
 from vimms.Exclusion import TopNExclusion
@@ -233,77 +230,6 @@ class ReinforceAgent(TopNDEWAgent):
                 self.pi.scan_id_rewards[parent_scan_id] = reward
             else:
                 self.pi.scan_id_rewards[parent_scan_id] += reward
-
-
-class Pi(nn.Module):
-    def __init__(self, hidden_dim):
-        super().__init__()
-        self.in_dim = 20
-        self.out_dim = 10
-        self.hidden_dim = hidden_dim
-        layers = [
-            nn.Linear(self.in_dim, self.hidden_dim),
-            nn.Dropout(p=0.1),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.Dropout(p=0.5),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.out_dim),
-        ]
-        self.model = nn.Sequential(*layers)
-        self.onpolicy_reset()
-        self.train()  # set training mode
-
-    def onpolicy_reset(self):
-        self.log_probs = []
-        self.scan_ids = []
-        self.scan_id_rewards = {}
-
-    def forward(self, x):
-        pdparam = self.model(x)
-        return pdparam
-
-    def act(self, state, scan_id):
-        x = torch.from_numpy(state.astype(np.float32))  # to tensor
-        pdparam = self.forward(x)  # forward pass
-        pd = Categorical(logits=pdparam)  # probability distribution
-        action = pd.sample()  # pi(a|s) in action via pd
-        log_prob = pd.log_prob(action)  # log_prob of pi(a|s)
-        self.log_probs.append(log_prob)  # store for training
-        self.scan_ids.append(scan_id)
-        return action.item()
-
-
-def train(pi, optimizer, gamma):
-    rewards = []
-    for scan_id in pi.scan_ids:
-        reward = 0
-        if scan_id in pi.scan_id_rewards:
-            reward = pi.scan_id_rewards[scan_id]
-        rewards.append(reward)
-    pi.rewards = np.array(rewards)
-
-    # Inner gradient-ascent loop of REINFORCE algorithm
-    T = len(pi.rewards)
-    rets = np.empty(T, dtype=np.float32)  # the returns
-    future_ret = 0.0
-
-    # compute the return efficiently
-    for t in reversed(range(T)):
-        future_ret = pi.rewards[t] + gamma * future_ret
-        rets[t] = future_ret
-    rets = torch.tensor(rets)
-    rets = rets - rets.mean()
-    log_probs = torch.stack(pi.log_probs)
-
-    # print(log_probs)
-    # print(rets)
-    loss = - log_probs * rets  # gradient term: Negative for maximizing
-    loss = torch.sum(loss)
-    optimizer.zero_grad()
-    loss.backward()  # backpropogate, compute gradients
-    optimizer.step()  # gradient-ascent, update the weights
-    return loss
 
 
 class RandomAgent(TopNDEWAgent):

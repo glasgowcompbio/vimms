@@ -39,7 +39,7 @@ def run_experiment(param):
             max_rt = param['max_rt']
             peak_sampler = get_peak_sampler(mzml_path, fragfile, min_rt, max_rt)
 
-        mass_spec = IndependentMassSpectrometer(param['ionisation_mode'], param['data'], peak_sampler)
+        mass_spec = IndependentMassSpectrometer(param['ionisation_mode'], param['data'])
         controller = TopNController(param['ionisation_mode'], param['N'], param['isolation_width'],
                                     param['mz_tol'], param['rt_tol'], param['min_ms1_intensity'])
         # create an environment to run both the mass spec and controller

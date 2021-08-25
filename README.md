@@ -79,7 +79,8 @@ To use the latest bleeding-edge ViMMS code in this repository, follow the steps 
 2. Install pipenv (https://pipenv.readthedocs.io/en/latest/).
 3. Clone this repository by checking out the master branch: `git clone https://github.com/sdrogers/vimms.git`.
 4. In this cloned directory, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
-5. Run Jupyter Notebook (`$ jupyter notebook`) or Jupyter Lab (`$ jupyter lab`).
+5. Go into the newly created virtual environment in step (4) by typing `$ pipenv shell`.
+6. Run Jupyter (`$ jupyter lab`) so you could run the example notebooks below.
 
 Example Notebooks
 --------

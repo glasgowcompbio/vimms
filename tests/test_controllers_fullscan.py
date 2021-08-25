@@ -21,7 +21,7 @@ class TestMS1Controller:
         assert len(fragscan_dataset_peaks) == N_CHEMS
 
         # create a simulated mass spec and MS1 controller
-        mass_spec = IndependentMassSpectrometer(POSITIVE, fragscan_dataset_peaks, fullscan_ps)
+        mass_spec = IndependentMassSpectrometer(POSITIVE, fragscan_dataset_peaks)
         controller = SimpleMs1Controller()
 
         # create an environment to run both the mass spec and controller
@@ -36,7 +36,7 @@ class TestMS1Controller:
         logger.info('Testing MS1 controller with QC beer chemicals')
 
         # create a simulated mass spec and MS1 controller
-        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fullscan_ps)
+        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS)
         controller = SimpleMs1Controller()
 
         # create an environment to run both the mass spec and controller
@@ -55,7 +55,7 @@ class TestMS1Controller:
         logger.info('Testing MS1 controller with narrow m/z range')
 
         # create a simulated mass spec and MS1 controller
-        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS, fullscan_ps)
+        mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS)
         params = AdvancedParams()
         params.default_ms1_scan_window = (min_mz, max_mz)
         controller = SimpleMs1Controller(params=params)

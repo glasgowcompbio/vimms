@@ -103,7 +103,7 @@ def extract_timing(seed_file):
     return new_time_dict
 
 
-def run_TopN(chems, ps, time_dict, params, out_dir):
+def run_TopN(chems, scan_duration, params, out_dir):
     """
     Simulate TopN controller
     :param chems: a list of UnknownChemicals present in the injection
@@ -119,14 +119,14 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
     out_file = '%s_%s.mzML' % (params['controller_name'], params['sample_name'])
     controller = TopNController(params['ionisation_mode'], params['N'], params['isolation_width'], params['mz_tol'],
                                 params['rt_tol'], params['min_ms1_intensity'])
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, scan_duration=time_dict)
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, scan_duration=scan_duration)
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True, out_dir=out_dir,
                       out_file=out_file)
     logger.info('Generating %s' % out_file)
     env.run()
 
 
-def run_SmartROI(chems, ps, time_dict, params, out_dir):
+def run_SmartROI(chems, scan_duration, params, out_dir):
     """
     Simulate SmartROI controller
     :param chems: a list of UnknownChemicals present in the injection
@@ -150,8 +150,7 @@ def run_SmartROI(chems, ps, time_dict, params, out_dir):
             copy_params['iif'] = iif
             copy_params['dp'] = dp
             copy_params['chems'] = chems
-            copy_params['ps'] = ps
-            copy_params['time_dict'] = time_dict
+            copy_params['scan_duration'] = scan_duration
             copy_params['out_dir'] = out_dir
             params_list.append(copy_params)
 
@@ -198,13 +197,13 @@ def run_single_SmartROI(params):
                                          drop_perc=drop_perc)
 
     mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
-                                            scan_duration=params['time_dict'])
+                                            scan_duration=params['scan_duration'])
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()
 
 
-def run_WeightedDEW(chems, ps, time_dict, params, out_dir):
+def run_WeightedDEW(chems, scan_duration, params, out_dir):
     """
     Simulate WeightedDEW controller
     :param chems: a list of UnknownChemicals present in the injection
@@ -228,8 +227,7 @@ def run_WeightedDEW(chems, ps, time_dict, params, out_dir):
             copy_params['t0'] = t0
             copy_params['r'] = r
             copy_params['chems'] = chems
-            copy_params['ps'] = ps
-            copy_params['time_dict'] = time_dict
+            copy_params['scan_duration'] = scan_duration
             copy_params['out_dir'] = out_dir
             params_list.append(copy_params)
 
@@ -269,7 +267,7 @@ def run_single_WeightedDEW(params):
                                        params['mz_tol'], params['r'], params['min_ms1_intensity'],
                                        exclusion_t_0=params['t0'], log_intensity=True)
     mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
-                                            scan_duration=params['time_dict'])
+                                            scan_duration=params['scan_duration'])
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()

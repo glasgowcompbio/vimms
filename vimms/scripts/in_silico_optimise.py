@@ -24,12 +24,11 @@ class InSilicoSimulator(object):
     def run(self):
         # get the chemicals, timing, peak sample object and parameters
         chems = self.get_chems()
-        time_dict = self.get_time_dict()
-        ps = self.get_ps()
+        scan_duration = self.get_scan_duration()
         params = self.get_params()
 
         # simulate controller and evaluate performance
-        self.simulate(chems, time_dict, ps, params)
+        self.simulate(chems, scan_duration, params)
         self.evaluate(params)
 
     def get_chems(self):
@@ -45,19 +44,13 @@ class InSilicoSimulator(object):
         chems = extract_chemicals(self.seed_file, params_dict)
         return chems
 
-    def get_time_dict(self):
+    def get_scan_duration(self):
         # if provided, read timing information from config
         # otherwise extract timing from the seed file too
         # parse time dict, this really should be computed from the data
-        time_dict_str = self.config_parser.get('simulation', 'time_dict')
+        time_dict_str = self.config_parser.get('simulation', 'scan_duration')
         time_dict = get_timing(time_dict_str) if len(time_dict_str) > 0 else extract_timing(self.seed_file)
         return time_dict
-
-    def get_ps(self):
-        # TODO: this should go away as part of issue #46
-        ps_file = self.config_parser.get('simulation', 'ps_file')
-        ps = load_obj(ps_file)
-        return ps
 
     def simulate(self):
         raise NotImplementedError()
@@ -94,8 +87,8 @@ class TopNSimulator(InSilicoSimulator):
         }
         return params
 
-    def simulate(self, chems, time_dict, ps, params):
-        run_TopN(chems, ps, time_dict, params, self.out_dir)
+    def simulate(self, chems, scan_duration, params):
+        run_TopN(chems, scan_duration, params, self.out_dir)
 
     def evaluate(self, params):
         xml_file = self.config_parser.get('evaluation', 'mzmine_xml_file')
@@ -147,8 +140,8 @@ class SmartROISimulator(InSilicoSimulator):
         }
         return params
 
-    def simulate(self, chems, time_dict, ps, params):
-        run_SmartROI(chems, ps, time_dict, params, self.out_dir)
+    def simulate(self, chems, scan_duration, params):
+        run_SmartROI(chems, scan_duration, params, self.out_dir)
 
     def evaluate(self, params):
         # extract peak boxes
@@ -205,8 +198,8 @@ class WeightedDEWSimulator(InSilicoSimulator):
         }
         return params
 
-    def simulate(self, chems, time_dict, ps, params):
-        run_WeightedDEW(chems, ps, time_dict, params, self.out_dir)
+    def simulate(self, chems, time_dict, params):
+        run_WeightedDEW(chems, time_dict, params, self.out_dir)
 
     def evaluate(self, params):
         # extract peak boxes

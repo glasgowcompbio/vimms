@@ -134,3 +134,6 @@ experimental/Beer_multibeers_1_fullscan1.mzML
 examples/01. vimms (Wandy et al 2019)/example_data.zip
 examples/01. vimms (Wandy et al 2019)/supporting_files.zip
 examples/01. vimms (Wandy et al 2019)/supporting_files/
+demo/01. Data/hmdb_metabolites.zip
+demo/01. Data/results/
+demo/02. Methods/results/

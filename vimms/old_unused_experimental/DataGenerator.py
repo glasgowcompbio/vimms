@@ -1,8 +1,6 @@
 import copy
 import glob
 import os
-import xml.etree.ElementTree
-import zipfile
 
 import numpy as np
 import pandas as pd
@@ -11,60 +9,9 @@ import pymzml
 from loguru import logger
 from sklearn.neighbors import KernelDensity
 
-from vimms.Chemicals import DatabaseCompound
 from vimms.Common import MZ, INTENSITY, RT, N_PEAKS, SCAN_DURATION, MZ_INTENSITY_RT, save_obj
 from vimms.MassSpec import Peak, Scan
-from vimms.SpectralUtils import get_precursor_info
-
-
-def extract_hmdb_metabolite(in_file, delete=True):
-    logger.debug('Extracting HMDB metabolites from %s' % in_file)
-
-    # if out_file is zipped then extract the xml file inside
-    try:
-        # extract from zip file
-        zf = zipfile.ZipFile(in_file, 'r')
-        metabolite_xml_file = zf.namelist()[0]  # assume there's only a single file inside the zip file
-        f = zf.open(metabolite_xml_file)
-    except zipfile.BadZipFile:  # oops not a zip file
-        zf = None
-        f = in_file
-
-    # loops through file and extract the necessary element text to create a DatabaseCompound
-    db = xml.etree.ElementTree.parse(f).getroot()
-    compounds = []
-    prefix = '{http://www.hmdb.ca}'
-    for metabolite_element in db:
-        row = [None, None, None, None, None, None]
-        for element in metabolite_element:
-            if element.tag == (prefix + 'name'):
-                row[0] = element.text
-            elif element.tag == (prefix + 'chemical_formula'):
-                row[1] = element.text
-            elif element.tag == (prefix + 'monisotopic_molecular_weight'):
-                row[2] = element.text
-            elif element.tag == (prefix + 'smiles'):
-                row[3] = element.text
-            elif element.tag == (prefix + 'inchi'):
-                row[4] = element.text
-            elif element.tag == (prefix + 'inchikey'):
-                row[5] = element.text
-
-        # if all fields are present, then add them as a DatabaseCompound
-        if None not in row:
-            compound = DatabaseCompound(row[0], row[1], row[2], row[3], row[4], row[5])
-            compounds.append(compound)
-    logger.info('Loaded %d DatabaseCompounds from %s' % (len(compounds), in_file))
-
-    f.close()
-    if zf is not None:
-        zf.close()
-
-    if delete:
-        logger.info('Deleting %s' % in_file)
-        os.remove(in_file)
-
-    return compounds
+from vimms.old_unused_experimental.SpectralUtils import get_precursor_info
 
 
 def get_data_source(mzml_path, filename, xcms_output=None):

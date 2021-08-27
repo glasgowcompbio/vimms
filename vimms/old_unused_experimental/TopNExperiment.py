@@ -4,7 +4,7 @@ from loguru import logger
 
 from vimms.Common import save_obj, create_if_not_exist, set_log_level_debug, set_log_level_warning
 from vimms.Controller import TopNController
-from vimms.DataGenerator import DataSource, PeakSampler
+from vimms.old_unused_experimental.DataGenerator import DataSource, PeakSampler
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 

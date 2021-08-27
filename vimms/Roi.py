@@ -5,13 +5,11 @@ from collections import OrderedDict
 import pandas as pd
 import pylab as plt
 import pymzml
-import statsmodels.api as sm
 from loguru import logger
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
-# from vimms.Chemicals import ChemicalCreator, UnknownChemical
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import PROTON_MASS
 from vimms.Evaluation import *

@@ -4,7 +4,7 @@ import pandas as pd
 
 from tests.conftest import BASE_DIR, OUT_DIR, MZML_FILE
 from vimms.Common import POSITIVE, DEFAULT_SCAN_TIME_DICT
-from vimms.SequenceManager import VimmsSequenceManager, BasicExperiment, GridSearchExperiment
+from vimms.old_unused_experimental.SequenceManager import VimmsSequenceManager, BasicExperiment, GridSearchExperiment
 
 
 class TestScheduleManager:

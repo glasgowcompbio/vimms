@@ -23,7 +23,7 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Roi import RoiParams
-from vimms.Scoring import picked_peaks_evaluation, roi_scoring
+from vimms.old_unused_experimental.Scoring import picked_peaks_evaluation, roi_scoring
 
 parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')

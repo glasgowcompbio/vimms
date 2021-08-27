@@ -96,7 +96,6 @@ DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
     'min_length': 2,
     'start_rt': 0,
     'stop_rt': 1440,
-    'n_peaks': 1
 }
 
 MSDIAL_DDA_MODE = 'lcmsdda'

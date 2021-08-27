@@ -8,7 +8,7 @@ from vimms.Box import *
 from vimms.Common import *
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController, \
-    FixedScansController, RoiBuilder, AgentBasedController
+    FixedScansController, RoiBuilder, AgentBasedController, TopNController
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
 from vimms.Environment import *
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner

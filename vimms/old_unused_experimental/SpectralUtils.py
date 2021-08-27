@@ -4,7 +4,7 @@ import pandas as pd
 import pymzml
 from loguru import logger
 
-from vimms.Chemicals import RoiToChemicalCreator
+from vimms.old_unused_experimental.Chemicals import RoiToChemicalCreator
 from vimms.Common import get_rt, ScanParameters, Precursor
 from vimms.MassSpec import Scan
 from vimms.Roi import make_roi
@@ -35,7 +35,7 @@ def get_chemicals(mzML_file, mz_tol, min_ms1_intensity, start_rt, stop_rt, min_l
         if np.count_nonzero(np.array(roi.intensity_list) > min_ms1_intensity) > 0:
             keep.append(roi)
 
-    ps = None  # unused
+    ps = None  # old_unused_experimental
     rtcc = RoiToChemicalCreator(ps, keep)
     chemicals = np.array(rtcc.chemicals)
     return chemicals

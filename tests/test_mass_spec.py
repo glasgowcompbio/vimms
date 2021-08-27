@@ -1,8 +1,8 @@
 from loguru import logger
 
-from tests.conftest import MIN_MS1_INTENSITY, run_environment, \
-    check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND
-from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
+from tests.conftest import MIN_MS1_INTENSITY, check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, \
+    BEER_MAX_BOUND
+from vimms.Common import POSITIVE
 from vimms.Controller import TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer, TaskManager
@@ -13,7 +13,7 @@ class TestSimulatedMassSpec:
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
 
-    def test_mass_spec(self, fragscan_ps):
+    def test_mass_spec(self):
         logger.info('Testing mass spec using the Top-N controller and QC beer chemicals')
 
         isolation_width = 1

@@ -281,7 +281,6 @@ class TestScanTiming():
         filename = 'test_scan_time_from_mzml.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-
     def test_mean_scan_time_from_mzml(self):
         ionisation_mode = POSITIVE
         N = 10

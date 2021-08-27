@@ -9,9 +9,9 @@ from loguru import logger
 from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
     EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, \
     MZMLChromatogramSampler
-from vimms.Chemicals import ChemicalCreator, ChemicalMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, GET_MS2_BY_PEAKS, ADDUCT_DICT_POS_MH, \
-    GET_MS2_BY_SPECTRA, POSITIVE, ScanParameters
+from vimms.Chemicals import ChemicalMixtureCreator, ChemicalMixtureFromMZML
+from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, ADDUCT_DICT_POS_MH, \
+    POSITIVE, ScanParameters
 from vimms.Roi import RoiParams
 
 ### define some useful constants ###
@@ -102,46 +102,33 @@ def random_seed():
 
 
 @pytest.fixture(scope="module")
-def fullscan_ps():
-    return load_obj(Path(BASE_DIR, 'peak_sampler_mz_rt_int_beerqcb_fullscan.p'))
-
-
-@pytest.fixture(scope="module")
-def fullscan_dataset(fullscan_ps):
-    chems = ChemicalCreator(fullscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1)
-
-
-@pytest.fixture(scope="module")
-def fragscan_ps():
-    return load_obj(Path(BASE_DIR, 'peak_sampler_mz_rt_int_beerqcb_fragmentation.p'))
-
-
-@pytest.fixture(scope="module")
-def fragscan_dataset_peaks(fragscan_ps):
+def fullscan_dataset():
     np.random.seed(0)
     rand.seed(0)
-    chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
-                        get_children_method=GET_MS2_BY_PEAKS)
+    min_mz = MZ_RANGE[0][0]
+    max_mz = MZ_RANGE[0][1]
+    min_rt = RT_RANGE[0][0]
+    max_rt = RT_RANGE[0][1]
+    um = UniformMZFormulaSampler(min_mz=min_mz, max_mz=max_mz)
+    ri = UniformRTAndIntensitySampler(min_rt=min_rt, max_rt=max_rt)
+    cs = GaussianChromatogramSampler(sigma=100)
+    cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(N_CHEMS, 1)
 
 
 @pytest.fixture(scope="module")
-def fragscan_dataset_peaks_onlyMH(fragscan_ps):
+def fragscan_dataset():
     np.random.seed(0)
     rand.seed(0)
-    chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 1,
-                        get_children_method=GET_MS2_BY_PEAKS, adduct_prior_dict=ADDUCT_DICT_POS_MH)
-
-
-@pytest.fixture(scope="module")
-def fragscan_dataset_spectra(fragscan_ps):
-    np.random.seed(0)
-    rand.seed(0)
-    chems = ChemicalCreator(fragscan_ps, ROI_SOURCES, HMDB)
-    return chems.sample(MZ_RANGE, RT_RANGE, MIN_MS1_INTENSITY, N_CHEMS, 2,
-                        get_children_method=GET_MS2_BY_SPECTRA)
+    min_mz = MZ_RANGE[0][0]
+    max_mz = MZ_RANGE[0][1]
+    min_rt = RT_RANGE[0][0]
+    max_rt = RT_RANGE[0][1]
+    um = UniformMZFormulaSampler(min_mz=min_mz, max_mz=max_mz)
+    ri = UniformRTAndIntensitySampler(min_rt=min_rt, max_rt=max_rt)
+    cs = GaussianChromatogramSampler(sigma=100)
+    cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(N_CHEMS, 2)
 
 
 @pytest.fixture(scope="module")

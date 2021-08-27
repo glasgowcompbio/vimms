@@ -1,6 +1,8 @@
 import os
-from loguru import logger
+
 import pymzml
+from loguru import logger
+
 from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE, run_environment, \
     check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND, HMDB
 from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, UniformRTAndIntensitySampler, \
@@ -39,14 +41,14 @@ class TestNegative:
 
         run = pymzml.run.Reader(os.path.join(OUT_DIR, filename))
         for n, spec in enumerate(run):
-            assert spec.get('MS:1000129') # this is the negative scan accession
-
+            assert spec.get('MS:1000129')  # this is the negative scan accession
 
 
 class TestTopNForcedN:
     """
     Test the TopN controller when N is forced to be N. I.e. always fragment enough
     """
+
     def test_TopN_forceN(self, ten_chems):
         mass_spec = IndependentMassSpectrometer(POSITIVE, ten_chems)
         N = 20
@@ -56,14 +58,14 @@ class TestTopNForcedN:
 
         all_scans = controller.scans[1] + controller.scans[2]
         # sort by RT
-        all_scans.sort(key = lambda x: x.rt)
+        all_scans.sort(key=lambda x: x.rt)
         ms1_pos = []
         for i, s in enumerate(all_scans):
             if s.ms_level == 1:
                 ms1_pos.append(i)
-        
+
         for i, mp in enumerate(ms1_pos[:-1]):
-            assert ms1_pos[i+1] - (mp + 1) == N
+            assert ms1_pos[i + 1] - (mp + 1) == N
 
 
 class TestTopNController:
@@ -71,9 +73,9 @@ class TestTopNController:
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     """
 
-    def test_TopN_controller_with_simulated_chems(self, fragscan_dataset_peaks, fragscan_ps):
+    def test_TopN_controller_with_simulated_chems(self, fragscan_dataset):
         logger.info('Testing Top-N controller with simulated chemicals -- no noise')
-        assert len(fragscan_dataset_peaks) == N_CHEMS
+        assert len(fragscan_dataset) == N_CHEMS
 
         isolation_width = 1
         N = 10
@@ -82,9 +84,9 @@ class TestTopNController:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
@@ -96,9 +98,9 @@ class TestTopNController:
         filename = 'topN_controller_simulated_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    def test_TopN_controller_with_simulated_chems_and_noise(self, fragscan_dataset_peaks, fragscan_ps):
+    def test_TopN_controller_with_simulated_chems_and_noise(self, fragscan_dataset):
         logger.info('Testing Top-N controller with simulated chemicals -- with noise')
-        assert len(fragscan_dataset_peaks) == N_CHEMS
+        assert len(fragscan_dataset) == N_CHEMS
 
         isolation_width = 1
         N = 10
@@ -109,10 +111,10 @@ class TestTopNController:
         # create a simulated mass spec with noise and Top-N controller
         mz_noise = GaussianPeakNoise(0.1)
         intensity_noise = GaussianPeakNoise(1000.)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks, mz_noise=mz_noise,
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset, mz_noise=mz_noise,
                                                 intensity_noise=intensity_noise)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks, CENTRE_RANGE)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
@@ -125,7 +127,7 @@ class TestTopNController:
         filename = 'topN_controller_simulated_chems_with_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    def test_TopN_controller_with_beer_chems(self, fragscan_ps):
+    def test_TopN_controller_with_beer_chems(self):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
         isolation_width = 1
@@ -149,7 +151,7 @@ class TestTopNController:
         filename = 'topN_controller_qcbeer_chems_no_noise.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    def test_TopN_controller_with_beer_chems_and_scan_duration_dict(self, fragscan_ps):
+    def test_TopN_controller_with_beer_chems_and_scan_duration_dict(self):
         logger.info('Testing Top-N controller with QC beer chemicals passing in the scan durations')
 
         isolation_width = 1
@@ -176,31 +178,9 @@ class TestTopNController:
         filename = 'topN_controller_qcbeer_chems_no_noise_with_scan_duration.mzML'
         check_mzML(env, OUT_DIR, filename)
 
-    def test_TopN_controller_with_simulated_chems_onlyMH(self, fragscan_dataset_peaks_onlyMH, fragscan_ps):
-        logger.info('Testing Top-N controller with simulated chemicals -- no noise, only MH adducts')
-        assert len(fragscan_dataset_peaks_onlyMH) == N_CHEMS
-
-        isolation_width = 1
-        N = 10
-        rt_tol = 15
-        mz_tol = 10
-        ionisation_mode = POSITIVE
-
-        # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_peaks_onlyMH)
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_peaks_onlyMH, CENTRE_RANGE)
-
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
-        run_environment(env)
-
-        # write simulated output to mzML file
-        filename = 'topN_controller_simulated_chems_no_noise_onlyMH.mzML'
-        check_mzML(env, OUT_DIR, filename)
 
 class TestTopNAdvanced:
-    def test_TopN_controller_advanced_params(self, fragscan_dataset_peaks_onlyMH, fragscan_ps):
+    def test_TopN_controller_advanced_params(self):
         # set some values that are not the defaults, so we know they're passed correctly
         params = AdvancedParams(
             default_ms1_scan_window=(10.0, 2000.0),
@@ -230,7 +210,8 @@ class TestTopNAdvanced:
 
         # create a simulated mass spec without noise and Top-N controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY, params=params)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
+                                    params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
@@ -264,16 +245,15 @@ class TestTopNAdvanced:
         assert scan_params.get(ScanParameters.SOURCE_CID_ENERGY) == params.ms2_source_cid_energy
 
 
-
 class TestTopNControllerSpectra:
     """
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
     Fragment spectra are generated via the "spectra" method
     """
 
-    def test_TopN_controller_with_simulated_chems(self, fragscan_dataset_spectra, fragscan_ps):
+    def test_TopN_controller_with_simulated_chems(self, fragscan_dataset):
         logger.info('Testing Top-N controller with simulated chemicals -- no noise')
-        assert len(fragscan_dataset_spectra) == N_CHEMS
+        assert len(fragscan_dataset) == N_CHEMS
 
         isolation_width = 1
         N = 10
@@ -282,9 +262,9 @@ class TestTopNControllerSpectra:
         ionisation_mode = POSITIVE
 
         # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset_spectra)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY)
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset_spectra, CENTRE_RANGE)
+        min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
@@ -383,7 +363,7 @@ class TestIonisationMode:
 
 
 class TestExclusion:
-    def test_TopN_controller_with_beer_chems_and_initial_exclusion_list(self, fragscan_ps):
+    def test_TopN_controller_with_beer_chems_and_initial_exclusion_list(self):
         logger.info('Testing Top-N controller with QC beer chemicals and an initial exclusion list')
 
         isolation_width = 1
@@ -448,7 +428,7 @@ class TestTopNShiftedController:
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the beer chems.
     """
 
-    def test_TopN_controller_with_beer_chems(self, fragscan_ps):
+    def test_TopN_controller_with_beer_chems(self):
         logger.info('Testing Top-N controller with QC beer chemicals')
         test_shift = 0
         isolation_width = 1
@@ -481,7 +461,7 @@ class TestWeightedDEWController:
     Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the beer chems.
     """
 
-    def test_WeightedDEW_controller_with_beer_chems(self, fragscan_ps):
+    def test_WeightedDEW_controller_with_beer_chems(self):
         logger.info('Testing excluding Top-N controller with QC beer chemicals')
         test_shift = 0
         isolation_width = 1

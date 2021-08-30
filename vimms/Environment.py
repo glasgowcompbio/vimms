@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pylab as plt
 from loguru import logger
 from tqdm import tqdm
 
@@ -171,3 +172,17 @@ class Environment(object):
             # etc
         }
         save_obj(data_to_save, outname)
+
+    def plot_scan(self, scan):
+        plt.figure()
+        for i in range(scan.num_peaks):
+            x1 = scan.mzs[i]
+            x2 = scan.mzs[i]
+            y1 = 0
+            y2 = scan.intensities[i]
+            a = [[x1, y1], [x2, y2]]
+            plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
+        plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt, scan.num_peaks))
+        plt.xlabel('m/z')
+        plt.ylabel('Intensities')
+        plt.show()

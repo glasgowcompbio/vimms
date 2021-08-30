@@ -33,11 +33,6 @@ MAX_RT = RT_RANGE[0][1]
 N_CHEMS = 10
 
 BEER_CHEMS = load_obj(Path(BASE_DIR, 'QCB_22May19_1.p'))
-
-# this is a temporary hack until beer_chems are updated
-for b in BEER_CHEMS:
-    b.adducts = {POSITIVE: b.adducts}
-
 BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 

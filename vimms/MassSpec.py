@@ -223,9 +223,9 @@ class IndependentMassSpectrometer(object):
     ACQUISITION_STREAM_CLOSED = 'AcquisitionStreamClosing'
     STATE_CHANGED = 'StateChanged'
 
-    def __init__(self, ionisation_mode, chemicals, peak_sampler, mz_noise=None, intensity_noise=None, spike_noise=None,
+    def __init__(self, ionisation_mode, chemicals, mz_noise=None, intensity_noise=None, spike_noise=None,
                  isolation_transition_window='rectangular', isolation_transition_window_params=None,
-                 scan_duration_dict=DEFAULT_SCAN_TIME_DICT, task_manager=None):
+                 scan_duration=DEFAULT_SCAN_TIME_DICT, task_manager=None):
         """
         Creates a mass spec object.
         :param ionisation_mode: POSITIVE or NEGATIVE
@@ -261,13 +261,6 @@ class IndependentMassSpectrometer(object):
         self.chrom_min_rts = np.array([chem.chromatogram.min_rt for chem in self.chemicals]) + chem_rts
         self.chrom_max_rts = np.array([chem.chromatogram.max_rt for chem in self.chemicals]) + chem_rts
 
-        # here's where we store all the stuff to sample from
-        self.peak_sampler = peak_sampler
-
-        # required to sample for different scan durations based on (N, DEW) in the hybrid controller
-        self.current_N = 0
-        self.current_DEW = 0
-
         # whether to add noise to the generated peaks, the default is no noise
         self.mz_noise = mz_noise
         self.intensity_noise = intensity_noise
@@ -282,7 +275,7 @@ class IndependentMassSpectrometer(object):
         self.isolation_transition_window = isolation_transition_window
         self.isolation_transition_window_params = isolation_transition_window_params
 
-        self.scan_duration_dict = scan_duration_dict
+        self.scan_duration_dict = scan_duration
 
     ####################################################################################################################
     # Public methods
@@ -333,21 +326,14 @@ class IndependentMassSpectrometer(object):
         self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
         # sample scan duration and increase internal time
-        current_N = self.current_N
-        current_DEW = self.current_DEW
         try:
             next_scan_param = self.task_manager.peek_current()
         except IndexError:
             next_scan_param = None
 
         current_level = scan.ms_level
-        current_scan_duration = self._increase_time(current_level, current_N, current_DEW,
-                                                    next_scan_param)
+        current_scan_duration = self._increase_time(current_level, next_scan_param)
         scan.scan_duration = current_scan_duration
-
-        # TODO: this is probably no longer necessary and can be removed as part of issue #46
-        # stores the updated value of N and DEW
-        self._store_next_N_DEW(next_scan_param)
 
     def get_params(self):
         """
@@ -418,72 +404,28 @@ class IndependentMassSpectrometer(object):
     # Private methods
     ####################################################################################################################
 
-    def _increase_time(self, current_level, current_N, current_DEW, next_scan_param):
+    def _increase_time(self, current_level, next_scan_param):
         # look into the queue, find out what the next scan ms_level is, and compute the scan duration
         # only applicable for simulated mass spec, since the real mass spec can generate its own scan duration.
         self.idx += 1
-        if next_scan_param is None:  # if queue is empty, the next one is an MS1 scan by default
-            next_level = 1
-        else:
-            next_level = next_scan_param.get(ScanParameters.MS_LEVEL)
 
-        # sample current scan duration based on current_DEW, current_N, current_level and next_level
-        if self.scan_duration_dict == None:
-            current_scan_duration = self._sample_scan_duration(current_DEW, current_N,
-                                                               current_level, next_level)
-        else:
+        # sample scan duration from dictionary
+        if type(self.scan_duration_dict) is dict:
             val = self.scan_duration_dict[current_level]
-            if callable(val):  # is it a function, or a value?
-                tt = val()
-            else:
-                tt = val
-            current_scan_duration = tt
+            current_scan_duration = val() if callable(val) else val  # is it a function, or a value?
+
+        else:  # assume it's an object
+            scan_sampler = self.scan_duration_dict
+
+            # if queue is empty, the next one is an MS1 scan by default
+            next_level = next_scan_param.get(ScanParameters.MS_LEVEL) if next_scan_param is not None else 1
+
+            # pass both current and next MS level when sampling scan duration
+            current_scan_duration = scan_sampler.sample_time(current_level, next_level)
 
         self.time += current_scan_duration
         logger.debug('scan_duration=%f time %f' % (current_scan_duration, self.time))
         return current_scan_duration
-
-    def _sample_scan_duration(self, current_DEW, current_N, current_level, next_level):
-        # get scan duration based on current and next level
-        if current_level == 1 and next_level == 1:
-            # special case: for the transition (1, 1), we can try to get the times for the
-            # fullscan data (N=0, DEW=0) if it's stored
-            try:
-                current_scan_duration = self.peak_sampler.scan_durations(current_level, next_level, 1, N=0, DEW=0)
-            except KeyError:  ## ooops not found
-                current_scan_duration = self.peak_sampler.scan_durations(current_level, next_level, 1,
-                                                                         N=current_N, DEW=current_DEW)
-        else:  # for (1, 2), (2, 1) and (2, 2)
-            current_scan_duration = self.peak_sampler.scan_durations(current_level, next_level, 1,
-                                                                     N=current_N, DEW=current_DEW)
-
-        try:
-            current_scan_duration = current_scan_duration.flatten()[0]
-        except:
-            print("Failed to sample, current level =  {}, next level = {}".format(current_level, next_level))
-            current_scan_duration = 0.1
-        return current_scan_duration
-
-    def _store_next_N_DEW(self, next_scan_param):
-        """
-        Stores the N and DEW parameter values for the next scan params
-        :param next_scan_param: A new set of scan parameters
-        :return: None
-        """
-        if next_scan_param is not None:
-            # Only the hybrid controller sends these N and DEW parameters. For other controllers they will be None
-            # because N and DEW will never change throughout a run
-            next_N = next_scan_param.get(ScanParameters.CURRENT_TOP_N)
-            next_DEW = next_scan_param.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
-        else:
-            next_N = None
-            next_DEW = None
-
-        # keep track of the N and DEW values for the next scan if they have been changed by the Hybrid Controller
-        if next_N is not None:
-            self.current_N = next_N
-        if next_DEW is not None:
-            self.current_DEW = next_DEW
 
     ####################################################################################################################
     # Scan generation methods

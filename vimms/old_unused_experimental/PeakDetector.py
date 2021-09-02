@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from vimms.PythonMzmine import get_base_scoring_df
+from vimms.old_unused_experimental.PythonMzmine import get_base_scoring_df
 from vimms.Roi import make_roi
 
 QCB_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,

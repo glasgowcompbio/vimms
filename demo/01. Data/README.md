@@ -1,0 +1,1 @@
+Demonstration of how to extract Chemical objects in ViMMS

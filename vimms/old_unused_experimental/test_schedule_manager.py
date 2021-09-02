@@ -4,7 +4,7 @@ import pandas as pd
 
 from tests.conftest import BASE_DIR, OUT_DIR, MZML_FILE
 from vimms.Common import POSITIVE, DEFAULT_SCAN_TIME_DICT
-from vimms.SequenceManager import VimmsSequenceManager, BasicExperiment, GridSearchExperiment
+from vimms.old_unused_experimental.SequenceManager import VimmsSequenceManager, BasicExperiment, GridSearchExperiment
 
 
 class TestScheduleManager:
@@ -31,7 +31,7 @@ class TestScheduleManager:
                             'intensity_noise': None,
                             'isolation_transition_window': 'rectangular',
                             'isolation_transition_window_params': None,
-                            'scan_duration_dict': DEFAULT_SCAN_TIME_DICT}
+                            'scan_duration': DEFAULT_SCAN_TIME_DICT}
 
         d = {
             'Sample ID': ['blank1', 'sample1', 'blank2', 'sample2'],
@@ -63,7 +63,7 @@ class TestScheduleManager:
                             'intensity_noise': None,
                             'isolation_transition_window': 'rectangular',
                             'isolation_transition_window_params': None,
-                            'scan_duration_dict': DEFAULT_SCAN_TIME_DICT}
+                            'scan_duration': DEFAULT_SCAN_TIME_DICT}
 
         d2 = {
             'Sample ID': ['blank1', 'sample1', 'blank2', 'sample2'],
@@ -106,7 +106,7 @@ class TestGridSearch:
                             'intensity_noise': None,
                             'isolation_transition_window': 'rectangular',
                             'isolation_transition_window_params': None,
-                            'scan_duration_dict': DEFAULT_SCAN_TIME_DICT}
+                            'scan_duration': DEFAULT_SCAN_TIME_DICT}
 
         vsm = VimmsSequenceManager(None, evaluation_methods, OUT_DIR, ms1_picked_peaks_file=None,
                                    progress_bar=False, mzmine_command=None)
@@ -131,7 +131,7 @@ class TestGridSearch:
                             'intensity_noise': None,
                             'isolation_transition_window': 'rectangular',
                             'isolation_transition_window_params': None,
-                            'scan_duration_dict': DEFAULT_SCAN_TIME_DICT}
+                            'scan_duration': DEFAULT_SCAN_TIME_DICT}
 
         vsm = VimmsSequenceManager(None, evaluation_methods, OUT_DIR, ms1_picked_peaks_file=None,
                                    progress_bar=False, mzmine_command=None)

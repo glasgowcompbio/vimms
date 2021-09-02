@@ -2,7 +2,6 @@ import time
 from collections import defaultdict
 
 import pandas as pd
-import pylab as plt
 from loguru import logger
 
 from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, \
@@ -61,7 +60,6 @@ class Controller(object):
             self.params = params
 
         self.scans = defaultdict(list)  # key: ms level, value: list of scans for that level
-        self.make_plot = False
         self.scan_to_process = None
         self.environment = None
         self.next_processed_scan_id = INITIAL_SCAN_ID
@@ -125,10 +123,6 @@ class Controller(object):
         # record every scan that we've received
         self.scans[scan.ms_level].append(scan)
 
-        # plot scan if there are peaks
-        if scan.num_peaks > 0:
-            self._plot_scan(scan)
-
         # update ms1 time (used for ROI matching)
         if scan.ms_level == 1:
             self.last_ms1_rt = scan.rt
@@ -184,19 +178,6 @@ class Controller(object):
 
     def _process_scan(self, scan):
         raise NotImplementedError()
-
-    def _plot_scan(self, scan):
-        if self.make_plot:
-            plt.figure()
-            for i in range(scan.num_peaks):
-                x1 = scan.mzs[i]
-                x2 = scan.mzs[i]
-                y1 = 0
-                y2 = scan.intensities[i]
-                a = [[x1, y1], [x2, y2]]
-                plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
-            plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt, scan.num_peaks))
-            plt.show()
 
     def _check_scan(self, params):
 

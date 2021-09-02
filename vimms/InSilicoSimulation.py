@@ -52,7 +52,9 @@ def get_timing(time_dict_str):
 def extract_timing(seed_file):
     """
     Extracts timing information from a seed file
-    :param seed_file: the seed file in mzML format, should be a DDA file (containing MS1 and MS2 scans)
+    :param seed_file: the seed file in mzML format
+    If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and MS2 timing will be extracted.
+    If it's only a fullscan file (containing MS1 scans) then only MS1 timing will be extracted.
     :return: a dictionary of time information. Key should be the ms-level, 1 or 2, and
     value is the average time of scans at that level
     """
@@ -66,30 +68,42 @@ def extract_timing(seed_file):
         tup = (current, next_)
         time_dict[tup].append(60 * seed_mzml.scans[i + 1].rt_in_minutes - 60 * s.rt_in_minutes)
 
-    # seed_file must contain timing on (1,2) and (2,2)
-    # i.e. it must be a DDA file with MS1 and MS2 scans
-    assert (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0
-    assert (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0
+    is_frag_file = False
+    if (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0 and \
+        (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
+
+        # seed_file must contain timing on (1,2) and (2,2)
+        # i.e. it must be a DDA file with MS1 and MS2 scans
+        is_frag_file = True
 
     # construct timing dict in the right format for later use
     new_time_dict = {}
-    for k, v in time_dict.items():
-        if k == (1, 2):
-            key = 1
-        elif k == (2, 2):
-            key = 2
-        else:
-            continue
+    if is_frag_file:
+        # extract ms1 and ms2 timing from fragmentation mzML
+        for k, v in time_dict.items():
+            if k == (1, 2):
+                key = 1
+            elif k == (2, 2):
+                key = 2
+            else:
+                continue
 
+            mean = sum(v) / len(v)
+            new_time_dict[key] = mean
+            logger.debug('%d: %f' % (key, mean))
+        assert 1 in new_time_dict and 2 in new_time_dict
+    else:
+        # extract ms1 timing only from fullscan mzML
+        key = 1
+        v = time_dict[(1, 1)]
         mean = sum(v) / len(v)
         new_time_dict[key] = mean
         logger.debug('%d: %f' % (key, mean))
 
-    assert 1 in new_time_dict and 2 in new_time_dict
     return new_time_dict
 
 
-def run_TopN(chems, ps, time_dict, params, out_dir):
+def run_TopN(chems, scan_duration, params, out_dir):
     """
     Simulate TopN controller
     :param chems: a list of UnknownChemicals present in the injection
@@ -105,14 +119,14 @@ def run_TopN(chems, ps, time_dict, params, out_dir):
     out_file = '%s_%s.mzML' % (params['controller_name'], params['sample_name'])
     controller = TopNController(params['ionisation_mode'], params['N'], params['isolation_width'], params['mz_tol'],
                                 params['rt_tol'], params['min_ms1_intensity'])
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, ps, scan_duration_dict=time_dict)
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, scan_duration=scan_duration)
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True, out_dir=out_dir,
                       out_file=out_file)
     logger.info('Generating %s' % out_file)
     env.run()
 
 
-def run_SmartROI(chems, ps, time_dict, params, out_dir):
+def run_SmartROI(chems, scan_duration, params, out_dir):
     """
     Simulate SmartROI controller
     :param chems: a list of UnknownChemicals present in the injection
@@ -136,8 +150,7 @@ def run_SmartROI(chems, ps, time_dict, params, out_dir):
             copy_params['iif'] = iif
             copy_params['dp'] = dp
             copy_params['chems'] = chems
-            copy_params['ps'] = ps
-            copy_params['time_dict'] = time_dict
+            copy_params['scan_duration'] = scan_duration
             copy_params['out_dir'] = out_dir
             params_list.append(copy_params)
 
@@ -183,14 +196,14 @@ def run_single_SmartROI(params):
                                          intensity_increase_factor=intensity_increase_factor,
                                          drop_perc=drop_perc)
 
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'], params['ps'],
-                                            scan_duration_dict=params['time_dict'])
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
+                                            scan_duration=params['scan_duration'])
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()
 
 
-def run_WeightedDEW(chems, ps, time_dict, params, out_dir):
+def run_WeightedDEW(chems, scan_duration, params, out_dir):
     """
     Simulate WeightedDEW controller
     :param chems: a list of UnknownChemicals present in the injection
@@ -214,8 +227,7 @@ def run_WeightedDEW(chems, ps, time_dict, params, out_dir):
             copy_params['t0'] = t0
             copy_params['r'] = r
             copy_params['chems'] = chems
-            copy_params['ps'] = ps
-            copy_params['time_dict'] = time_dict
+            copy_params['scan_duration'] = scan_duration
             copy_params['out_dir'] = out_dir
             params_list.append(copy_params)
 
@@ -254,8 +266,8 @@ def run_single_WeightedDEW(params):
     controller = WeightedDEWController(params['ionisation_mode'], params['N'], params['isolation_width'],
                                        params['mz_tol'], params['r'], params['min_ms1_intensity'],
                                        exclusion_t_0=params['t0'], log_intensity=True)
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'], params['ps'],
-                                            scan_duration_dict=params['time_dict'])
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
+                                            scan_duration=params['scan_duration'])
     env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()

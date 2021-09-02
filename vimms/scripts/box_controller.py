@@ -103,7 +103,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
     boxes = []
     for i in range(no_injections):
         mz_noise = GaussianPeakNoise(0.1)
-        mass_spec = IndependentMassSpectrometer(POSITIVE, chemicals, None, mz_noise=mz_noise)
+        mass_spec = IndependentMassSpectrometer(POSITIVE, chemicals, mz_noise=mz_noise)
         controller = NonOverlapController(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, grid, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation

@@ -4,7 +4,7 @@ from loguru import logger
 
 from vimms.Common import save_obj, create_if_not_exist, set_log_level_debug, set_log_level_warning
 from vimms.Controller import TopNController
-from vimms.DataGenerator import DataSource, PeakSampler
+from vimms.old_unused_experimental.DataGenerator import DataSource, PeakSampler
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 
@@ -39,7 +39,7 @@ def run_experiment(param):
             max_rt = param['max_rt']
             peak_sampler = get_peak_sampler(mzml_path, fragfile, min_rt, max_rt)
 
-        mass_spec = IndependentMassSpectrometer(param['ionisation_mode'], param['data'], peak_sampler)
+        mass_spec = IndependentMassSpectrometer(param['ionisation_mode'], param['data'])
         controller = TopNController(param['ionisation_mode'], param['N'], param['isolation_width'],
                                     param['mz_tol'], param['rt_tol'], param['min_ms1_intensity'])
         # create an environment to run both the mass spec and controller

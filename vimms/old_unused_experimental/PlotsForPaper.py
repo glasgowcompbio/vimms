@@ -9,11 +9,12 @@ import pymzml
 import seaborn as sns
 from loguru import logger
 
-from vimms.Chemicals import UnknownChemical, RoiToChemicalCreator
+from vimms.Chemicals import UnknownChemical
+from vimms.old_unused_experimental.Chemicals import RoiToChemicalCreator
 from vimms.Common import load_obj, PROTON_MASS, find_nearest_index_in_array
 from vimms.MassSpec import ScanEvent
 from vimms.Roi import make_roi
-from vimms.SpectralUtils import get_precursor_info, get_chemicals
+from vimms.old_unused_experimental.SpectralUtils import get_precursor_info, get_chemicals
 
 
 def get_N(row):
@@ -689,7 +690,7 @@ def get_chemicals(mzML_file, mz_tol, min_ms1_intensity, start_rt, stop_rt, min_l
         if np.count_nonzero(np.array(roi.intensity_list) > min_ms1_intensity) > 0:
             keep.append(roi)
 
-    ps = None  # unused
+    ps = None  # old_unused_experimental
     rtcc = RoiToChemicalCreator(ps, keep)
     chemicals = np.array(rtcc.chemicals)
     return chemicals

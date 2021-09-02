@@ -33,13 +33,16 @@ class TestMultipleMS2Windows:
         ionisation_mode = POSITIVE
 
         controller = FixedScansController()
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
-        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
-        ms2_scan_2 = get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
-        ms2_scan_3 = get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
+                                        polarity=ionisation_mode)
+        ms2_scan_2 = get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol, rt_tol,
+                                        polarity=ionisation_mode)
+        ms2_scan_3 = get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol,
+                                        polarity=ionisation_mode)
 
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
@@ -73,13 +76,16 @@ class TestFixedScansController:
         ionisation_mode = POSITIVE
 
         controller = FixedScansController(schedule=None)
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems, None)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, two_fixed_chems)
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
-        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
-        ms2_scan_2 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
-        ms2_scan_3 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
+                                        polarity=ionisation_mode)
+        ms2_scan_2 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
+                                        polarity=ionisation_mode)
+        ms2_scan_3 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
+                                        polarity=ionisation_mode)
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
         set_log_level_warning()
@@ -103,7 +109,7 @@ class TestMultiIsolationController:
         d = cs.sample(3, 2)  # sample chems with m/z = 100 and 200
         ionisation_mode = POSITIVE
         controller = MultiIsolationController(N)
-        ms = IndependentMassSpectrometer(POSITIVE, d, None)
+        ms = IndependentMassSpectrometer(POSITIVE, d)
         env = Environment(ms, controller, 10, 20, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -119,11 +125,11 @@ class TestMultiIsolationController:
         mm[(1,)] = controller.scans[2][1]
         mm[(2,)] = controller.scans[2][2]
         # next three should hit the pairs
-        mm[(0,1)] = controller.scans[2][3]
-        mm[(0,2)] = controller.scans[2][4]
-        mm[(1,2)] = controller.scans[2][5]
+        mm[(0, 1)] = controller.scans[2][3]
+        mm[(0, 2)] = controller.scans[2][4]
+        mm[(1, 2)] = controller.scans[2][5]
         # final should hit all three
-        mm[(0,1,2)] = controller.scans[2][6]
+        mm[(0, 1, 2)] = controller.scans[2][6]
 
         for key, value in mm.items():
             actual_mz_vals = set(mm[key].mzs)

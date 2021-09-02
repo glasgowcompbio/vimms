@@ -23,7 +23,7 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.PythonMzmine import pick_peaks
 from vimms.Roi import RoiParams
-from vimms.Scoring import picked_peaks_evaluation, roi_scoring
+from vimms.old_unused_experimental.Scoring import picked_peaks_evaluation, roi_scoring
 
 parent_dir = dirname(dirname(abspath(__file__)))
 batch_file_dir = os.path.join(parent_dir, 'batch_files')
@@ -167,8 +167,7 @@ class VimmsSequenceManager(BaseSequenceManager):
             dataset = self.controller_schedule['Dataset'][idx]
             if method is not None and dataset is not None:
                 dataset = load_obj(self.controller_schedule['Dataset'][idx])
-                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset,
-                                                        ms_params['peak_sampler'])
+                mass_spec = IndependentMassSpectrometer(ms_params['ionisation_mode'], dataset)
                 # Run sample
                 env = Environment(mass_spec, controller, self.rt_range[0][0],
                                   self.rt_range[0][1], progress_bar=self.progress_bar)

@@ -1,11 +1,65 @@
 import os
+import xml.etree.ElementTree
+import zipfile
 
-from vimms.Chemicals import RoiToChemicalCreator
+from loguru import logger
+
+from vimms.Chemicals import DatabaseCompound, ChemicalMixtureFromMZML
 from vimms.Common import DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, save_obj
-from vimms.Roi import make_roi
+from vimms.Roi import RoiParams
 
 
-def extract_roi(file_names, out_dir, pattern, mzml_path, ps, param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):
+def extract_hmdb_metabolite(in_file, delete=True):
+    logger.debug('Extracting HMDB metabolites from %s' % in_file)
+
+    # if out_file is zipped then extract the xml file inside
+    try:
+        # extract from zip file
+        zf = zipfile.ZipFile(in_file, 'r')
+        metabolite_xml_file = zf.namelist()[0]  # assume there's only a single file inside the zip file
+        f = zf.open(metabolite_xml_file)
+    except zipfile.BadZipFile:  # oops not a zip file
+        zf = None
+        f = in_file
+
+    # loops through file and extract the necessary element text to create a DatabaseCompound
+    db = xml.etree.ElementTree.parse(f).getroot()
+    compounds = []
+    prefix = '{http://www.hmdb.ca}'
+    for metabolite_element in db:
+        row = [None, None, None, None, None, None]
+        for element in metabolite_element:
+            if element.tag == (prefix + 'name'):
+                row[0] = element.text
+            elif element.tag == (prefix + 'chemical_formula'):
+                row[1] = element.text
+            elif element.tag == (prefix + 'monisotopic_molecular_weight'):
+                row[2] = element.text
+            elif element.tag == (prefix + 'smiles'):
+                row[3] = element.text
+            elif element.tag == (prefix + 'inchi'):
+                row[4] = element.text
+            elif element.tag == (prefix + 'inchikey'):
+                row[5] = element.text
+
+        # if all fields are present, then add them as a DatabaseCompound
+        if None not in row:
+            compound = DatabaseCompound(row[0], row[1], row[2], row[3], row[4], row[5])
+            compounds.append(compound)
+    logger.info('Loaded %d DatabaseCompounds from %s' % (len(compounds), in_file))
+
+    f.close()
+    if zf is not None:
+        zf.close()
+
+    if delete:
+        logger.info('Deleting %s' % in_file)
+        os.remove(in_file)
+
+    return compounds
+
+
+def extract_roi(file_names, out_dir, pattern, mzml_path, param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):
     """
     Extract ROI for all mzML files listed in file_names, and turn them into Chemical objecs
     :param file_names: a list of mzML file names
@@ -26,15 +80,9 @@ def extract_roi(file_names, out_dir, pattern, mzml_path, ps, param_dict=DEFAULT_
         else:
             mzml_file = file_names[i]
 
-        # actually extracts the ROI here
-        good_roi, junk = make_roi(mzml_file, mz_tol=param_dict['mz_tol'], mz_units=param_dict['mz_units'],
-                                  min_length=param_dict['min_length'], min_intensity=param_dict['min_intensity'],
-                                  start_rt=param_dict['start_rt'], stop_rt=param_dict['stop_rt'])
-        all_roi = good_roi
-
-        # turn ROI to chemicals
-        rtcc = RoiToChemicalCreator(ps, all_roi, n_peaks=param_dict['n_peaks'])
-        dataset = rtcc.chemicals
+        rp = RoiParams(**param_dict)
+        cm = ChemicalMixtureFromMZML(mzml_file, roi_params=rp)
+        dataset = cm.sample(None, 2)
         datasets.append(dataset)
 
         # save extracted chemicals

@@ -185,6 +185,7 @@ class ScanParameters(object):
     ISOLATION_MODE = 'isolation_mode'
     SOURCE_CID_ENERGY = 'source_cid_energy'
     METADATA = 'metadata'
+    UNIQUENESS_TOKEN = "uniqueness_token"
 
     # this is used for DIA-based controllers to specify which windows to fragment
     ISOLATION_WINDOWS = 'isolation_windows'
@@ -443,7 +444,8 @@ def get_default_scan_params(polarity=POSITIVE, agc_target=DEFAULT_MS1_AGC_TARGET
                             mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
                             activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
                             isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                            metadata=None):
+                            metadata=None,
+                            uniqueness_token=None):
     """
     Gets the default method scan parameters. Now it's set to do MS1 scan only.
     :return: the default scan parameters
@@ -464,6 +466,7 @@ def get_default_scan_params(polarity=POSITIVE, agc_target=DEFAULT_MS1_AGC_TARGET
     default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
     default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
     default_scan_params.set(ScanParameters.METADATA, metadata)
+    if(not uniqueness_token is None): default_scan_params.set(ScanParameters.UNIQUENESS_TOKEN, uniqueness_token) #can be used to make "identical" ms1 non-equal preventing removal from task queue
     return default_scan_params
 
 

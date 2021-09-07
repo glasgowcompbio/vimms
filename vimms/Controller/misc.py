@@ -147,6 +147,7 @@ class MS2PlannerController(FixedScansController):
         time, new_sched = 0, []
         srted = sorted(schedule, key=lambda s: s["rt_start"])
         print("Schedule times: {}".format([s["rt_start"] for s in srted]))
+        print(f"NUM SCANS IN SCHEDULE FILE: {len(schedule)}")
         #new_sched.append(get_default_scan_params())
         #scan_duration_dict = {1: 0.2, 2: 0.2}
         id_count = INITIAL_SCAN_ID

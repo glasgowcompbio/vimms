@@ -35,6 +35,9 @@ gpy = "*"
 [dev-packages]
 twine = "*"
 build = "*"
+mkdocs = "*"
+mkdocs-material = "*"
+mkdocstrings = "*"
 
 [requires]
 python_version = "3"

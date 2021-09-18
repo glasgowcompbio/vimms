@@ -14,3 +14,8 @@ mkdocs:
 
 # Optionally build your docs in additional formats such as PDF and ePub
 formats: all
+
+# Explicitly set the version of Python and its requirements
+python:
+  install:
+    - requirements: docs/requirements.txt

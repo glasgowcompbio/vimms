@@ -201,6 +201,11 @@ class ScanParameters(object):
     # for other DDA controllers it's always the same throughout the whole run, so we don't send this parameter
     CURRENT_TOP_N = 'current_top_N'
 
+    # if the scan id is specified, then it should be used by the mass spec
+    # useful for pre-scheduled controllers where we want the controller to know the scan ids of MS1, MS2
+    # and also the precursor ids of those MS2 scans in advance.
+    SCAN_ID = 'scan_id'
+
     def __init__(self):
         """
         Creates a scan parameter object
@@ -251,11 +256,6 @@ class ScanParameters(object):
 
     def __repr__(self):
         return 'ScanParameters %s' % (self.params)
-
-    def __eq__(self, other):
-        if not isinstance(other, ScanParameters):
-            return NotImplemented
-        return self.params == other.params
 
 
 class Precursor(object):
@@ -450,7 +450,7 @@ def get_default_scan_params(polarity=POSITIVE, agc_target=DEFAULT_MS1_AGC_TARGET
                             mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
                             activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
                             isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                            metadata=None):
+                            metadata=None, scan_id=None):
     """
     Gets the default method scan parameters. Now it's set to do MS1 scan only.
     :return: the default scan parameters
@@ -471,6 +471,7 @@ def get_default_scan_params(polarity=POSITIVE, agc_target=DEFAULT_MS1_AGC_TARGET
     default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
     default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
     default_scan_params.set(ScanParameters.METADATA, metadata)
+    default_scan_params.set(ScanParameters.SCAN_ID, scan_id)
     return default_scan_params
 
 
@@ -483,7 +484,7 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width, mz_tol
                        activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
                        isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
                        polarity=POSITIVE,
-                       metadata=None):
+                       metadata=None, scan_id=None):
     dda_scan_params = ScanParameters()
     dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
 
@@ -532,6 +533,7 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width, mz_tol
     dda_scan_params.set(ScanParameters.POLARITY, polarity)
     dda_scan_params.set(ScanParameters.FIRST_MASS, DEFAULT_MSN_SCAN_WINDOW[0])
     dda_scan_params.set(ScanParameters.METADATA, metadata)
+    dda_scan_params.set(ScanParameters.SCAN_ID, scan_id)
 
     # dynamically scale the upper mass
     charge = 1

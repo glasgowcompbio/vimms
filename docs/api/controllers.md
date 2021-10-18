@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `Controllers`
 
 ::: vimms.Controller
     handler: python

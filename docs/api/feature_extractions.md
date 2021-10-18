@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `FeatureExtraction.py`
 
 ::: vimms.FeatureExtraction
     handler: python

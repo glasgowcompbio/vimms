@@ -16,6 +16,8 @@ plugins:
 
 nav:
   - Home: README.md
+  - Creating Chemicals: chemicals.md
+  - Running Controllers: controllers.md
   - API Documentation:
     - Chemical Generation:
         - Chemicals: api/chemicals.md

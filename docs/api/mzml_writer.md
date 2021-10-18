@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `MzmlWriter.py`
 
 ::: vimms.MzmlWriter
     handler: python

@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `Roi.py`
 
 ::: vimms.Roi
     handler: python

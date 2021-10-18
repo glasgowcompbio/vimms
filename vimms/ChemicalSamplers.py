@@ -130,6 +130,9 @@ class EvenMZFormulaSampler(FormulaSampler):
 
 
 class MZMLFormulaSampler(FormulaSampler):
+    """
+    A sampler to generate m/z values from a histogram of m/z taken from a user supplied mzML file
+    """
     def __init__(self, mzml_file_name, min_mz=MIN_MZ, max_mz=MAX_MZ, source_polarity=POSITIVE):
         self.min_mz = min_mz
         self.max_mz = max_mz

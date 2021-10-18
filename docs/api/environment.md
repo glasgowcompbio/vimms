@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `Environment.py`
 
 ::: vimms.Environment
     handler: python

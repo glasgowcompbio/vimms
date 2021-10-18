@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `Chemicals.py`
 
 ::: vimms.Chemicals
     handler: python

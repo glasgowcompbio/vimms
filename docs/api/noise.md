@@ -1,4 +1,4 @@
-# Documentation for `MassSpec.py`
+# Documentation for `Noise.py`
 
 ::: vimms.Noise
     handler: python

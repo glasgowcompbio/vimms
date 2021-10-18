@@ -11,7 +11,10 @@ metabolomics.
 
 ![ViMMS Logo](images/logo.png?raw=true "ViMMS Logo")
 
-# Quick Start Demo 
+# Example Codes and Documentations
+
+Can't wait to get started? Check out the following resources:
+- Project documentation page: https://vimms.readthedocs.io/en/latest
 - Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/sdrogers/vimms/tree/master/demo).
 - Example notebooks to accompany publications can be found in the [Example folder](https://github.com/sdrogers/vimms/tree/master/examples)
 
@@ -56,7 +59,7 @@ of ViMMS using pip or pipenv.
 
 ```$ pip install vimms```
 or
-```$pipenv install vimms```
+```$ pipenv install vimms```
 
 The current version can be found in the [Release page](https://github.com/glasgowcompbio/vimms/releases).
 or from [PyPi](https://pypi.org/project/vimms/#history).
@@ -75,13 +78,6 @@ To use the latest bleeding-edge ViMMS code in this repository, follow the steps 
 4. In this cloned directory, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
 5. Go into the newly created virtual environment in step (4) by typing `$ pipenv shell`.
 6. Run Jupyter (`$ jupyter lab`) so you could run the example notebooks below.
-
-# Example Notebooks
-
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sdrogers/vimms/master)
-
-- Notebooks that demonstrate how to use ViMMS are available in the [demo](https://github.com/sdrogers/vimms/tree/master/demo) folder of this repository.
-- Notebooks to replicate the results in the papers related to ViMMS are available in [examples](https://github.com/sdrogers/vimms/tree/master/examples) folder of this repository.
 
 # Test Cases
 

@@ -1,23 +1,37 @@
 ---
-title: 'ViMMS 2.0: A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics.' tags:
-
+title: 'ViMMS 2.0: A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics.' 
+tags:
 - Python
 - mass spectrometry
 - fragmentation
 - simulation
-- metabolomics authors:
-- name: Joe Wandy^[corresponding author]
-  orcid: 0000-0002-3068-4664 affiliation: 1
-- name: Vinny Davies ordic: 0000-0003-1896-8936 affiliation: 2
-- name: Ross McBride affiliation: 3
-- Stefan Weidt affiliation: 1
-- Simon Rogers affiliation: 4
-- name: Rónán Daly
-- affiliation: 1 affiliations:
-- name: Glasgow Polyomics, University of Glasgow, Glasgow G12 8QQ, United Kingdom index: 1
-- name: School of Mathematics and Statistics, University of Glasgow, Glasgow G12 8QQ, United Kingdom index: 2
-- School of Computing Science, University of Glasgow, Glasgow G12 8QQ, United Kingdom index: 3
-- NHS index: 4 date: 23 October 2021 bibliography: paper.bib
+- metabolomics 
+authors:
+  - name: Joe Wandy^[corresponding author]
+    orcid: 0000-0002-3068-4664 
+    affiliation: 1
+  - name: Vinny Davies 
+    ordic: 0000-0003-1896-8936 
+    affiliation: 2
+  - name: Ross McBride 
+    affiliation: 3
+  - name: Stefan Weidt 
+    affiliation: 1
+  - name: Simon Rogers 
+    affiliation: 4
+  - name: Rónán Daly
+    affiliation: 1 
+affiliations:
+  - name: Glasgow Polyomics, University of Glasgow, Glasgow G12 8QQ, United Kingdom 
+    index: 1
+  - name: School of Mathematics and Statistics, University of Glasgow, Glasgow G12 8QQ, United Kingdom 
+    index: 2
+  - name: School of Computing Science, University of Glasgow, Glasgow G12 8QQ, United Kingdom 
+    index: 3
+  - name: NHS 
+    index: 4 
+date: 23 October 2021 
+bibliography: paper.bib
 
 ---
 

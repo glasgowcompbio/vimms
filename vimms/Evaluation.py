@@ -54,8 +54,10 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     }
 
 
-def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0, group_list=None):
+def evaluate_multiple_simulated_env(env_list, min_intensity=0.0, group_list=None):
     '''Evaluates_multiple simulated injections against a base set of chemicals that were used to derive the datasets'''
+    all_chems = np.array(list(itertools.chain(*[env.mass_spec.chemicals for env in env_list])))
+    base_chemicals = list(set([chem.base_chemical for chem in all_chems]))
     results = [evaluate_simulated_env(env, min_intensity=min_intensity, base_chemicals=base_chemicals) for env in
                env_list]
     num_frags = [r["num_frags"] for r in results]

@@ -510,8 +510,7 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
 
 
 def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_window, mz_tol, rt_tol,
-                               min_ms1_intensity,
-                               base_chemicals=None, mzmine_files=None, rt_tolerance=100, progress_bar=False):
+                               min_ms1_intensity, mzmine_files=None, rt_tolerance=100, progress_bar=False):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
     mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0])  # necessary to get timings for schedule
@@ -519,35 +518,34 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N, isolation_
     print('Please open and run R script now')
     time.sleep(1)
     template_file = os.path.join(base_dir, 'DsDA_Timing_schedule.csv')
-    if base_chemicals is not None or mzmine_files is not None:
-        env_list = []
-        mzml_files = []
-        source_files = ['sample_' + "%03d" % i for i in range(len(datasets))]
-        for i in range(len(datasets)):
-            mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
-            if i == 0:
-                controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
-                                            ms1_shift=0, initial_exclusion_list=None, force_N=False)
-            else:
-                print('Looking for next schedule')
-                new_schedule = get_schedule(i, schedule_dir)
-                print('Found next schedule')
-                time.sleep(1)
-                schedule_param_list = dsda_get_scan_params(new_schedule, template_file, isolation_window, mz_tol,
-                                                           rt_tol)
-                controller = FixedScansController(schedule=schedule_param_list)
-            env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
-            env.run()
-            if progress_bar is False:
-                print('Processed dataset ' + str(i))
-            env_list.append(env)
-            file_link = os.path.join(data_dir, source_files[i] + '.mzml')
-            mzml_files.append(file_link)
-            print("Processed ", i + 1, " files")
-            env.write_mzML(data_dir, source_files[i] + '.mzml')
-            print("Waiting for R to process .mzML files")
-        if base_chemicals is not None:
-            evaluation = evaluate_multiple_simulated_env(env_list, base_chemicals=base_chemicals)
+    env_list = []
+    mzml_files = []
+    source_files = ['sample_' + "%03d" % i for i in range(len(datasets))]
+    for i in range(len(datasets)):
+        mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
+        if i == 0:
+            controller = TopNController(POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+                                        ms1_shift=0, initial_exclusion_list=None, force_N=False)
+        else:
+            print('Looking for next schedule')
+            new_schedule = get_schedule(i, schedule_dir)
+            print('Found next schedule')
+            time.sleep(1)
+            schedule_param_list = dsda_get_scan_params(new_schedule, template_file, isolation_window, mz_tol,
+                                                       rt_tol)
+            controller = FixedScansController(schedule=schedule_param_list)
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=progress_bar)
+        env.run()
+        if progress_bar is False:
+            print('Processed dataset ' + str(i))
+        env_list.append(env)
+        file_link = os.path.join(data_dir, source_files[i] + '.mzml')
+        mzml_files.append(file_link)
+        print("Processed ", i + 1, " files")
+        env.write_mzML(data_dir, source_files[i] + '.mzml')
+        print("Waiting for R to process .mzML files")
+        if mzmine_files is None:
+            evaluation = evaluate_multiple_simulated_env(env_list)
         else:
             roi_aligner = RoiAligner(rt_tolerance=rt_tolerance)
             for i in range(len(mzml_files)):

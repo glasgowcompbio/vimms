@@ -34,32 +34,6 @@ class MatchingScan():
     def __eq__(self, other): return self.num_injection == other.num_injection and self.ms_level == other.ms_level and math.isclose(self.rt, other.rt)
     def __hash__(self): return (self.num_injection, self.ms_level, self.rt).__hash__()
         
-    '''
-    @staticmethod
-    def create_scan_intensities(num_injection, original_scans, ms_level, rt, max_rt):
-        #Stateful, using stack of original scans to interpolate intensities. Use repeatedly with sorted inputs.
-        if(ms_level > 1): return MatchingScan(num_injection, ms_level, rt, [], [])
-        while(len(original_scans) > 1 and original_scans[-2].rt_in_seconds < rt): original_scans.pop()
-        
-        left_scan = original_scans[-1]
-        left, left_rt = left_scan.peaks, left_scan.rt_in_seconds
-        if(len(original_scans) > 1):
-            right_scan = original_scans[-2]
-            right = right_scan.peaks
-            right_rt = right_scan.rt_in_seconds
-        else:
-            right = {}
-            right_rt = max_rt
-        w = (rt - left_rt) / (right_rt - left_rt)
-        
-        mzs, intensities = [], [] 
-        for mz in set(itertools.chain(left.keys(), right.keys())):
-            mzs.append(mz)
-            intensities.append(((1 - w) * left.get(mz, 0) + w * right.get(mz, 0)) / 2)
-            
-        return MatchingScan(num_injection, ms_level, rt, mzs, intensities)
-    '''
-        
     def interpolate_scan(left, right, mz_window):
         left_mzs, left_intensities = zip(*left.peaks)
         right_mzs, right_intensities = zip(*right.peaks)
@@ -108,28 +82,8 @@ class MatchingScan():
                 new_intensities = []
                 new_intensities = [np.sum(weighted_intensities[left_bound:right_bound]) for (left_bound, right_bound) in in_window]
                 new_scans.append(MatchingScan(num_injection, ms_level, rt, mzs, new_intensities))
-                
-                '''#this probably isn't going to interpolate correctly, fix?
-                mzs, intensities = [], [] 
-                for mz in set(itertools.chain(left_mzs, right_mzs)):
-                    mzs.append(mz)
-                    intensities.append((1 - w) * left_intensity + w * right_intensity)
-                   
-                idxes = sorted([i for i, _ in enumerate(mzs)], key=lambda i: mzs[i])
-                mzs, intensities = [mzs[i] for i in idxes], [intensities[i] for i in idxes]
-                new_scans.append(MatchingScan(num_injection, ms_level, rt, mzs, intensities))
-                '''
         
         return new_scans
-
-    '''
-    @staticmethod
-    def topN_nodes(mzml_path, num_injection, N, max_rt, scan_duration_dict):
-        original_scans = sorted((s for s in MZMLFile(mzml_path).scans if s.ms_level == 1), key=lambda s: s.rt_in_seconds, reverse=True)
-        ms_levels = itertools.cycle([1] + [2] * N)
-        scan_times = itertools.accumulate(scan_duration_dict[ms_level] for ms_level in ms_levels)
-        return [MatchingScan.create_scan_intensities(num_injection, original_scans, ms_level, rt, max_rt) for ms_level, rt in zip(ms_levels, itertools.takewhile(lambda t: t < max_rt, scan_times))]
-    '''
     
     @staticmethod
     def topN_nodes(mzml_path, num_injection, N, max_rt, scan_duration_dict, mz_window=1E-10):
@@ -188,30 +142,10 @@ class MatchingChem():
         live_roi, dead_roi, junk_roi = roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
         print(f"roi lengths: {len(live_roi), len(dead_roi), len(junk_roi)}")
         return [MatchingChem(min(roi.mz_list), max(roi.mz_list), min(roi.rt_list), max(roi.rt_list)) for roi in itertools.chain(live_roi, dead_roi, junk_roi)]
-        
-        '''
-        #return [MatchingChem((ch.mass - isolation_width), (ch.mass + isolation_width), ch.rt, (ch.rt + ch.chromatogram.max_rt)) for ch in env.mass_spec.chemicals]
-        chems = {}
-        for event in env.mass_spec.fragmentation_events:
-            print(event.ms_level, event.precursor_mz)
-            print(event.chem)
-            print(event.isolation_window)
-            chem, mz = event.chem, event.precursor_mz
-            #min_mz, max_mz = chems.get(chem, (float("inf"), 0))
-            #chems[chem] = (min(min_mz, mz), max(max_mz, mz))
-        return [MatchingChem(min_mz, max_mz, ch.rt, (ch.rt + ch.chromatogram.max_rt)) for ch, (min_mz, max_mz) in chems]
-        '''
     
     def update_chem_intensity(self, mzs, intensities):
         left, right = bisect.bisect_left(mzs, self.min_mz), bisect.bisect_right(mzs, self.max_mz)
         self.intensity = max(intensities[i] for i in range(left, right)) if right - left > 0 else 0
-        '''if(self.intensity == 0):
-            print("NO INTENSITY DETECTED")
-            print(f"[(mz, intensity)]: {list(zip(mzs, intensities))}")
-            print(f"min_mz, max_max: {self.min_mz, self.max_mz}")
-            print(f"left, right: {left, right}")
-            quit()
-        '''
 
 class Matching():
     def __init__(self, scans_list, chems_list, matching, nx_graph=None):

@@ -476,6 +476,7 @@ class RoiAligner(object):
         self.peaksets2fragintensities = {}
         self.addition_method = None
         self.n_categories = n_categories
+        self.list_of_boxes = []
 
     def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
         self.sample_names.append(sample_name)
@@ -513,6 +514,7 @@ class RoiAligner(object):
         else:
             sys.exit('Method not supported')
         temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
+        self.list_of_boxes.append(temp_boxes)
         # Searching in boxes
         mzml = MZMLFile(mzml_file)
         scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,

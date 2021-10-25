@@ -8,6 +8,7 @@ import numpy as np
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+from vimms.Roi import get_precursor_intensities
 
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     '''Evaluates a single simulated injection against the chemicals present in that injection'''
@@ -191,7 +192,7 @@ def load_peakonly_boxes(box_file):
     return boxes
 
 
-def evaluate_peak_roi_aligner(roi_aligner, source_file):
+def evaluate_peak_roi_aligner(roi_aligner, source_file, evaluation_mzml_file=None, half_isolation_width=0):
     coverage = []
     coverage_intensities = []
     max_possible_intensities = []
@@ -201,6 +202,13 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
         if source_file in source_files:
             which_peak = np.where(source_file == np.array(source_files))[0][0]
             max_possible_intensities.append(peakset.peaks[which_peak].intensity)
+            if evaluation_mzml_file is not None:
+                boxes = list(np.array(roi_aligner.list_of_boxes)[np.where(roi_aligner.sample_names == source_file)])
+                scans2boxes, boxes2scans = map_boxes_to_scans(evaluation_mzml_file, boxes, half_isolation_window=half_isolation_width)
+                precursor_intensities, scores = get_precursor_intensities(boxes2scans, boxes, 'max')
+                temp_max_possible_intensities = max_possible_intensities
+                max_possible_intensities = [max(*l) for l in zip(precursor_intensities, temp_max_possible_intensities)]
+                # TODO: actually check that this works
             fragint = np.array(roi_aligner.peaksets2fragintensities[peakset])[which_peak]
             coverage_intensities.append(fragint)
             if fragint > 1:

@@ -498,7 +498,7 @@ class RoiAligner(object):
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def add_picked_peaks(self, mzml_file, peak_file, sample_name, picking_method='mzmine', sample_type=None,
-                         half_isolation_window=1, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
+                         half_isolation_window=0, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
         these_peaks = []

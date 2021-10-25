@@ -1,3 +1,4 @@
+import math
 import itertools
 import random
 from abc import abstractmethod
@@ -15,7 +16,7 @@ from mass_spec_utils.library_matching.spectrum import Spectrum
 class Point():
     def __init__(self, x, y): self.x, self.y = float(x), float(y)
 
-    def __eq__(self, other_point): return self.x == other_point.x and self.y == other_point.y
+    def __eq__(self, other_point): return math.isclose(self.x, other_point.x) and math.isclose(self.y, other_point.y)
 
     def __repr__(self): return "Point({}, {})".format(self.x, self.y)
 

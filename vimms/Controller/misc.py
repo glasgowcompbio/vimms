@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 from loguru import logger
 
-from vimms.Common import DEFAULT_ISOLATION_WIDTH
 from vimms.Controller.base import Controller
 from vimms.Common import *
 
@@ -219,7 +218,11 @@ class MS2PlannerController(FixedScansController):
                 f.write(f"SCHEDULE {i}\n\n")
                 f.write("".join(f"SCAN {j}: {scan}\n\n" for j, scan in enumerate(schedule)))
         return [MS2PlannerController(schedule=schedule, params=params) for schedule in schedules]
-
+        
+class MatchingController(FixedScansController):
+    @staticmethod
+    def from_matching(matching, isolation_width, params=None):
+        return [MatchingController(schedule=schedule, params=params) for schedule in matching.make_schedules(isolation_width)]
 
 class MultiIsolationController(Controller):
     def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH, params=None):

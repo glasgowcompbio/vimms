@@ -195,7 +195,8 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
     coverage = []
     coverage_intensities = []
     max_possible_intensities = []
-    for peakset in roi_aligner.peaksets:
+    included_peaksets = []
+    for i, peakset in enumerate(roi_aligner.peaksets):
         source_files = [peak.source_file for peak in peakset.peaks]
         if source_file in source_files:
             which_peak = np.where(source_file == np.array(source_files))[0][0]
@@ -206,22 +207,25 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file):
                 coverage.append(1)
             else:
                 coverage.append(0)
+            included_peaksets.append(i)
         else:
             coverage.append(0)  # standard coverage
             coverage_intensities.append(0.0)  # fragmentation intensity
             max_possible_intensities.append(0.0)  # max possible intensity (so highest observed ms1 intensity)
+    included_peaksets = np.array(included_peaksets)
     coverage = np.array(coverage)
     coverage_intensities = np.array(coverage_intensities)
     max_possible_intensities = np.array(max_possible_intensities)
-    coverage_prop = sum(coverage) / len(coverage)
-    coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
+    coverage_prop = sum(coverage[included_peaksets]) / len(coverage[included_peaksets])
+    coverage_intensity_prop = np.nanmean(coverage_intensities[included_peaksets] / max_possible_intensities[included_peaksets])
 
     return {
         'coverage': coverage,
         'intensity': coverage_intensities,
         'coverage_proportion': coverage_prop,
         'intensity_proportion': coverage_intensity_prop,
-        'max_possible_intensities': max_possible_intensities
+        'max_possible_intensities': max_possible_intensities,
+        'included_peaksets': included_peaksets
     }
 
 

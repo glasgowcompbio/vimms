@@ -38,7 +38,8 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
                 max_intensity = 0.0
             max_possible_intensities.append(max_intensity)
     which_non_zero = np.where(np.array(max_possible_intensities) > 0.0)
-    coverage_intensity_prop = np.nanmean(coverage_intensities[which_non_zero] / max_possible_intensities[which_non_zero])
+    coverage_intensity_prop = np.nanmean(np.array(coverage_intensities[which_non_zero]) /
+                                         np.array(max_possible_intensities)[which_non_zero])
 
     return {
         'num_frags': num_frags,

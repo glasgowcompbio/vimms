@@ -68,9 +68,6 @@ class MatchingScan():
             if(len(original_scans) > 1 and original_scans[-2].rt_in_seconds < rt): 
                 while(len(original_scans) > 1 and original_scans[-2].rt_in_seconds < rt): original_scans.pop()
                 if(len(original_scans) > 1): left_rt, right_rt, mzs, intensities, owner, in_window = MatchingScan.interpolate_scan(original_scans[-1], original_scans[-2], mz_window)
-                    
-                #left_intensity = sum(intensity for mz, intensity in left.get_peaks_in_window(mz, half_isolation_width=mz_window/2))
-                #right_intensity = sum(intensity for mz, intensity in right.get_peaks_in_window(mz, half_isolation_width=mz_window/2))
                 
             if(ms_level > 1 or len(original_scans) < 2):
                 new_scans.append(MatchingScan(num_injection, ms_level, rt, [], []))

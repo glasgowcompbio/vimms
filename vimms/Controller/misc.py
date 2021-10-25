@@ -154,7 +154,7 @@ class MS2PlannerController(FixedScansController):
             filler = MS2PlannerController.minimise_distance(ms2["rt_start"] - time, scan_duration_dict[1], scan_duration_dict[2])
             print(f"filler_scans: {filler}")
             for i in range(filler[0]): 
-                sp = get_default_scan_params(uniqueness_token=id_count)
+                sp = get_default_scan_params()
                 new_sched.append(sp)
                 id_count += 1
             for i in range(filler[1]):

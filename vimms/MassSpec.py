@@ -460,7 +460,11 @@ class IndependentMassSpectrometer(object):
             # if isolation_windows is None:  # if not then we compute from the precursor mz and isolation width
             isolation_windows = params.compute_isolation_windows()
 
-        scan_id = self.idx
+        # if the scan id is specified in the params, use it
+        # otherwise use the one that has been incremented from the previous one
+        scan_id = params.get(ScanParameters.SCAN_ID)
+        if scan_id is None:
+            scan_id = self.idx
 
         # for all chemicals that come out from the column coupled to the mass spec
         idx = self._get_chem_indices(scan_time)

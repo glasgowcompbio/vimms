@@ -1,0 +1,34 @@
+name: vimms
+channels:
+- defaults
+- conda-forge
+dependencies:
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - events
+  - tqdm
+  - joblib
+  - ipyparallel
+  - requests
+  - loguru
+  - networkx
+  - jsonpickle
+  - statsmodels
+  - tabulate
+  - flake8
+  - pytest
+  - intervaltree
+  - jupyterlab
+  - gpy
+  - mkdocs
+  - mkdocstrings
+  - pip
+  - pip:
+    - pymzml==2.4.7
+    - psims
+    - mass-spec-utils
+    - pysmiles

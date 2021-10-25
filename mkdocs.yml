@@ -1,0 +1,33 @@
+# mkdocs.yml
+site_name: Virtual Metabolomics Mass Spectrometry (ViMMS)
+theme:
+  name: "readthedocs"
+
+plugins:
+- search
+- mkdocstrings:
+    handlers:
+        python:
+            setup_commands:
+                - import sys
+                - sys.path.append('../')
+            selection:
+                new_path_syntax: true
+
+nav:
+  - Home: README.md
+  - Creating Chemicals: chemicals.md
+  - Running Controllers: controllers.md
+  - API Documentation:
+    - Chemical Generation:
+        - Chemicals: api/chemicals.md
+        - Chemical Samplers: api/chemical_samplers.md
+        - ROI: api/roi.md
+    - Mass Spectrometry:
+        - Column: api/column.md
+        - Noise: api/noise.md
+        - Mass Spec: api/mass_spec.md
+    - Environment: api/environment.md
+    - Controllers: api/controllers.md
+    - Feature Extractions: api/feature_extractions.md
+    - MzMLWriter: api/mzml_writer.md

@@ -1,3 +1,6 @@
+"""
+Provides implementation of Chemicals objects that are used as input to the simulation.
+"""
 import copy
 
 import numpy as np
@@ -13,6 +16,9 @@ from vimms.Roi import make_roi, RoiParams
 
 
 class DatabaseCompound(object):
+    """
+    A class to represent a compound stored in a database, e.g. HMDB
+    """
     def __init__(self, name, chemical_formula, monisotopic_molecular_weight, smiles, inchi, inchikey):
         self.name = name
         self.chemical_formula = chemical_formula
@@ -23,6 +29,9 @@ class DatabaseCompound(object):
 
 
 class Isotopes(object):
+    """
+    A class to represent an isotope of a chemical
+    """
     def __init__(self, formula):
         self.formula = formula
         self.C12_proportion = 0.989
@@ -30,6 +39,9 @@ class Isotopes(object):
         # TODO: Add functionality for elements other than Carbon
 
     def get_isotopes(self, total_proportion):
+        """
+        Gets the isotopes
+        """
         peaks = [() for i in range(len(self._get_isotope_proportions(total_proportion)))]
         for i in range(len(peaks)):
             peaks[i] += (self._get_isotope_mz(self._get_isotope_names(i)),)
@@ -40,6 +52,9 @@ class Isotopes(object):
     # outputs [(mz_1, intensity_proportion_1, isotope_name_1),...,(mz_n, intensity_proportion_n, isotope_name_n)]
 
     def _get_isotope_proportions(self, total_proportion):
+        """
+        Get isotope proportion by sampling from a binomial pmf
+        """
         proportions = []
         while sum(proportions) < total_proportion:
             proportions.extend(
@@ -63,6 +78,9 @@ class Isotopes(object):
 
 
 class Adducts(object):
+    """
+    A class to represent an adduct of a chemical
+    """
     def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
         if adduct_prior_dict is None:
             self.adduct_names = {POSITIVE: list(POS_TRANSFORMATIONS.keys())}
@@ -76,6 +94,9 @@ class Adducts(object):
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
 
     def get_adducts(self):
+        """
+        Get the adducts
+        """
         adducts = {}
         proportions = self._get_adduct_proportions()
         for k in self.adduct_names:
@@ -86,6 +107,9 @@ class Adducts(object):
         return adducts
 
     def _get_adduct_proportions(self):
+        """
+        Get adducts according to a dirichlet distribution
+        """
         # TODO: replace this with something proper
         proportions = {}
         for k in self.adduct_prior:
@@ -103,14 +127,16 @@ class Adducts(object):
 
 
 class Chemical(object):
-
+    """
+    The base class that represents a Chemical object. Should be realised as either Known or Unknown chemicals.
+    """
     def __repr__(self):
         raise NotImplementedError()
 
 
 class UnknownChemical(Chemical):
     """
-    Chemical from an unknown chemical formula
+    A Chemical representation from an unknown chemical formula
     """
 
     def __init__(self, mz, rt, max_intensity, chromatogram, children=None, base_chemical=None):
@@ -150,7 +176,7 @@ class UnknownChemical(Chemical):
 
 class KnownChemical(Chemical):
     """
-    Chemical from a known chemical formula
+    A Chemical representation from a known chemical formula
     """
 
     def __init__(self, formula, isotopes, adducts, rt, max_intensity, chromatogram, children=None,
@@ -194,7 +220,7 @@ class KnownChemical(Chemical):
 
 class MSN(Chemical):
     """
-    ms2+ fragments
+    A chemical that represents an MS2+ fragment.
     """
 
     def __init__(self, mz, ms_level, prop_ms2_mass, parent_mass_prop, children=None, parent=None):
@@ -210,8 +236,9 @@ class MSN(Chemical):
 
 
 class ChemicalMixtureCreator(object):
-    # class to create a list of known chemical objects
-    # using simplified, cleaned methods
+    '''
+    A class to create a list of known chemical objects using simplified, cleaned methods.
+    '''
     def __init__(self, formula_sampler,
                  rt_and_intensity_sampler=UniformRTAndIntensitySampler(),
                  chromatogram_sampler=GaussianChromatogramSampler(),
@@ -230,6 +257,9 @@ class ChemicalMixtureCreator(object):
         #     self.database.sort(key = lambda x: Formula(x.chemical_formula).mass)
 
     def sample(self, n_chemicals, ms_levels, include_adducts_isotopes=True):
+        '''
+        Samples chemicals.
+        '''
 
         formula_list = self.formula_sampler.sample(n_chemicals)
         rt_list = []
@@ -275,6 +305,9 @@ class ChemicalMixtureCreator(object):
 
 
 class MultipleMixtureCreator(object):
+    '''
+    A class to create a list of known chemical objects in multiple samples (mixtures)
+    '''
     def __init__(self, master_chemical_list, group_list, group_dict,
                  intensity_noise=GaussianPeakNoise(sigma=0.001, log_space=True), overall_missing_probability=0.0):
         # example
@@ -328,6 +361,9 @@ class MultipleMixtureCreator(object):
 
 
 class ChemicalMixtureFromMZML(object):
+    '''
+    A class to create a list of known chemical objects from an mzML file using simplified, cleaned methods.
+    '''
     def __init__(self, mzml_file_name, ms2_sampler=UniformMS2Sampler(), roi_params=None):
         self.mzml_file_name = mzml_file_name
         self.ms2_sampler = ms2_sampler
@@ -397,7 +433,9 @@ class ChemicalMixtureFromMZML(object):
 
 
 def get_pooled_sample(dataset_list):
-    '''takes a list of datasets and creates a pooled dataset from them'''
+    '''
+    Takes a list of datasets and creates a pooled dataset from them
+    '''
     n_datasets = len(dataset_list)
     all_chems = np.array([item for sublist in dataset_list for item in sublist])
     unique_parents = list(set([chem.base_chemical for chem in all_chems]))

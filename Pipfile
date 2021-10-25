@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-
 numpy = "*"
 pandas = "*"
 scipy = "*"
@@ -35,6 +34,8 @@ gpy = "*"
 [dev-packages]
 twine = "*"
 build = "*"
+mkdocs = "*"
+mkdocstrings = "*"
 
 [requires]
 python_version = "3"

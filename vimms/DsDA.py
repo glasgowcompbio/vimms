@@ -9,14 +9,15 @@ import time
 from vimms.Common import load_obj, get_default_scan_params, get_dda_scan_param, INITIAL_SCAN_ID
 
 
-def get_schedule(n, schedule_dir):
+def get_schedule(n, schedule_dir, sleep=True):
     while True:
         files = sorted(glob.glob(os.path.join(schedule_dir, '*.csv')))
         if len(files) == n:
             last_file = files[-1]
             try:
                 schedule = pd.read_csv(last_file)
-                time.sleep(10)
+                if sleep:
+                    time.sleep(10)
                 return last_file
             except:
                 pass
@@ -120,15 +121,19 @@ def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, 
     template = pd.read_csv(template_file)
     masses = schedule['targetMass']
     types = template['type']
+    scan_id = INITIAL_SCAN_ID
+    precursor_scan_id = None
     for i in range(schedule.shape[0]):
         if types[i] != 'msms':
-            scan_list.append(get_default_scan_params())
+            precursor_scan_id = scan_id
+            scan_params = get_default_scan_params(scan_id=precursor_scan_id)
         else:
-            if np.isnan(masses[i]):
-                mz = 100
-            else:
-                mz = masses[i]
-            scan_list.append(get_dda_scan_param(mz, 0.0, INITIAL_SCAN_ID + i, isolation_width, mz_tol, rt_tol))
+            assert precursor_scan_id is not None
+            mz = 100 if np.isnan(masses[i]) else masses[i]
+            scan_params = get_dda_scan_param(mz, 0.0, precursor_scan_id, isolation_width, mz_tol, rt_tol,
+                                             scan_id=scan_id)
+        scan_list.append(scan_params)
+        scan_id += 1
     return scan_list
 
 
@@ -145,7 +150,6 @@ def create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir):
         total_time += timing_sequence[-1] + mass_spec.scan_duration_dict[2]
         scan_numbers.extend(list(range(1, N + 2)))
         scan_types.extend(scan_types_sequence)
-    d = {'rt': timings,	'f': scan_numbers, 'type': scan_types}
+    d = {'rt': timings, 'f': scan_numbers, 'type': scan_types}
     df = pd.DataFrame(data=d)
     df.to_csv(path_or_buf=os.path.join(base_dir, 'DsDA_Timing_schedule.csv'), index=False)
-

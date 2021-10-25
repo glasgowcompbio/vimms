@@ -32,11 +32,13 @@ POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
 POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.033823
 
 
-# Object to store a RoI
-# Maintains 3 lists -- mz, rt and intensity
-# When a new point (mz,rt,intensity) is added, it updates the 
-# list and the mean mz which is required.
 class Roi(object):
+    """
+    A class to store an ROI (Regions-of-interest). An ROI is a region of consecutive scans that potentially form a chromatographic
+    peak. This is the first step in peak detection but before the region is identified to be a peak or not. This class
+    maintains 3 lists -- mz, rt and intensity. When a new point (mz,rt,intensity) is added, it updates the list and the
+    mean mz which is required.
+    """
     def __init__(self, mz, rt, intensity, id=None):
         self.id = id
         self.fragmentation_events = []

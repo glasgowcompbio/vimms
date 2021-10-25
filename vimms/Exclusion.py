@@ -266,7 +266,10 @@ def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
     else:
         # compute weight according to the WeightedDEW scheme
         weight = (current_rt - (exclusion_t_0 + frag_at)) / (rt_tol - exclusion_t_0)
-        assert weight <= 1, weight
+        if weight > 1:
+            logger.warning('exclusion weight %f is greater than 1 (current_rt %f exclusion_t_0 %f frag_at %f rt_tol %f)' %
+                           (weight, current_rt, exclusion_t_0, frag_at, rt_tol))
+        # assert weight <= 1, weight
         return True, weight
 
 

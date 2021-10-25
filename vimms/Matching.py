@@ -247,7 +247,7 @@ class Matching():
         for (i, scans) in enumerate(self.scans_list):
             for s in scans:
                 if(s.ms_level == 1):
-                    schedules_list[i].append(get_default_scan_params(uniqueness_token=id_count))
+                    schedules_list[i].append(get_default_scan_params())
                 elif(s.ms_level == 2):
                     if(s in self.matching):
                         ch = self.matching[s]

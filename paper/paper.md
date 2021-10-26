@@ -71,9 +71,9 @@ A common challenge faced by computational researchers with an interest in improv
 mass-spectrometry-based metabolomics is the lack of access and the high cost of running MS instrument. This issue is
 particularly relevant as developing and optimising novel fragmentation strategies tend to be conducted in an iterative
 fashion, where the method is developed in the computer, validated on the instrument and optimised until the desired
-performance metric is reached. To lower this barrier, we introduced **Vi**rtual **M**etabolomics **M**ass **S**
-pectrometer (ViMMS) 2.0, a programmable and modular framework that simulates the chemical generation process and the
-execution of fragmentation strategies in LC-MS/MS-based metabolomics.
+performance metric is reached. To lower this barrier, we introduced **Vi**rtual **M**etabolomics **M**ass **S**pectrometer 
+(ViMMS) 2.0, a programmable and modular framework that simulates the chemical generation process and the execution of 
+fragmentation strategies in LC-MS/MS-based metabolomics.
 
 # Related works
 
@@ -97,15 +97,15 @@ spectrometry run in metabolomics, and not as much as in enabling the development
 In ViMMS 2.0 we significantly improved the simulator framework architecture with the goal of supporting fragmentation
 strategies development and validation. An overview of the overall architecture is given in \autoref{diagram}. The
 simulator framework consists of two core functionalities: the generation of chemicals from multiple sources, and
-executions of fragmentation strategies, implemented as controller classes. The improved modularity in ViMMS 2.0 allows
+the execution of fragmentation strategies, implemented as controller classes. The improved modularity in ViMMS 2.0 allows
 many aspects of the framework to be swapped out with alternative implementations, including classes that generate
 various aspects of chemicals for simulation (\autoref{diagram}A), mass spectrometry simulator (\autoref{diagram}B),
 specific controllers that implement various fragmentation strategies (\autoref{diagram}C), as well as the environmental
 context to run them all (\autoref{diagram}D).
 
-![Overall ViMMS System Architecture.\label{diagram}](figure.pdf)
+![Overall ViMMS 2.0 System Architecture.\label{diagram}](figure.pdf)
 
-## Generating Input Chemicals for Simulation
+## Generating Input Chemicals
 
 Chemicals are input objects to the simulation process in ViMMS 2.0, and could be generated in many ways: either in a
 purely synthetic manner or extracted from existing data (mzML files) via peak picking. The framework allows users to
@@ -117,23 +117,26 @@ allows users to specify how chemicals could vary across samples. Given a list of
 common) across samples, users could indicate the ratio of missing chemicals or how chemical intensities should vary in a
 case-control setting.
 
-## Implementing and Running Fragmentation Strategies
+## Executing Fragmentation Strategies
 
 Once chemical objects have been prepared (whether for a single- or multi-sample settings), different fragmentation
 strategies could be run. Fragmentation strategies are implemented as controllers that extend from the base `Controller`
 class. Controllers are executed in the context of their environment, which brings together input chemicals, mass
-spectrometry and controllers in a single context (\autoref{diagram}D). Note that the modularity of the mass spectetry
+spectrometry and controllers in a single context (\autoref{diagram}D). Note that the modularity of the mass spectrometry
 and environment means it is possible to swap purely simulated MS and environment implementation with alternatives that
 control an actual MS instrument. In another work, we demonstrated the practicality of this idea by building alternative
-implementations of these classes that allow fragmentation strategies to be executed unchanged both in simulation as well
-as on Thermo Tribrid Fusion instrument [@davies21_smartroi].
+implementations of these classes that use IAPI [@Thermo_Fisher_Scientific_undated-ny] for bridging, making it possible for 
+fragmentation strategies to be executed unchanged both in simulation as well as on Thermo Tribrid Fusion instrument 
+[@davies21_smartroi].
+
+## Implementing a New Controller
 
 To illustrate how new strategies could be built on top of ViMMS 2.0, an example is given here of a Top-N controller that
 select the *N* most intense precursor ions for fragmentation in a typical data-dependant acquisition (DDA) fashion. In
 this implementation, the controller `SimpleTopNController` extends from a base `Controller` that provide base methods to
 handles various scan interactions with the mass spectrometry. The implementation has to override the `_process_scan`
 method, which determines how precursor ions in a newly received MS1 scan are prioritised to generate further
-fragmentation scans. Although it is not shown in this example, other methods in the parent `Controller` could also be
+fragmentation scans. Although not shown in this example, other methods in the parent `Controller` could also be
 overriden for different purposes, such as responding when an acquisition has been started or stopped.
 
 ```python

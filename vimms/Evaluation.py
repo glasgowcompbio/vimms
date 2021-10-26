@@ -54,8 +54,10 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     }
 
 
-def evaluate_multiple_simulated_env(env_list, base_chemicals, min_intensity=0.0, group_list=None):
+def evaluate_multiple_simulated_env(env_list, min_intensity=0.0, group_list=None):
     '''Evaluates_multiple simulated injections against a base set of chemicals that were used to derive the datasets'''
+    all_chems = np.array(list(itertools.chain(*[env.mass_spec.chemicals for env in env_list])))
+    base_chemicals = list(set([chem.base_chemical for chem in all_chems]))
     results = [evaluate_simulated_env(env, min_intensity=min_intensity, base_chemicals=base_chemicals) for env in
                env_list]
     num_frags = [r["num_frags"] for r in results]
@@ -189,37 +191,48 @@ def load_peakonly_boxes(box_file):
     return boxes
 
 
-def evaluate_peak_roi_aligner(roi_aligner, source_file):
+def evaluate_peak_roi_aligner(roi_aligner, source_file, evaluation_mzml_file=None, half_isolation_width=0):
     coverage = []
     coverage_intensities = []
     max_possible_intensities = []
-    for peakset in roi_aligner.peaksets:
+    included_peaksets = []
+    for i, peakset in enumerate(roi_aligner.peaksets):
         source_files = [peak.source_file for peak in peakset.peaks]
         if source_file in source_files:
             which_peak = np.where(source_file == np.array(source_files))[0][0]
             max_possible_intensities.append(peakset.peaks[which_peak].intensity)
+            if evaluation_mzml_file is not None:
+                boxes = list(np.array(roi_aligner.list_of_boxes)[np.where(roi_aligner.sample_names == source_file)])
+                scans2boxes, boxes2scans = map_boxes_to_scans(evaluation_mzml_file, boxes, half_isolation_window=half_isolation_width)
+                precursor_intensities, scores = get_precursor_intensities(boxes2scans, boxes, 'max')
+                temp_max_possible_intensities = max_possible_intensities
+                max_possible_intensities = [max(*l) for l in zip(precursor_intensities, temp_max_possible_intensities)]
+                # TODO: actually check that this works
             fragint = np.array(roi_aligner.peaksets2fragintensities[peakset])[which_peak]
             coverage_intensities.append(fragint)
             if fragint > 1:
                 coverage.append(1)
             else:
                 coverage.append(0)
+            included_peaksets.append(i)
         else:
             coverage.append(0)  # standard coverage
             coverage_intensities.append(0.0)  # fragmentation intensity
             max_possible_intensities.append(0.0)  # max possible intensity (so highest observed ms1 intensity)
+    included_peaksets = np.array(included_peaksets)
     coverage = np.array(coverage)
     coverage_intensities = np.array(coverage_intensities)
     max_possible_intensities = np.array(max_possible_intensities)
-    coverage_prop = sum(coverage) / len(coverage)
-    coverage_intensity_prop = np.nanmean(coverage_intensities / max_possible_intensities)
+    coverage_prop = sum(coverage[included_peaksets]) / len(coverage[included_peaksets])
+    coverage_intensity_prop = np.nanmean(coverage_intensities[included_peaksets] / max_possible_intensities[included_peaksets])
 
     return {
         'coverage': coverage,
         'intensity': coverage_intensities,
         'coverage_proportion': coverage_prop,
         'intensity_proportion': coverage_intensity_prop,
-        'max_possible_intensities': max_possible_intensities
+        'max_possible_intensities': max_possible_intensities,
+        'included_peaksets': included_peaksets
     }
 
 
@@ -252,4 +265,48 @@ def evaluate_multi_peak_roi_aligner(frequentist_roi_aligner, source_files, casec
         #TODO: something is wrong with intensity proportion in the single version of this code - think it goes above 1
 
     }
+
+
+def get_precursor_intensities(boxes2scans, boxes, method):
+    assert method in ['max', 'first']
+    precursor_intensities = []
+    scores = []
+    for i, box in enumerate(boxes):
+        if box in boxes2scans:
+            scans = boxes2scans[box]
+            scans = sorted(scans, key=lambda s: s.rt_in_seconds)
+
+            # A box can be linked to multiple ms2 scans.
+            # Here we get all the ms2 scans that overlap a box.
+            # For each ms2 scan, we then find its precursor intensity using the last ms1 scan
+            box_intensities = []
+            for ms2_scan in scans:
+                precursor = ms2_scan.previous_ms1.get_precursor(ms2_scan.precursor_mz)
+                if precursor is not None:
+                    box_intensities.append(precursor[1])  # precursor is (mz, intensity)
+
+            if method == 'max':
+                # for each box, get the max precursor intensity
+                if len(box_intensities) > 0:
+                    intensity = max(box_intensities)
+                    score = intensity / box.height
+                    precursor_intensities.append(intensity)
+                    scores.append(score)
+                else:
+                    precursor_intensities.append(0.0)
+                    scores.append(0.0)
+
+            elif method == 'first':
+                # for each box, get the first precursor intensity (smallest RT)
+                intensity = box_intensities[0]
+                score = intensity / box.height
+                precursor_intensities.append(intensity)
+                scores.append(score)
+        else:
+            precursor_intensities.append(0.0)
+            scores.append(0.0)
+
+    precursor_intensities = np.array(precursor_intensities)
+    scores = np.array(scores)
+    return precursor_intensities, scores
 

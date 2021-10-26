@@ -476,6 +476,7 @@ class RoiAligner(object):
         self.peaksets2fragintensities = {}
         self.addition_method = None
         self.n_categories = n_categories
+        self.list_of_boxes = []
 
     def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
         self.sample_names.append(sample_name)
@@ -498,7 +499,7 @@ class RoiAligner(object):
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def add_picked_peaks(self, mzml_file, peak_file, sample_name, picking_method='mzmine', sample_type=None,
-                         half_isolation_window=1, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
+                         half_isolation_window=0, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
         these_peaks = []
@@ -513,6 +514,7 @@ class RoiAligner(object):
         else:
             sys.exit('Method not supported')
         temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
+        self.list_of_boxes.append(temp_boxes)
         # Searching in boxes
         mzml = MZMLFile(mzml_file)
         scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
@@ -643,50 +645,6 @@ class FrequentistRoiAligner(RoiAligner):
         else:
             p_values = [None for ps in self.peaksets]
         return p_values
-
-
-def get_precursor_intensities(boxes2scans, boxes, method):
-    assert method in ['max', 'first']
-    precursor_intensities = []
-    scores = []
-    for i, box in enumerate(boxes):
-        if box in boxes2scans:
-            scans = boxes2scans[box]
-            scans = sorted(scans, key=lambda s: s.rt_in_seconds)
-
-            # A box can be linked to multiple ms2 scans.
-            # Here we get all the ms2 scans that overlap a box.
-            # For each ms2 scan, we then find its precursor intensity using the last ms1 scan
-            box_intensities = []
-            for ms2_scan in scans:
-                precursor = ms2_scan.previous_ms1.get_precursor(ms2_scan.precursor_mz)
-                if precursor is not None:
-                    box_intensities.append(precursor[1])  # precursor is (mz, intensity)
-
-            if method == 'max':
-                # for each box, get the max precursor intensity
-                if len(box_intensities) > 0:
-                    intensity = max(box_intensities)
-                    score = intensity / box.height
-                    precursor_intensities.append(intensity)
-                    scores.append(score)
-                else:
-                    precursor_intensities.append(0.0)
-                    scores.append(0.0)
-
-            elif method == 'first':
-                # for each box, get the first precursor intensity (smallest RT)
-                intensity = box_intensities[0]
-                score = intensity / box.height
-                precursor_intensities.append(intensity)
-                scores.append(score)
-        else:
-            precursor_intensities.append(0.0)
-            scores.append(0.0)
-
-    precursor_intensities = np.array(precursor_intensities)
-    scores = np.array(scores)
-    return precursor_intensities, scores
 
 
 def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):

@@ -34,6 +34,7 @@ date: 23 October 2021
 bibliography: paper.bib
 
 ---
+
 # Summary
 
 Identification of metabolites is a crucial step in untargeted metabolomics. The choice of fragmentation strategies used
@@ -118,13 +119,16 @@ strategies could be run. Fragmentation strategies are implemented as controllers
 class. Controllers are executed in the context of their environment, which brings together input chemicals, mass
 spectrometry and controllers in a single context. Note that the modularity of the mass spectetry and environment means
 it is possible to swap purely simulated MS and environment implementation with alternatives that could connect and
-control an actual an MS instrument. Indeed in [@davies21_smartroi] we built alternative implementations of these classes
-that allow fragmentation strategies to be executed unchanged both in simulation as well as on Thermo Tribrid Fusion
-instrument.
+control an actual an MS instrument. In other works, we demonstrated the practicality of this idea by building
+alternative implementations of these classes that allow fragmentation strategies to be executed unchanged both in
+simulation as well as on Thermo Tribrid Fusion instrument [@davies21_smartroi].
 
-As an example demonstrating how new controllers could be implemented in ViMMS 2.0, a simple fragmentation strategy is
-implemented here that select the Top-N precursor ions for fragmentation in a typical data-dependant acqusition (DDA)
-fashion. 
+To illustrate how new fragmentation strategies could be built on top of ViMMS 2.0, a simple fragmentation strategy is
+implemented here that select the *N* most intense precursor ions for fragmentation in a typical data-dependant
+acquisition (DDA) fashion. The controller `SimpleTopNController` extends from a base `Controller` that handles scan
+interactions with the mass spectrometry. The example shows how the implementation has to override the `_process_scan`
+method, which determines how precursor ions in a newly received MS1 scan should be prioritised to generate further
+fragmentation scans. Other methods in the parent `Controller` could also be overriden for various different purposes.
 
 ```python
 import numpy as np
@@ -170,31 +174,32 @@ class SimpleTopNController(Controller):
         return new_tasks
 ```
 
-The simple Top-N scheme above could be enhanced to incorporate dynamic exclusion windows to prevent the same precursors from being
-fragmented repeatedly, or to incorporate different schemes of prioritising which precursor ions to fragment. We have
-included a more complete Top-N fragmentation as the baseline controller in ViMMS 2.0, as well as two enhanced DDA
-controllers named SmartROI and WeightedDEW (outlined in [@davies21_smartroi]). These two controllers demonstrated how
-improved fragmentation strategies could be rapidly implemented and validated in ViMMS 2.0 to significantly improve
-fragmentation coverage. The former accomplishes this by tracking regions-of-interests in real-time, while the latter
-performed a weighted dynamic exclusion schemes to prioritise precursor ions for fragmentations. Evaluation codes are also provided in the ViMMS 2.0 package to compute various evaluation metrics, such as coverage and
-the precursor intensities when fragmentation occurs. This allows users to benchmark different controllers in a
-comparative setting.
+The simple Top-N scheme above could be enhanced to incorporate dynamic exclusion windows to prevent the same precursors
+from being fragmented repeatedly, or to incorporate different schemes of prioritising which precursor ions to fragment.
+We have included this more complete Top-N fragmentation as the baseline controller in ViMMS 2.0. In addition, two
+enhanced DDA controllers named SmartROI and WeightedDEW (outlined in [@davies21_smartroi]) are also provided, which
+demonstrate how novel fragmentation strategies could be rapidly implemented and validated in ViMMS 2.0. SmartROI
+accomplishes this by tracking regions-of-interests in real-time and targeting those for fragmentations, while
+WeightedDEW performs a weighted dynamic exclusion schemes to prioritise precursor ions for fragmentations. Evaluation
+codes are also provided to compute various evaluation metrics, such as coverage and fragmented precursor intensities.
+This allows users to benchmark different controller implementations in a comparative setting.
 
 ## Software requirements
 
 ViMMS 2.0 is distributed as a Python package that can be easily installed using pip. We require Python 3.0 or higher to
 run the framework. It depends on common packages such as numpy, scipy and pandas. Automated unit tests is available in
 Python, as well as continuous integration that build and run those unit tests in our code repository. Our codebase is
-stored in Github and we welcome contributions from the metabolomics community, particularly those with interest in
-developing novel fragmentation strategies in both data-dependant and data-independant acquisitions..
+stored in Github and we welcome contributions from researchers with interest in developing novel fragmentation
+strategies in both data-dependant and data-independant acquisitions..
 
 # Conclusion
 
 in this paper, we have introduced ViMMS 2.0, an extension of the simulator framework in ViMMS 1.0, which is modular,
 extensible and can be used in Python to simulate fragmentation strategies in untargeted metabolomics study. In other
 works [@davies21_smartroi], the utility of ViMMS 2.0 have been validated through additional briding codes that allow
-simulated controllers to run unchanged on both the simulator as well as on actual mass spectrometry. The proposed
-framework could be used by different researchers to develop new and novel fragmentation strategies too.
+simulated controllers to run unchanged on both the simulator as well as on actual mass spectrometry. It is our hope that
+the work outlined here would be used to advance the development of novel fragmentation strategies in untargeted
+metabolomics.
 
 # Acknowledgements
 

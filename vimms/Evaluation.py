@@ -241,9 +241,10 @@ def evaluate_multi_peak_roi_aligner(frequentist_roi_aligner, source_files, casec
     max_possible_intensities = reduce(np.fmax, max_possible_intensities_experiment)
     cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
     cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
-    cumulative_coverage_prop = [np.sum(cov) / len(frequentist_roi_aligner) for cov in cumulative_coverage]
+    cumulative_coverage_prop = [np.sum(cov) / len(max_possible_intensities) for cov in cumulative_coverage]
     cumulative_coverage_intensities_prop = [np.nanmean(c_i / max_possible_intensities) for c_i in
                                             cumulative_coverage_intensities]
+    coverage_times_fragmented = [sum(i) for i in zip(*coverage)]
     if casecontrol:
         pvalues = frequentist_roi_aligner.get_p_values(casecontrol)
     else:
@@ -256,11 +257,9 @@ def evaluate_multi_peak_roi_aligner(frequentist_roi_aligner, source_files, casec
         'cumulative_coverage': cumulative_coverage,
         'cumulative_coverage_prop': cumulative_coverage_prop,
         'cumulative_coverage_intensities_prop': cumulative_coverage_intensities_prop,
-
+        'coverage_times_fragmented': coverage_times_fragmented,
         'max_possible_intensities': max_possible_intensities,
         'pvalues': pvalues
-        #TODO: something is wrong with intensity proportion in the single version of this code - think it goes above 1
-
     }
 
 

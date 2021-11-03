@@ -172,6 +172,9 @@ class UnknownChemical(Chemical):
 
     def get_apex_rt(self):
         return self.rt + self.chromatogram.get_apex_rt()
+        
+    def get_original_parent(self):
+        return self if self.base_chemical is None else self.base_chemical.get_original_parent()
 
 
 class KnownChemical(Chemical):
@@ -216,6 +219,9 @@ class KnownChemical(Chemical):
 
     def get_apex_rt(self):
         return self.rt + self.chromatogram.get_apex_rt()
+        
+    def get_original_parent(self):
+        return self if self.base_chemical is None else self.base_chemical.get_original_parent()
 
 
 class MSN(Chemical):

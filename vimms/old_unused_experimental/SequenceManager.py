@@ -13,6 +13,7 @@ from loguru import logger
 from mass_spec_utils.data_import.mzmine import map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import BoxJoinAligner
+from mass_spec_utils.data_processing.mzmine import pick_peaks
 from sklearn.linear_model import LogisticRegression
 
 from vimms.Chemicals import ChemicalMixtureFromMZML
@@ -21,7 +22,6 @@ from vimms.Controller import TopNController, WeightedDEWController
 from vimms.Controller.roi import get_box_intensity, TopN_RoiController, TopN_SmartRoiController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.PythonMzmine import pick_peaks
 from vimms.Roi import RoiParams
 from vimms.old_unused_experimental.Scoring import picked_peaks_evaluation, roi_scoring
 

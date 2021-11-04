@@ -31,7 +31,6 @@ affiliations:
     index: 3
 date: 26 October 2021 
 bibliography: paper.bib
-
 ---
 
 # Summary
@@ -40,11 +39,11 @@ The choice of fragmentation strategies used during mass-spectrometry based data 
 and coverage of subsequent structural identification -- a crucial step in untargeted metabolomics data analysis.
 However, developing novel fragmentation strategies is challenging due to high experimental cost of running an actual
 mass spectrometry instrument and the lack of programmable simulation environment to support developmental activities.
-ViMMS 2.0 is a framework that could be used to develop new fragmentation strategies in metabolomics completely *
-in-silico* as well as on mass spectrometry instruments. The framework allows users to generate chemical objects (
-produced synthetically or extracted from existing mzML files) and simulate a tandem mass spectrometry process, where
-different fragmentation strategies can be rapidly implemented, tested and evaluated. In this paper, we present ViMMS
-2.0, highlighting the software design choices of the framework and illustrate with an example how a new fragmentation
+ViMMS 2.0 is a framework that can be used to develop new fragmentation strategies in metabolomics completely *in-silico*
+as well as on mass spectrometry instruments. The framework allows users to generate chemical objects (produced
+synthetically or extracted from existing mzML files) and simulate a tandem mass spectrometry process, where different
+fragmentation strategies can be rapidly implemented, tested and evaluated. In this paper, we present ViMMS 2.0,
+highlighting the software design choices of the framework and illustrate with an example how a new fragmentation
 strategy could be implemented in ViMMS 2.0.
 
 # Statement of need
@@ -226,6 +225,7 @@ metabolomics.
 
 # Acknowledgements
 
-N/A.
+Joe Wandy, Vinny Davies, Stefan Weidt, Simon Rogers and Rónán Daly acknowledge EPSRC project EP/R018634/1 on
+‘Closed-loop data science for complex, computationally and data-intensive analytics’.
 
 # References

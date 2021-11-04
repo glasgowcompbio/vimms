@@ -11,9 +11,10 @@ authors:
     orcid: 0000-0002-3068-4664 
     affiliation: 1
   - name: Vinny Davies 
-    ordic: 0000-0003-1896-8936 
+    orcid: 0000-0003-1896-8936 
     affiliation: 2
   - name: Ross McBride 
+    orcid: 0000-0002-0032-9506
     affiliation: 3
   - name: Stefan Weidt 
     affiliation: 1
@@ -35,10 +36,10 @@ bibliography: paper.bib
 
 # Summary
 
-The choice of fragmentation strategies used during mass-spectrometry based data acquisition directly affects the quality
+The choice of fragmentation strategies used during mass-spectrometry-based data acquisition directly affects the quality
 and coverage of subsequent structural identification -- a crucial step in untargeted metabolomics data analysis.
 However, developing novel fragmentation strategies is challenging due to high experimental cost of running an actual
-mass spectrometry instrument and the lack of programmable simulation environment to support developmental activities.
+mass spectrometry instrument and the lack of a programmable simulation environment to support their development.
 ViMMS 2.0 is a framework that can be used to develop new fragmentation strategies in metabolomics completely *in-silico*
 as well as on mass spectrometry instruments. The framework allows users to generate chemical objects (produced
 synthetically or extracted from existing mzML files) and simulate a tandem mass spectrometry process, where different
@@ -63,17 +64,17 @@ chromatographic MS1 peaks characterised by their m/z, RT and intensity values. D
 annotations are assigned to MS1 peaks through matching with internal standard compounds (having known m/z and RT values)
 or by searching spectral databases with the MS2 spectra associated with MS1 peaks. An important factor that determines
 how many molecules can annotated with spectral databases using fragmentation data is the quality of the MS2 spectra
-during data acquisition, and the coverage (for how many of the MS1 peaks were MS2 spectra generated). Good MS2
+acquired, and the coverage (for how many of the MS1 peaks were MS2 spectra collected). Good MS2
 fragmentation strategies aim to produce spectra for as many unknown ions in the sample as possible, but also produce
 high quality spectra which can be reliably evaluated.
 
-A common challenge faced by computational researchers with an interest in improving fragmentation strategies in tandem
-mass-spectrometry-based metabolomics is the lack of access to and the high cost of running MS instruments. This issue is
-particularly relevant as developing and optimising novel fragmentation strategies tend to be conducted in an iterative
-fashion requiring many measurements to be run to optimise the strategy until the desired performance level is reached.
-To lower this barrier, we present **Vi**rtual **M**etabolomics **M**ass **S**pectrometer
+A common challenge faced by computational researchers with an interest in improving fragmentation strategies in 
+tandem-mass-spectrometry-based metabolomics is the lack of access to and the high cost of running MS instruments. 
+This issue is particularly relevant as developing and optimising novel fragmentation strategies tends to be conducted 
+iteratively, requiring many measurements to be run to optimise the strategy until the desired performance 
+level is reached. To lower this barrier, we present **Vi**rtual **M**etabolomics **M**ass **S**pectrometer
 (ViMMS) 2.0, a programmable and modular framework that simulates the chemical generation process and the execution of
-fragmentation strategies in LC-MS/MS-based metabolomics. A particular feature of the ViMMS framework is the ability to
+fragmentation strategies in LC-MS/MS-based metabolomics. A notable feature of the ViMMS framework is the ability to
 design strategies that can respond, in real time, to the data being produced.
 
 # Related works
@@ -103,31 +104,33 @@ many aspects of the framework to be swapped out with alternative implementations
 various aspects of chemicals (e.g. measured m/z, RT, intensity) for simulation (\autoref{diagram}A), mass spectrometry
 simulation (\autoref{diagram}B), controllers that implement different fragmentation strategies (\autoref{diagram}C), as
 well as the environmental context to run them all (\autoref{diagram}D). Different evaluation methods are also provided
-to compare different controllers performance.
+to compare different controllers' performance.
 
 ![Overall ViMMS 2.0 System Architecture.\label{diagram}](figure.pdf)
 
 ## Generating Input Chemicals
 
 Chemicals are input objects to the simulation process in ViMMS 2.0, and can be generated in different ways: either in a
-purely synthetic manner or extracted from existing data (mzML files) via peak picking. The framework allows users to
+purely synthetic manner (e.g. sampling their properties from databases or fixed statistical distributions) 
+or extracted from existing data (mzML files) via peak picking. The framework allows users to
 plug in modular classes that specify parameters of chemicals, such as the distribution of their m/z values, RT,
 intensities, chromatographic shapes and associated MS2 spectra (\autoref{diagram}A).
+**RM: Do we actually build chemicals via peak-picking? In principle we could, but I thought we just extracted the traces with the centwave RoI-building algorithm?** 
 
 Chemicals can be generated in a single-sample or multi-sample settings. When generating multi-sample data, ViMMS allows
-users to specify how chemicals vary across samples. Given a list of base chemicals (chemicals that are common) across
-samples, users can indicate the ratio of missing chemicals (in what proportion of extracts should they appear) or how
+users to specify how chemicals vary across samples. Given a list of base chemicals (chemicals that are shared) across
+samples, users can indicate in what proportion of extracts chemicals should appear (dropout rate) or how
 chemical intensities should vary across a case-control experiment.
 
 ## Executing Fragmentation Strategies
 
-Once chemical objects have been prepared (whether for a single- or multi-sample settings), different fragmentation
+Once chemical objects have been prepared (whether for single- or multi-sample settings), different fragmentation
 strategies can be run. Fragmentation strategies are implemented as controllers that extend from the base `Controller`
-class. Controllers are executed in the context of their environment, which brings together input chemicals, mass
-spectrometry and controllers in a single context (\autoref{diagram}D). Note that the modularity of the mass spectrometry
+class. Controllers are executed in the context of an environment bringing together input chemicals, mass
+spectrometer and controllers as a single context (\autoref{diagram}D). Note that the modularity of the mass spectrometry
 and environment classes means it is possible to swap purely simulated MS and environment implementation with
-alternatives that control an actual MS instrument. In other work, we demonstrated the practicality of this idea by
-building alternative implementations of these classes that use the Thermo Fisher
+alternatives that control an actual MS instrument while other aspects remain unchanged. In other work, we demonstrated 
+the practicality of this idea by building alternative implementations of these classes that use the Thermo Fisher
 IAPI [@Thermo_Fisher_Scientific_undated-ny] for bridging, making it possible for fragmentation strategies to be executed
 unchanged both in simulation as well as on Thermo Tribrid Fusion instrument
 [@davies21_smartroi].
@@ -135,21 +138,21 @@ unchanged both in simulation as well as on Thermo Tribrid Fusion instrument
 ## Implementing a New Controller
 
 To illustrate how new strategies could be built on top of ViMMS 2.0, an example is given here of a Top-N controller that
-selects the *N* most intense precursor ions for fragmentation in a typical data-dependant acquisition (DDA) fashion.
-Such a controller is common in practice and is included to demonstrate how straightforward its implementation is within
-the framework.
+selects the *N* most intense precursor ions for fragmentation.
+This strategy is common in real-world data-dependent acquisition (DDA) experiments and is included to demonstrate how 
+straightforward its implementation is within the framework.
 
-In this implementation, the controller `SimpleTopNController` extends from a base `Controller` that provide base methods
-to handles various scan interactions with the mass spectrometer. The implementation overrides the `_process_scan`
-method, which determines how precursor ions in incoming MS1 scan are prioritised for fragmentation. Information on what
-the mass spectrometry should do next is stored as a list of `ScanParameters`, which is returned from the controller to
-the mass spectrometry objects in `_process_scan`.
+In this implementation, the controller `SimpleTopNController` extends from a base `Controller` that provides base methods
+to handle various scan interactions with the mass spectrometer. This implementation overrides the `_process_scan`
+method, which determines how precursor ions in an incoming MS1 scan are prioritised for fragmentation. Information on what
+the mass spectrometer should do next is stored as a list of `ScanParameters`, which is returned from the controller to
+the mass spectrometer object by `_process_scan`.
 
-Varying scan parameters allows a controller to flexibly target a single precursor ion for fragmentation, in what is
-commonly known as data-dependant acquisition (DDA), or to cover a range of m/z values by potentially fragmenting many
-precursor ions (Data Independent Acquisition; DIA). Although not shown in this example, other methods in the
-parent `Controller` could also be overriden for different purposes, such as responding when an acquisition has been
-started or stopped.
+Scan parameters control, for example, whether a controller flexibly targets a single precursor ion for fragmentation, 
+in what is commonly known as data-dependent acquisition (DDA), or whether it instead covers a range of m/z values, 
+potentially fragmenting many precursor ions (data-independent acquisition; DIA). Although not shown in this example, 
+other methods in the parent `Controller` could also be overridden for different purposes, such as responding when an 
+acquisition has been started or stopped.
 
 ```python
 import numpy as np
@@ -196,15 +199,15 @@ class SimpleTopNController(Controller):
 ```
 
 The simple Top-N scheme above could be enhanced to incorporate dynamic exclusion windows to prevent the same precursors
-from being fragmented repeatedly, or to incorporate different schemes of prioritising which of the precursor ions to
-fragment. We have included a more complete Top-N fragmentation as the baseline controller in ViMMS 2.0 against which
+from being fragmented repeatedly, or to incorporate different schemes prioritising which of the precursor ions to
+fragment. We have included a more complete Top-N strategy as the baseline controller in ViMMS 2.0 against which
 other strategies can be benchmarked. Two enhanced DDA controllers (named **SmartROI** and **WeightedDEW**, outlined
 in [@davies21_smartroi]) are also provided that demonstrate how novel fragmentation strategies could be rapidly
-implemented and validated in ViMMS 2.0. SmartROI accomplishes this by tracking regions-of-interests in real-time and
-targeting those for fragmentations, while WeightedDEW performs a weighted dynamic exclusion schemes to prioritise
-precursor ions for fragmentations. Evaluation codes are provided to compute various evaluation metrics, such as coverage
-and fragmented precursor intensities. This allows users to benchmark different controller implementations in a
-comparative setting.
+implemented and validated in ViMMS 2.0. SmartROI accomplishes this by tracking regions-of-interest in real-time and
+targeting those for fragmentation, while WeightedDEW implements a weighted dynamic exclusion scheme to decide
+prioritisation of precursor ions for fragmentation. Code is provided to compute various evaluation metrics,
+such as coverage and intensities of fragmented precursors. This allows users to benchmark different controller 
+implementations comparatively.
 
 ## Software requirements
 
@@ -212,15 +215,15 @@ ViMMS 2.0 is distributed as a Python package that can be easily installed using 
 run the framework. It depends on common packages such as numpy, scipy and pandas. Automated unit tests are available in
 Python, as well as continuous integration that build and run those unit tests in our code repository. Our codebase is
 stored in Github and we welcome contributions from researchers with interest in developing novel fragmentation
-strategies in both data-dependant and data-independant acquisitions.
+strategies in both data-dependent and data-independent acquisitions.
 
 # Conclusion
 
-in this paper, we have introduced ViMMS 2.0, an extension of the simulator framework in ViMMS 1.0, which is modular,
-extensible and can be used in Python to simulate fragmentation strategies in untargeted metabolomics study. In other
-works [@davies21_smartroi], the utility of ViMMS 2.0 have been validated through additional briding codes that allow
-simulated controllers to run unchanged on both the simulator as well as on actual mass spectrometry. It is our hope that
-the work outlined here would be used to advance the development of novel fragmentation strategies in untargeted
+in this paper, we have introduced ViMMS 2.0, an extension of the simulator framework in ViMMS 1.0. ViMMS 2.0 is modular,
+extensible and can be used in Python to simulate fragmentation strategies for untargeted metabolomics studies. In other
+work [@davies21_smartroi], the utility of ViMMS 2.0 has been validated through additional bridging code that allows
+simulated controllers to run unchanged on both the simulator and actual mass spectrometers. It is our hope 
+that the work outlined here will be used to advance the development of novel fragmentation strategies in untargeted
 metabolomics.
 
 # Acknowledgements

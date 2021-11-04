@@ -240,17 +240,19 @@ class Matching():
         return Matching.multi_schedule2graph([scans], [chems], intensity_threshold, weighted=weighted)
         
     def make_schedules(self, isolation_width):
-        id_count, schedules_list = INITIAL_SCAN_ID, [[] for i in range(len(self.scans_list))]
+        id_count, precursor_id = INITIAL_SCAN_ID, -1
+        schedules_list = [[] for i in range(len(self.scans_list))]
         for (i, scans) in enumerate(self.scans_list):
             for s in scans:
                 if(s.ms_level == 1):
-                    schedules_list[i].append(get_default_scan_params())
+                    precursor_id = id_count
+                    schedules_list[i].append(get_default_scan_params(scan_id=precursor_id))
                 elif(s.ms_level == 2):
                     if(s in self.matching):
                         ch = self.matching[s]
                         target_mz = (ch.min_mz + ch.max_mz) / 2 #TODO: decide whether targeting the bounds of a picked box is a good idea??
                     else:
-                        target_mz = 0.0
-                    schedules_list[i].append(get_dda_scan_param(target_mz, 0.0, id_count, isolation_width, 0.0, 0.0))
+                        target_mz = 100.0
+                    schedules_list[i].append(get_dda_scan_param(target_mz, 0.0, precursor_id, isolation_width, 0.0, 0.0, scan_id=id_count))
                 id_count += 1
         return schedules_list

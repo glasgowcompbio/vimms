@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?><batch>
     <batchstep method="io.github.mzmine.modules.io.rawdataimport.RawDataImportModule">
         <parameter name="Raw data file names">
-            <file>C:\Users\mcbrider5002\Desktop\Workspace\phd\data\255000\0_MS_data\Data_files\Blank\160923_53_Blank.mzML</file>
+            <file>replace_me</file>
         </parameter>
     </batchstep>
     <batchstep method="io.github.mzmine.modules.dataprocessing.filter_cropfilter.CropFilterModule">
@@ -27,7 +27,7 @@
         </parameter>
         <parameter name="Mass detector" selected="Centroid">
             <module name="Centroid">
-                <parameter name="Noise level">10000.0</parameter>
+                <parameter name="Noise level">500.0</parameter>
             </module>
             <module name="Exact mass">
                 <parameter name="Noise level"/>
@@ -86,11 +86,11 @@
         </parameter>
         <parameter name="Mass list">masses</parameter>
         <parameter name="Min group size in # of scans">3</parameter>
-        <parameter name="Group intensity threshold">10000.0</parameter>
-        <parameter name="Min highest intensity">10000.0</parameter>
+        <parameter name="Group intensity threshold">500.0</parameter>
+        <parameter name="Min highest intensity">500.0</parameter>
         <parameter name="m/z tolerance">
             <absolutetolerance>0.01</absolutetolerance>
-            <ppmtolerance>5.0</ppmtolerance>
+            <ppmtolerance>10.0</ppmtolerance>
         </parameter>
         <parameter name="Suffix">chromatograms</parameter>
     </batchstep>
@@ -162,8 +162,8 @@
                     <max>5.0</max>
                 </parameter>
                 <parameter name="RT wavelet range">
-                    <min>0.2</min>
-                    <max>0.5</max>
+                    <min>0.1</min>
+                    <max>1.0</max>
                 </parameter>
             </module>
         </parameter>
@@ -188,8 +188,8 @@
     <batchstep method="io.github.mzmine.modules.io.csvexport.CSVExportModule">
         <parameter name="Feature lists" type="BATCH_LAST_PEAKLISTS"/>
         <parameter name="Filename">
-            <current_file>C:\Users\mcbrider5002\Desktop\Workspace\phd\peak_picking\MZmine-2.53-Windows</current_file>
-            <last_file>C:\Users\mcbrider5002\Desktop\Workspace\phd\peak_picking\MZmine-2.53-Windows</last_file>
+            <current_file>replace_me</current_file>
+            <last_file>replace_me</last_file>
         </parameter>
         <parameter name="Field separator">,</parameter>
         <parameter name="Export common elements">

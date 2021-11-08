@@ -186,30 +186,37 @@ def load_peakonly_boxes(box_file):
 
 
 def evaluate_peak_roi_aligner(roi_aligner, source_file, evaluation_mzml_file=None, half_isolation_width=0):
-    coverage, coverage_intensities, max_possible_intensities, included_peaksets = [], [], [], []
-    
+    coverage = []
+    coverage_intensities = []
+    max_possible_intensities = []
+    included_peaksets = []
     for i, peakset in enumerate(roi_aligner.peaksets):
-        source_files = {peak.source_file : i for i, peak in enumerate(peakset.peaks)}
+        source_files = [peak.source_file for peak in peakset.peaks]
         if source_file in source_files:
-            which_peak = source_files[source_file]
+            which_peak = np.where(source_file == np.array(source_files))[0][0]
             max_possible_intensities.append(peakset.peaks[which_peak].intensity)
-            if not evaluation_mzml_file is None:
-                boxes = [box for box, name in zip(roi_aligner.list_of_boxes, roi_aligner.sample_names) if name == source_file]
+            if evaluation_mzml_file is not None:
+                boxes = list(np.array(roi_aligner.list_of_boxes)[np.where(roi_aligner.sample_names == source_file)])
                 scans2boxes, boxes2scans = map_boxes_to_scans(evaluation_mzml_file, boxes, half_isolation_window=half_isolation_width)
                 precursor_intensities, scores = get_precursor_intensities(boxes2scans, boxes, 'max')
                 temp_max_possible_intensities = max_possible_intensities
                 max_possible_intensities = [max(*l) for l in zip(precursor_intensities, temp_max_possible_intensities)]
                 # TODO: actually check that this works
-            fragint = roi_aligner.peaksets2fragintensities[peakset][which_peak]
+            fragint = np.array(roi_aligner.peaksets2fragintensities[peakset])[which_peak]
             coverage_intensities.append(fragint)
+            if fragint > 1:
+                coverage.append(1)
+            else:
+                coverage.append(0)
             included_peaksets.append(i)
         else:
+            coverage.append(0)  # standard coverage
             coverage_intensities.append(0.0)  # fragmentation intensity
             max_possible_intensities.append(0.0)  # max possible intensity (so highest observed ms1 intensity)
     included_peaksets = np.array(included_peaksets)
-    max_possible_intensities = np.array(max_possible_intensities)
+    coverage = np.array(coverage)
     coverage_intensities = np.array(coverage_intensities)
-    coverage = coverage_intensities > 1
+    max_possible_intensities = np.array(max_possible_intensities)
     coverage_prop = sum(coverage[included_peaksets]) / len(coverage[included_peaksets])
     coverage_intensity_prop = np.mean(coverage_intensities[included_peaksets] / max_possible_intensities[included_peaksets])
 

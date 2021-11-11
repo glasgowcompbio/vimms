@@ -115,7 +115,6 @@ purely synthetic manner (e.g. sampling their properties from databases or fixed 
 or extracted from existing data (mzML files) via peak picking. The framework allows users to
 plug in modular classes that specify parameters of chemicals, such as the distribution of their m/z values, RT,
 intensities, chromatographic shapes and associated MS2 spectra (\autoref{diagram}A).
-**RM: Do we actually build chemicals via peak-picking? In principle we could, but I thought we just extracted the traces with the centwave RoI-building algorithm?** 
 
 Chemicals can be generated in a single-sample or multi-sample settings. When generating multi-sample data, ViMMS allows
 users to specify how chemicals vary across samples. Given a list of base chemicals (chemicals that are shared) across

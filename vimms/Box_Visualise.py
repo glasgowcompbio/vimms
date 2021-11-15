@@ -6,31 +6,40 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-class RGBColour():
-    def __init__(self, R, G, B): self.R, self.G, self.B = R, G, B
-    def __repr__(self): return f"RGBColour({self.R}, {self.G}, {self.B})"
-    def __add__(self, other): return RGBColour(self.R + other.R, self.G + other.G, self.B + other.B)
-    def __mul__(self, scalar): return RGBColour(self.R * scalar, self.G * scalar, self.B * scalar)
+class RGBAColour():
+    def __init__(self, R, G, B, A=1.0): self.R, self.G, self.B, self.A = R, G, B, A
+    def __repr__(self): return f"RGBAColour(R={self.R}, G={self.G}, B={self.B}, A={self.A})"
+    def __add__(self, other): return RGBAColour(self.R + other.R, self.G + other.G, self.B + other.B, self.A + other.A)
+    def __mul__(self, scalar): return RGBAColour(self.R * scalar, self.G * scalar, self.B * scalar, self.A * scalar)
     def __rmul__(self, scalar): return self.__mul__(self.scalar)
-    def squash(self): return (self.R / 255.0, self.G / 255.0, self.B / 255.0)
+    def squash(self): return (self.R / 255.0, self.G / 255.0, self.B / 255.0, self.A)
+
+    def correct_bounds(self):
+        self.R = max(0, min(255, self.R))
+        self.G = max(0, min(255, self.G))
+        self.B = max(0, min(255, self.B))
+        self.A = max(0.0, min(1.0, self.A))
+    
     def interpolate(self, others, weights=None):
-        colours = others + [self]
+        colours = [self] + others
         weights = [1 / len(colours) for _ in colours] if weights is None else weights
-        return sum((c * w for c, w in zip(colours, weights)), start=RGBColour(0, 0, 0))
+        new_c = sum((c * w for c, w in zip(colours, weights)), start=RGBAColour(0, 0, 0, 0.0))
+        new_c.correct_bounds()
+        return new_c
 
 class ColourMap():
 
-    PURE_RED = RGBColour(255, 0, 0)
-    PURE_GREEN = RGBColour(0, 255, 0)
-    PURE_BLUE = RGBColour(0, 0, 255)
+    PURE_RED = RGBAColour(255, 0, 0)
+    PURE_GREEN = RGBAColour(0, 255, 0)
+    PURE_BLUE = RGBAColour(0, 0, 255)
     
-    RED = RGBColour(237, 28, 36)
-    ORANGE = RGBColour(255, 127, 39)
-    YELLOW = RGBColour(255, 242, 0)
-    GREEN = RGBColour(34, 177, 76)
-    LIGHT_BLUE = RGBColour(0, 162, 232)
-    INDIGO = RGBColour(63, 72, 204)
-    VIOLET = RGBColour(163, 73, 164)
+    RED = RGBAColour(237, 28, 36)
+    ORANGE = RGBAColour(255, 127, 39)
+    YELLOW = RGBAColour(255, 242, 0)
+    GREEN = RGBAColour(34, 177, 76)
+    LIGHT_BLUE = RGBAColour(0, 162, 232)
+    INDIGO = RGBAColour(63, 72, 204)
+    VIOLET = RGBAColour(163, 73, 164)
 
     @abstractmethod
     def __init__(self): pass
@@ -74,7 +83,7 @@ class InterpolationMap(ColourMap):
             if(math.isclose(minm, maxm)): return self.colours[0]
             i = next(i-1 for i, threshold in enumerate(intervals) if threshold >= key(box))
             weight = (key(box) - intervals[i]) / (intervals[i + 1] - intervals[i])
-            return self.colours[i].interpolate([self.colours[i+1]], weights=[weight, 1-weight])
+            return self.colours[i].interpolate([self.colours[i+1]], weights=[1-weight, weight])
         
         return ((b, get_colour(b)) for b in boxes)
         
@@ -86,7 +95,7 @@ class AutoColourMap(ColourMap):
         
     @staticmethod
     def random_colours(boxes):
-        return ((b, RGBColour(*(random.uniform(0, 255) for _ in range(3)))) for b in boxes)
+        return ((b, RGBAColour(*(random.uniform(0, 255) for _ in range(3)))) for b in boxes)
 
     def assign_colours(self, boxes):
         #if there's no path from one box to another when we build a graph of their overlaps, we can re-use colours

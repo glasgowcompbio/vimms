@@ -77,9 +77,9 @@ class InterpolationMap(ColourMap):
     def __init__(self, colours):
         self.colours = list(colours)
         
-    def assign_colours(self, boxes, key):
-        minm = min(key(b) for b in boxes)
-        maxm = max(key(b) for b in boxes)
+    def assign_colours(self, boxes, key, minm=None, maxm=None):
+        minm = min(key(b) for b in boxes) if minm is None else minm
+        maxm = max(key(b) for b in boxes) if maxm is None else maxm
         intervals = [minm + i * (maxm - minm) / (len(self.colours) - 1) for i in range(len(self.colours))]
     
         def get_colour(box):
@@ -174,13 +174,17 @@ class PlotPoints():
         self.markers = markers'''
         pass
         
-    def plot_points(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
+    def plot_points(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, abs_scaling=False):
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         rts, mzs, intensities = self.ms1_points[self.active, 0], self.ms1_points[self.active, 1], self.ms1_points[self.active, 2]
 
         self.mark_precursors()  
         cmap = InterpolationMap([RGBAColour(238, 238, 238), ColourMap.YELLOW, ColourMap.RED, ColourMap.PURE_BLUE])        
-        colours = list(cmap.assign_colours(intensities, lambda x: math.log(x)))
+        if(abs_scaling):
+            minm, maxm = math.log(np.min(self.ms1_points[:, 2])), math.log(np.max(self.ms1_points[:, 2]))
+            colours = list(cmap.assign_colours(intensities, lambda x: math.log(x), minm=minm, maxm=maxm))
+        else:
+            colours = list(cmap.assign_colours(intensities, lambda x: math.log(x)))
         ax.scatter(rts, mzs, color=[colour.squash() for _, colour in colours], marker=self.markers) 
 
 class PlotBox():
@@ -207,16 +211,15 @@ class PlotBox():
         xlen, ylen = (self.max_rt - self.min_rt), (self.max_mz - self.min_mz)
         ax.add_patch(patches.Rectangle((x1, y1), xlen, ylen, linewidth=1, ec="black", fc=[0, 0, 0, 0]))
 
-    def plot_box(self, ax, mzml, scale_to_mzml=False):
+    def plot_box(self, ax, mzml, abs_scaling=False):
         rt_tolerance, mz_tolerance = 0.01, 0.01
         xbounds = [self.min_rt * (1 - rt_tolerance), self.max_rt * (1 + rt_tolerance)]
         ybounds = [self.min_mz * (1 - mz_tolerance), self.max_mz * (1 + mz_tolerance)]
         
         pts = PlotPoints.from_mzml(mzml)
-        pts.plot_points(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1])
+        pts.plot_points(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1], abs_scaling=abs_scaling)
         self.add_to_plot(ax)
         ax.set_xlim(xbounds)
         ax.set_ylim(ybounds)
     
 #need to be able to turn precursors into crosses
-#need to be able to scale intensity map to some other values

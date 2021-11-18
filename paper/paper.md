@@ -112,7 +112,7 @@ to compare different controllers' performance.
 
 Chemicals are input objects to the simulation process in ViMMS 2.0, and can be generated in different ways: either in a
 purely synthetic manner (e.g. sampling their properties from databases or fixed statistical distributions) 
-or extracted from existing data (mzML files) via peak picking. The framework allows users to
+or by construction from existing data (mzML files) via the extraction of RoI traces. The framework allows users to
 plug in modular classes that specify parameters of chemicals, such as the distribution of their m/z values, RT,
 intensities, chromatographic shapes and associated MS2 spectra (\autoref{diagram}A).
 

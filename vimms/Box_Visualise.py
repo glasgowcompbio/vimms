@@ -1,5 +1,6 @@
 import math
 import random
+import bisect
 from collections import OrderedDict
 from abc import ABC, abstractmethod
 import numpy as np
@@ -145,8 +146,8 @@ def path_or_mzml(mzml):
     return mzml
         
 class PlotPoints():
-    def __init__(self, ms1_points, ms2_times=None, markers=None):
-        self.ms1_points, self.ms2_times = ms1_points, ms2_times
+    def __init__(self, ms1_points, ms2s=None, markers={}):
+        self.ms1_points, self.ms2s = ms1_points, ms2s
         self.markers = markers
         self.active = np.ones_like(ms1_points)
         
@@ -158,34 +159,44 @@ class PlotPoints():
             if(s.ms_level in scan_dict): scan_dict[s.ms_level].append(s)
         scan_dict[1] = sorted(scan_dict[1], key=lambda s: s.rt_in_seconds)
         ms1_points = np.array([[s.rt_in_seconds, mz, intensity] for s in scan_dict[1] for mz, intensity in s.peaks])
-        return PlotPoints(ms1_points, [s.rt_in_seconds for s in scan_dict[2]])
+        return PlotPoints(ms1_points, [(s.rt_in_seconds, s.precursor_mz) for s in scan_dict[2]])
     
     def points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
         select_rt = ((min_rt is None) | (self.ms1_points[:, 0] >= min_rt)) & ((max_rt is None) | (self.ms1_points[:, 0] <= max_rt))  
         select_mz = ((min_mz is None) | (self.ms1_points[:, 1] >= min_mz)) & ((max_mz is None) | (self.ms1_points[:, 1] <= max_mz))
         self.active = (select_rt & select_mz)
         
-    def mark_precursors(self):
-        '''#sort individual ms1 points by m/z
-        markers = ["o" for _ in enumerate(ms1s)]
-        for ms2 in ms2s:
-            #do a binary search for closest marker
-            markers[i] = "x"
-        self.markers = markers'''
-        pass
+    def mark_precursors(self, max_error=10):
+        markers = ["o" for _ in enumerate(self.ms1_points)]
+        ms1_min, ms1_max = 0, 0
+        for rt, precursor_mz in self.ms2s:
+            ms1_max = bisect.bisect_right(self.ms1_points[:, 0], rt)
+            precursor_time = self.ms1_points[ms1_max - 1, 0]
+            ms1_min = bisect.bisect_left(self.ms1_points[:, 0], precursor_time)
+            if(ms1_max - ms1_min > 0):
+                i = np.argmin(np.abs(self.ms1_points[ms1_min:ms1_max, 1] - precursor_mz)) + ms1_min
+                if(1e6 * np.abs(self.ms1_points[i, 1] - precursor_mz) / precursor_mz <= max_error):
+                    markers[i] = "x"
+        markers = np.array(markers)[self.active]
+        marker_dict = {m : [] for m in set(markers)}
+        for i, m in enumerate(markers):
+            marker_dict[m].append(i)
+        self.markers = marker_dict
         
     def plot_points(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, abs_scaling=False):
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         rts, mzs, intensities = self.ms1_points[self.active, 0], self.ms1_points[self.active, 1], self.ms1_points[self.active, 2]
 
-        self.mark_precursors()  
         cmap = InterpolationMap([RGBAColour(238, 238, 238), ColourMap.YELLOW, ColourMap.RED, ColourMap.PURE_BLUE])        
         if(abs_scaling):
             minm, maxm = math.log(np.min(self.ms1_points[:, 2])), math.log(np.max(self.ms1_points[:, 2]))
-            colours = list(cmap.assign_colours(intensities, lambda x: math.log(x), minm=minm, maxm=maxm))
+            colours = np.array(list(cmap.assign_colours(intensities, lambda x: math.log(x), minm=minm, maxm=maxm)))
         else:
-            colours = list(cmap.assign_colours(intensities, lambda x: math.log(x)))
-        ax.scatter(rts, mzs, color=[colour.squash() for _, colour in colours], marker=self.markers) 
+            colours = np.array(list(cmap.assign_colours(intensities, lambda x: math.log(x))))
+        
+        self.mark_precursors()
+        for marker, idxes in self.markers.items():
+            ax.scatter(rts[idxes], mzs[idxes], color=[colour.squash() for _, colour in colours[idxes]], marker=marker) 
 
 class PlotBox():
     def __init__(self, min_rt, max_rt, min_mz, max_mz, intensity):
@@ -212,14 +223,14 @@ class PlotBox():
         ax.add_patch(patches.Rectangle((x1, y1), xlen, ylen, linewidth=1, ec="black", fc=[0, 0, 0, 0]))
 
     def plot_box(self, ax, mzml, abs_scaling=False):
-        rt_tolerance, mz_tolerance = 0.01, 0.01
-        xbounds = [self.min_rt * (1 - rt_tolerance), self.max_rt * (1 + rt_tolerance)]
-        ybounds = [self.min_mz * (1 - mz_tolerance), self.max_mz * (1 + mz_tolerance)]
+        rt_tolerance, mz_tolerance = 0.4, 0.4
+        rt_buffer = (self.max_rt - self.min_rt) * rt_tolerance
+        mz_buffer = (self.max_mz - self.min_mz) * mz_tolerance
+        xbounds = [self.min_rt - rt_buffer, self.max_rt + rt_buffer]
+        ybounds = [self.min_mz - mz_buffer, self.max_mz + mz_buffer]
         
         pts = PlotPoints.from_mzml(mzml)
         pts.plot_points(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1], abs_scaling=abs_scaling)
         self.add_to_plot(ax)
         ax.set_xlim(xbounds)
         ax.set_ylim(ybounds)
-    
-#need to be able to turn precursors into crosses

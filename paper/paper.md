@@ -22,6 +22,7 @@ authors:
     orcid: 0000-0003-3578-4477
     affiliation: 3
   - name: Rónán Daly
+    orcid: 0000-0002-1275-6820
     affiliation: 1 
 affiliations:
   - name: Glasgow Polyomics, University of Glasgow, United Kingdom 
@@ -38,9 +39,9 @@ bibliography: paper.bib
 
 The choice of fragmentation strategies used during mass-spectrometry-based data acquisition directly affects the quality
 and coverage of subsequent structural identification -- a crucial step in untargeted metabolomics data analysis.
-However, developing novel fragmentation strategies is challenging due to high experimental cost of running an actual
+However, developing novel fragmentation strategies is challenging due to the high experimental cost of running an actual
 mass spectrometry instrument and the lack of a programmable simulation environment to support their development.
-ViMMS 2.0 is a framework that can be used to develop new fragmentation strategies in metabolomics completely *in-silico*
+ViMMS 2.0 is a software framework that can be used to develop new fragmentation strategies in metabolomics completely *in-silico*
 as well as on mass spectrometry instruments. The framework allows users to generate chemical objects (produced
 synthetically or extracted from existing mzML files) and simulate a tandem mass spectrometry process, where different
 fragmentation strategies can be rapidly implemented, tested and evaluated. In this paper, we present ViMMS 2.0,
@@ -63,7 +64,7 @@ Typically the raw LC-MS/MS measurements are processed in a data pre-processing p
 chromatographic MS1 peaks characterised by their m/z, RT and intensity values. During identification, molecular
 annotations are assigned to MS1 peaks through matching with internal standard compounds (having known m/z and RT values)
 or by searching spectral databases with the MS2 spectra associated with MS1 peaks. An important factor that determines
-how many molecules can annotated with spectral databases using fragmentation data is the quality of the MS2 spectra
+how many molecules can be annotated with spectral databases using fragmentation data is the quality of the MS2 spectra
 acquired, and the coverage (for how many of the MS1 peaks were MS2 spectra collected). Good MS2
 fragmentation strategies aim to produce spectra for as many unknown ions in the sample as possible, but also produce
 high quality spectra which can be reliably evaluated.
@@ -99,7 +100,7 @@ spectrometry run in metabolomics, rather than enabling the development of new st
 In ViMMS 2.0 we significantly improved the simulator framework architecture with the goal of supporting fragmentation
 strategy development and validation. An overview of the overall architecture is given in \autoref{diagram}. The
 simulator framework consists of two core functionalities: the generation of chemicals from multiple sources, and the
-execution of fragmentation strategies, implemented as a controller classes. The improved modularity in ViMMS 2.0 allows
+execution of fragmentation strategies, implemented as controller classes. The improved modularity in ViMMS 2.0 allows
 many aspects of the framework to be swapped out with alternative implementations, including classes that generate
 various aspects of chemicals (e.g. measured m/z, RT, intensity) for simulation (\autoref{diagram}A), mass spectrometry
 simulation (\autoref{diagram}B), controllers that implement different fragmentation strategies (\autoref{diagram}C), as
@@ -131,7 +132,7 @@ and environment classes means it is possible to swap purely simulated MS and env
 alternatives that control an actual MS instrument while other aspects remain unchanged. In other work, we demonstrated 
 the practicality of this idea by building alternative implementations of these classes that use the Thermo Fisher
 IAPI [@Thermo_Fisher_Scientific_undated-ny] for bridging, making it possible for fragmentation strategies to be executed
-unchanged both in simulation as well as on Thermo Tribrid Fusion instrument
+in simulation as well as unchanged on Thermo Tribrid Fusion instruments
 [@davies21_smartroi].
 
 ## Implementing a New Controller
@@ -201,7 +202,7 @@ The simple Top-N scheme above could be enhanced to incorporate dynamic exclusion
 from being fragmented repeatedly, or to incorporate different schemes prioritising which of the precursor ions to
 fragment. We have included a more complete Top-N strategy as the baseline controller in ViMMS 2.0 against which
 other strategies can be benchmarked. Two enhanced DDA controllers (named **SmartROI** and **WeightedDEW**, outlined
-in [@davies21_smartroi]) are also provided that demonstrate how novel fragmentation strategies could be rapidly
+by @davies21_smartroi) are also provided that demonstrate how novel fragmentation strategies could be rapidly
 implemented and validated in ViMMS 2.0. SmartROI accomplishes this by tracking regions-of-interest in real-time and
 targeting those for fragmentation, while WeightedDEW implements a weighted dynamic exclusion scheme to decide
 prioritisation of precursor ions for fragmentation. Code is provided to compute various evaluation metrics,

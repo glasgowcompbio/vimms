@@ -204,7 +204,7 @@ class PlotBox():
         self.min_mz, self.max_mz = min_mz, max_mz
         self.intensity = intensity
         
-    def __repr__(self): return f"PlotBox(rt bounds={self.rt_range}, mz bounds: {self.mz_range}, apex intensity={self.intensity})"
+    def __repr__(self): return f"PlotBox(min_mz={self.min_mz}, max_mz={self.max_mz}, min_rt={self.min_rt}, max_rt={self.max_rt}, apex_intensity={self.intensity})"
         
     def box_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
         return (
@@ -234,3 +234,4 @@ class PlotBox():
         self.add_to_plot(ax)
         ax.set_xlim(xbounds)
         ax.set_ylim(ybounds)
+        ax.set(xlabel="RT (Seconds)", ylabel="m/z")

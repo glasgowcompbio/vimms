@@ -1,4 +1,5 @@
 import math
+import copy
 import itertools
 import bisect
 
@@ -85,7 +86,7 @@ class MatchingScan():
     @staticmethod
     def topN_nodes(mzml_path, num_injection, N, max_rt, scan_duration_dict, mz_window=1E-10):
         ms_levels = itertools.cycle([1] + [2] * N)
-        scan_times = itertools.accumulate(scan_duration_dict[ms_level] for ms_level in ms_levels)
+        scan_times = itertools.accumulate((scan_duration_dict[ms_level] for ms_level in copy.deepcopy(ms_levels)), initial=0)
         return MatchingScan.create_scan_intensities(mzml_path, num_injection, zip(ms_levels, itertools.takewhile(lambda t: t < max_rt, scan_times)), mz_window)
 
     @staticmethod
@@ -174,8 +175,7 @@ class Matching():
                 active_chems = [ch for ch in intersected if ch.intensity >= intensity_threshold]
                 seen_active |= set(active_chems)
             elif(s.ms_level == 2):
-                #while(len(active_chems) > 0 and active_chems[-1].max_rt < s.rt): active_chems.pop()
-                active_chems = [ch for ch in active_chems if ch.min_rt <= s.rt and s.rt <= ch.max_rt]
+                while(len(active_chems) > 0 and active_chems[-1].max_rt < s.rt): active_chems.pop()
                 for ch in active_chems: 
                     edges[ch].append((s, ch.intensity))
                     seen_edges.add(ch)

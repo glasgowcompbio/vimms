@@ -3,6 +3,8 @@ import random
 import bisect
 from collections import OrderedDict
 from abc import ABC, abstractmethod
+from pathlib import Path
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -207,15 +209,16 @@ class PlotBox():
     def __repr__(self): return f"PlotBox(rt bounds={self.rt_range}, mz bounds: {self.mz_range}, apex intensity={self.intensity})"
         
     def box_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
-        return (
-                (min_rt is None or box.min_rt >= min_rt) and (max_rt is None or box.min_rt <= max_rt)
-                or (min_rt is None or box.max_rt >= min_rt) and (max_rt is None or box.max_rt <= max_rt)
-            and
-            (
-                (min_mz is None or box.min_mz >= min_mz) and (max_mz is None or box.min_mz <= box.max_mz)
-                or (min_mz is None or box.max_mz >= min_mz) and (max_mz is None or box.max_mz <= box.max_mz)
-            )
-        )
+        pass
+        # return (
+        #         (min_rt is None or box.min_rt >= min_rt) and (max_rt is None or box.min_rt <= max_rt)
+        #         or (min_rt is None or box.max_rt >= min_rt) and (max_rt is None or box.max_rt <= max_rt)
+        #     and
+        #     (
+        #         (min_mz is None or box.min_mz >= min_mz) and (max_mz is None or box.min_mz <= box.max_mz)
+        #         or (min_mz is None or box.max_mz >= min_mz) and (max_mz is None or box.max_mz <= box.max_mz)
+        #     )
+        # )
         
     def add_to_plot(self, ax):
         x1, y1 = self.min_rt, self.min_mz

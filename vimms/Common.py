@@ -185,6 +185,7 @@ class ScanParameters(object):
     ISOLATION_MODE = 'isolation_mode'
     SOURCE_CID_ENERGY = 'source_cid_energy'
     METADATA = 'metadata'
+    UNIQUENESS_TOKEN = "uniqueness_token"
 
     # this is used for DIA-based controllers to specify which windows to fragment
     ISOLATION_WINDOWS = 'isolation_windows'

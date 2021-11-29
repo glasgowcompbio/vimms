@@ -1,3 +1,4 @@
+import math
 import itertools
 import random
 from abc import abstractmethod
@@ -15,16 +16,16 @@ from mass_spec_utils.library_matching.spectrum import Spectrum
 class Point():
     def __init__(self, x, y): self.x, self.y = float(x), float(y)
 
-    def __eq__(self, other_point): return self.x == other_point.x and self.y == other_point.y
+    def __eq__(self, other_point): return math.isclose(self.x, other_point.x) and math.isclose(self.y, other_point.y)
 
     def __repr__(self): return "Point({}, {})".format(self.x, self.y)
 
 
 class Box():
-    def __init__(self, x1, x2, y1, y2, parents=[], min_xwidth=0, min_ywidth=0, intensity=0):
+    def __init__(self, x1, x2, y1, y2, parents=None, min_xwidth=0, min_ywidth=0, intensity=0):
         self.pt1 = Point(min(x1, x2), min(y1, y2))
         self.pt2 = Point(max(x1, x2), max(y1, y2))
-        self.parents = parents
+        self.parents = [self] if parents is None else parents
         self.intensity = intensity
 
         if (self.pt2.x - self.pt1.x < min_xwidth):
@@ -58,10 +59,7 @@ class Box():
         self.pt2.y += yshift
 
     def num_overlaps(self):
-        return 1 if len(self.parents) == 0 else len(self.parents)
-
-    def top_level_boxes(self):
-        return [self.copy()] if self.parents == [] else self.parents
+        return len(self.parents)
 
     def to_pickedbox(self, peak_id):
         rts = [self.pt1.x, self.pt2.x]
@@ -122,7 +120,7 @@ class GenericBox(Box):
 
     def split_all(self, other_box):
         if (not self.overlaps_with_box(other_box)): return None, None, None
-        both_parents = self.top_level_boxes() + other_box.top_level_boxes()
+        both_parents = self.parents + other_box.parents
         both_box = type(self)(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x),
                               max(self.pt1.y, other_box.pt1.y), min(self.pt2.y, other_box.pt2.y), parents=both_parents,
                               intensity=max(self.intensity, other_box.intensity))
@@ -439,9 +437,10 @@ class MS2PointMatcher():
     def send_training_data(self, model, scan, roi, inj_num):
         # TODO: put some limitation on mz(/rt?) of boxes that can be matched
         spectrum = Spectrum(roi.get_mean_mz(), list(zip(scan.mzs, scan.intensities)))
-        rt, _, __ = roi.get_nth_point(0)
-        if (inj_num > 0):
-            if (len(self.ms2s[0]) > 0):
+
+        rt, _, __ = roi[0]
+        if(inj_num > 0):
+            if(len(self.ms2s[0]) > 0):
                 original_idx, original_spectrum, score = -1, None, -1
                 for i, (_, s, __) in enumerate(self.ms2s[0]):
                     current_score, _ = cosine_similarity(spectrum, s, self.mass_tol, self.min_match)
@@ -482,9 +481,8 @@ class GPDrift(DriftModel):
                 self.model.optimize()
 
             def predict(roi, inj_num):
-                mean, variance = self.model.predict(np.array(roi.get_nth_point(0)[0]).reshape((1, 1)))
-                return roi.get_nth_point(0)[0] - mean[0, 0], {"variance": variance[0]}
-
+                mean, variance = self.model.predict(np.array(roi[0][0]).reshape((1, 1)))
+                return roi[0][0] - mean[0, 0], {"variance" : variance[0, 0]}
             return predict
 
     def _next_model(self, **kwargs):

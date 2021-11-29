@@ -2,7 +2,8 @@ import itertools
 import random
 from time import perf_counter
 
-from vimms.Box import GenericBox, DictGrid, ArrayGrid, LocatorGrid, AllOverlapGrid, GridEstimator, IdentityDrift
+from vimms.Box import GenericBox, DictGrid, ArrayGrid, LocatorGrid, AllOverlapGrid, IdentityDrift
+from vimms.GridEstimator import GridEstimator
 from vimms.ChemicalSamplers import DatabaseFormulaSampler
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import *
@@ -78,7 +79,7 @@ class TestEnv(BoxEnv):
         self.init_grid(grid_class, rt_box_size, mz_box_size)
 
         def score_box(box):
-            score = self.grid.intensity_non_overlap(box, box.intensity)
+            score = self.grid.intensity_non_overlap(box, box.intensity, {"theta1" : 1})
             self.grid.register_box(box)
             return score
 
@@ -97,7 +98,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
     hmdb = load_obj(hmdbpath)
     df = DatabaseFormulaSampler(hmdb, min_mz=100, max_mz=1000)
     cm = ChemicalMixtureCreator(df, adduct_prior_dict={POSITIVE: {"M+H": 1}})
-    chemicals = cm.sample(500, 1)
+    chemicals = cm.sample(2000, 1)
 
     boxes = []
     for i in range(no_injections):

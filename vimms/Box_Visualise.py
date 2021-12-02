@@ -160,11 +160,14 @@ class PlotPoints():
         scan_dict[1] = sorted(scan_dict[1], key=lambda s: s.rt_in_seconds)
         ms1_points = np.array([[s.rt_in_seconds, mz, intensity] for s in scan_dict[1] for mz, intensity in s.peaks])
         return PlotPoints(ms1_points, [(s.rt_in_seconds, s.precursor_mz) for s in scan_dict[2]])
-    
-    def points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
+        
+    def get_points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
         select_rt = ((min_rt is None) | (self.ms1_points[:, 0] >= min_rt)) & ((max_rt is None) | (self.ms1_points[:, 0] <= max_rt))  
         select_mz = ((min_mz is None) | (self.ms1_points[:, 1] >= min_mz)) & ((max_mz is None) | (self.ms1_points[:, 1] <= max_mz))
-        self.active = (select_rt & select_mz)
+        return (select_rt & select_mz)
+    
+    def points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
+        self.active = self.get_points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         
     def mark_precursors(self, max_error=10):
         markers = ["o" for _ in enumerate(self.ms1_points)]
@@ -199,10 +202,30 @@ class PlotPoints():
             ax.scatter(rts[idxes], mzs[idxes], color=[colour.squash() for _, colour in colours[idxes]], marker=marker) 
 
 class PlotBox():
+
+    RT_TOLERANCE, MZ_TOLERANCE = 0.4, 0.4
+
     def __init__(self, min_rt, max_rt, min_mz, max_mz, intensity):
         self.min_rt, self.max_rt = min_rt, max_rt
         self.min_mz, self.max_mz = min_mz, max_mz
         self.intensity = intensity
+        
+    @staticmethod
+    def from_roi_aligner(aligner, ps=None):
+        if(ps is None): pses = aligner.peaksets
+        else: pses = [ps]
+        
+        plot_boxes = []
+        for ps in pses:
+            ps_boxes = []
+            for box in aligner.peaksets2boxes[ps]:
+                for p in ps.peaks:
+                    rt_range, mz_range = box.rt_range_in_seconds, box.mz_range
+                    pb = PlotBox(rt_range[0], rt_range[1], mz_range[0], mz_range[1], p.intensity)
+                    ps_boxes.append(pb)
+            plot_boxes.append(ps_boxes)
+        
+        return plot_boxes
         
     def __repr__(self): return f"PlotBox(min_mz={self.min_mz}, max_mz={self.max_mz}, min_rt={self.min_rt}, max_rt={self.max_rt}, apex_intensity={self.intensity})"
         
@@ -221,14 +244,16 @@ class PlotBox():
         x1, y1 = self.min_rt, self.min_mz
         xlen, ylen = (self.max_rt - self.min_rt), (self.max_mz - self.min_mz)
         ax.add_patch(patches.Rectangle((x1, y1), xlen, ylen, linewidth=1, ec="black", fc=[0, 0, 0, 0]))
-
-    def plot_box(self, ax, mzml, abs_scaling=False):
-        rt_tolerance, mz_tolerance = 0.4, 0.4
-        rt_buffer = (self.max_rt - self.min_rt) * rt_tolerance
-        mz_buffer = (self.max_mz - self.min_mz) * mz_tolerance
+        
+    def get_plot_bounds(self):
+        rt_buffer = (self.max_rt - self.min_rt) * self.RT_TOLERANCE
+        mz_buffer = (self.max_mz - self.min_mz) * self.MZ_TOLERANCE
         xbounds = [self.min_rt - rt_buffer, self.max_rt + rt_buffer]
         ybounds = [self.min_mz - mz_buffer, self.max_mz + mz_buffer]
-        
+        return xbounds, ybounds
+
+    def plot_box(self, ax, mzml, abs_scaling=False):
+        xbounds, ybounds = self.get_plot_bounds()
         pts = PlotPoints.from_mzml(mzml)
         pts.plot_points(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1], abs_scaling=abs_scaling)
         self.add_to_plot(ax)

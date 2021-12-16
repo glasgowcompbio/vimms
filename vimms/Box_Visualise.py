@@ -84,10 +84,16 @@ class InterpolationMap(ColourMap):
         intervals = [minm + i * (maxm - minm) / (len(self.colours) - 1) for i in range(len(self.colours))]
     
         def get_colour(box):
-            if(math.isclose(minm, maxm)): return self.colours[0]
-            i = next(i-1 for i, threshold in enumerate(intervals) if threshold >= key(box))
-            weight = (key(box) - intervals[i]) / (intervals[i + 1] - intervals[i])
-            return self.colours[i].interpolate([self.colours[i+1]], weights=[1-weight, weight])
+            if(math.isclose(minm, maxm)): 
+                return self.colours[0]
+            elif(key(box) < intervals[1]): 
+                return self.colours[0]
+            elif(key(box) > intervals[-1]): 
+                return self.colours[-1]
+            else:
+                i = next(i-1 for i, threshold in enumerate(intervals) if threshold >= key(box))
+                weight = (key(box) - intervals[i]) / (intervals[i + 1] - intervals[i])
+                return self.colours[i].interpolate([self.colours[i+1]], weights=[1-weight, weight])
         
         return ((b, get_colour(b)) for b in boxes)
         
@@ -138,9 +144,8 @@ class AutoColourMap(ColourMap):
 
 def path_or_mzml(mzml):    
     try:
-        path = Path(mzml)
-        mzml = MZMLFile(path)
-    except:
+        mzml = MZMLFile(mzml)
+    except FileNotFoundError:
         if(not type(mzml) == MZMLFile):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
@@ -149,7 +154,8 @@ class PlotPoints():
     def __init__(self, ms1_points, ms2s=None, markers={}):
         self.ms1_points, self.ms2s = ms1_points, ms2s
         self.markers = markers
-        self.active = np.ones_like(ms1_points)
+        self.active_ms1 = np.ones_like(ms1_points)
+        self.active_ms2 = np.ones_like(ms2s)
         
     @staticmethod
     def from_mzml(mzml):
@@ -159,20 +165,27 @@ class PlotPoints():
             if(s.ms_level in scan_dict): scan_dict[s.ms_level].append(s)
         scan_dict[1] = sorted(scan_dict[1], key=lambda s: s.rt_in_seconds)
         ms1_points = np.array([[s.rt_in_seconds, mz, intensity] for s in scan_dict[1] for mz, intensity in s.peaks])
-        return PlotPoints(ms1_points, [(s.rt_in_seconds, s.precursor_mz) for s in scan_dict[2]])
+        ms2s = np.array([[s.rt_in_seconds, s.precursor_mz, s.get_max_intensity().intensity] for s in scan_dict[2]])
+        return PlotPoints(ms1_points, ms2s=ms2s)
+        
+    def bound_points(self, pts, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
+        all_true = np.array(np.ones_like(pts[:, 0]), dtype=np.bool)
+        select_rt = (all_true if (min_rt is None) else (pts[:, 0] >= min_rt)) & (all_true if (max_rt is None) else (pts[:, 0] <= max_rt))
+        select_mz = (all_true if (min_mz is None) else (pts[:, 1] >= min_mz)) & (all_true if (max_mz is None) else (pts[:, 1] <= max_mz))
+        return (select_rt & select_mz)
         
     def get_points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
-        select_rt = ((min_rt is None) | (self.ms1_points[:, 0] >= min_rt)) & ((max_rt is None) | (self.ms1_points[:, 0] <= max_rt))  
-        select_mz = ((min_mz is None) | (self.ms1_points[:, 1] >= min_mz)) & ((max_mz is None) | (self.ms1_points[:, 1] <= max_mz))
-        return (select_rt & select_mz)
+        active_ms1 = self.bound_points(self.ms1_points, min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        active_ms2 = self.bound_points(self.ms2s, min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        return active_ms1, active_ms2
     
     def points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
-        self.active = self.get_points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        self.active_ms1, self.active_ms2 = self.get_points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         
     def mark_precursors(self, max_error=10):
         markers = ["o" for _ in enumerate(self.ms1_points)]
         ms1_min, ms1_max = 0, 0
-        for rt, precursor_mz in self.ms2s:
+        for rt, precursor_mz, _ in self.ms2s:
             ms1_max = bisect.bisect_right(self.ms1_points[:, 0], rt)
             precursor_time = self.ms1_points[ms1_max - 1, 0]
             ms1_min = bisect.bisect_left(self.ms1_points[:, 0], precursor_time)
@@ -180,35 +193,44 @@ class PlotPoints():
                 i = np.argmin(np.abs(self.ms1_points[ms1_min:ms1_max, 1] - precursor_mz)) + ms1_min
                 if(1e6 * np.abs(self.ms1_points[i, 1] - precursor_mz) / precursor_mz <= max_error):
                     markers[i] = "x"
-        markers = np.array(markers)[self.active]
+        markers = np.array(markers)[self.active_ms1]
         marker_dict = {m : [] for m in set(markers)}
         for i, m in enumerate(markers):
             marker_dict[m].append(i)
         self.markers = marker_dict
         
-    def plot_points(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, abs_scaling=False):
-        self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
-        rts, mzs, intensities = self.ms1_points[self.active, 0], self.ms1_points[self.active, 1], self.ms1_points[self.active, 2]
-
+    def colour_by_intensity(self, originals, intensities, abs_scaling):
         cmap = InterpolationMap([RGBAColour(238, 238, 238), ColourMap.YELLOW, ColourMap.RED, ColourMap.PURE_BLUE])        
         if(abs_scaling):
             minm, maxm = math.log(np.min(self.ms1_points[:, 2])), math.log(np.max(self.ms1_points[:, 2]))
             colours = np.array(list(cmap.assign_colours(intensities, lambda x: math.log(x), minm=minm, maxm=maxm)))
         else:
             colours = np.array(list(cmap.assign_colours(intensities, lambda x: math.log(x))))
+        return colours
         
+    def plot_ms1s(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, abs_scaling=False):
+        self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        rts, mzs, intensities = self.ms1_points[self.active_ms1, 0], self.ms1_points[self.active_ms1, 1], self.ms1_points[self.active_ms1, 2]
+        colours = self.colour_by_intensity(self.ms1_points, intensities, abs_scaling=abs_scaling)
         self.mark_precursors()
         for marker, idxes in self.markers.items():
-            ax.scatter(rts[idxes], mzs[idxes], color=[colour.squash() for _, colour in colours[idxes]], marker=marker) 
+            ax.scatter(rts[idxes], mzs[idxes], color=[colour.squash() for _, colour in colours[idxes]], marker=marker)
+            
+    def plot_ms2s(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, abs_scaling=False):
+        self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        rts, mzs, intensities = self.ms2s[self.active_ms2, 0], self.ms2s[self.active_ms2, 1], self.ms2s[self.active_ms2, 2]
+        colours = self.colour_by_intensity(self.ms2s, intensities, abs_scaling=abs_scaling)
+        ax.scatter(rts, mzs, color=[colour.squash() for _, colour in colours], marker="x")
 
 class PlotBox():
 
     RT_TOLERANCE, MZ_TOLERANCE = 0.4, 0.4
 
-    def __init__(self, min_rt, max_rt, min_mz, max_mz, intensity):
+    def __init__(self, min_rt, max_rt, min_mz, max_mz, intensity, ec="black", fc=[0, 0, 0, 0]):
         self.min_rt, self.max_rt = min_rt, max_rt
         self.min_mz, self.max_mz = min_mz, max_mz
         self.intensity = intensity
+        self.ec, self.fc = ec, fc
         
     @staticmethod
     def from_roi_aligner(aligner, ps=None):
@@ -243,7 +265,7 @@ class PlotBox():
     def add_to_plot(self, ax):
         x1, y1 = self.min_rt, self.min_mz
         xlen, ylen = (self.max_rt - self.min_rt), (self.max_mz - self.min_mz)
-        ax.add_patch(patches.Rectangle((x1, y1), xlen, ylen, linewidth=1, ec="black", fc=[0, 0, 0, 0]))
+        ax.add_patch(patches.Rectangle((x1, y1), xlen, ylen, linewidth=1, ec=self.ec, fc=self.fc))
         
     def get_plot_bounds(self):
         rt_buffer = (self.max_rt - self.min_rt) * self.RT_TOLERANCE
@@ -255,7 +277,7 @@ class PlotBox():
     def plot_box(self, ax, mzml, abs_scaling=False):
         xbounds, ybounds = self.get_plot_bounds()
         pts = PlotPoints.from_mzml(mzml)
-        pts.plot_points(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1], abs_scaling=abs_scaling)
+        pts.plot_ms1s(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1], abs_scaling=abs_scaling)
         self.add_to_plot(ax)
         ax.set_xlim(xbounds)
         ax.set_ylim(ybounds)

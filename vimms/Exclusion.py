@@ -200,7 +200,6 @@ class TopNExclusion(object):
                     rt,
                     x.from_mz, x.to_mz, x.from_rt, x.to_rt
                 ))
-                x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
                 temp_exclusion_list.append(x)
         self.exclusion_list.extend(temp_exclusion_list)
 
@@ -259,6 +258,9 @@ class WeightedDEWExclusion(TopNExclusion):
 def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
     if frag_at is None:
         # never been fragmented before, always include (weight 1.0)
+        return False, 1.0
+    elif current_rt >= frag_at + rt_tol:
+        # outside the windows of rt_tol, always include (weight > 1.0)
         return False, 1.0
     elif current_rt <= frag_at + exclusion_t_0:
         # fragmented but within exclusion_t_0, always exclude (weight 0.0)

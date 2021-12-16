@@ -3,6 +3,7 @@ import random
 import bisect
 from collections import OrderedDict
 from abc import ABC, abstractmethod
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt

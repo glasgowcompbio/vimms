@@ -145,7 +145,7 @@ class AutoColourMap(ColourMap):
 def path_or_mzml(mzml):    
     try:
         mzml = MZMLFile(mzml)
-    except FileNotFoundError:
+    except:
         if(not type(mzml) == MZMLFile):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
@@ -253,12 +253,12 @@ class PlotBox():
         
     def box_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
         return (
-                (min_rt is None or box.min_rt >= min_rt) and (max_rt is None or box.min_rt <= max_rt)
-                or (min_rt is None or box.max_rt >= min_rt) and (max_rt is None or box.max_rt <= max_rt)
+                (min_rt is None or self.min_rt >= min_rt) and (max_rt is None or self.min_rt <= max_rt)
+                or (min_rt is None or self.max_rt >= min_rt) and (max_rt is None or self.max_rt <= max_rt)
             and
             (
-                (min_mz is None or box.min_mz >= min_mz) and (max_mz is None or box.min_mz <= box.max_mz)
-                or (min_mz is None or box.max_mz >= min_mz) and (max_mz is None or box.max_mz <= box.max_mz)
+                (min_mz is None or self.min_mz >= min_mz) and (max_mz is None or self.min_mz <= max_mz)
+                or (min_mz is None or self.max_mz >= min_mz) and (max_mz is None or self.max_mz <= max_mz)
             )
         )
         
@@ -267,18 +267,23 @@ class PlotBox():
         xlen, ylen = (self.max_rt - self.min_rt), (self.max_mz - self.min_mz)
         ax.add_patch(patches.Rectangle((x1, y1), xlen, ylen, linewidth=1, ec=self.ec, fc=self.fc))
         
-    def get_plot_bounds(self):
-        rt_buffer = (self.max_rt - self.min_rt) * self.RT_TOLERANCE
-        mz_buffer = (self.max_mz - self.min_mz) * self.MZ_TOLERANCE
+    def get_plot_bounds(self, rt_buffer=None, mz_buffer=None):
+        if(rt_buffer is None):
+            rt_buffer = (self.max_rt - self.min_rt) * self.RT_TOLERANCE
+        if(mz_buffer is None):
+            mz_buffer = (self.max_mz - self.min_mz) * self.MZ_TOLERANCE
         xbounds = [self.min_rt - rt_buffer, self.max_rt + rt_buffer]
         ybounds = [self.min_mz - mz_buffer, self.max_mz + mz_buffer]
         return xbounds, ybounds
 
-    def plot_box(self, ax, mzml, abs_scaling=False):
-        xbounds, ybounds = self.get_plot_bounds()
+    def plot_box(self, ax, mzml, abs_scaling=False, other_boxes=[], rt_buffer=None, mz_buffer=None):
+        xbounds, ybounds = self.get_plot_bounds(rt_buffer=rt_buffer, mz_buffer=mz_buffer)
         pts = PlotPoints.from_mzml(mzml)
-        pts.plot_ms1s(ax, xbounds[0], xbounds[1], ybounds[0], ybounds[1], abs_scaling=abs_scaling)
+        pts.plot_ms1s(ax, min_rt=xbounds[0], max_rt=xbounds[1], min_mz=ybounds[0], max_mz=ybounds[1], abs_scaling=abs_scaling)
         self.add_to_plot(ax)
+        for b in other_boxes:
+            if(b.box_in_bounds(min_rt=xbounds[0], max_rt=xbounds[1], min_mz=ybounds[0], max_mz=ybounds[1])):
+                b.add_to_plot(ax)
         ax.set_xlim(xbounds)
         ax.set_ylim(ybounds)
         ax.set(xlabel="RT (Seconds)", ylabel="m/z")

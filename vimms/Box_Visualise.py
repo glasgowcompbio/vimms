@@ -157,8 +157,8 @@ class PlotPoints():
         self.active_ms1 = np.ones_like(ms1_points)
         self.active_ms2 = np.ones_like(ms2s)
         
-    @staticmethod
-    def from_mzml(mzml):
+    @classmethod
+    def from_mzml(cls, mzml):
         mzml = path_or_mzml(mzml)
         scan_dict = {1: [], 2: []}
         for s in mzml.scans:
@@ -166,7 +166,7 @@ class PlotPoints():
         scan_dict[1] = sorted(scan_dict[1], key=lambda s: s.rt_in_seconds)
         ms1_points = np.array([[s.rt_in_seconds, mz, intensity] for s in scan_dict[1] for mz, intensity in s.peaks])
         ms2s = np.array([[s.rt_in_seconds, s.precursor_mz, s.get_max_intensity().intensity] for s in scan_dict[2]])
-        return PlotPoints(ms1_points, ms2s=ms2s)
+        return cls(ms1_points, ms2s=ms2s)
         
     def bound_points(self, pts, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
         all_true = np.array(np.ones_like(pts[:, 0]), dtype=np.bool)
@@ -232,8 +232,28 @@ class PlotBox():
         self.intensity = intensity
         self.ec, self.fc = ec, fc
         
-    @staticmethod
-    def from_roi_aligner(aligner, ps=None):
+    def __repr__(self): return f"PlotBox(min_rt={self.min_rt}, max_rt={self.max_rt}, min_mz={self.min_mz}, max_mz={self.max_mz}, apex_intensity={self.intensity})"    
+        
+    @classmethod
+    def from_box(cls, box):
+        return cls(box.pt1.x, box.pt2.x, box.pt1.y, box.pt2.y, box.intensity)
+        
+    @classmethod
+    def from_roi(cls, roi, min_rt_width, min_mz_width):
+        return cls.from_box(roi.to_box(min_rt_width, min_mz_width))
+        
+    @classmethod
+    def from_env(cls, env, min_rt_width, min_mz_width):
+        roi_builder = env.controller.roi_builder
+        live_roi, dead_roi, junk_roi = roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
+        return [cls.from_roi(roi, min_rt_width, min_mz_width) for roi in itertools.chain(live_roi, dead_roi, junk_roi)]
+    
+    @classmethod
+    def from_grid(cls, grid):
+        return [cls.from_box(b) for b in grid.all_boxes()]
+        
+    @classmethod
+    def from_roi_aligner(cls, aligner, ps=None):
         if(ps is None): pses = aligner.peaksets
         else: pses = [ps]
         
@@ -243,22 +263,20 @@ class PlotBox():
             for box in aligner.peaksets2boxes[ps]:
                 for p in ps.peaks:
                     rt_range, mz_range = box.rt_range_in_seconds, box.mz_range
-                    pb = PlotBox(rt_range[0], rt_range[1], mz_range[0], mz_range[1], p.intensity)
+                    pb = cls(rt_range[0], rt_range[1], mz_range[0], mz_range[1], p.intensity)
                     ps_boxes.append(pb)
             plot_boxes.append(ps_boxes)
         
         return plot_boxes
         
-    def __repr__(self): return f"PlotBox(min_mz={self.min_mz}, max_mz={self.max_mz}, min_rt={self.min_rt}, max_rt={self.max_rt}, apex_intensity={self.intensity})"
-        
     def box_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
         return (
-                (min_rt is None or self.min_rt >= min_rt) and (max_rt is None or self.min_rt <= max_rt)
-                or (min_rt is None or self.max_rt >= min_rt) and (max_rt is None or self.max_rt <= max_rt)
+                (min_rt is None or self.max_rt >= min_rt)
+                and (max_rt is None or self.min_rt <= max_rt)
             and
             (
-                (min_mz is None or self.min_mz >= min_mz) and (max_mz is None or self.min_mz <= max_mz)
-                or (min_mz is None or self.max_mz >= min_mz) and (max_mz is None or self.max_mz <= max_mz)
+                (min_mz is None or self.max_mz >= min_mz)
+                and (max_mz is None or self.min_mz <= max_mz)
             )
         )
         

@@ -104,6 +104,7 @@ class Environment(object):
         if self.bar is not None:
             try:
                 self.bar.close()
+                self.bar = None
             except Exception as e:
                 logger.warning('Failed to close progress bar: %s' % str(e))
                 pass

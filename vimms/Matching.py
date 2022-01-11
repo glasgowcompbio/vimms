@@ -32,7 +32,7 @@ class MatchingScan():
         self.intensities = intensities
         
     def __repr__(self): return f"MatchingScan(num_injection={self.num_injection}, ms_level={self.ms_level}, rt={self.rt})"
-    def __eq__(self, other): return self.num_injection == other.num_injection and self.ms_level == other.ms_level and math.isclose(self.rt, other.rt)
+    def __eq__(self, other): return isinstance(other, type(self)) and self.num_injection == other.num_injection and self.ms_level == other.ms_level and math.isclose(self.rt, other.rt)
     def __hash__(self): return (self.num_injection, self.ms_level, self.rt).__hash__()
         
     def interpolate_scan(left, right, mz_window):
@@ -102,7 +102,7 @@ class MatchingChem():
         
     def __repr__(self): return f"MatchingChem(min_mz={self.min_mz}, max_mz={self.max_mz}, min_rt={self.min_rt}, max_rt={self.max_rt})"
     def get_key(self): return (self.min_mz, self.max_mz, self.min_rt, self.max_rt)
-    def __eq__(self, other): return all(math.isclose(a, b) for a, b in zip(self.get_key(), other.get_key()))
+    def __eq__(self, other): return isinstance(other, type(self)) and all(math.isclose(a, b) for a, b in zip(self.get_key(), other.get_key()))
     def __hash__(self): return self.get_key().__hash__()
 
     @staticmethod
@@ -220,7 +220,7 @@ class Matching():
         
     @staticmethod
     def unweighted_matching(G):
-        top_nodes = {n for n, d in G.nodes(data=True) if d['bipartite'] == 0}
+        top_nodes = {n for n, d in G.nodes(data=True) if d["bipartite"] == 0}
         return nx.bipartite.matching.hopcroft_karp_matching(G, top_nodes)
         
     @staticmethod

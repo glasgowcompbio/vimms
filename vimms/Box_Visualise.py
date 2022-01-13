@@ -5,7 +5,7 @@ from collections import OrderedDict
 from abc import ABC, abstractmethod
 
 import numpy as np
-import matplotlib
+import itertools
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 

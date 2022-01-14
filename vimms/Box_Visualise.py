@@ -5,7 +5,7 @@ from collections import OrderedDict
 from abc import ABC, abstractmethod
 
 import numpy as np
-import matplotlib
+import itertools
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
@@ -28,7 +28,8 @@ class RGBAColour():
     def interpolate(self, others, weights=None):
         colours = [self] + others
         weights = [1 / len(colours) for _ in colours] if weights is None else weights
-        new_c = sum((c * w for c, w in zip(colours, weights)), start=RGBAColour(0, 0, 0, 0.0))
+        start = RGBAColour(0, 0, 0, 0.0)
+        new_c = sum((c * w for c, w in zip(colours, weights)), start)
         new_c.correct_bounds()
         return new_c
 

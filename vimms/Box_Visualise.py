@@ -155,8 +155,8 @@ class PlotPoints():
     def __init__(self, ms1_points, ms2s=None, markers={}):
         self.ms1_points, self.ms2s = ms1_points, ms2s
         self.markers = markers
-        self.active_ms1 = np.ones_like(ms1_points)
-        self.active_ms2 = np.ones_like(ms2s)
+        self.active_ms1 = np.ones((ms1_points.shape[0]))
+        self.active_ms2 = np.ones((ms2s.shape[0]))
         
     @classmethod
     def from_mzml(cls, mzml):
@@ -176,8 +176,8 @@ class PlotPoints():
         return (select_rt & select_mz)
         
     def get_points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
-        active_ms1 = self.bound_points(self.ms1_points, min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
-        active_ms2 = self.bound_points(self.ms2s, min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        active_ms1 = self.bound_points(self.ms1_points, min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz) if len(self.ms1_points) > 0 else np.array([[]])
+        active_ms2 = self.bound_points(self.ms2s, min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz) if len(self.ms2s) > 0 else np.array([[]])
         return active_ms1, active_ms2
     
     def points_in_bounds(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None):

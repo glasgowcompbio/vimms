@@ -10,7 +10,8 @@ from vimms.MzmlWriter import MzmlWriter
 
 
 class Environment(object):
-    def __init__(self, mass_spec, controller, min_time, max_time, progress_bar=True, out_dir=None, out_file=None):
+    def __init__(self, mass_spec, controller, min_time, max_time, progress_bar=True, out_dir=None, out_file=None,
+                 dump_debug=False):
         """
         Initialises a synchronous environment to run the mass spec and controller
         :param mass_spec: An instance of Mass Spec object
@@ -28,6 +29,11 @@ class Environment(object):
         self.out_file = out_file
         self.pending_tasks = []
         self.bar = tqdm(total=self.max_time - self.min_time, initial=0) if self.progress_bar else None
+
+        # can be used to store any info required to debug a controller
+        # can optionally be dumped when writing an mzML file
+        self.dump_debug = dump_debug
+        self.debug_info = {}
 
     def run(self):
         """
@@ -64,6 +70,8 @@ class Environment(object):
             self.mass_spec.close()
             self.close_progress_bar()
         self.write_mzML(self.out_dir, self.out_file)
+        if self.dump_debug:
+            self.write_debug_info(self.out_dir, self.out_file, self.debug_info)
 
     def _one_step(self, params=None):
         # controller._process_scan() is called here immediately when a scan is produced within a step
@@ -132,6 +140,16 @@ class Environment(object):
         # immediately push newly generated tasks to mass spec queue
         self.mass_spec.task_manager.add_current(tasks)
 
+    def _get_out_file(self, out_dir, out_file):
+        if out_file is None:  # if no filename provided, just quits
+            return None
+        else:
+            if out_dir is None:  # no out_dir, use only out_file
+                mzml_filename = Path(out_file)
+            else:  # both our_dir and out_file are provided
+                mzml_filename = Path(out_dir, out_file)
+            return mzml_filename
+
     def write_mzML(self, out_dir, out_file):
         """
         Writes mzML to output file
@@ -139,18 +157,23 @@ class Environment(object):
         :param out_file: output filename
         :return: None
         """
-        if out_file is None:  # if no filename provided, just quits
-            return
-        else:
-            if out_dir is None:  # no out_dir, use only out_file
-                mzml_filename = Path(out_file)
-            else:  # both our_dir and out_file are provided
-                mzml_filename = Path(out_dir, out_file)
-
+        mzml_filename = self._get_out_file(out_dir, out_file)
         logger.debug('Writing mzML file to %s' % mzml_filename)
         writer = MzmlWriter('my_analysis', self.controller.scans)
         writer.write_mzML(mzml_filename)
         logger.debug('mzML file successfully written!')
+
+    def write_debug_info(self, out_dir, out_file, debug_info):
+        """
+        Writes debugging information to output file
+        :param out_dir: output directory
+        :param out_file: output filename
+        :return: None
+        """
+        filename = self._get_out_file(out_dir, out_file + '.p')
+        logger.debug('Writing debug info to %s' % filename)
+        save_obj(debug_info, filename)
+        logger.debug('debug info successfully written!')
 
     def _set_initial_values(self):
         """

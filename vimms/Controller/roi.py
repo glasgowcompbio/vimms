@@ -97,10 +97,14 @@ class RoiBuilder():
 
             self.current_roi_ids = [roi.id for roi in self.live_roi]
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
-            if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
-                self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
-            elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
-                self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
+
+            # TODO: Old code below, but I don't see a reason why this should be the case.
+            #       Commenting it out for now.
+            # if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+            #     self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
+            # elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            #     self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
+            self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
 
             # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":
@@ -112,8 +116,11 @@ class RoiBuilder():
         if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
             roi = Roi(mz, rt, intensity, id=roi_id)
         elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
-            roi = SmartRoi(mz, rt, intensity, self.min_roi_length_for_fragmentation, self.reset_length_seconds,
-                           self.intensity_increase_factor, self.rt_tol, drop_perc=self.drop_perc, id=roi_id)
+            roi = SmartRoi(mz, rt, intensity,
+                           initial_length_seconds=0,
+                           reset_length_seconds=self.reset_length_seconds,
+                           intensity_increase_factor=self.intensity_increase_factor,
+                           dew=0, drop_perc=self.drop_perc, id=roi_id)
         return roi
 
     def get_mz_intensity(self, i):

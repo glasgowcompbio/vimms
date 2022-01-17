@@ -151,6 +151,7 @@ class SmartRoi(Roi):
             self.set_can_fragment(True)
 
         self.min_frag_intensity = None
+        self.intensity_diff = 0
 
         self.initial_length_seconds = initial_length_seconds
         self.reset_length_seconds = reset_length_seconds
@@ -200,6 +201,7 @@ class SmartRoi(Roi):
                     self.set_can_fragment(True)
                     # self.min_frag_intensity = self.intensity_list[-1]*self.intensity_increase_factor
 
+
         # code below never happens
         elif self.status == SmartRoi.POST_PEAK:
             if self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.dew:
@@ -212,6 +214,13 @@ class SmartRoi(Roi):
 
     def set_can_fragment(self, status):
         self.can_fragment = status
+        if status:
+            try:
+                self.intensity_diff = abs(self.intensity_list[-1] - self.intensity_list[self.fragmented_index])
+            except AttributeError:
+                self.intensity_diff = 0
+        else:
+            self.intensity_diff = 0
 
 
 # Find the RoI that a particular mz falls into

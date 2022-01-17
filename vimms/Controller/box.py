@@ -54,13 +54,24 @@ class NonOverlapController(GridController):
         return non_overlaps
 
     def _get_scores(self):
-        if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
-            dda_scores = self._get_dda_scores()
-        elif self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:
-            dda_scores = self._log_roi_intensities() * self._min_intensity_filter() * self._smartroi_filter()
+        dda_scores = self._get_dda_scores()
+        if len(dda_scores) > 0 and max(dda_scores) > 0:
+            dda_scores = dda_scores / max(dda_scores)
 
         non_overlaps = self._overlap_scores()
-        return self._get_top_N_scores(dda_scores * non_overlaps)
+        final_scores = dda_scores + non_overlaps
+        if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            smartroi_scores = self._smartroi_filter()
+            if len(smartroi_scores) > 0 and max(smartroi_scores) > 0:
+                smartroi_scores = smartroi_scores / max(smartroi_scores)
+            final_scores = final_scores + smartroi_scores
+
+        for i in range(len(non_overlaps)):
+            non = non_overlaps[i]
+            if non < 0.5:
+                final_scores[i] = 0
+
+        return self._get_top_N_scores(final_scores)
 
 
 class IntensityNonOverlapController(GridController):

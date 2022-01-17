@@ -10,6 +10,7 @@ from vimms.Common import ScanParameters
 ########################################################################################################################
 # DEW Exclusions
 ########################################################################################################################
+from vimms.Roi import SmartRoi
 
 
 class ExclusionItem(object):
@@ -327,7 +328,14 @@ class SmartROIFilter(ScoreFilter):
     def filter(self, rois):
         # if this is a normal ROI object, always return True for everything
         # otherwise track the status based on the SmartROI rules
-        return np.array([roi.get_can_fragment() for roi in rois])
+        # return np.array([roi.get_can_fragment() for roi in rois])
+        res = []
+        for roi in rois:
+            intensity_diff = roi.intensity_diff
+            if intensity_diff > 0:
+                intensity_diff = np.log(roi.intensity_diff)
+            res.append(intensity_diff)
+        return np.array(res)
 
 
 if __name__ == '__main__':

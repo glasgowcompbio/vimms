@@ -214,12 +214,9 @@ class SmartRoi(Roi):
 
     def set_can_fragment(self, status):
         self.can_fragment = status
-        if status:
-            try:
-                self.intensity_diff = abs(self.intensity_list[-1] - self.intensity_list[self.fragmented_index])
-            except AttributeError:
-                self.intensity_diff = 0
-        else:
+        try:
+            self.intensity_diff = abs(self.intensity_list[-1] - self.intensity_list[self.fragmented_index])
+        except AttributeError: # no fragmented index
             self.intensity_diff = 0
 
 

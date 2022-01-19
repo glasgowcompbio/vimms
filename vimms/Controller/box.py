@@ -13,9 +13,11 @@ class GridController(RoiController):
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False,
-                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,     # smartroi parameters
-                 intensity_increase_factor=10, drop_perc=0.1/100,                 # smartroi parameters
-                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):           # weighted dew parameters
+                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,  # smartroi parameters
+                 intensity_increase_factor=10, drop_perc=0.1 / 100,  # smartroi parameters
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,  # weighted dew parameters
+                 dda_weight=1, overlap_weight=1, smartroi_weight=1
+                 ):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -33,6 +35,9 @@ class GridController(RoiController):
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid  # helps us understand previous RoIs
         self.register_all_roi = register_all_roi
+        self.dda_weight = dda_weight
+        self.overlap_weight = overlap_weight
+        self.smartroi_weight = smartroi_weight
 
     def update_state_after_scan(self, scan):
         super().update_state_after_scan(scan)
@@ -49,8 +54,9 @@ class GridController(RoiController):
 class NonOverlapController(GridController):
     def _overlap_scores(self):
         fn = self.grid.get_estimator()
-        non_overlaps = np.array([self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for
-                        r in self.roi_builder.live_roi])
+        non_overlaps = np.array(
+            [self.grid.non_overlap(r.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-fn(r)[0]))) for
+             r in self.roi_builder.live_roi])
         return non_overlaps
 
     def _scale(self, scores):
@@ -62,10 +68,11 @@ class NonOverlapController(GridController):
         dda_scores = self._get_dda_scores()
         non_overlaps = self._overlap_scores()
         if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:
-            w1, w2, w3 = 1, 1, 1
             smartroi_scores = self._smartroi_filter()
             dda_scores = self._scale(dda_scores)
-            final_scores = (w1*dda_scores) + (w2*smartroi_scores) + (w3*non_overlaps)
+            final_scores = (self.dda_weight * dda_scores) + (self.smartroi_weight * smartroi_scores) + (
+                    self.overlap_weight * non_overlaps)
+            # print(final_scores)
         else:
             final_scores = dda_scores * non_overlaps
         return self._get_top_N_scores(final_scores)
@@ -76,9 +83,9 @@ class IntensityNonOverlapController(GridController):
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False, scoring_params={'theta1': 1},
-                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,     # smartroi parameters
-                 intensity_increase_factor=10, drop_perc=0.1/100,                 # smartroi parameters
-                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):           # weighted dew parameters
+                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,  # smartroi parameters
+                 intensity_increase_factor=10, drop_perc=0.1 / 100,  # smartroi parameters
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):  # weighted dew parameters
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -112,9 +119,9 @@ class FlexibleNonOverlapController(GridController):
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False, scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0},
-                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,     # smartroi parameters
-                 intensity_increase_factor=10, drop_perc=0.1/100,                 # smartroi parameters
-                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):           # weighted dew parameters
+                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,  # smartroi parameters
+                 intensity_increase_factor=10, drop_perc=0.1 / 100,  # smartroi parameters
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):  # weighted dew parameters
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
@@ -151,9 +158,9 @@ class CaseControlNonOverlapController(GridController):
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False,
                  scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0, 'theta4': 0},
-                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,     # smartroi parameters
-                 intensity_increase_factor=10, drop_perc=0.1 / 100,                 # smartroi parameters
-                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):           # weighted dew parameters
+                 roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,  # smartroi parameters
+                 intensity_increase_factor=10, drop_perc=0.1 / 100,  # smartroi parameters
+                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):  # weighted dew parameters
         super().__init__(ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                          min_roi_length, N, grid, rt_tol=rt_tol,
                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,

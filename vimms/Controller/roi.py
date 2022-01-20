@@ -178,6 +178,7 @@ class RoiController(TopNController):
         if self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
             assert exclusion_t_0 is not None, 'Must be a number'
             assert exclusion_t_0 < rt_tol, 'Impossible combination'
+            self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
 
         self.exclusion_t_0 = exclusion_t_0
 
@@ -227,6 +228,10 @@ class RoiController(TopNController):
             # if no ms1 has been added, then add at the end
             if not done_ms1: self.schedule_ms1(new_tasks)
 
+            # create new exclusion items based on the scheduled ms2 tasks
+            if self.exclusion is not None:
+                self.exclusion.update(self.scan_to_process, ms2_tasks)
+
             # set this ms1 scan as has been processed
             self.scan_to_process = None
             return new_tasks
@@ -249,9 +254,10 @@ class RoiController(TopNController):
     def _time_filter(self):
         if self.exclusion_method == ROI_EXCLUSION_DEW:
             f = DEWFilter(self.rt_tol)
+            return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt)
         elif self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
-            f = WeightedDEWFilter(self.rt_tol, self.exclusion_t_0)
-        return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt)
+            f = WeightedDEWFilter(self.exclusion)
+            return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt, self.roi_builder.live_roi)
 
     def _length_filter(self):
         f = LengthFilter(self.roi_builder.min_roi_length_for_fragmentation)

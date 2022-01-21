@@ -17,7 +17,8 @@ class RoiBuilder():
     ROI_TYPE_SMART = 'smart'
 
     def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation=1,
-                 reset_length_seconds=100, intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
+                 initial_length_seconds=5, reset_length_seconds=100,
+                 intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
                  roi_type=ROI_TYPE_NORMAL, grid=None, register_all_roi=False):
 
         # ROI stuff
@@ -43,6 +44,7 @@ class RoiBuilder():
         self.roi_id_counter = 0
 
         # Only used by SmartROI
+        self.initial_length_seconds = initial_length_seconds
         self.reset_length_seconds = reset_length_seconds
         self.intensity_increase_factor = intensity_increase_factor
         self.drop_perc = drop_perc
@@ -117,10 +119,10 @@ class RoiBuilder():
             roi = Roi(mz, rt, intensity, id=roi_id)
         elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
             roi = SmartRoi(mz, rt, intensity,
-                           initial_length_seconds=0,
+                           initial_length_seconds=self.initial_length_seconds,
                            reset_length_seconds=self.reset_length_seconds,
                            intensity_increase_factor=self.intensity_increase_factor,
-                           dew=0, drop_perc=self.drop_perc, id=roi_id)
+                           dew=self.rt_tol, drop_perc=self.drop_perc, id=roi_id)
         return roi
 
     def get_mz_intensity(self, i):

@@ -159,9 +159,10 @@ class Environment(object):
         """
         mzml_filename = self._get_out_file(out_dir, out_file)
         logger.debug('Writing mzML file to %s' % mzml_filename)
-        writer = MzmlWriter('my_analysis', self.controller.scans)
-        writer.write_mzML(mzml_filename)
-        logger.debug('mzML file successfully written!')
+        if mzml_filename is not None:
+            writer = MzmlWriter('my_analysis', self.controller.scans)
+            writer.write_mzML(mzml_filename)
+            logger.debug('mzML file successfully written!')
 
     def write_debug_info(self, out_dir, out_file, debug_info):
         """

@@ -15,6 +15,8 @@ import requests
 from loguru import logger
 from tqdm import tqdm
 
+from mass_spec_utils.data_import.mzml import MZMLFile
+
 ########################################################################################################################
 # Common constants
 ########################################################################################################################
@@ -279,7 +281,14 @@ def create_if_not_exist(out_dir):
     if not os.path.exists(out_dir) and len(out_dir) > 0:
         logger.info('Created %s' % out_dir)
         pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-
+        
+def path_or_mzml(mzml):    
+    try:
+        mzml = MZMLFile(mzml)
+    except:
+        if(not type(mzml) == MZMLFile):
+            raise NotImplementedError("Didn't recognise the MZMLFile!")
+    return mzml
 
 def save_obj(obj, filename):
     """

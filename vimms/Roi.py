@@ -1,6 +1,7 @@
 import copy
 import bisect
 import sys
+import itertools
 from statistics import mean
 from collections import OrderedDict
 
@@ -13,7 +14,7 @@ from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import PROTON_MASS
+from vimms.Common import PROTON_MASS, path_or_mzml
 from vimms.Evaluation import *
 
 POS_TRANSFORMATIONS = OrderedDict()
@@ -512,7 +513,7 @@ class RoiAligner(object):
         temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
         self.list_of_boxes.append(temp_boxes)
         
-        mzml = MZMLFile(mzml_file)
+        mzml = path_or_mzml(mzml_file)
         scans2boxes, boxes2scans = map_boxes_to_scans(mzml, temp_boxes, half_isolation_window=half_isolation_window,
                                                       allow_last_overlap=allow_last_overlap)
         precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, "max")
@@ -527,34 +528,25 @@ class RoiAligner(object):
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
-        if len(self.peaksets) == 0:
-            # first file
-            for i, peak in enumerate(these_peaks):
-                self.peaksets.append(PeakSet(peak))
-                self.peaksets2boxes[self.peaksets[-1]] = [temp_boxes[i]]
-                self.peaksets2fragintensities[self.peaksets[-1]] = [frag_intensities[i]]
-        else:
-            for peakset in self.peaksets:            
-                def in_box(peak): return peakset.is_in_box(peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance)
-                candidates = [(i, p, b, inten) for i, (p, b, inten) in enumerate(zip(these_peaks, temp_boxes, frag_intensities)) if in_box(p)]
-
-                if(len(candidates) == 0): continue
-                scores = [peakset.compute_weight(p, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance, self.mz_weight, self.rt_weight) for _, p, __, ___ in candidates]
-                best_cand, _ = max(((c, s) for c, s in zip(candidates, scores)), key=lambda t: t[1])
-                
-                pos, best_peak, best_box, best_intensity = best_cand
-                peakset.add_peak(best_peak)
-                self.peaksets2boxes[peakset].append(best_box)
-                self.peaksets2fragintensities[peakset].append(best_intensity)
-                del these_peaks[pos]
-                del temp_boxes[pos]
-                del frag_intensities[pos]
-                
-            for i, peak in enumerate(these_peaks):  # remaining ones
-                self.peaksets.append(PeakSet(peak))
-                self.peaksets2boxes[self.peaksets[-1]] = [temp_boxes[i]]
-                self.peaksets2fragintensities[self.peaksets[-1]] = [frag_intensities[i]]
+        seen_ps, unassigned = set(), []
+        for peak, box, intensity in zip(these_peaks, temp_boxes, frag_intensities):
+            candidates = [ps for ps in self.peaksets if not ps in seen_ps and ps.is_in_box(peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance)]
+            if(len(candidates) > 0):
+                scores = [ps.compute_weight(peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance, self.mz_weight, self.rt_weight) for ps in candidates]
+                best_ps, _ = max(((ps, s) for ps, s in zip(candidates, scores)), key=lambda t: t[1])
+                best_ps.add_peak(peak)
+                self.peaksets2boxes[best_ps].append(box)
+                self.peaksets2fragintensities[best_ps].append(intensity)
+                seen_ps.add(best_ps)
+            else:
+                unassigned.append((peak, box, intensity))
         
+        for peak, box, intensity in unassigned:
+            new_ps = PeakSet(peak)
+            self.peaksets.append(new_ps)
+            self.peaksets2boxes[new_ps] = [box]
+            self.peaksets2fragintensities[new_ps] = [intensity]
+            
         self.files_loaded.append(short_name)
 
     def to_matrix(self):

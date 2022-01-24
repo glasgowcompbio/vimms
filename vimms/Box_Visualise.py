@@ -9,6 +9,7 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+from vimms.Common import path_or_mzml
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 class RGBAColour():
@@ -143,14 +144,6 @@ class AutoColourMap(ColourMap):
         ax.set_xlim([min(b.pt1.x for b in boxes), max(b.pt2.x for b in boxes)])
         ax.set_ylim([min(b.pt1.y for b in boxes), max(b.pt2.y for b in boxes)])
         return plt
-
-def path_or_mzml(mzml):    
-    try:
-        mzml = MZMLFile(mzml)
-    except:
-        if(not type(mzml) == MZMLFile):
-            raise NotImplementedError("Didn't recognise the MZMLFile!")
-    return mzml
         
 class PlotPoints():
     def __init__(self, ms1_points, ms2s=None, markers={}):

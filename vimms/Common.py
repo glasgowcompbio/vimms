@@ -110,6 +110,14 @@ IN_SILICO_OPTIMISE_WEIGHTED_DEW = 'WeightedDEW'
 ROI_EXCLUSION_DEW = 'exclusion_dew'
 ROI_EXCLUSION_WEIGHTED_DEW = 'exclusion_weighted_dew'
 
+GRID_CONTROLLER_SCORING_PARAMS = {
+    'theta1': 1,
+    'dda_weight': 1,
+    'overlap_weight': 1,
+    'smartroi_weight': 1,
+    'smartroi_score_add': True
+}
+
 
 ########################################################################################################################
 # Common classes

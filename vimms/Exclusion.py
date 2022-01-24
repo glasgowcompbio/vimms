@@ -10,6 +10,7 @@ from vimms.Common import ScanParameters
 ########################################################################################################################
 # DEW Exclusions
 ########################################################################################################################
+from vimms.Roi import SmartRoi
 
 
 class ExclusionItem(object):
@@ -223,7 +224,7 @@ class TopNExclusion(object):
         mz_lower = mz * (1 - mz_tol / 1e6)
         mz_upper = mz * (1 + mz_tol / 1e6)
         rt_lower = rt - rt_tol
-        rt_upper = rt + rt_tol
+        rt_upper = rt + rt_tol # I think this is mostly for topN (iterative) exclusion method
         x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
                           frag_at=rt)
         return x
@@ -303,14 +304,14 @@ class DEWFilter(ScoreFilter):
 
 
 class WeightedDEWFilter(ScoreFilter):
-    def __init__(self, rt_tol, exclusion_t_0):
-        self.rt_tol = rt_tol
-        self.exclusion_t_0 = exclusion_t_0
+    def __init__(self, exclusion):
+        self.exclusion = exclusion
 
-    def filter(self, current_rt, last_frag_rts):
+    def filter(self, current_rt, last_frag_rts, rois):
         weights = []
-        for frag_at in last_frag_rts:
-            is_exc, weight = compute_weight(current_rt, frag_at, self.rt_tol, self.exclusion_t_0)
+        for roi in rois:
+            last_mz, last_rt, last_intensity = roi.get_last_datum()
+            is_exc, weight = self.exclusion.is_excluded(last_mz, last_rt)
             weights.append(weight)
         return np.array(weights)
 
@@ -327,7 +328,8 @@ class SmartROIFilter(ScoreFilter):
     def filter(self, rois):
         # if this is a normal ROI object, always return True for everything
         # otherwise track the status based on the SmartROI rules
-        return np.array([roi.get_can_fragment() for roi in rois])
+        can_fragments = np.array([roi.get_can_fragment() for roi in rois])
+        return can_fragments
 
 
 if __name__ == '__main__':

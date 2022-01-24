@@ -17,7 +17,8 @@ class RoiBuilder():
     ROI_TYPE_SMART = 'smart'
 
     def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation=1,
-                 reset_length_seconds=100, intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
+                 initial_length_seconds=5, reset_length_seconds=100,
+                 intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
                  roi_type=ROI_TYPE_NORMAL, grid=None, register_all_roi=False):
 
         # ROI stuff
@@ -43,6 +44,7 @@ class RoiBuilder():
         self.roi_id_counter = 0
 
         # Only used by SmartROI
+        self.initial_length_seconds = initial_length_seconds
         self.reset_length_seconds = reset_length_seconds
         self.intensity_increase_factor = intensity_increase_factor
         self.drop_perc = drop_perc
@@ -97,10 +99,14 @@ class RoiBuilder():
 
             self.current_roi_ids = [roi.id for roi in self.live_roi]
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
-            if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
-                self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
-            elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
-                self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
+
+            # TODO: Old code below, but I don't see a reason why this should be the case.
+            #       Commenting it out for now.
+            # if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+            #     self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
+            # elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
+            #     self.current_roi_intensities = [roi.get_max_intensity() for roi in self.live_roi]
+            self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
 
             # FIXME: only the 'scans' mode seems to work on the real mass spec (IAPI), why??
             if self.length_units == "scans":
@@ -112,8 +118,11 @@ class RoiBuilder():
         if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
             roi = Roi(mz, rt, intensity, id=roi_id)
         elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
-            roi = SmartRoi(mz, rt, intensity, self.min_roi_length_for_fragmentation, self.reset_length_seconds,
-                           self.intensity_increase_factor, self.rt_tol, drop_perc=self.drop_perc, id=roi_id)
+            roi = SmartRoi(mz, rt, intensity,
+                           initial_length_seconds=self.initial_length_seconds,
+                           reset_length_seconds=self.reset_length_seconds,
+                           intensity_increase_factor=self.intensity_increase_factor,
+                           dew=self.rt_tol, drop_perc=self.drop_perc, id=roi_id)
         return roi
 
     def get_mz_intensity(self, i):
@@ -171,6 +180,7 @@ class RoiController(TopNController):
         if self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
             assert exclusion_t_0 is not None, 'Must be a number'
             assert exclusion_t_0 < rt_tol, 'Impossible combination'
+            self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
 
         self.exclusion_t_0 = exclusion_t_0
 
@@ -220,6 +230,10 @@ class RoiController(TopNController):
             # if no ms1 has been added, then add at the end
             if not done_ms1: self.schedule_ms1(new_tasks)
 
+            # create new exclusion items based on the scheduled ms2 tasks
+            if self.exclusion is not None:
+                self.exclusion.update(self.scan_to_process, ms2_tasks)
+
             # set this ms1 scan as has been processed
             self.scan_to_process = None
             return new_tasks
@@ -242,9 +256,10 @@ class RoiController(TopNController):
     def _time_filter(self):
         if self.exclusion_method == ROI_EXCLUSION_DEW:
             f = DEWFilter(self.rt_tol)
+            return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt)
         elif self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
-            f = WeightedDEWFilter(self.rt_tol, self.exclusion_t_0)
-        return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt)
+            f = WeightedDEWFilter(self.exclusion)
+            return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt, self.roi_builder.live_roi)
 
     def _length_filter(self):
         f = LengthFilter(self.roi_builder.min_roi_length_for_fragmentation)

@@ -3,7 +3,8 @@ from copy import deepcopy
 import numpy as np
 
 from vimms.Common import ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS
-from vimms.Controller.roi import RoiController, RoiBuilder
+from vimms.Controller.roi import RoiController
+from vimms.Roi import RoiBuilder
 
 
 class GridController(RoiController):

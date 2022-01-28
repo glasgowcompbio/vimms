@@ -5,7 +5,8 @@ from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RAN
 from vimms.Box import LocatorGrid, IdentityDrift, AllOverlapGrid
 from vimms.Common import POSITIVE, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller import TopN_RoiController, TopN_SmartRoiController, NonOverlapController, \
-    IntensityNonOverlapController, FlexibleNonOverlapController, RoiBuilder
+    IntensityNonOverlapController, FlexibleNonOverlapController
+from vimms.Roi import RoiBuilder
 from vimms.Environment import Environment
 from vimms.GridEstimator import GridEstimator
 from vimms.MassSpec import IndependentMassSpectrometer

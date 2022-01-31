@@ -72,12 +72,22 @@ It contains codes up to the first paper, but they are quite out-of-date now.
 
 To use the latest bleeding-edge ViMMS code in this repository, follow the steps below to check out the master branch. Note that this repository is in active development, so some things may break (please report an issue in that case).
 
-1. Install Python 3. We recommend Python >3.7.
-2. Install pipenv (https://pipenv.readthedocs.io).
-3. Clone this repository by checking out the master branch: `git clone https://github.com/sdrogers/vimms.git`.
-4. In this cloned directory, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
-5. Go into the newly created virtual environment in step (4) by typing `$ pipenv shell`.
-6. Run Jupyter (`$ jupyter lab`) so you could run the example notebooks below.
+1. Clone this repository by checking out the master branch: `git clone https://github.com/sdrogers/vimms.git`.
+2. We provide two ways to manage the dependencies required by ViMMS. The first is using [Pipenv](https://pipenv.pypa.io/en/latest/), and the second is to use [Anaconda Python](https://www.anaconda.com). Refer to Section A and B below respectively.
+
+***A. Managing Dependencies using Pipenv***
+
+1. Install pipenv (https://pipenv.readthedocs.io).
+2. In the cloned Github repo, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
+3. Go into the newly created virtual environment in step (4) by typing `$ pipenv shell`.
+4. In this environment, you could develop new controllers, run notebooks (`$ jupyter lab`) etc. 
+
+***B. Managing Dependencies using Pipenv***
+
+1. Install Anaconda Python (https://www.anaconda.com/products/individual).
+2. In the cloned Github repo, run `$ conda env create --file environment.yml` to create a new virtual environment and install all the packages need to run ViMMS.
+3. Go into the newly created virtual environment in step (4) by typing `$ conda activate vimms`.
+4. In this environment, you could develop new controllers, run notebooks (`$ jupyter lab`) etc. 
 
 # Test Cases
 

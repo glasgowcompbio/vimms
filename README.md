@@ -119,15 +119,21 @@ If you develop new controllers on top of ViMMS, please also cite the following p
 
 [2] Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" Analytical Chemistry (2020). https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895 ([data](http://researchdata.gla.ac.uk/1137/))
 
-### Talks and Poster Presentations
+### Presentations
 
-The following [poster](https://f1000research.com/posters/9-973) was presented in the CompMS COSI track in [ISMB 2020](https://www.iscb.org/ismb2020), and was voted the 
+ViMMS has been presented in various metabolomics and computational biology venues. The following are our highlights:
+
+##### Conference and Workshop Presentations 
+
+- The following [poster](https://f1000research.com/posters/9-973) was presented in the CompMS COSI track in [ISMB 2020](https://www.iscb.org/ismb2020), and was voted the 
 best poster for that track. An accompanying video presentation is also available. A similar poster was also presented
 at [Metabolomics 2020 conference](http://metabolomics2020.org/).
 
 [![SmartROI](http://img.youtube.com/vi/kHPYQicGoHE/0.jpg)](https://www.youtube.com/watch?v=kHPYQicGoHE "SmartROI")
 
-ViMMS was also presented as a talk at [Metabolomics 2021](https://www.metabolomics2021.org/) conference. You can find the [slides here](https://docs.google.com/presentation/d/e/2PACX-1vTADW9uJBYEMK91UGUw_99kHwn8jviT_Wvyj30Z2Akm0rswF_xbS_fUxuq23dVC4g/pub?start=false&loop=false&delayms=3000).
+- ViMMS was also presented as a talk at [Metabolomics 2021](https://www.metabolomics2021.org/) conference. You can find the [slides here](https://docs.google.com/presentation/d/e/2PACX-1vTADW9uJBYEMK91UGUw_99kHwn8jviT_Wvyj30Z2Akm0rswF_xbS_fUxuq23dVC4g/pub?start=false&loop=false&delayms=3000).
+
+##### Departmental Talks
 
 Slides and recorded videos from other departmental talks:
 - [Computational Metabolomics as a Game of Battleships - Statistics Seminar, School of Mathematics and Statistics, University of Glasgow (2022)](https://github.com/vinnydavies/presentations/blob/master/Computational%20Metabolomics%20as%20a%20game%20of%20Battleships%20-%20Glasgow.pptx)

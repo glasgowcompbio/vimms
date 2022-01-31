@@ -14,7 +14,7 @@ metabolomics.
 # Example Codes and Documentations
 
 Can't wait to get started? Check out the following resources:
-- Project documentation page: https://vimms.readthedocs.io/en/latest
+- Project documentation page: [![Documentation Status](https://readthedocs.org/projects/vimms/badge/?version=latest)](http://vimms.readthedocs.io/?badge=latest)
 - Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/sdrogers/vimms/tree/master/demo).
 - Example notebooks to accompany publications can be found in the [Example folder](https://github.com/sdrogers/vimms/tree/master/examples)
 

@@ -128,3 +128,6 @@ at [Metabolomics 2020 conference](http://metabolomics2020.org/).
 [![SmartROI](http://img.youtube.com/vi/kHPYQicGoHE/0.jpg)](https://www.youtube.com/watch?v=kHPYQicGoHE "SmartROI")
 
 ViMMS was also presented as a talk at [Metabolomics 2021](https://www.metabolomics2021.org/) conference. You can find the [slides here](https://docs.google.com/presentation/d/e/2PACX-1vTADW9uJBYEMK91UGUw_99kHwn8jviT_Wvyj30Z2Akm0rswF_xbS_fUxuq23dVC4g/pub?start=false&loop=false&delayms=3000).
+
+Slides and recorded videos from other departmental talks:
+- [Computational Metabolomics as a Game of Battleships - Statistics Seminar, School of Mathematics and Statistics, University of Glasgow (2022)](https://github.com/vinnydavies/presentations/blob/master/Computational%20Metabolomics%20as%20a%20game%20of%20Battleships%20-%20Glasgow.pptx)

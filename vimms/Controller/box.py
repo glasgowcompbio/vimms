@@ -10,7 +10,7 @@ class GridController(RoiController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
+                 ms1_shift=0, min_rt_width=0.000001, min_mz_width=0.000001,
                  params=None, register_all_roi=False, scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
                  roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,  # smartroi parameters
                  intensity_increase_factor=10, drop_perc=0.1 / 100,  # smartroi parameters
@@ -49,6 +49,10 @@ class GridController(RoiController):
         return scores
 
     def _get_scores(self):
+        if(self.roi_builder.live_roi != []):
+            rt = max(r.max_rt for r in self.roi_builder.live_roi)
+            self.grid.set_active_boxes(rt)
+    
         non_overlaps = self._overlap_scores()
         if self.roi_builder.roi_type == RoiBuilder.ROI_TYPE_SMART:  # smart ROI scoring
             smartroi_scores = self._smartroi_filter()

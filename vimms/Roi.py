@@ -64,6 +64,10 @@ class Roi(object):
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
         self.is_fragmented = False
         self.can_fragment = True
+        
+        self.min_rt, self.max_rt = min(self.rt_list), max(self.rt_list)
+        self.min_mz, self.max_mz = min(self.mz_list), max(self.mz_list)
+        self.min_intensity, self.max_intensity = min(self.intensity_list), max(self.intensity_list)
 
     def fragmented(self):
         self.is_fragmented = True
@@ -76,10 +80,10 @@ class Roi(object):
         return self.mz_sum / self.n
 
     def get_max_intensity(self):
-        return max(self.intensity_list)
+        return self.max_intensity
 
     def get_min_intensity(self):
-        return min(self.intensity_list)
+        return self.min_intensity
 
     def get_autocorrelation(self, lag=1):
         return pd.Series(self.intensity_list).autocorr(lag=lag)
@@ -94,6 +98,9 @@ class Roi(object):
         self.mz_sum += mz
         self.n += 1
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+        self.min_rt, self.max_rt = min(self.min_rt, rt), max(self.max_rt, rt)
+        self.min_mz, self.max_mz = min(self.min_mz, mz), max(self.max_mz, mz)
+        self.min_intensity, self.max_intensity = min(self.min_intensity, intensity), max(self.max_intensity, intensity)
 
     def add_fragmentation_event(self, scan, precursor_intensity):
         self.fragmentation_events.append(scan)
@@ -117,9 +124,9 @@ class Roi(object):
             self.rt_list[0], self.rt_list[-1])
 
     def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
-        return GenericBox(min(self.rt_list) + rt_shift, max(self.rt_list) + rt_shift, min(self.mz_list) + mz_shift,
-                          max(self.mz_list) + mz_shift,
-                          min_xwidth=min_rt_width, min_ywidth=min_mz_width, intensity=self.max_fragmentation_intensity)
+        return GenericBox(self.min_rt + rt_shift, self.max_rt + rt_shift, self.min_mz + mz_shift,
+                          self.max_mz + mz_shift,
+                          min_xwidth=min_rt_width, min_ywidth=min_mz_width, intensity=self.max_fragmentation_intensity, id=self.id)
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
@@ -463,8 +470,8 @@ class RoiAligner(object):
                  mz_column_pos=1,
                  rt_column_pos=2,
                  intensity_column_pos=3,
-                 min_rt_width=0.01,
-                 min_mz_width=0.01,
+                 min_rt_width=0.000001,
+                 min_mz_width=0.000001,
                  n_categories=1):
 
         self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance = mz_tolerance_absolute, mz_tolerance_ppm, rt_tolerance

@@ -1,11 +1,13 @@
 import math
+import bisect
 import itertools
 import random
 from abc import abstractmethod
-from collections import defaultdict
+from collections import defaultdict, deque
 from decimal import Decimal
 from functools import reduce
 
+import intervaltree
 import GPy
 import numpy as np
 from mass_spec_utils.data_import.mzmine import PickedBox
@@ -22,7 +24,8 @@ class Point():
 
 
 class Box():
-    def __init__(self, x1, x2, y1, y2, parents=None, min_xwidth=0, min_ywidth=0, intensity=0):
+    def __init__(self, x1, x2, y1, y2, parents=None, min_xwidth=0, min_ywidth=0, intensity=0, id=None):
+        self.id = id
         self.pt1 = Point(min(x1, x2), min(y1, y2))
         self.pt2 = Point(max(x1, x2), max(y1, y2))
         self.parents = [self] if parents is None else parents
@@ -50,7 +53,7 @@ class Box():
 
     def copy(self, xshift=0, yshift=0):
         return type(self)(self.pt1.x + xshift, self.pt2.x + xshift, self.pt1.y + yshift, self.pt2.y + yshift,
-                          parents=self.parents, intensity=self.intensity)
+                          parents=self.parents, intensity=self.intensity, id=self.id)
 
     def shift(self, xshift=0, yshift=0):
         self.pt1.x += xshift
@@ -158,7 +161,15 @@ class Grid():
 
     @abstractmethod
     def register_box(self, box): pass
+    
+    def register_boxes(self, boxes):
+        for b in boxes: self.register_box(b)
+        
+    def set_active_boxes(self, *args):
+        pass
 
+    def clear(self):
+        self.__init__(self.min_rt, self.max_rt, self.rt_box_size, self.min_mz, self.max_mz, self.mz_box_size)
 
 class DictGrid(Grid):
     @staticmethod
@@ -212,9 +223,9 @@ class LocatorGrid(Grid):
     @staticmethod
     def dummy_non_overlap(box, other_boxes):
         return 1.0
-
+        
     @staticmethod
-    def splitting_non_overlap(box, other_boxes):
+    def non_overlap_boxes(box, other_boxes):
         new_boxes = [box]
         for b in other_boxes:  # filter boxes down via grid with large boxes for this loop + boxes could be potentially sorted by size (O(n) insert time in worst-case)?
             if (box.overlaps_with_box(b)):  # quickly exits any box not overlapping new box
@@ -227,9 +238,15 @@ class LocatorGrid(Grid):
                             updated_boxes.extend(split_boxes)
                         else:
                             updated_boxes.append(b2)
-                if (not updated_boxes): return 0.0
+                if (not updated_boxes): return []
                 new_boxes = updated_boxes
-        return sum(b.area() for b in new_boxes) / box.area()
+        return new_boxes
+
+    @staticmethod
+    def splitting_non_overlap(box, other_boxes):
+        boxes = LocatorGrid.non_overlap_boxes(box, other_boxes)
+        if(boxes == []): return 0.0
+        else: return sum(b.area() for b in boxes) / box.area()
 
     def non_overlap(self, box):
         return self.splitting_non_overlap(box, self.get_boxes(box))
@@ -342,7 +359,136 @@ class AllOverlapGrid(LocatorGrid):
                 binned.append([])
             binned[b.num_overlaps() - 1].append(b)
         return binned
+        
+class SweepGrid():
+    # aiming for [1011, 1874, 2297, 2514, 2635, 2721]
+    def __init__(self, track=True):
+        self.all_boxes, self.active, self.was_active, self.active_ends = [], [], [], []
+        self.active_intervals = intervaltree.IntervalTree()
+        self.previous_time, self.current_time = -1, 0
+        self.active_pointer = 0
+        
+        #self.running_scores = {}
+        self.running_scores = defaultdict(list)
+        
+        #TODO: remove test code
+        self.heights = defaultdict(list)
+    
+    def update_active(self, new_boxes):
+        for b in new_boxes:
+            end_point = b.pt2.x
+            i = bisect.bisect_right(self.active_ends, -end_point) #invert value for descending sort
+            self.active.insert(i, b)
+            self.active_ends.insert(i, -end_point)
+            self.active_intervals.addi(b.pt1.y, b.pt2.y, b)
+    
+    def set_active_boxes(self, current_time):
+        if(current_time < self.current_time):
+            self.active_pointer = 0
+            self.active = []
+            
+        next_ptr = self.active_pointer
+        while(next_ptr < len(self.all_boxes) and self.all_boxes[next_ptr].pt1.x <= current_time):
+            next_ptr += 1
+        self.update_active(self.all_boxes[self.active_pointer:next_ptr])
+        self.active_pointer = next_ptr
+        
+        #TODO: remove test code
+        assert len(self.active) == len(self.active_ends), f"length {len(self.active)} of active does not match length {len(self.active_ends)} of active_ends"
+        import math
+        for b, t in zip(self.active, self.active_ends):
+            assert math.isclose(b.pt2.x, -t), f"time {b.pt2.x} of active does not match time {-t} of active_ends"
+        assert len(self.active) == len(self.active_intervals), f"length {len(self.active)} of active does not match length {len(self.active_intervals)} of active_intervals"
+        
+        self.was_active = []
+        while(self.active != [] and self.active[-1].pt2.x <= current_time):
+            b = self.active.pop()
+            self.active_ends.pop()
+            self.was_active.append(b)
+            self.active_intervals.removei(b.pt1.y, b.pt2.y, b)
+        self.previous_time = self.current_time
+        self.current_time = current_time
+        
+    def point_in_box(self, mz):
+        return self.active_interval.overlaps_point(mz)
+        
+    def point_in_which_boxes(self, mz):
+        return [inv.data for inv in self.active_intervals.at(mz)]
+        
+    def interval_overlaps_which_boxes(self, min_mz, max_mz):
+        return [inv.data for inv in self.active_intervals.overlap(min_mz, max_mz)]
+        
+    def interval_covers_which_boxes(self, min_mz, max_mz):
+        return [inv.data for inv in self.active_intervals.envelop(min_mz, max_mz)]
+        
+    def non_overlap(self, box):
+        sliced = box.copy()
+        sliced.pt1.x = self.previous_time
+        
+        other_boxes = self.interval_overlaps_which_boxes(sliced.pt1.y, sliced.pt2.y) + self.was_active #TODO: If the manual intersection check is removed from this non-overlap, then filter to intersecting boxes
+        sliced_uncovered = sum(b.area() for b in LocatorGrid.non_overlap_boxes(sliced, other_boxes))
+        
+        #TODO: remove test code
+        #height = sliced.pt2.y - sliced.pt1.y
+        #for b, h in self.heights[sliced.id]:
+        #    assert math.isclose(height, h), f"Height {height} of box {sliced} does not match previous height {h} of box {b}!"
+        
+        #TODO: remove test code
+        #test_member = set(other_boxes)
+        #for b in self.all_boxes:
+        #    msg = f"box {b} not in all_boxes at prev time {self.previous_time} & curr time {self.current_time} with slice {sliced}"
+        #    assert (not b.overlaps_with_box(sliced) 
+        #            or b in test_member
+        #            ), msg
+        
+        '''
+        running_uncovered, running_total = self.running_scores.get(sliced.id, (0, 0))
+        running_uncovered += sliced_uncovered
+        running_total += sliced.area()
+        self.running_scores[sliced.id] = (running_uncovered, running_total)
+        '''
+        
+        '''
+        self.running_scores[sliced.id].append((sliced_uncovered, sliced.area()))
+        areas = np.sum(self.running_scores[sliced.id], axis=0)
+        running_uncovered, running_total = areas
+        '''
+        
+        from decimal import Decimal
+        pair = (Decimal(sliced_uncovered), Decimal(sliced.area()))
+        self.running_scores[sliced.id].append(pair)
+        running_uncovered = sum(area for area, _ in self.running_scores[sliced.id])
+        running_total = sum(area for _, area in self.running_scores[sliced.id])
+        
+        #TODO: remove test code
+        self.heights[sliced.id].append((sliced, (sliced.pt2.y - sliced.pt1.y)))
+        
+        return float(running_uncovered / running_total)
+        
+    #TODO: another method to find intensity of boxes with max/sum option, provided some points
+    
+    def register_boxes(self, boxes):
+        self.all_boxes = sorted(set(self.all_boxes + boxes), key=lambda b: b.pt1.x)
+        
+    def clear(self):
+        self.__init__()
+    
+    #TODO:
+    #for controller, we need to know which boxes are active, and which have (temporarily) ceased activity
+    #using these, we can calculate e.g. non-overlap score using a small box slice, and keep a running count of all the scores of the slices so we can combine them
+    #we still calculate slices for RoIs which are "inactive" but not "discarded", but they get a score weight of zero
+    #we also need to search the mz via a similar sorted stack procedure (or interval tree)
+    #for hard exclusion we just care if our points fall in any box, so can mark with boolean
+    #for (intensity-)non-overlap, for each slice we need to return all boxes that intersect it on both dimensions
+    
+    #for evaluation
+    #for point matching, find which precursors lie in which boxes, then check if fragmentation scans are still in box and have any as parent 
+    #for window matching, find which precursors lie in which boxes, find which boxes are overlapped by which intervals, and use largest precursor (or sum of precursors?) in that box
+    
+    #for matching
+    #find which precursors lie in which boxes with points from a single scan, then create edge with intensity at that point
 
+    #refactor class to be more in line with previous ones
 
 class DriftModel():
     @abstractmethod

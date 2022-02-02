@@ -6,7 +6,7 @@ from vimms.Roi import RoiAligner
 class GridEstimator():
     '''Wrapper class letting internal grid be updated with rt drift estimates.'''
 
-    def __init__(self, grid, drift_model, min_rt_width=0.01, min_mz_width=0.01):
+    def __init__(self, grid, drift_model, min_rt_width=0.000001, min_mz_width=0.000001):
         self.pending_ms2s = deque()
         self.observed_rois = [[]]
         self.grid = grid
@@ -34,17 +34,20 @@ class GridEstimator():
         return lambda roi: fn(roi, self.injection_count)
 
     def _update_grid(self):
-        self.grid.boxes = self.grid.init_boxes(self.grid.rtboxes, self.grid.mzboxes)
+        self.grid.clear()
         for inj_num, inj in enumerate(self.observed_rois):
             fn = self.drift_models[inj_num].get_estimator(inj_num)
-            for roi in inj:
-                drift, _ = fn(roi, inj_num)
-                self.grid.register_box(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)))
+            drifts = (fn(roi, inj_num)[0] for roi in inj)
+            boxes = [roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift=(-drift)) for roi, drift in zip(inj, drifts)]
+            self.grid.register_boxes(boxes)
 
     def _next_model(self):
         self.observed_rois.append([])
         self.drift_models.append(self.drift_models[-1]._next_model())
         self.injection_count += 1
+        
+    def set_active_boxes(self, current_rt):
+        self.grid.set_active_boxes(current_rt)
 
     def send_training_data(self, scan):
         if (scan.ms_level != 2): return

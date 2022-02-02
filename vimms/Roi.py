@@ -16,6 +16,7 @@ from scipy.stats import pearsonr
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Evaluation import *
+from vimms.MassSpec import Scan
 
 
 class Roi(object):
@@ -354,10 +355,10 @@ class RoiBuilder():
     ROI_TYPE_NORMAL = 'roi'
     ROI_TYPE_SMART = 'smart'
 
-    def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, min_roi_length_for_fragmentation=1,
+    def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length,
                  initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
-                 roi_type=ROI_TYPE_NORMAL, grid=None, register_all_roi=False):
+                 roi_type=ROI_TYPE_NORMAL, grid=None):
         """
         Initialises an ROI Builder object.
         :param mz_tol: the m/z tolerance when matching a new point to existing ROIs
@@ -374,7 +375,6 @@ class RoiBuilder():
         :param length_units: the length unit (either in 'scans' or 'seconds')
         :param roi_type: the type of ROI object generated, either ROI_TYPE_NORMAL or ROI_TYPE_SMART
         :param grid: non-overlap grid, if any. Used to track overlapping fragmentation of ROI across samples.
-        :param register_all_roi: ???
         """
 
         # ROI stuff
@@ -383,7 +383,6 @@ class RoiBuilder():
         self.mz_units = 'ppm'
         self.rt_tol = rt_tol
         self.min_roi_length = min_roi_length
-        self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation  # FIXME: this parameter is unused in this class?!
         self.length_units = length_units
         self.roi_type = roi_type
         assert self.roi_type in [RoiBuilder.ROI_TYPE_NORMAL, RoiBuilder.ROI_TYPE_SMART]
@@ -409,7 +408,6 @@ class RoiBuilder():
 
         # Grid stuff
         self.grid = grid
-        self.register_all_roi = register_all_roi  # FIXME: this parameter is unused in this class?!
 
     def update_roi(self, new_scan):
         """
@@ -467,7 +465,7 @@ class RoiBuilder():
                         self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
 
                         # If a grid object is provided, then update the grid too
-                        if self.register_all_roi and self.grid is not None:
+                        if self.grid is not None:
                             self.grid.register_roi(new_roi)
 
             # Separate the ROIs that have not been grown into dead or junk ROIs
@@ -552,7 +550,7 @@ class RoiBuilder():
                                     'precursor_intensity': intensity})
 
         # grid stuff
-        if self.register_all_roi is False and self.grid is not None:
+        if self.grid is not None:
             self.grid.register_roi(self.live_roi[i])
         self.live_roi[i].max_fragmentation_intensity = max(self.live_roi[i].max_fragmentation_intensity, intensity)
 
@@ -575,7 +573,7 @@ class RoiBuilder():
         """
         Returns all ROIs
         """
-        # TODO: check that the codes after the commented line is what we want
+        # TODO: check with Ross that the codes after the commented line is what we want
         # return self.live_roi + self.dead_roi
 
         # process all the remaining live ones - keeping only those that
@@ -602,7 +600,7 @@ class RoiAligner(object):
                  min_mz_width=0.01,
                  n_categories=1):
         """
-        TODO: complete this
+        TODO: add docstring comment
         Creates a new ROI aligner
         :param mz_tolerance_absolute: ???
         :param mz_tolerance_ppm: ???
@@ -636,7 +634,7 @@ class RoiAligner(object):
 
     def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
         """
-        TODO: complete this
+        TODO: add docstring comment
         Adds a new sample for alignment
         :param rois: ???
         :param sample_name: ???
@@ -666,7 +664,7 @@ class RoiAligner(object):
     def add_picked_peaks(self, mzml_file, peak_file, sample_name, picking_method='mzmine', sample_type=None,
                          half_isolation_window=0, allow_last_overlap=False, rt_shifts=None, mz_shifts=None):
         """
-        TODO: complete this
+        TODO: add docstring comment
         Adds picked peak information to the aligner
         :param mzml_file: ???
         :param peak_file: ???
@@ -710,7 +708,7 @@ class RoiAligner(object):
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
         """
-        TODO: complete this
+        TODO: add docstring comment
         Performs alignment of ...
         :param these_peaks: ???
         :param temp_boxes: ???
@@ -808,13 +806,13 @@ class RoiAligner(object):
 
 class FrequentistRoiAligner(RoiAligner):
     """
-    TODO: complete this
+    TODO: add docstring comment
     This class does ...
     """
 
     def get_boxes(self, method='mean'):
         """
-        TODO: complete this
+        TODO: add docstring comment
         Converts peaksets to generic boxes in a different way
         """
         boxes = super().get_boxes(method)
@@ -827,7 +825,7 @@ class FrequentistRoiAligner(RoiAligner):
 
     def get_p_values(self, enough_catergories):
         """
-        TODO: complete this
+        TODO: add docstring comment
         Returns the p-values of ...
         """
         # need to match boxes, not base chemicals
@@ -863,11 +861,10 @@ class FrequentistRoiAligner(RoiAligner):
 # Make the RoI from an input file
 # mz_units = Da for Daltons
 # mz_units = ppm for ppm
-def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
+def make_roi(input_file, mz_tol=0.001, min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
              length_units="scans"):
     """
     Make ROIs from an input file
-    TODO: we should modify this to reduce duplicated codes and use the ROI Builder above
     :param input_file: input mzML file
     :param mz_tol: m/z tolerance for matching
     :param mz_units: m/z unit for matching (either 'Da' or 'ppm')
@@ -878,70 +875,41 @@ def make_roi(input_file, mz_tol=0.001, mz_units='Da', min_length=10, min_intensi
     :param length_units: length unit for min_length
     """
 
-    if not mz_units == 'Da' and not mz_units == 'ppm':
-        logger.warning("Unknown mz units, use Da or ppm")
-        return None, None
-
     run = pymzml.run.Reader(input_file, MS1_Precision=5e-6,
                             extraAccessions=[('MS:1000016', ['value', 'unitName'])],
                             obo_version='4.0.1')
 
-    live_roi = []
-    dead_roi = []
-    junk_roi = []
-
+    scan_id = 0
+    roi_builder = RoiBuilder(mz_tol, 0, min_intensity, min_length, length_units=length_units)
     for i, spectrum in enumerate(run):
         ms_level = 1
         if spectrum['ms level'] == ms_level:
-            live_roi.sort()
-            # current_ms1_scan_rt, units = spectrum['scan start time'] # this no longer works
             current_ms1_scan_rt, units = spectrum.scan_time
+
+            # check that ms1 scan (in seconds) is within bound
             if units == 'minute':
                 current_ms1_scan_rt *= 60.0
-
             if current_ms1_scan_rt < start_rt:
                 continue
             if current_ms1_scan_rt > stop_rt:
                 break
 
-            # print current_ms1_scan_rt
-            # print spectrum.peaks
-            not_grew = set(live_roi)
+            # get the raw peak data from spectrum
+            mzs = []
+            intensities = []
             for mz, intensity in spectrum.peaks('raw'):
-                if intensity >= min_intensity:
-                    match_roi = match(Roi(mz, 0, 0), live_roi, mz_tol, mz_units=mz_units)
-                    if match_roi:
-                        match_roi.add(mz, current_ms1_scan_rt, intensity)
-                        if match_roi in not_grew:
-                            not_grew.remove(match_roi)
-                    else:
-                        bisect.insort_right(live_roi, Roi(mz, current_ms1_scan_rt, intensity))
+                mzs.append(mz)
+                intensities.append(intensity)
+            mzs = np.array(mzs)
+            intensities = np.array(intensities)
 
-            for roi in not_grew:
-                if length_units == "scans":
-                    if roi.n >= min_length:
-                        dead_roi.append(roi)
-                    else:
-                        junk_roi.append(roi)
-                else:
-                    if roi.length_in_seconds >= min_length:
-                        dead_roi.append(roi)
-                    else:
-                        junk_roi.append(roi)
-                pos = live_roi.index(roi)
-                del live_roi[pos]
+            # update the ROI construction based on the new scan
+            scan = Scan(scan_id, mzs, intensities, ms_level, current_ms1_scan_rt)
+            roi_builder.update_roi(scan)
+            scan_id += 1
 
-            # logger.debug("Scan @ {}, {} live ROIs".format(current_ms1_scan_rt, len(live_roi)))
-
-    # process all the live ones - keeping only those that
-    # are longer than the minimum length
-    good_roi = dead_roi
-    for roi in live_roi:
-        if roi.n >= min_length:
-            good_roi.append(roi)
-        else:
-            junk_roi.append(roi)
-    return good_roi, junk_roi
+    good_roi = roi_builder.get_rois()
+    return good_roi
 
 
 # Find the RoI that a particular mz falls into
@@ -1116,7 +1084,7 @@ def plot_roi(roi, statuses=None, log=False):
 def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
     """
     Updates picked boxes ??
-    TODO: complete this
+    TODO: add docstring comment
 
     :param picked_boxes: ???
     :param rt_shifts: ???

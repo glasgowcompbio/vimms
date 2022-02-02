@@ -14,7 +14,7 @@ def picked_peaks_evaluation(mzml_file, picked_peaks_file):
 
 def roi_scoring(mzml_file, mz_tol=10, mz_units='ppm', min_length=3, min_intensity=500):
     mz_file = MZMLFile(mzml_file)
-    good_roi, junk_roi = make_roi(mzml_file, mz_tol=mz_tol, mz_units=mz_units, min_length=min_length,
+    good_roi = make_roi(mzml_file, mz_tol=mz_tol, min_length=min_length,
                                   min_intensity=min_intensity)
     roi_roi2scan, roi_scan2roi = match_scans_to_rois(mz_file, good_roi)
     with_scan, without_scan, num_scan = prop_roi_with_scans(roi_roi2scan)

@@ -26,7 +26,7 @@ def get_chemicals(mzML_file, mz_tol, min_ms1_intensity, start_rt, stop_rt, min_l
     :return: a list of UnknownChemical objects
     '''
     min_intensity = 0
-    good_roi, junk = make_roi(mzML_file, mz_tol=mz_tol, mz_units='ppm', min_length=min_length,
+    good_roi = make_roi(mzML_file, mz_tol=mz_tol, min_length=min_length,
                               min_intensity=min_intensity, start_rt=start_rt, stop_rt=stop_rt)
 
     # keep ROI that have at least one point above the minimum to fragment threshold

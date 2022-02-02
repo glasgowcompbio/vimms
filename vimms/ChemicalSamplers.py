@@ -255,7 +255,6 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         self.rt_probs = [v / total_intensity for v in rt_bins.values()]
 
         good = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
-                              mz_units=self.roi_params.mz_units, \
                               min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
                               start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
                               length_units=self.roi_params.length_units)
@@ -334,7 +333,6 @@ class MZMLChromatogramSampler(ChromatogramSampler):
 
     def _extract_rois(self):
         good = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
-                              mz_units=self.roi_params.mz_units, \
                               min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
                               start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
                               length_units=self.roi_params.length_units)

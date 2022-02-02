@@ -332,14 +332,12 @@ class RoiParams(object):
         """
         Initialises an RoiParams object
         :param mz_tol: m/z  tolerance
-        :param mz_units: m/z units, either in 'Da' or 'ppm'
         :param min_length: minimum ROI length
         :param min_intensity: minimum intensity to be included for ROI building
         :param start_rt: start RT of scans to be included for ROI building
         :param start_rt: end RT of scans to be included for ROI building
         """
         self.mz_tol = mz_tol
-        self.mz_units = mz_units
         self.min_length = min_length
         self.min_intensity = min_intensity
         self.start_rt = start_rt

@@ -327,7 +327,7 @@ class RoiParams(object):
     A parameter object that stores various settings required for ROIBuilder
     """
 
-    def __init__(self, mz_tol=0.001, mz_units='Da', min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
+    def __init__(self, mz_tol=10, min_length=10, min_intensity=50000, start_rt=0, stop_rt=10000000,
                  length_units="scans"):
         """
         Initialises an RoiParams object
@@ -571,16 +571,14 @@ class RoiBuilder():
         """
         Returns all ROIs
         """
-        # TODO: check with Ross that the codes after the commented line is what we want
-        # return self.live_roi + self.dead_roi
+        return self.live_roi + self.dead_roi
 
-        # process all the remaining live ones - keeping only those that
-        # are longer than the minimum length
-        good_roi = list(self.dead_roi)
-        for roi in self.live_roi:
-            if roi.n >= self.min_roi_length:
-                good_roi.append(roi)
-        return good_roi
+    def get_good_rois(self):
+        """
+        Returns all ROIs above min_roi_length
+        """
+        filtered_roi = [roi for roi in self.live_roi if roi.n >= self.min_roi_length]
+        return filtered_roi + self.dead_roi
 
 
 class RoiAligner(object):
@@ -893,26 +891,33 @@ def make_roi(input_file, mz_tol=0.001, min_length=10, min_intensity=50000, start
                 break
 
             # get the raw peak data from spectrum
-            mzs = []
-            intensities = []
-            for mz, intensity in spectrum.peaks('raw'):
-                mzs.append(mz)
-                intensities.append(intensity)
-            mzs = np.array(mzs)
-            intensities = np.array(intensities)
+            mzs, intensities = spectrum_to_arrays(spectrum)
 
             # update the ROI construction based on the new scan
             scan = Scan(scan_id, mzs, intensities, ms_level, current_ms1_scan_rt)
             roi_builder.update_roi(scan)
             scan_id += 1
 
-    good_roi = roi_builder.get_rois()
+    good_roi = roi_builder.get_good_rois()
     return good_roi
 
 
-# Find the RoI that a particular mz falls into
-# If it falls into nothing, return None
-#
+def spectrum_to_arrays(spectrum):
+    """
+    Converts pymzml spectrum to parallel arrays
+    :param spectrum: a pymzml spectrum object
+    :return a tuple (mzs, intensities) where mzs and intensities are numpy arrays of m/z and intensity values
+    """
+    mzs = []
+    intensities = []
+    for mz, intensity in spectrum.peaks('raw'):
+        mzs.append(mz)
+        intensities.append(intensity)
+    mzs = np.array(mzs)
+    intensities = np.array(intensities)
+    return mzs, intensities
+
+
 def match(mz, roi_list, mz_tol, mz_units='Da'):
     """
     # Find the RoI that a particular mz falls into. If it falls into nothing, return None.

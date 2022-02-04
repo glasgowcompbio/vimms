@@ -69,9 +69,7 @@ class TopNDEWAgent(AbstractAgent):
         return new_tasks, current_task_id, next_processed_scan_id
 
     def update(self, last_scan, controller):
-        # update dynamic exclusion list after time has been increased
-        if self.remove_exclusion:
-            self.exclusion.cleanup(last_scan)
+        pass
 
     def act(self, scan_to_process):
         pass

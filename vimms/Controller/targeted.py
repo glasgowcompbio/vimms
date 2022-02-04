@@ -247,5 +247,4 @@ class SimpleTargetController(Controller):
         return new_tasks
 
     def update_state_after_scan(self, scan):
-        # update dynamic exclusion list after time has been increased
-        self.exclusion.cleanup(scan)
+        pass

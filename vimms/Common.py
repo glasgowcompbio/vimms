@@ -116,6 +116,9 @@ GRID_CONTROLLER_SCORING_PARAMS = {
     'smartroi_score_add': True
 }
 
+MZ_UNITS_PPM = 'ppm'
+MZ_UNITS_DA = 'Da'
+
 
 ########################################################################################################################
 # Common classes

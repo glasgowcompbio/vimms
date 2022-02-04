@@ -4,7 +4,7 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW
+from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW, MZ_UNITS_PPM
 from vimms.Controller.topN import TopNController
 from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, WeightedDEWExclusion, DEWFilter, \
     WeightedDEWFilter
@@ -18,12 +18,12 @@ class RoiController(TopNController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans", ms1_shift=0,
-                 params=None, exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
+                 params=None, exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None, mz_units=MZ_UNITS_PPM):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
                          params=params)
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL)
+                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL, mz_units=mz_units)
 
         self.exclusion_method = exclusion_method
         assert self.exclusion_method in [ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW]

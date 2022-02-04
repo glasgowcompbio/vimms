@@ -382,10 +382,7 @@ class ChemicalMixtureFromMZML(object):
         assert len(self.good_rois) > 0
 
     def _extract_rois(self):
-        good = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
-                              min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
-                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
-                              length_units=self.roi_params.length_units)
+        good = make_roi(str(self.mzml_file_name), self.roi_params)
         logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
 

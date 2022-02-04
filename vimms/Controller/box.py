@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from vimms.Common import ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS
+from vimms.Common import ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS, MZ_UNITS_PPM
 from vimms.Controller.roi import RoiController
 from vimms.Roi import RoiBuilder
 
@@ -11,7 +11,7 @@ class GridController(RoiController):
 
     def __init__(self, ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10, min_roi_length_for_fragmentation=1, length_units="scans",
-                 ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
+                 ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01, mz_units=MZ_UNITS_PPM,
                  params=None, register_all_roi=False, scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
                  roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,  # smartroi parameters
                  intensity_increase_factor=10, drop_perc=0.1 / 100,  # smartroi parameters
@@ -20,9 +20,10 @@ class GridController(RoiController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity, min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol, min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
             length_units=length_units, ms1_shift=ms1_shift, params=params,
-            exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0
+            exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0, mz_units=mz_units
         )
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
+                                      mz_units=mz_units,
                                       reset_length_seconds=reset_length_seconds,
                                       intensity_increase_factor=intensity_increase_factor,
                                       drop_perc=drop_perc,

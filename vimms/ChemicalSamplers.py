@@ -254,10 +254,7 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         self.rt_bins = [(k, k + 1) for k in rt_bins.keys()]
         self.rt_probs = [v / total_intensity for v in rt_bins.values()]
 
-        good = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
-                              min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
-                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
-                              length_units=self.roi_params.length_units)
+        good = make_roi(str(self.mzml_file_name), self.roi_params)
         log_roi_intensities = [np.log(max(r.intensity_list)) for r in good]
         log_roi_intensities = list(
             filter(lambda x: x >= self.min_log_intensity and x <= self.max_log_intensity, log_roi_intensities))
@@ -332,10 +329,7 @@ class MZMLChromatogramSampler(ChromatogramSampler):
         self.good_rois = self._extract_rois()
 
     def _extract_rois(self):
-        good = make_roi(str(self.mzml_file_name), mz_tol=self.roi_params.mz_tol,
-                              min_length=self.roi_params.min_length, min_intensity=self.roi_params.min_intensity, \
-                              start_rt=self.roi_params.start_rt, stop_rt=self.roi_params.stop_rt,
-                              length_units=self.roi_params.length_units)
+        good = make_roi(str(self.mzml_file_name), self.roi_params)
         logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
 

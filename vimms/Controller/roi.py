@@ -21,8 +21,8 @@ class RoiController(TopNController):
                  params=None, exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
                          params=params)
+        self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                                      min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                                       length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL)
 
         self.exclusion_method = exclusion_method
@@ -112,7 +112,7 @@ class RoiController(TopNController):
             return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi_last_rt, self.roi_builder.live_roi)
 
     def _length_filter(self):
-        f = LengthFilter(self.roi_builder.min_roi_length_for_fragmentation)
+        f = LengthFilter(self.min_roi_length_for_fragmentation)
         return f.filter(self.roi_builder.current_roi_length)
 
     def _smartroi_filter(self):
@@ -145,7 +145,6 @@ class TopN_SmartRoiController(RoiController):
                          length_units=length_units, ms1_shift=ms1_shift,
                          params=params)
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                                      min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                                       reset_length_seconds=reset_length_seconds,
                                       intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
                                       length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_SMART)

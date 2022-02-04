@@ -23,12 +23,12 @@ class GridController(RoiController):
             exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0
         )
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                                      min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
                                       reset_length_seconds=reset_length_seconds,
                                       intensity_increase_factor=intensity_increase_factor,
                                       drop_perc=drop_perc,
-                                      length_units=length_units, roi_type=roi_type,
-                                      grid=grid, register_all_roi=register_all_roi)
+                                      length_units=length_units,
+                                      roi_type=roi_type,
+                                      grid=grid)
 
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid  # helps us understand previous RoIs

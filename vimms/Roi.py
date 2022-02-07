@@ -359,7 +359,7 @@ class RoiBuilder():
     ROI_TYPE_NORMAL = 'roi'
     ROI_TYPE_SMART = 'smart'
 
-    def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, mz_units='ppm',
+    def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, mz_units=MZ_UNITS_PPM,
                  initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, drop_perc=0.01, length_units="scans",
                  roi_type=ROI_TYPE_NORMAL, grid=None):
@@ -378,6 +378,9 @@ class RoiBuilder():
         :param roi_type: the type of ROI object generated, either ROI_TYPE_NORMAL or ROI_TYPE_SMART
         :param grid: non-overlap grid, if any. Used to track overlapping fragmentation of ROI across samples.
         """
+
+        if (mz_units == MZ_UNITS_DA and mz_tol > 1) or (mz_units == MZ_UNITS_PPM and mz_tol < 0.1):
+            logger.warning(f'Is your m/z tolerance unit correct? mz_tol={mz_tol}, mz_units={mz_units}')
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity
@@ -875,7 +878,7 @@ def make_roi(input_file, roi_params):
 
     scan_id = 0
     roi_builder = RoiBuilder(roi_params.mz_tol, 0, roi_params.min_intensity, roi_params.min_length,
-                             length_units=roi_params.length_units)
+                             mz_units=roi_params.mz_units, length_units=roi_params.length_units)
     for i, spectrum in enumerate(run):
         ms_level = 1
         if spectrum['ms level'] == ms_level:

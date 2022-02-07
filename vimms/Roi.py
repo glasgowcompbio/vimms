@@ -12,6 +12,7 @@ import pymzml
 from loguru import logger
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from scipy.stats import pearsonr
+from pprint import pprint
 
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
@@ -345,6 +346,9 @@ class RoiParams(object):
         self.stop_rt = stop_rt
         self.mz_units = mz_units
         self.length_units = length_units
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 
 class RoiBuilder():

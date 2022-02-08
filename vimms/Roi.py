@@ -470,10 +470,6 @@ class RoiBuilder():
                         self.live_roi_fragmented.insert(self.live_roi.index(new_roi), False)
                         self.live_roi_last_rt.insert(self.live_roi.index(new_roi), None)
 
-                        # If a grid object is provided, then update the grid too
-                        if self.grid is not None:
-                            self.grid.register_roi(new_roi)
-
             # Separate the ROIs that have not been grown into dead or junk ROIs
             # Dead ROIs are longer than self.min_roi_length but they haven't been grown.
             # Junk ROIs are too short and not grown.

@@ -228,10 +228,17 @@ class WeightedDEWExclusion(TopNExclusion):
         """
         boxes = self.exclusion_list.check_point(mz, rt)
         if len(boxes) > 0:
-            for b in boxes: # take the first box, although there could be many
-                logger.debug(
-                    'Excluded precursor ion mz {:.4f} rt {:.2f}'.format(mz, rt))
-                return compute_weight(rt, b.frag_at, self.rt_tol, self.exclusion_t_0)
+            # compute weights for all the boxes that contain this (mz, rt) point
+            weights = []
+            for b in boxes:
+                _, w = compute_weight(rt, b.frag_at, self.rt_tol, self.exclusion_t_0)
+                weights.append(w)
+
+            # use the min weight -- seems to work well
+            w = min(weights)
+            flag = False if w == 1.0 else True
+            return flag, w
+
         else:
             return False, 1.0
 

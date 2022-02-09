@@ -4,7 +4,7 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW, MZ_UNITS_PPM
+from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW, MZ_UNITS_PPM, ROI_TYPE_NORMAL, ROI_TYPE_SMART
 from vimms.Controller.topN import TopNController
 from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, WeightedDEWExclusion, DEWFilter, \
     WeightedDEWFilter
@@ -23,7 +23,7 @@ class RoiController(TopNController):
                          params=params)
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_NORMAL, mz_units=mz_units)
+                                      length_units=length_units, roi_type=ROI_TYPE_NORMAL, mz_units=mz_units)
 
         self.exclusion_method = exclusion_method
         assert self.exclusion_method in [ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW]
@@ -147,7 +147,7 @@ class TopN_SmartRoiController(RoiController):
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity, min_roi_length,
                                       reset_length_seconds=reset_length_seconds,
                                       intensity_increase_factor=intensity_increase_factor, drop_perc=drop_perc,
-                                      length_units=length_units, roi_type=RoiBuilder.ROI_TYPE_SMART)
+                                      length_units=length_units, roi_type=ROI_TYPE_SMART)
 
     def _get_dda_scores(self):
         return self._log_roi_intensities() * self._min_intensity_filter() * self._smartroi_filter()

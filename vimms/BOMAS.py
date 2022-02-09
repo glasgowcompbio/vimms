@@ -330,7 +330,7 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_win
                                       min_roi_intensity, min_roi_length, rt_box_size, mz_box_size,
                                       min_roi_length_for_fragmentation, base_chemicals=None, mzmine_files=None,
                                       rt_tolerance=100, experiment_dir=None,
-                                      roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                      roi_type=ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                       intensity_increase_factor=10, drop_perc=0.1 / 100,
                                       exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
@@ -375,7 +375,7 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, iso
                                                 rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
                                                 scoring_params={'theta1': 1}, base_chemicals=None, mzmine_files=None,
                                                 rt_tolerance=100, experiment_dir=None,
-                                                roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                                roi_type=ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                                 intensity_increase_factor=10, drop_perc=0.1 / 100,
                                                 exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,
                                                 progress_bar=False):
@@ -421,7 +421,7 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, isol
                                                rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
                                                scoring_params=None, base_chemicals=None, mzmine_files=None,
                                                rt_tolerance=100, experiment_dir=None,
-                                               roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                               roi_type=ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                                intensity_increase_factor=10, drop_perc=0.1 / 100,
                                                exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,
                                                progress_bar=False):
@@ -469,7 +469,7 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N, 
                                                    rt_box_size, mz_box_size, min_roi_length_for_fragmentation,
                                                    scoring_params=None, base_chemicals=None, mzmine_files=None,
                                                    rt_tolerance=100, experiment_dir=None, box_method='mean',
-                                                   roi_type=RoiBuilder.ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                                                   roi_type=ROI_TYPE_NORMAL, reset_length_seconds=1e6,
                                                    intensity_increase_factor=10, drop_perc=0.1 / 100,
                                                    exclusion_method=ROI_EXCLUSION_DEW, exclusion_t_0=None,
                                                    progress_bar=False):

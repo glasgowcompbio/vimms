@@ -3,7 +3,7 @@ from loguru import logger
 from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE, run_environment, \
     check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND
 from vimms.Box import LocatorGrid, IdentityDrift, AllOverlapGrid
-from vimms.Common import POSITIVE, ROI_EXCLUSION_WEIGHTED_DEW
+from vimms.Common import POSITIVE, ROI_EXCLUSION_WEIGHTED_DEW, ROI_TYPE_SMART
 from vimms.Controller import TopN_RoiController, TopN_SmartRoiController, NonOverlapController, \
     IntensityNonOverlapController, FlexibleNonOverlapController
 from vimms.Roi import RoiBuilder
@@ -229,7 +229,7 @@ class TestNonOverlapController:
         controller = NonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                           min_roi_intensity, min_roi_length, N, grid,
                                           rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
-                                          roi_type=RoiBuilder.ROI_TYPE_SMART,
+                                          roi_type=ROI_TYPE_SMART,
                                           reset_length_seconds=1e6,
                                           intensity_increase_factor=10,
                                           drop_perc=0.1 / 100
@@ -365,7 +365,7 @@ class TestIntensityNonOverlapController:
         controller = IntensityNonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                                    min_roi_intensity, min_roi_length, N, grid,
                                                    rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
-                                                   roi_type=RoiBuilder.ROI_TYPE_SMART,
+                                                   roi_type=ROI_TYPE_SMART,
                                                    reset_length_seconds=1e6,
                                                    intensity_increase_factor=10,
                                                    drop_perc=0.1 / 100
@@ -502,7 +502,7 @@ class TestFlexibleNonOverlapController:
         controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, mz_tol, MIN_MS1_INTENSITY,
                                                   min_roi_intensity, min_roi_length, N, grid,
                                                   rt_tol=rt_tol, min_roi_length_for_fragmentation=0,
-                                                  roi_type=RoiBuilder.ROI_TYPE_SMART,
+                                                  roi_type=ROI_TYPE_SMART,
                                                   reset_length_seconds=1e6,
                                                   intensity_increase_factor=10,
                                                   drop_perc=0.1 / 100

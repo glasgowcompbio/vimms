@@ -119,6 +119,8 @@ GRID_CONTROLLER_SCORING_PARAMS = {
 MZ_UNITS_PPM = 'ppm'
 MZ_UNITS_DA = 'Da'
 
+ROI_TYPE_NORMAL = 'roi'
+ROI_TYPE_SMART = 'smart'
 
 ########################################################################################################################
 # Common classes

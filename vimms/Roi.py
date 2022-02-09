@@ -16,7 +16,7 @@ from pprint import pprint
 
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import MZ_UNITS_PPM, MZ_UNITS_DA
+from vimms.Common import MZ_UNITS_PPM, MZ_UNITS_DA, ROI_TYPE_NORMAL, ROI_TYPE_SMART
 from vimms.Evaluation import *
 from vimms.MassSpec import Scan
 
@@ -356,8 +356,6 @@ class RoiBuilder():
     A class to construct ROIs. This can be used in real-time to track ROIs in a controller, or for extracting ROIs
     from an mzML file.
     """
-    ROI_TYPE_NORMAL = 'roi'
-    ROI_TYPE_SMART = 'smart'
 
     def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length, mz_units=MZ_UNITS_PPM,
                  initial_length_seconds=5, reset_length_seconds=100,
@@ -391,7 +389,7 @@ class RoiBuilder():
         self.length_units = length_units
         self.roi_type = roi_type
         assert self.mz_units in [MZ_UNITS_PPM, MZ_UNITS_DA]
-        assert self.roi_type in [RoiBuilder.ROI_TYPE_NORMAL, RoiBuilder.ROI_TYPE_SMART]
+        assert self.roi_type in [ROI_TYPE_NORMAL, ROI_TYPE_SMART]
 
         # Create ROI
         self.live_roi = []
@@ -518,9 +516,9 @@ class RoiBuilder():
         :param intensity: the intensity value
         :param roi_id: the ROI id
         """
-        if self.roi_type == RoiBuilder.ROI_TYPE_NORMAL:
+        if self.roi_type == ROI_TYPE_NORMAL:
             roi = Roi(mz, rt, intensity, id=roi_id)
-        elif self.roi_type == RoiBuilder.ROI_TYPE_SMART:
+        elif self.roi_type == ROI_TYPE_SMART:
             roi = SmartRoi(mz, rt, intensity,
                            initial_length_seconds=self.initial_length_seconds,
                            reset_length_seconds=self.reset_length_seconds,

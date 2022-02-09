@@ -226,25 +226,14 @@ class WeightedDEWExclusion(TopNExclusion):
         :param rt: RT value
         :return: True if excluded, False otherwise
         """
-        self.exclusion_list.sort(key=lambda x: x.from_rt, reverse=True)
-        for x in self.exclusion_list:
-            exclude_mz = x.from_mz <= mz <= x.to_mz
-            exclude_rt = x.from_rt <= rt <= x.to_rt
-            if exclude_mz and exclude_rt:
+        boxes = self.exclusion_list.check_point(mz, rt)
+        if len(boxes) > 0:
+            for b in boxes: # take the first box, although there could be many
                 logger.debug(
-                    'Excluded precursor ion mz {:.4f} rt {:.2f} because of {}'.format(mz, rt, x))
-                return compute_weight(rt, x.frag_at, self.rt_tol, self.exclusion_t_0)
-        return False, 1.0
-
-        # TODO: faster code, but needs to test first
-        # boxes = self.exclusion_list.check_point(mz, rt)
-        # if len(boxes) > 0:
-        #     for b in boxes: # take the first box, although there could be many
-        #         logger.debug(
-        #             'Excluded precursor ion mz {:.4f} rt {:.2f}'.format(mz, rt))
-        #         return compute_weight(rt, b.frag_at, self.rt_tol, self.exclusion_t_0)
-        # else:
-        #     return False, 1.0
+                    'Excluded precursor ion mz {:.4f} rt {:.2f}'.format(mz, rt))
+                return compute_weight(rt, b.frag_at, self.rt_tol, self.exclusion_t_0)
+        else:
+            return False, 1.0
 
 
 def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):

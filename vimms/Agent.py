@@ -50,7 +50,7 @@ class FullScanAgent(AbstractAgent):
 
 
 class TopNDEWAgent(AbstractAgent):
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, remove_exclusion=True):
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity):
         super().__init__()
         self.ionisation_mode = ionisation_mode
         self.N = N
@@ -60,7 +60,6 @@ class TopNDEWAgent(AbstractAgent):
         self.rt_tol = rt_tol
         self.exclusion = TopNExclusion()
         self.seen_actions = collections.Counter()
-        self.remove_exclusion = remove_exclusion
 
     def next_tasks(self, scan_to_process, controller, current_task_id):
         self.act(scan_to_process)

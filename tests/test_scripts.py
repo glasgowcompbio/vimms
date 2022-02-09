@@ -53,7 +53,13 @@ class TestMS2Matching:
             env.run()
             env.write_mzML(output_folder, '{}.mzML'.format(i))
 
-            initial_exclusion_list = controller.exclusion.exclusion_list
+            mz_intervals = list(controller.exclusion.exclusion_list.boxes_mz.items())
+            rt_intervals = list(controller.exclusion.exclusion_list.boxes_rt.items())
+            unique_items_mz = set(i.data for i in mz_intervals)
+            unique_items_rt = set(i.data for i in rt_intervals)
+            assert len(unique_items_mz) == len(unique_items_rt)
+
+            initial_exclusion_list = list(unique_items_mz)
             logger.warning(len(initial_exclusion_list))
 
         set_log_level_debug()

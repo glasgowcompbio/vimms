@@ -377,11 +377,16 @@ class TestExclusion:
             mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY,
                                         initial_exclusion_list=initial_exclusion_list)
-            print('exclude = %d' % len(controller.exclusion.exclusion_list))
             env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
             run_environment(env)
 
-            initial_exclusion_list = controller.exclusion.exclusion_list
+            mz_intervals = list(controller.exclusion.exclusion_list.boxes_mz.items())
+            rt_intervals = list(controller.exclusion.exclusion_list.boxes_rt.items())
+            unique_items_mz = set(i.data for i in mz_intervals)
+            unique_items_rt = set(i.data for i in rt_intervals)
+            assert len(unique_items_mz) == len(unique_items_rt)
+
+            initial_exclusion_list = list(unique_items_mz)
 
             # check that there is at least one non-empty MS2 scan
             check_non_empty_MS2(controller)
@@ -412,11 +417,17 @@ class TestExclusion:
             mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset)
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
                                         initial_exclusion_list=initial_exclusion_list)
-            print('exclude = %d' % len(controller.exclusion.exclusion_list))
             env = Environment(mass_spec, controller, 0, 20, progress_bar=True)
             run_environment(env)
 
-            initial_exclusion_list = controller.exclusion.exclusion_list
+            mz_intervals = list(controller.exclusion.exclusion_list.boxes_mz.items())
+            rt_intervals = list(controller.exclusion.exclusion_list.boxes_rt.items())
+            unique_items_mz = set(i.data for i in mz_intervals)
+            unique_items_rt = set(i.data for i in rt_intervals)
+            assert len(unique_items_mz) == len(unique_items_rt)
+
+            initial_exclusion_list = list(unique_items_mz)
+
             all_controllers.append(controller)
         assert len(all_controllers[0].scans[2]) == n_chems
         assert len(all_controllers[1].scans[2]) == 0

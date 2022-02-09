@@ -6,7 +6,7 @@ import sys
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
-from vimms.Common import IN_SILICO_OPTIMISE_TOPN, load_obj, add_log_file, IN_SILICO_OPTIMISE_SMART_ROI, \
+from vimms.Common import IN_SILICO_OPTIMISE_TOPN, add_log_file, IN_SILICO_OPTIMISE_SMART_ROI, \
     IN_SILICO_OPTIMISE_WEIGHTED_DEW
 from vimms.InSilicoSimulation import extract_chemicals, get_timing, extract_timing, run_TopN, run_SmartROI, \
     run_WeightedDEW, extract_boxes, evaluate_boxes_as_dict, evaluate_boxes_as_array, save_counts, string_to_list, \

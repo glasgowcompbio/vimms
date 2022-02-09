@@ -74,5 +74,3 @@ class CaseControlGridEstimator(GridEstimator):
         boxes = roi_aligner.get_boxes(method=self.box_method)  # TODO might need to add intensity here
         for box in boxes:
             self.grid.register_box(box)
-
-

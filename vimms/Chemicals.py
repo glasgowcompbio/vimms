@@ -19,6 +19,7 @@ class DatabaseCompound(object):
     """
     A class to represent a compound stored in a database, e.g. HMDB
     """
+
     def __init__(self, name, chemical_formula, monisotopic_molecular_weight, smiles, inchi, inchikey):
         self.name = name
         self.chemical_formula = chemical_formula
@@ -32,6 +33,7 @@ class Isotopes(object):
     """
     A class to represent an isotope of a chemical
     """
+
     def __init__(self, formula):
         self.formula = formula
         self.C12_proportion = 0.989
@@ -81,6 +83,7 @@ class Adducts(object):
     """
     A class to represent an adduct of a chemical
     """
+
     def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
         if adduct_prior_dict is None:
             self.adduct_names = {POSITIVE: list(POS_TRANSFORMATIONS.keys())}
@@ -130,6 +133,7 @@ class Chemical(object):
     """
     The base class that represents a Chemical object. Should be realised as either Known or Unknown chemicals.
     """
+
     def __repr__(self):
         raise NotImplementedError()
 
@@ -172,7 +176,7 @@ class UnknownChemical(Chemical):
 
     def get_apex_rt(self):
         return self.rt + self.chromatogram.get_apex_rt()
-        
+
     def get_original_parent(self):
         return self if self.base_chemical is None else self.base_chemical.get_original_parent()
 
@@ -219,7 +223,7 @@ class KnownChemical(Chemical):
 
     def get_apex_rt(self):
         return self.rt + self.chromatogram.get_apex_rt()
-        
+
     def get_original_parent(self):
         return self if self.base_chemical is None else self.base_chemical.get_original_parent()
 
@@ -245,6 +249,7 @@ class ChemicalMixtureCreator(object):
     '''
     A class to create a list of known chemical objects using simplified, cleaned methods.
     '''
+
     def __init__(self, formula_sampler,
                  rt_and_intensity_sampler=UniformRTAndIntensitySampler(),
                  chromatogram_sampler=GaussianChromatogramSampler(),
@@ -314,6 +319,7 @@ class MultipleMixtureCreator(object):
     '''
     A class to create a list of known chemical objects in multiple samples (mixtures)
     '''
+
     def __init__(self, master_chemical_list, group_list, group_dict,
                  intensity_noise=GaussianPeakNoise(sigma=0.001, log_space=True), overall_missing_probability=0.0):
         # example
@@ -370,6 +376,7 @@ class ChemicalMixtureFromMZML(object):
     '''
     A class to create a list of known chemical objects from an mzML file using simplified, cleaned methods.
     '''
+
     def __init__(self, mzml_file_name, ms2_sampler=UniformMS2Sampler(), roi_params=None):
         self.mzml_file_name = mzml_file_name
         self.ms2_sampler = ms2_sampler

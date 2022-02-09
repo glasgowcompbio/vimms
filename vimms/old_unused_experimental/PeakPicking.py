@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.stats import norm
 
-from vimms.BOMAS import GetScaledValues
+# from vimms.BOMAS import GetScaledValues
 
 PARAM_RANGE_N0 = [[0, 250]]
 PARAM_RANGE_N1 = [[0, 250], [0, 500], [0, 100], [1, 50]]
@@ -16,7 +16,9 @@ def MSmixture(theta, y, t, N):
 
 
 def Minimise_MSmixture(y, t, N, param_range_init, method='Nelder-Mead', restarts=10):
-    init_values = GetScaledValues(restarts, param_range_init)
+    # FIXME: can't find GetScaledValues in BOMAS anymore
+    # init_values = GetScaledValues(restarts, param_range_init)
+    init_values = None
     opt_values = []
     opt_mins = []
     for i in range(restarts):

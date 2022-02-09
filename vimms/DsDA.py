@@ -1,10 +1,10 @@
 import glob
 import os
+import time
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-import time
 
 from vimms.Common import load_obj, get_default_scan_params, get_dda_scan_param, INITIAL_SCAN_ID
 

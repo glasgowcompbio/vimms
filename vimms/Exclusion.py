@@ -10,7 +10,6 @@ from vimms.Common import ScanParameters
 ########################################################################################################################
 # DEW Exclusions
 ########################################################################################################################
-from vimms.Roi import SmartRoi
 
 
 class ExclusionItem(object):
@@ -206,7 +205,7 @@ class TopNExclusion(object):
         mz_lower = mz * (1 - mz_tol / 1e6)
         mz_upper = mz * (1 + mz_tol / 1e6)
         rt_lower = rt - rt_tol
-        rt_upper = rt + rt_tol # I think this is mostly for topN (iterative) exclusion method
+        rt_upper = rt + rt_tol  # I think this is mostly for topN (iterative) exclusion method
         x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
                           frag_at=rt)
         return x
@@ -257,8 +256,9 @@ def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
         # compute weight according to the WeightedDEW scheme
         weight = (current_rt - (exclusion_t_0 + frag_at)) / (rt_tol - exclusion_t_0)
         if weight > 1:
-            logger.warning('exclusion weight %f is greater than 1 (current_rt %f exclusion_t_0 %f frag_at %f rt_tol %f)' %
-                           (weight, current_rt, exclusion_t_0, frag_at, rt_tol))
+            logger.warning(
+                'exclusion weight %f is greater than 1 (current_rt %f exclusion_t_0 %f frag_at %f rt_tol %f)' %
+                (weight, current_rt, exclusion_t_0, frag_at, rt_tol))
         # assert weight <= 1, weight
         return True, weight
 

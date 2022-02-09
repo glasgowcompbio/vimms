@@ -133,6 +133,7 @@ class MZMLFormulaSampler(FormulaSampler):
     """
     A sampler to generate m/z values from a histogram of m/z taken from a user supplied mzML file
     """
+
     def __init__(self, mzml_file_name, min_mz=MIN_MZ, max_mz=MAX_MZ, source_polarity=POSITIVE):
         self.min_mz = min_mz
         self.max_mz = max_mz
@@ -582,7 +583,8 @@ class MzMLScanTimeSampler():
         if self.is_frag_file and len(self.time_dict[(1, 1)]) == 0:
             # this could sometimes happen if there's not enough MS1 scan followed by another MS1 scan
             default = DEFAULT_SCAN_TIME_DICT[1]
-            logger.warning('Not enough MS1 scans to compute (1, 1) scan duration. The default of %f will be used' % default)
+            logger.warning(
+                'Not enough MS1 scans to compute (1, 1) scan duration. The default of %f will be used' % default)
             self.time_dict[(1, 1)] = [default]
 
     def sample_time(self, current_level, next_level):

@@ -1,14 +1,14 @@
-import math
 import copy
 import itertools
+import math
+import os
 import subprocess
-from pathlib import Path
 
 import numpy as np
 from loguru import logger
 
+from vimms.Common import INITIAL_SCAN_ID, get_default_scan_params, get_dda_scan_param, DEFAULT_ISOLATION_WIDTH
 from vimms.Controller.base import Controller
-from vimms.Common import *
 
 
 class FixedScansController(Controller):
@@ -63,26 +63,26 @@ class FixedScansController(Controller):
 
     def update_state_after_scan(self, last_scan):
         pass
-        
-        
+
+
 class MS2PlannerController(FixedScansController):
-    
+
     @staticmethod
     def mzmine2ms2planner(inpath, outpath):
         '''Transform mzmine2 box file to ms2planner default format.'''
-        
+
         records = []
         with open(inpath, "r") as f:
             fields = {}
             for i, name in enumerate(f.readline().split(",")):
-                if(not name in fields): fields[name] = list()
+                if (not name in fields): fields[name] = list()
                 fields[name].append(i)
-            
+
             mz = fields["row m/z"][0]
             rt = fields["row retention time"][0]
             charges = next(idxes for fd, idxes in fields.items() if fd.strip().endswith("Peak charge"))
             intensities = next(idxes for fd, idxes in fields.items() if fd.strip().endswith("Peak height"))
-            
+
             for ln in f:
                 sp = ln.split(",")
                 for charge, intensity in zip(charges, intensities):
@@ -93,18 +93,18 @@ class MS2PlannerController(FixedScansController):
                         "1",
                         sp[intensity]
                     ])
-            
+
         out_headers = ["Mass [m/z]", "retention_time", "charge", "Blank", "Sample"]
         with open(outpath, "w+") as f:
             f.write(",".join(out_headers) + "\n")
             for r in records: f.write(",".join(r) + "\n")
-    
+
     @staticmethod
     def minimise_single(x, target):
-        if(target < 0): return 0
+        if (target < 0): return 0
         c = int(target // x)
-        return min(c, c+1, key=lambda c: abs(target - c * x))
-    
+        return min(c, c + 1, key=lambda c: abs(target - c * x))
+
     @staticmethod
     def minimise_distance(target, *args):
         '''Solve argmin(a1, a2 ... an)(a1x1 + ... + anxn - t) for non-negative integer a1...an and non-negative reals x1...xn, t using backtracking search.
@@ -112,21 +112,22 @@ class MS2PlannerController(FixedScansController):
         '''
         best_coefficients = (float("inf"), [])
         stack = [MS2PlannerController.minimise_single(args[0], target)] if len(args) > 0 else []
-        while(stack != []):
+        while (stack != []):
             remainder = target - sum(s * a for s, a in zip(stack, args))
             for i in range(len(stack), len(args)):
                 c = MS2PlannerController.minimise_single(args[i], remainder)
                 stack.append(c)
                 remainder -= c * args[i]
             dist = abs(remainder)
-            if(not math.isclose(dist, best_coefficients[0]) and dist < best_coefficients[0]): best_coefficients = (dist, copy.copy(stack))
-            #if(dist < best_coefficients[0]): best_coefficients = (dist, copy.copy(stack))
-            #if(dist < best_coefficients[0]):
+            if (not math.isclose(dist, best_coefficients[0]) and dist < best_coefficients[0]): best_coefficients = (
+                dist, copy.copy(stack))
+            # if(dist < best_coefficients[0]): best_coefficients = (dist, copy.copy(stack))
+            # if(dist < best_coefficients[0]):
             #    if(math.isclose(dist, best_coefficients[0])): print(f"IS CLOSE, DIST: {dist}, CHAMP DIST: {best_coefficients[0]}, STACK: {stack}, CHAMPION: {best_coefficients[1]}")
             #    best_coefficients = (dist, copy.copy(stack))
             stack.pop()
-            while(stack != [] and stack[-1] <= 0): stack.pop()
-            if(stack != []): stack[-1] -= 1
+            while (stack != [] and stack[-1] <= 0): stack.pop()
+            if (stack != []): stack[-1] -= 1
         return best_coefficients[1]
 
     @staticmethod
@@ -139,7 +140,7 @@ class MS2PlannerController(FixedScansController):
                 for scan in path.strip().split("\t")[1:]:
                     schedules[-1].append(dict(zip(fields, map(float, scan.split(" ")))))
         return schedules
-        
+
     @staticmethod
     def sched_dict2params(schedule, scan_duration_dict):
         '''Scan_duration_dict matches the format of MS scan_duration_dict with _fixed_ scan lengths.'''
@@ -147,36 +148,37 @@ class MS2PlannerController(FixedScansController):
         srted = sorted(schedule, key=lambda s: s["rt_start"])
         print("Schedule times: {}".format([s["rt_start"] for s in srted]))
         print(f"NUM SCANS IN SCHEDULE FILE: {len(schedule)}")
-        #new_sched.append(get_default_scan_params())
-        #scan_duration_dict = {1: 0.2, 2: 0.2}
+        # new_sched.append(get_default_scan_params())
+        # scan_duration_dict = {1: 0.2, 2: 0.2}
         id_count = INITIAL_SCAN_ID
         for ms2 in srted:
-            filler = MS2PlannerController.minimise_distance(ms2["rt_start"] - time, scan_duration_dict[1], scan_duration_dict[2])
+            filler = MS2PlannerController.minimise_distance(ms2["rt_start"] - time, scan_duration_dict[1],
+                                                            scan_duration_dict[2])
             print(f"filler_scans: {filler}")
-            for i in range(filler[0]): 
+            for i in range(filler[0]):
                 sp = get_default_scan_params()
                 new_sched.append(sp)
                 id_count += 1
             for i in range(filler[1]):
-                #print(f"sid: {id_count}")
+                # print(f"sid: {id_count}")
                 new_sched.append(get_dda_scan_param(0, 0.0, id_count, ms2["mz_isolation"] * 2, 0.0, 0.0))
                 id_count += 1
             new_sched.append(get_dda_scan_param(ms2["mz_centre"], 0.0, id_count, ms2["mz_isolation"] * 2, 0.0, 0.0))
             id_count += 1
             times = [time, scan_duration_dict[1] * filler[0], scan_duration_dict[2] * filler[1]]
-            time += sum(c * scan_duration_dict[i+1] for i, c in enumerate(filler)) + scan_duration_dict[2]
+            time += sum(c * scan_duration_dict[i + 1] for i, c in enumerate(filler)) + scan_duration_dict[2]
             print(f"Start time: {times[0]}, MS1 duration: {times[1]}, MS2 duration: {times[2]}, End time: {time}")
             print(f"schedule_length: {len(new_sched)}")
         print(f"Durations: {scan_duration_dict}")
         return new_sched
-                
+
     @staticmethod
-    def from_fullscan(ms2planner_dir, 
-                      fullscan_file, 
-                      fullscan_mzmine_table, 
+    def from_fullscan(ms2planner_dir,
+                      fullscan_file,
+                      fullscan_mzmine_table,
                       out_file,
-                      intensity_threshold, 
-                      intensity_ratio, 
+                      intensity_threshold,
+                      intensity_ratio,
                       num_injections,
                       intensity_accu,
                       restriction,
@@ -184,20 +186,20 @@ class MS2PlannerController(FixedScansController):
                       delay,
                       min_rt,
                       max_rt,
-                      scan_duration_dict, 
-                      params=None, 
-                      cluster_method="kNN", 
+                      scan_duration_dict,
+                      params=None,
+                      cluster_method="kNN",
                       userpython="python"):
-        
+
         converted = os.path.join(os.path.dirname(out_file), "mzmine2ms2planner.txt")
         MS2PlannerController.mzmine2ms2planner(fullscan_mzmine_table, converted)
         subprocess.run(
             [
-                userpython, 
+                userpython,
                 os.path.join(ms2planner_dir, "path_finder.py"),
                 "curve",
                 converted,
-                #os.path.join(ms2planner_dir, "test", "Blank_to_Sample_mrgd.csv"),
+                # os.path.join(ms2planner_dir, "test", "Blank_to_Sample_mrgd.csv"),
                 out_file,
                 str(intensity_threshold),
                 str(intensity_ratio),
@@ -212,17 +214,21 @@ class MS2PlannerController(FixedScansController):
                 "-cluster", str(cluster_method)
             ]
         )
-        schedules = [MS2PlannerController.sched_dict2params(sch, scan_duration_dict) for sch in MS2PlannerController.parse_ms2planner(out_file)]
+        schedules = [MS2PlannerController.sched_dict2params(sch, scan_duration_dict) for sch in
+                     MS2PlannerController.parse_ms2planner(out_file)]
         with open(os.path.join(os.path.dirname(out_file), "scan_params.txt"), "w+") as f:
             for i, schedule in enumerate(schedules):
                 f.write(f"SCHEDULE {i}\n\n")
                 f.write("".join(f"SCAN {j}: {scan}\n\n" for j, scan in enumerate(schedule)))
         return [MS2PlannerController(schedule=schedule, params=params) for schedule in schedules]
-        
+
+
 class MatchingController(FixedScansController):
     @staticmethod
     def from_matching(matching, isolation_width, params=None):
-        return [MatchingController(schedule=schedule, params=params) for schedule in matching.make_schedules(isolation_width)]
+        return [MatchingController(schedule=schedule, params=params) for schedule in
+                matching.make_schedules(isolation_width)]
+
 
 class MultiIsolationController(Controller):
     def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH, params=None):

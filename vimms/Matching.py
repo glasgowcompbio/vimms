@@ -8,8 +8,6 @@ import intervaltree
 import networkx as nx
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import *
-
 #TODO: test working controller
 #TODO: intensities seem to be a bit wonky, many zero values
 #TODO: graph extensions in slack
@@ -22,6 +20,8 @@ from vimms.Common import *
 #TODO: matching controller should be able to function without precursor MS1 scans during actual run???
 #TODO: MatchingChem.env2nodes could split chemicals on RoI bounds to have a slightly more accurate view of simulated chemicals
 #TODO: MatchingChem.env2nodes could also work on non-RoI controllers
+from vimms.Common import get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
+
 
 class MatchingScan():
     def __init__(self, num_injection, ms_level, rt, mzs, intensities):

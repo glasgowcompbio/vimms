@@ -1,11 +1,13 @@
+import os
 import time
 
+import numpy as np
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Agent import TopNDEWAgent
-from vimms.Box import *
-from vimms.Common import *
+from vimms.Box import IdentityDrift, LocatorGrid, AllOverlapGrid
+from vimms.Common import load_obj, POSITIVE, ROI_TYPE_NORMAL, ROI_EXCLUSION_DEW
 from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, \
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, FlexibleNonOverlapController, \
     FixedScansController, AgentBasedController, TopNController
@@ -14,7 +16,7 @@ from vimms.Environment import *
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.Evaluation import evaluate_multiple_simulated_env
 from vimms.GridEstimator import *
-from vimms.Roi import FrequentistRoiAligner, RoiBuilder
+from vimms.Roi import FrequentistRoiAligner
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):

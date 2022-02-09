@@ -2,9 +2,9 @@ import csv
 import itertools
 from collections import Counter
 from functools import reduce
-import statsmodels.api as sm
-import numpy as np
 
+import numpy as np
+import statsmodels.api as sm
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
 
@@ -26,15 +26,15 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     coverage_prop = np.sum(coverage) / max_coverage
     chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
 
-    if base_chemicals is None: 
+    if base_chemicals is None:
         max_possible_intensities = np.array([chem.max_intensity for chem in true_chems])
     else:
-        true_intensities = {chem.get_original_parent() : chem.max_intensity for chem in env.mass_spec.chemicals}
+        true_intensities = {chem.get_original_parent(): chem.max_intensity for chem in env.mass_spec.chemicals}
         max_possible_intensities = np.array([true_intensities.get(chem, 0.0) for chem in true_chems])
 
     which_non_zero = max_possible_intensities > 0.0
     coverage_intensity_prop = np.mean(np.array(coverage_intensities[which_non_zero]) /
-                                         np.array(max_possible_intensities)[which_non_zero])
+                                      np.array(max_possible_intensities)[which_non_zero])
 
     return {
         'num_frags': num_frags,
@@ -54,10 +54,10 @@ def evaluate_multiple_simulated_env(env_list, min_intensity=0.0, group_list=None
     all_chems = [chem for env in env_list for chem in env.mass_spec.chemicals]
     observed_chems = set(chem.get_original_parent() for chem in all_chems)
     base_chemicals = list(observed_chems)
-    
+
     results = [evaluate_simulated_env(env, min_intensity=min_intensity, base_chemicals=base_chemicals) for env in
                env_list]
-               
+
     num_frags = [r["num_frags"] for r in results]
     fragmented = [r["fragmented"] for r in results]
     max_possible_intensities = [r["max_possible_intensities"] for r in results]
@@ -76,9 +76,11 @@ def evaluate_multiple_simulated_env(env_list, min_intensity=0.0, group_list=None
     coverage_intensities_prop = [np.mean(c_i / max_coverage_intensity) for c_i in coverage_intensities]
     cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
     which_non_zero = max_coverage_intensity > 0.0
-    cumulative_coverage_intensities_prop = [np.mean(c_i[which_non_zero] / max_coverage_intensity[which_non_zero]) for c_i in
+    cumulative_coverage_intensities_prop = [np.mean(c_i[which_non_zero] / max_coverage_intensity[which_non_zero]) for
+                                            c_i in
                                             cumulative_coverage_intensities]
-    cumulative_raw_intensities_prop = [np.mean(c_i[which_non_zero] / max_coverage_intensity[which_non_zero]) for c_i in cumulative_raw_intensities]
+    cumulative_raw_intensities_prop = [np.mean(c_i[which_non_zero] / max_coverage_intensity[which_non_zero]) for c_i in
+                                       cumulative_raw_intensities]
 
     chemicals_fragmented = [r["chemicals_fragmented"] for r in results]
     times_fragmented = np.sum([r["coverage"] for r in results], axis=0)
@@ -187,15 +189,17 @@ def load_peakonly_boxes(box_file):
 
 def evaluate_peak_roi_aligner(roi_aligner, source_file, evaluation_mzml_file=None, half_isolation_width=0):
     coverage, coverage_intensities, max_possible_intensities, included_peaksets = [], [], [], []
-    
+
     for i, peakset in enumerate(roi_aligner.peaksets):
-        source_files = {peak.source_file : i for i, peak in enumerate(peakset.peaks)}
+        source_files = {peak.source_file: i for i, peak in enumerate(peakset.peaks)}
         if source_file in source_files:
             which_peak = source_files[source_file]
             max_possible_intensities.append(peakset.peaks[which_peak].intensity)
             if not evaluation_mzml_file is None:
-                boxes = [box for box, name in zip(roi_aligner.list_of_boxes, roi_aligner.sample_names) if name == source_file]
-                scans2boxes, boxes2scans = map_boxes_to_scans(evaluation_mzml_file, boxes, half_isolation_window=half_isolation_width)
+                boxes = [box for box, name in zip(roi_aligner.list_of_boxes, roi_aligner.sample_names) if
+                         name == source_file]
+                scans2boxes, boxes2scans = map_boxes_to_scans(evaluation_mzml_file, boxes,
+                                                              half_isolation_window=half_isolation_width)
                 precursor_intensities, scores = get_precursor_intensities(boxes2scans, boxes, 'max')
                 temp_max_possible_intensities = max_possible_intensities
                 max_possible_intensities = [max(*l) for l in zip(precursor_intensities, temp_max_possible_intensities)]
@@ -211,7 +215,8 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file, evaluation_mzml_file=Non
     coverage_intensities = np.array(coverage_intensities)
     coverage = coverage_intensities > 1
     coverage_prop = sum(coverage[included_peaksets]) / len(coverage[included_peaksets])
-    coverage_intensity_prop = np.mean(coverage_intensities[included_peaksets] / max_possible_intensities[included_peaksets])
+    coverage_intensity_prop = np.mean(
+        coverage_intensities[included_peaksets] / max_possible_intensities[included_peaksets])
 
     return {
         'coverage': coverage,
@@ -295,4 +300,3 @@ def get_precursor_intensities(boxes2scans, boxes, method):
     precursor_intensities = np.array(precursor_intensities)
     scores = np.array(scores)
     return precursor_intensities, scores
-

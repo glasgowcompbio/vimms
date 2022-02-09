@@ -1,5 +1,5 @@
-import math
 import itertools
+import math
 import random
 from abc import abstractmethod
 from collections import defaultdict
@@ -75,7 +75,7 @@ class GenericBox(Box):
 
     def overlaps_with_box(self, other_box):
         return (self.pt1.x < other_box.pt2.x and self.pt2.x > other_box.pt1.x) and (
-                    self.pt1.y < other_box.pt2.y and self.pt2.y > other_box.pt1.y)
+                self.pt1.y < other_box.pt2.y and self.pt2.y > other_box.pt1.y)
 
     def contains_box(self, other_box):
         return (
@@ -147,9 +147,9 @@ class Grid():
 
     def get_box_ranges(self, box):
         rt_box_range = (
-        int((box.pt1.x - self.min_rt) / self.rt_box_size), int((box.pt2.x - self.min_rt) / self.rt_box_size) + 1)
+            int((box.pt1.x - self.min_rt) / self.rt_box_size), int((box.pt2.x - self.min_rt) / self.rt_box_size) + 1)
         mz_box_range = (
-        int((box.pt1.y - self.min_mz) / self.mz_box_size), int((box.pt2.y - self.min_mz) / self.mz_box_size) + 1)
+            int((box.pt1.y - self.min_mz) / self.mz_box_size), int((box.pt2.y - self.min_mz) / self.mz_box_size) + 1)
         total_boxes = (rt_box_range[1] - rt_box_range[0]) * (mz_box_range[1] - mz_box_range[0])
         return rt_box_range, mz_box_range, total_boxes
 
@@ -286,7 +286,7 @@ class AllOverlapGrid(LocatorGrid):
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
         non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
         refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - np.log(max(1.0, b.intensity))
-                                                    * b.area() / box.area()) for b in overlaps)
+                                                        * b.area() / box.area()) for b in overlaps)
         refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - np.log(max(1.0, b.intensity)) *
                                                      (b.area() / box.area()) for b in overlaps)
         new_peak = []
@@ -303,7 +303,7 @@ class AllOverlapGrid(LocatorGrid):
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
         non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
         refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
-                                                    * b.area() / box.area()) for b in overlaps)
+                                                        * b.area() / box.area()) for b in overlaps)
         refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
                                                      (b.area() / box.area()) for b in overlaps)
         new_peak = []
@@ -315,7 +315,9 @@ class AllOverlapGrid(LocatorGrid):
             return non_overlap + refragment + refragment2 + new_peak_score
         else:
             model_score = scoring_params['theta4'] * (1 - box.pvalue) * sum(max(0.0, np.log(current_intensity) -
-                                            max(0.0, np.log(b.intensity)) * b.area() / box.area()) for b in overlaps)
+                                                                                max(0.0, np.log(
+                                                                                    b.intensity)) * b.area() / box.area())
+                                                                            for b in overlaps)
             return non_overlap + refragment + refragment2 + new_peak_score + model_score
 
     def register_box(self, box):
@@ -439,8 +441,8 @@ class MS2PointMatcher():
         spectrum = Spectrum(roi.get_mean_mz(), list(zip(scan.mzs, scan.intensities)))
 
         rt, _, __ = roi[0]
-        if(inj_num > 0):
-            if(len(self.ms2s[0]) > 0):
+        if (inj_num > 0):
+            if (len(self.ms2s[0]) > 0):
                 original_idx, original_spectrum, score = -1, None, -1
                 for i, (_, s, __) in enumerate(self.ms2s[0]):
                     current_score, _ = cosine_similarity(spectrum, s, self.mass_tol, self.min_match)
@@ -482,7 +484,8 @@ class GPDrift(DriftModel):
 
             def predict(roi, inj_num):
                 mean, variance = self.model.predict(np.array(roi[0][0]).reshape((1, 1)))
-                return roi[0][0] - mean[0, 0], {"variance" : variance[0, 0]}
+                return roi[0][0] - mean[0, 0], {"variance": variance[0, 0]}
+
             return predict
 
     def _next_model(self, **kwargs):
@@ -506,5 +509,3 @@ class GPDrift(DriftModel):
 
     def update(self, **kwargs):
         Y, X = kwargs.get("Y", []), kwargs.get("X", [])
-
-

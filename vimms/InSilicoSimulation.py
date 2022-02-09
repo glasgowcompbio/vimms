@@ -70,8 +70,7 @@ def extract_timing(seed_file):
 
     is_frag_file = False
     if (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0 and \
-        (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
-
+            (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
         # seed_file must contain timing on (1,2) and (2,2)
         # i.e. it must be a DDA file with MS1 and MS2 scans
         is_frag_file = True

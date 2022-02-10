@@ -2,7 +2,7 @@ import copy
 import math
 
 import numpy as np
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from vimms.Common import ScanParameters
 

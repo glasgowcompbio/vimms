@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 HOME = str(Path.home())
 DEFAULT_PEAKONLY_PATH = os.path.join(HOME, 'peakonly-master')

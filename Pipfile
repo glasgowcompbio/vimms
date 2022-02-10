@@ -29,6 +29,7 @@ flake8 = "*"
 pytest = "*"
 intervaltree = "*"
 jupyterlab = "*"
+ipywidgets = "*"
 gpy = "*"
 
 [dev-packages]

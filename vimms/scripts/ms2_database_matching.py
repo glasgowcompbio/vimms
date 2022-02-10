@@ -8,7 +8,7 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.library_matching.gnps import load_mgf
 from mass_spec_utils.library_matching.spectrum import Spectrum
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder

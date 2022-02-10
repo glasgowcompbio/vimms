@@ -13,7 +13,7 @@ from bisect import bisect_left
 import numpy as np
 import requests
 from loguru import logger
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 ########################################################################################################################
 # Common constants

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pylab as plt
 from loguru import logger
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from vimms.Common import save_obj
 from vimms.MassSpec import IndependentMassSpectrometer

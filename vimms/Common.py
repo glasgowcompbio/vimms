@@ -19,6 +19,13 @@ from tqdm import tqdm
 # Common constants
 ########################################################################################################################
 
+
+MONO = 'Mono'
+C = 'C'
+C13 = 'C13'
+C12_PROPORTION = 0.989
+C13_MZ_DIFF = 1.0033548378
+
 MZ = 'mz'
 INTENSITY = 'intensity'
 RT = 'rt'

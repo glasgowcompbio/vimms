@@ -10,7 +10,8 @@ from loguru import logger
 
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import POS_TRANSFORMATIONS, Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE
+from vimms.Common import POS_TRANSFORMATIONS, Formula, DummyFormula, PROTON_MASS, POSITIVE, NEGATIVE, C12_PROPORTION, \
+    C13_MZ_DIFF, C, MONO, C13
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiParams
 
@@ -36,13 +37,11 @@ class Isotopes(object):
 
     def __init__(self, formula):
         self.formula = formula
-        self.C12_proportion = 0.989
-        self.mz_diff = 1.0033548378
-        # TODO: Add functionality for elements other than Carbon
 
     def get_isotopes(self, total_proportion):
         """
         Gets the isotopes
+        TODO: Add functionality for elements other than Carbon
         """
         peaks = [() for i in range(len(self._get_isotope_proportions(total_proportion)))]
         for i in range(len(peaks)):
@@ -51,8 +50,6 @@ class Isotopes(object):
             peaks[i] += (self._get_isotope_names(i),)
         return peaks
 
-    # outputs [(mz_1, intensity_proportion_1, isotope_name_1),...,(mz_n, intensity_proportion_n, isotope_name_n)]
-
     def _get_isotope_proportions(self, total_proportion):
         """
         Get isotope proportion by sampling from a binomial pmf
@@ -60,21 +57,21 @@ class Isotopes(object):
         proportions = []
         while sum(proportions) < total_proportion:
             proportions.extend(
-                [scipy.stats.binom.pmf(len(proportions), self.formula._get_n_element("C"), 1 - self.C12_proportion)])
+                [scipy.stats.binom.pmf(len(proportions), self.formula._get_n_element(C), 1 - C12_PROPORTION)])
         normalised_proportions = [proportions[i] / sum(proportions) for i in range(len(proportions))]
         return normalised_proportions
 
     def _get_isotope_names(self, isotope_number):
         if isotope_number == 0:
-            return "Mono"
+            return MONO
         else:
-            return str(isotope_number) + "C13"
+            return str(isotope_number) + C13
 
     def _get_isotope_mz(self, isotope):
-        if isotope == "Mono":
+        if isotope == MONO:
             return self.formula._get_mz()
-        elif isotope[-3:] == "C13":
-            return self.formula._get_mz() + float(isotope.split("C13")[0]) * self.mz_diff
+        elif isotope[-3:] == C13:
+            return self.formula._get_mz() + float(isotope.split(C13)[0]) * C13_MZ_DIFF
         else:
             return None
 
@@ -189,13 +186,13 @@ class KnownChemical(Chemical):
     def __init__(self, formula, isotopes, adducts, rt, max_intensity, chromatogram, children=None,
                  include_adducts_isotopes=True, total_proportion=0.99, database_accession=None, base_chemical=None):
         self.formula = formula
-        self.mz_diff = isotopes.mz_diff
+        self.mz_diff = C13_MZ_DIFF
         if include_adducts_isotopes is True:
             self.isotopes = isotopes.get_isotopes(total_proportion)
             self.adducts = adducts.get_adducts()
         else:
             mz = isotopes.get_isotopes(total_proportion)[0][0]
-            self.isotopes = [(mz, 1, "Mono")]
+            self.isotopes = [(mz, 1, MONO)]
             self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.rt = rt
         self.max_intensity = max_intensity

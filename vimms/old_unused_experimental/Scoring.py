@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile

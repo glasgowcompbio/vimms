@@ -1,10 +1,16 @@
 import csv
 import os
 
-from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, DEFAULT_MS1_COLLISION_ENERGY, \
-    DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS2_AGC_TARGET, DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist, ScanParameters, get_default_scan_params, get_dda_scan_param
+from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, \
+    DEFAULT_MS1_COLLISION_ENERGY, \
+    DEFAULT_MS1_ORBITRAP_RESOLUTION, \
+    DEFAULT_MS2_AGC_TARGET, \
+    DEFAULT_MS2_MAXIT, \
+    DEFAULT_MS2_COLLISION_ENERGY, \
+    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, \
+    DEFAULT_MS2_ACTIVATION_TYPE, \
+    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist, ScanParameters, \
+    get_default_scan_params, get_dda_scan_param
 from vimms.Controller import Controller
 from vimms.DIA import DiaWindows
 
@@ -16,7 +22,8 @@ class AIF(Controller):
         self.ms1_source_cid_energy = ms1_source_cid_energy
 
     def write_msdial_experiment_file(self, filename):
-        heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE', 'DecTarget(1:Yes, 0:No)']
+        heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE',
+                 'DecTarget(1:Yes, 0:No)']
         start = self.params.default_ms1_scan_window[0]
         stop = self.params.default_ms1_scan_window[1]
         ce = self.ms1_source_cid_energy
@@ -42,15 +49,16 @@ class AIF(Controller):
         # in DIA we don't need to actually look at the peaks
         # in the scan, just schedule the next block
 
-        # For all ions fragmentation, when we receive the last scan of the previous block
-        #  we make a new block
-        # each block is an MS1 scan followed by an MS2 scan where the MS2 fragmens everything
+        # For all ions fragmentation, when we receive the last scan of
+        # the previous block, we make a new block. Each block is an MS1 scan
+        # followed by an MS2 scan where the MS2 fragmens everything
         scans = []
 
         if self.scan_to_process is not None:
             # make the MS1 scan with source cid energy applied
             aif_scan = self.get_ms1_scan_params()
-            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY, self.ms1_source_cid_energy)
+            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY,
+                         self.ms1_source_cid_energy)
             self._check_scan(aif_scan)
 
             scans.append(aif_scan)
@@ -135,8 +143,12 @@ class SWATH(Controller):
             mz_tol = 10  # not used
             rt_tol = 15  # these are not used
             for mz in precursor_mz_list:
-                dda_scan_params = self.get_ms2_scan_params(mz, 0, precursor_scan_id, isolation_width, mz_tol, rt_tol)
-                new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
+                dda_scan_params = self.get_ms2_scan_params(mz, 0,
+                                                           precursor_scan_id,
+                                                           isolation_width,
+                                                           mz_tol, rt_tol)
+                # push this dda scan to the mass spec queue
+                new_tasks.append(dda_scan_params)
 
             # make the MS1 scan
             task = self.get_ms1_scan_params()
@@ -148,8 +160,10 @@ class SWATH(Controller):
 
 
 class DiaController(Controller):
-    # Class for doing tree and nested DIA methods. Also has a SWATH type controller, but reccommend to use SWATH class
-    # above. Method uses windows methods from DIA.py to create the pattern of windows needed to run the controllers.
+    # Class for doing tree and nested DIA methods.
+    # Also has a SWATH type controller, but reccommend to use SWATH class
+    # above. Method uses windows methods from DIA.py to create the pattern
+    # of windows needed to run the controllers.
     # Note: the following method used multiple simultaneous isolation windows
     def __init__(self, min_mz, max_mz,  # TODO: add scan overlap to DiaWindows
                  window_type, kaufmann_design, num_windows, scan_overlap=0,
@@ -206,8 +220,10 @@ class DiaController(Controller):
             mzs = self.scan_to_process.mzs
             if len(mzs) > 0:  # check that ms1 scan is not empty
                 default_range = [(self.min_mz, self.max_mz)]
-                locations = DiaWindows(mzs, default_range, self.dia_design, self.window_type, self.kaufmann_design,
-                                       self.extra_bins, self.num_windows).locations
+                locations = DiaWindows(mzs, default_range, self.dia_design,
+                                       self.window_type, self.kaufmann_design,
+                                       self.extra_bins,
+                                       self.num_windows).locations
                 for loc in locations:
                     mz = []
                     isolation_width = []
@@ -216,26 +232,30 @@ class DiaController(Controller):
                         mz.append(sum(sub_loc) / 2)
                         isolation_width.append(sub_loc[1] - sub_loc[0])
                         intensity.append(0)
-                    dda_scan_params = get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                                         isolation_width, mz_tol, rt_tol,
-                                                         agc_target=self.ms2_agc_target,
-                                                         max_it=self.ms2_max_it,
-                                                         collision_energy=self.ms2_collision_energy,
-                                                         orbitrap_resolution=self.ms2_orbitrap_resolution,
-                                                         activation_type=self.ms2_activation_type,
-                                                         mass_analyser=self.ms2_mass_analyser,
-                                                         isolation_mode=self.ms2_isolation_mode,
-                                                         polarity=self.environment.mass_spec.ionisation_mode)
-                    new_tasks.append(dda_scan_params)  # push this dda scan to the mass spec queue
+                    dda_scan_params = get_dda_scan_param(
+                        mz, intensity, precursor_scan_id, isolation_width,
+                        mz_tol, rt_tol,
+                        agc_target=self.ms2_agc_target,
+                        max_it=self.ms2_max_it,
+                        collision_energy=self.ms2_collision_energy,
+                        orbitrap_resolution=self.ms2_orbitrap_resolution,
+                        activation_type=self.ms2_activation_type,
+                        mass_analyser=self.ms2_mass_analyser,
+                        isolation_mode=self.ms2_isolation_mode,
+                        polarity=self.environment.mass_spec.ionisation_mode)
+
+                    # push this dda scan to the mass spec queue
+                    new_tasks.append(dda_scan_params)
             else:
                 locations = []
 
             # make the MS1 scan
-            task = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode,
-                                           agc_target=self.ms1_agc_target,
-                                           max_it=self.ms1_max_it,
-                                           collision_energy=self.ms1_collision_energy,
-                                           orbitrap_resolution=self.ms1_orbitrap_resolution)
+            task = get_default_scan_params(
+                polarity=self.environment.mass_spec.ionisation_mode,
+                agc_target=self.ms1_agc_target,
+                max_it=self.ms1_max_it,
+                collision_energy=self.ms1_collision_energy,
+                orbitrap_resolution=self.ms1_orbitrap_resolution)
 
             new_tasks.append(task)
 

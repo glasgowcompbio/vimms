@@ -7,14 +7,15 @@ from loguru import logger
 from vimms.Common import ScanParameters
 
 
-########################################################################################################################
+###############################################################################
 # DEW Exclusions
-########################################################################################################################
+###############################################################################
 
 
 class ExclusionItem(object):
     """
-    A class to store the item to exclude when computing dynamic exclusion window
+    A class to store the item to exclude when computing dynamic
+    exclusion window
     """
 
     def __init__(self, from_mz, to_mz, from_rt, to_rt, frag_at):
@@ -52,7 +53,8 @@ class ExclusionItem(object):
             return False
 
     def __repr__(self):
-        return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (self.from_mz, self.to_mz, self.from_rt, self.to_rt)
+        return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (
+            self.from_mz, self.to_mz, self.from_rt, self.to_rt)
 
     def __lt__(self, other):
         if self.from_mz <= other.from_mz:
@@ -63,10 +65,11 @@ class ExclusionItem(object):
 
 class BoxHolder(object):
     """
-    A class to allow quick lookup of boxes (e.g. exclusion items, targets, etc)
-    Creates an interval tree on mz as this is likely to narrow things down quicker
-    Also has a method for returning an rt interval tree for a particular mz
-    and an mz interval tree for a particular rt
+    A class to allow quick lookup of boxes (e.g. exclusion items,
+    targets, etc). Creates an interval tree on mz as this is likely to
+    narrow things down quicker. Also has a method for returning an rt
+    interval tree for a particular mz and an mz interval tree for
+    a particular rt
     """
 
     def __init__(self):
@@ -99,7 +102,7 @@ class BoxHolder(object):
     # def check_point_2(self, mz, rt):
     #     """
     #     An alternative method that searches both trees
-    #     Might be faster if there are lots of rt ranges that 
+    #     Might be faster if there are lots of rt ranges that
     #     can map to a particular mz value
     #     """
     #     mz_regions = self.boxes_mz.at(mz)
@@ -169,10 +172,12 @@ class TopNExclusion(object):
 
     def is_excluded(self, mz, rt):
         """
-        Checks if a pair of (mz, rt) value is currently excluded by dynamic exclusion window
+        Checks if a pair of (mz, rt) value is currently excluded by
+        dynamic exclusion window
         :param mz: m/z value
         :param rt: RT value
-        :return: True if excluded (with weight 0.0), False otherwise (weight 1.0)
+        :return: True if excluded (with weight 0.0), False otherwise
+         (weight 1.0)
         """
         excluded = self.exclusion_list.is_in_box(mz, rt)
         if excluded:
@@ -184,7 +189,8 @@ class TopNExclusion(object):
 
     def update(self, current_scan, ms2_tasks):
         """
-        Updates the state of this exclusion object based on the current ms1 scan and scheduled ms2 tasks
+        Updates the state of this exclusion object based on the current
+        ms1 scan and scheduled ms2 tasks
         :param current_scan: the current MS1 scan
         :param ms2_tasks: scheduled ms2 tasks
         """
@@ -196,17 +202,19 @@ class TopNExclusion(object):
                 rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
                 x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
                 self.exclusion_list.add_box(x)
-                logger.debug('Time {:.6f} Created dynamic temporary exclusion window mz ({}-{}) rt ({}-{})'.format(
-                    rt,
-                    x.from_mz, x.to_mz, x.from_rt, x.to_rt
-                ))
+                logger.debug(
+                    'Time {:.6f} Created dynamic temporary exclusion '
+                    'window mz ({}-{}) rt ({}-{})'.format(
+                        rt, x.from_mz, x.to_mz, x.from_rt, x.to_rt))
 
     def _get_exclusion_item(self, mz, rt, mz_tol, rt_tol):
         mz_lower = mz * (1 - mz_tol / 1e6)
         mz_upper = mz * (1 + mz_tol / 1e6)
         rt_lower = rt - rt_tol
-        rt_upper = rt + rt_tol  # I think this is mostly for topN (iterative) exclusion method
-        x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper,
+        # I think this is mostly for topN (iterative) exclusion method
+        rt_upper = rt + rt_tol
+        x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower,
+                          to_rt=rt_upper,
                           frag_at=rt)
         return x
 
@@ -220,17 +228,19 @@ class WeightedDEWExclusion(TopNExclusion):
 
     def is_excluded(self, mz, rt):
         """
-        Checks if a pair of (mz, rt) value is currently excluded by the weighted dynamic exclusion window
+        Checks if a pair of (mz, rt) value is currently excluded
+        by the weighted dynamic exclusion window
         :param mz: m/z value
         :param rt: RT value
         :return: True if excluded, False otherwise
         """
         boxes = self.exclusion_list.check_point(mz, rt)
         if len(boxes) > 0:
-            # compute weights for all the boxes that contain this (mz, rt) point
+            # compute weights for all the boxes that contain this (mz, rt)
             weights = []
             for b in boxes:
-                _, w = compute_weight(rt, b.frag_at, self.rt_tol, self.exclusion_t_0)
+                _, w = compute_weight(rt, b.frag_at, self.rt_tol,
+                                      self.exclusion_t_0)
                 weights.append(w)
 
             # use the min weight -- seems to work well
@@ -254,18 +264,20 @@ def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
         return True, 0.0
     else:
         # compute weight according to the WeightedDEW scheme
-        weight = (current_rt - (exclusion_t_0 + frag_at)) / (rt_tol - exclusion_t_0)
+        weight = (current_rt - (exclusion_t_0 + frag_at)) / (
+            rt_tol - exclusion_t_0)
         if weight > 1:
-            logger.warning(
-                'exclusion weight %f is greater than 1 (current_rt %f exclusion_t_0 %f frag_at %f rt_tol %f)' %
-                (weight, current_rt, exclusion_t_0, frag_at, rt_tol))
+            logger.warning('exclusion weight %f is greater than 1 ('
+                           'current_rt %f exclusion_t_0 %f frag_at %f '
+                           'rt_tol %f)' % (weight, current_rt,
+                                           exclusion_t_0, frag_at, rt_tol))
         # assert weight <= 1, weight
         return True, weight
 
 
-########################################################################################################################
+###############################################################################
 # Filters
-########################################################################################################################
+###############################################################################
 
 
 class ScoreFilter():
@@ -286,8 +298,11 @@ class DEWFilter(ScoreFilter):
         self.rt_tol = rt_tol
 
     def filter(self, current_rt, last_frag_rts):
-        # Handles None values by converting to NaN for which all comparisons return 0
-        return np.logical_not(current_rt - np.array(last_frag_rts, dtype=np.double) <= self.rt_tol)
+        # Handles None values by converting to NaN for which all
+        # comparisons return 0
+        return np.logical_not(
+            current_rt - np.array(
+                last_frag_rts, dtype=np.double) <= self.rt_tol)
 
 
 class WeightedDEWFilter(ScoreFilter):
@@ -305,7 +320,8 @@ class WeightedDEWFilter(ScoreFilter):
 
 class LengthFilter(ScoreFilter):
     def __init__(self, min_roi_length_for_fragmentation):
-        self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
+        self.min_roi_length_for_fragmentation = \
+            min_roi_length_for_fragmentation
 
     def filter(self, roi_lengths):
         return roi_lengths >= self.min_roi_length_for_fragmentation

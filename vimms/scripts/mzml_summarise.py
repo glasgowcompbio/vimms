@@ -5,7 +5,8 @@ import sys
 from mass_spec_utils.data_import.mzml import MZMLFile
 from tabulate import tabulate
 
-TABLE_HEADS = ['FileName', 'StartRT', 'EndRT', 'Nscans', 'Nscans_MS1', 'Nscans_MS2', 'Scans per sec', 'First MS2',
+TABLE_HEADS = ['FileName', 'StartRT', 'EndRT', 'Nscans', 'Nscans_MS1',
+               'Nscans_MS2', 'Scans per sec', 'First MS2',
                'First MS2 block']
 
 
@@ -29,7 +30,8 @@ def get_summary(mzml_file_path):
     summary['StartRT'] = scan_sub[0].rt_in_seconds
     summary['EndRT'] = scan_sub[-1].rt_in_seconds
     summary['Nscans'] = len(scan_sub)
-    summary['Scans per sec'] = len(scan_sub) / (scan_sub[-1].rt_in_seconds - scan_sub[0].rt_in_seconds)
+    summary['Scans per sec'] = len(scan_sub) / (
+        scan_sub[-1].rt_in_seconds - scan_sub[0].rt_in_seconds)
     summary['FileName'] = mzml_file_path.split(os.sep)[-1]
 
     ms1_scans = list(filter(lambda x: x.ms_level == 1, scan_sub))

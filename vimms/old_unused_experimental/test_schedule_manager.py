@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from pathlib import Path
 
 import pandas as pd

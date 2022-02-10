@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from vimms.Controller.abc import *
 from vimms.Controller.base import *
 from vimms.Controller.box import *

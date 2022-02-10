@@ -8,26 +8,38 @@ from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
 
 class TopNController(Controller):
     """
-    A Top-N controller. Does an MS1 scan followed by N fragmentation scans of the peaks with the highest intensity
-    that are not excluded
+    A Top-N controller. Does an MS1 scan followed by N fragmentation scans of
+    the peaks with the highest intensity that are not excluded
     """
 
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
-                 ms1_shift=0, initial_exclusion_list=None, params=None, force_N=False):
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                 min_ms1_intensity,
+                 ms1_shift=0, initial_exclusion_list=None, params=None,
+                 force_N=False):
         super().__init__(params=params)
         self.ionisation_mode = ionisation_mode
         self.N = N
-        self.isolation_width = isolation_width  # the isolation width (in Dalton) to select a precursor ion
-        self.mz_tol = mz_tol  # the m/z window (ppm) to prevent the same precursor ion to be fragmented again
-        self.rt_tol = rt_tol  # the rt window to prevent the same precursor ion to be fragmented again
-        self.min_ms1_intensity = min_ms1_intensity  # minimum ms1 intensity to fragment
-        self.ms1_shift = ms1_shift  # number of scans to move ms1 scan forward in list of new_tasks
+        # the isolation width (in Dalton) to select a precursor ion
+        self.isolation_width = isolation_width
+        # the m/z window (ppm) to prevent the same precursor ion to be
+        # fragmented again
+        self.mz_tol = mz_tol
+        # the rt window to prevent the same precursor ion to be
+        # fragmented again
+        self.rt_tol = rt_tol
+        # minimum ms1 intensity to fragment
+        self.min_ms1_intensity = min_ms1_intensity
+        # number of scans to move ms1 scan forward in list of new_tasks
+        self.ms1_shift = ms1_shift
         self.force_N = force_N  # force it to do N MS2 scans regardless
 
         if self.force_N and ms1_shift > 0:
-            logger.warning("Setting force_N to True with non-zero shift can lead to strange behaviour")
+            logger.warning(
+                "Setting force_N to True with non-zero shift can lead to "
+                "strange behaviour")
 
-        self.exclusion = TopNExclusion(initial_exclusion_list=initial_exclusion_list)
+        self.exclusion = TopNExclusion(
+            initial_exclusion_list=initial_exclusion_list)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -48,15 +60,18 @@ class TopNController(Controller):
                 mz = mzs[i]
                 intensity = intensities[i]
 
-                # stopping criteria is after we've fragmented N ions or we found ion < min_intensity
+                # stopping criteria is after we've fragmented N ions or
+                # we found ion < min_intensity
                 if fragmented_count >= self.N:
-                    logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
+                    logger.debug('Time %f Top-%d ions have been selected' %
+                                 (rt, self.N))
                     break
 
                 if intensity < self.min_ms1_intensity:
                     logger.debug(
-                        'Time %f Minimum intensity threshold %f reached at %f, %d' % (
-                            rt, self.min_ms1_intensity, intensity, fragmented_count))
+                        'Time %f Minimum intensity threshold %f reached '
+                        'at %f, %d' % (rt, self.min_ms1_intensity, intensity,
+                                       fragmented_count))
                     break
 
                 # skip ion in the dynamic exclusion list of the mass spec
@@ -66,8 +81,9 @@ class TopNController(Controller):
 
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
-                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
-                                                           self.mz_tol, self.rt_tol)
+                dda_scan_params = self.get_ms2_scan_params(
+                    mz, intensity, precursor_scan_id, self.isolation_width,
+                    self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -86,9 +102,10 @@ class TopNController(Controller):
                 n_tasks_remaining = self.N - len(new_tasks)
                 for i in range(n_tasks_remaining):
                     precursor_scan_id = self.scan_to_process.scan_id
-                    dda_scan_params = self.get_ms2_scan_params(DUMMY_PRECURSOR_MZ, 100.0, precursor_scan_id,
-                                                               self.isolation_width,
-                                                               self.mz_tol, self.rt_tol)
+                    dda_scan_params = self.get_ms2_scan_params(
+                        DUMMY_PRECURSOR_MZ, 100.0, precursor_scan_id,
+                        self.isolation_width,
+                        self.mz_tol, self.rt_tol)
                     new_tasks.append(dda_scan_params)
                     ms2_tasks.append(dda_scan_params)
                     fragmented_count += 1
@@ -132,13 +149,15 @@ class ScanItem(object):
 
 class WeightedDEWController(TopNController):
     """
-    A Top-N controller. Does an MS1 scan followed by N fragmentation scans of the peaks with the highest intensity
-    that are not excluded
+    A Top-N controller. Does an MS1 scan followed by N fragmentation scans
+    of the peaks with the highest intensity that are not excluded
     """
 
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=0,
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                 min_ms1_intensity, ms1_shift=0,
                  exclusion_t_0=15, log_intensity=False, params=None):
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, ms1_shift=ms1_shift,
+        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                         min_ms1_intensity, ms1_shift=ms1_shift,
                          params=params)
         self.log_intensity = log_intensity
         self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
@@ -153,11 +172,13 @@ class WeightedDEWController(TopNController):
             rt = self.scan_to_process.rt
 
             if not self.log_intensity:
-                mzi = [ScanItem(mz, intensities[i]) for i, mz in enumerate(mzs) if
+                mzi = [ScanItem(mz, intensities[i]) for i, mz in enumerate(mzs)
+                       if
                        intensities[i] >= self.min_ms1_intensity]
             else:
                 # take log of intensities for peak scoring
-                mzi = [ScanItem(mz, np.log(intensities[i])) for i, mz in enumerate(mzs) if
+                mzi = [ScanItem(mz, np.log(intensities[i])) for i, mz in
+                       enumerate(mzs) if
                        intensities[i] >= self.min_ms1_intensity]
 
             for si in mzi:
@@ -171,9 +192,11 @@ class WeightedDEWController(TopNController):
             for i in range(len(mzi)):
                 # mz = mzi[i].mz
                 # intensity = mzi[i].intensity
-                # stopping criteria is after we've fragmented N ions or we found ion < min_intensity
+                # stopping criteria is after we've fragmented N ions or we
+                # found ion < min_intensity
                 if fragmented_count >= self.N:
-                    logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
+                    logger.debug('Time %f Top-%d ions have been selected' %
+                                 (rt, self.N))
                     break
 
                 mz = mzi[i].mz
@@ -193,8 +216,9 @@ class WeightedDEWController(TopNController):
 
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
-                dda_scan_params = self.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
-                                                           self.mz_tol, self.rt_tol)
+                dda_scan_params = self.get_ms2_scan_params(
+                    mz, intensity, precursor_scan_id,
+                    self.isolation_width, self.mz_tol, self.rt_tol)
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1

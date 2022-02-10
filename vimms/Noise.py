@@ -75,7 +75,8 @@ class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
 
     def get(self, original, ms_level):
         if ms_level in self.sigma_level_dict:
-            return trunc_normal(original, self.sigma_level_dict[ms_level], self.log_space)
+            return trunc_normal(original, self.sigma_level_dict[ms_level],
+                                self.log_space)
         else:
             return original
 
@@ -95,6 +96,7 @@ class UniformSpikeNoise(object):
             max_measurement_mz = self.max_mz
         mz_range = max_measurement_mz - min_measurement_mz
         n_points = max(int(mz_range * self.density), 1)
-        mz_vals = uniform_list(n_points, min_measurement_mz, max_measurement_mz)
+        mz_vals = uniform_list(
+            n_points, min_measurement_mz, max_measurement_mz)
         intensity_vals = uniform_list(n_points, self.min_val, self.max_val)
         return mz_vals, intensity_vals

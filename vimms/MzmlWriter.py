@@ -4,7 +4,8 @@ import numpy as np
 from loguru import logger
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 
-from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, DEFAULT_MS1_SCAN_WINDOW, POSITIVE, NEGATIVE, \
+from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, \
+    DEFAULT_MS1_SCAN_WINDOW, POSITIVE, NEGATIVE, \
     ScanParameters
 
 
@@ -15,8 +16,10 @@ class MzmlWriter(object):
         """
         Initialises the mzML writer class.
         :param analysis_name: Name of the analysis.
-        :param scans: A dictionary where key is scan level, value is a list of Scans object for that level.
-        :param precursor_information: A dictionary where key is Precursor object, value is a list of ms2 scans only
+        :param scans: A dictionary where key is scan level, value is
+        a list of Scans object for that level.
+        :param precursor_information: A dictionary where key is Precursor
+        object, value is a list of ms2 scans only
         """
         self.analysis_name = analysis_name
         self.scans = scans
@@ -40,10 +43,12 @@ class MzmlWriter(object):
 
                 # open chromatogram list sections
                 with writer.chromatogram_list(count=1):
-                    tic_rts, tic_intensities = self._get_tic_chromatogram(self.scans)
-                    writer.write_chromatogram(tic_rts, tic_intensities, id='tic',
-                                              chromatogram_type='total ion current chromatogram',
-                                              time_unit='second')
+                    tic_rts, tic_intensities = self._get_tic_chromatogram(
+                        self.scans)
+                    writer.write_chromatogram(
+                        tic_rts, tic_intensities, id='tic',
+                        chromatogram_type='total ion current chromatogram',
+                        time_unit='second')
 
         writer.close()
 
@@ -89,7 +94,8 @@ class MzmlWriter(object):
         return all_scans
 
     def _write_spectra(self, writer, scans, min_scan_id=INITIAL_SCAN_ID):
-        assert len(scans) <= 3  # NOTE: we only support writing up to ms2 scans for now
+        # NOTE: we only support writing up to ms2 scans for now
+        assert len(scans) <= 3
 
         # get all scans across different ms_levels and sort them by scan_id
         all_scans = []
@@ -108,8 +114,10 @@ class MzmlWriter(object):
         label = 'MS1 Spectrum' if scan.ms_level == 1 else 'MSn Spectrum'
         precursor_information = None
         if scan.ms_level == 2:
-            collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
-            activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
+            collision_energy = scan.scan_params.get(
+                ScanParameters.COLLISION_ENERGY)
+            activation_type = scan.scan_params.get(
+                ScanParameters.ACTIVATION_TYPE)
 
             precursor_information = []
             for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
@@ -118,20 +126,23 @@ class MzmlWriter(object):
                     "intensity": precursor.precursor_intensity,
                     "charge": precursor.precursor_charge,
                     "spectrum_reference": precursor.precursor_scan_id,
-                    "activation": [activation_type, {"collision energy": collision_energy}]
+                    "activation": [activation_type,
+                                   {"collision energy": collision_energy}]
                 })
 
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)
-        bp_pos = np.argmax(scan.intensities)
-        bp_intensity = scan.intensities[bp_pos]
-        bp_mz = scan.mzs[bp_pos]
+        # bp_pos = np.argmax(scan.intensities)
+        # bp_intensity = scan.intensities[bp_pos]
+        # bp_mz = scan.mzs[bp_pos]
         scan_id = scan.scan_id
 
         try:
             first_mz = scan.scan_params.get(ScanParameters.FIRST_MASS)
             last_mz = scan.scan_params.get(ScanParameters.LAST_MASS)
-        except AttributeError:  # if it's a method scan (not a custom scan), there's no scan_params to get first_mz and last_mz
+        # if it's a method scan (not a custom scan), there's no scan_params
+        # to get first_mz and last_mz
+        except AttributeError:
             first_mz, last_mz = DEFAULT_MS1_SCAN_WINDOW
 
         polarity = scan.scan_params.get(ScanParameters.POLARITY)
@@ -141,7 +152,8 @@ class MzmlWriter(object):
             int_polarity = -1
         else:
             int_polarity = 1
-            logger.warning("Unknown polarity in mzml writer: {}".format(polarity))
+            logger.warning(
+                "Unknown polarity in mzml writer: {}".format(polarity))
 
         out.write_spectrum(
             scan.mzs, scan.intensities,

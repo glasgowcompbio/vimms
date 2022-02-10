@@ -4,11 +4,16 @@ from collections import defaultdict
 import pandas as pd
 from loguru import logger
 
-from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, \
-    DEFAULT_MS1_COLLISION_ENERGY, DEFAULT_MS1_ORBITRAP_RESOLUTION, DEFAULT_MS1_ACTIVATION_TYPE, \
-    DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ISOLATION_MODE, DEFAULT_SOURCE_CID_ENERGY, DEFAULT_MS2_AGC_TARGET, \
-    DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_MS2_ISOLATION_MODE, INITIAL_SCAN_ID, ScanParameters, get_default_scan_params, \
+from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, \
+    DEFAULT_MS1_MAXIT, \
+    DEFAULT_MS1_COLLISION_ENERGY, DEFAULT_MS1_ORBITRAP_RESOLUTION, \
+    DEFAULT_MS1_ACTIVATION_TYPE, \
+    DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ISOLATION_MODE, \
+    DEFAULT_SOURCE_CID_ENERGY, DEFAULT_MS2_AGC_TARGET, \
+    DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
+    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ACTIVATION_TYPE, \
+    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_MS2_ISOLATION_MODE, INITIAL_SCAN_ID, \
+    ScanParameters, get_default_scan_params, \
     get_dda_scan_param
 
 
@@ -59,7 +64,8 @@ class Controller(object):
         else:
             self.params = params
 
-        self.scans = defaultdict(list)  # key: ms level, value: list of scans for that level
+        self.scans = defaultdict(
+            list)  # key: ms level, value: list of scans for that level
         self.scan_to_process = None
         self.environment = None
         self.next_processed_scan_id = INITIAL_SCAN_ID
@@ -69,46 +75,50 @@ class Controller(object):
         self.last_ms1_rt = 0.0
 
     def get_ms1_scan_params(self, metadata=None):
-        task = get_default_scan_params(polarity=self.environment.mass_spec.ionisation_mode,
-                                       default_ms1_scan_window=self.params.default_ms1_scan_window,
-                                       agc_target=self.params.ms1_agc_target,
-                                       max_it=self.params.ms1_max_it,
-                                       collision_energy=self.params.ms1_collision_energy,
-                                       source_cid_energy=self.params.ms1_source_cid_energy,
-                                       orbitrap_resolution=self.params.ms1_orbitrap_resolution,
-                                       activation_type=self.params.ms1_activation_type,
-                                       mass_analyser=self.params.ms1_mass_analyser,
-                                       isolation_mode=self.params.ms1_isolation_mode,
-                                       metadata=metadata)
+        task = get_default_scan_params(
+            polarity=self.environment.mass_spec.ionisation_mode,
+            default_ms1_scan_window=self.params.default_ms1_scan_window,
+            agc_target=self.params.ms1_agc_target,
+            max_it=self.params.ms1_max_it,
+            collision_energy=self.params.ms1_collision_energy,
+            source_cid_energy=self.params.ms1_source_cid_energy,
+            orbitrap_resolution=self.params.ms1_orbitrap_resolution,
+            activation_type=self.params.ms1_activation_type,
+            mass_analyser=self.params.ms1_mass_analyser,
+            isolation_mode=self.params.ms1_isolation_mode,
+            metadata=metadata)
         return task
 
-    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None):
-        task = get_dda_scan_param(mz, intensity, precursor_scan_id,
-                                  isolation_width, mz_tol, rt_tol,
-                                  agc_target=self.params.ms2_agc_target,
-                                  max_it=self.params.ms2_max_it,
-                                  collision_energy=self.params.ms2_collision_energy,
-                                  source_cid_energy=self.params.ms2_source_cid_energy,
-                                  orbitrap_resolution=self.params.ms2_orbitrap_resolution,
-                                  activation_type=self.params.ms2_activation_type,
-                                  mass_analyser=self.params.ms2_mass_analyser,
-                                  isolation_mode=self.params.ms2_isolation_mode,
-                                  polarity=self.environment.mass_spec.ionisation_mode,
-                                  metadata=metadata)
+    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id,
+                            isolation_width, mz_tol, rt_tol, metadata=None):
+        task = get_dda_scan_param(
+            mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
+            agc_target=self.params.ms2_agc_target,
+            max_it=self.params.ms2_max_it,
+            collision_energy=self.params.ms2_collision_energy,
+            source_cid_energy=self.params.ms2_source_cid_energy,
+            orbitrap_resolution=self.params.ms2_orbitrap_resolution,
+            activation_type=self.params.ms2_activation_type,
+            mass_analyser=self.params.ms2_mass_analyser,
+            isolation_mode=self.params.ms2_isolation_mode,
+            polarity=self.environment.mass_spec.ionisation_mode,
+            metadata=metadata)
         return task
 
     def get_initial_tasks(self):
         """
-        Gets the initial tasks to load immediately into the mass spec (before acquisition starts)
+        Gets the initial tasks to load immediately into the mass spec
+        (before acquisition starts)
         :return: an empty list of tasks, unless overridden by subclass
         """
         return []
 
     def get_initial_scan_params(self):
         """
-        Gets the initial scan parameters to send to the mass spec that starts the whole process.
-        Will default to sending an MS1 scan with whatever parameters passed in self.params
-        Subclasses can override this to return different types of scans.
+        Gets the initial scan parameters to send to the mass spec that
+        starts the whole process. Will default to sending an MS1 scan with
+        whatever parameters passed in self.params. Subclasses can override
+        this to return different types of scans.
         :return: the MS1
         """
         return self.get_ms1_scan_params()
@@ -128,14 +138,17 @@ class Controller(object):
             self.last_ms1_rt = scan.rt
             self.last_ms1_scan = scan
 
-        # we get an ms1 scan and it has some peaks AND all the pending tasks have been sent and processed AND
-        # this ms1 scan is a custom scan we'd sent before (not a method scan)
-        # then store it for fragmentation next time
+        # we get an ms1 scan and it has some peaks AND all the pending tasks
+        # have been sent and processed AND this ms1 scan is a custom scan
+        # we'd sent before (not a method scan) then store it for
+        # fragmentation next time
         logger.debug(
-            'scan.scan_id = %d, self.next_processed_scan_id = %d' % (scan.scan_id, self.next_processed_scan_id))
+            'scan.scan_id = %d, self.next_processed_scan_id = %d' % (
+                scan.scan_id, self.next_processed_scan_id))
         if scan.scan_id == self.next_processed_scan_id:
             self.scan_to_process = scan
-            logger.debug('Next processed scan %d has arrived' % self.next_processed_scan_id)
+            logger.debug('Next processed scan %d has arrived' %
+                         self.next_processed_scan_id)
         else:
             self.scan_to_process = None
         logger.debug('scan_to_process = %s' % self.scan_to_process)
@@ -149,8 +162,9 @@ class Controller(object):
             elapsed = time.time() - start
             self.processing_times.append(elapsed)
         else:
-            # this scan is not the one we want to process, but here we pass it to _process_scan anyway
-            # in case the subclass wants to do something with it
+            # this scan is not the one we want to process, but here we
+            # pass it to _process_scan anyway in case the subclass wants
+            # to do something with it
             new_tasks = self._process_scan(scan)
         return new_tasks
 
@@ -162,14 +176,16 @@ class Controller(object):
         all_scans.sort(key=lambda x: x.scan_id)  # sort by scan_id
         out_list = []
         for scan in all_scans:
-            if scan.scan_params is not None:  # ignore any scan that we didn't send (no scan_params)
+            # ignore any scan that we didn't send (no scan_params)
+            if scan.scan_params is not None:
                 out = {
                     'scan_id': scan.scan_id,
                     'num_peaks': scan.num_peaks,
                     'rt': scan.rt,
                     'ms_level': scan.ms_level
                 }
-                out.update(scan.scan_params.get_all())  # add all the scan params to out
+                # add all the scan params to out
+                out.update(scan.scan_params.get_all())
                 out_list.append(out)
 
         # dump to csv
@@ -181,7 +197,7 @@ class Controller(object):
 
     def _check_scan(self, params):
 
-        # checks that the conditions that are checked in 
+        # checks that the conditions that are checked in
         # vimms-fusion MS class pass here
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
         orbitrap_resolution = params.get(ScanParameters.ORBITRAP_RESOLUTION)
@@ -190,7 +206,7 @@ class Controller(object):
         isolation_mode = params.get(ScanParameters.ISOLATION_MODE)
         agc_target = params.get(ScanParameters.AGC_TARGET)
         max_it = params.get(ScanParameters.MAX_IT)
-        source_cid_energy = params.get(ScanParameters.SOURCE_CID_ENERGY)
+        # source_cid_energy = params.get(ScanParameters.SOURCE_CID_ENERGY)
         polarity = params.get(ScanParameters.POLARITY)
         first_mass = params.get(ScanParameters.FIRST_MASS)
         last_mass = params.get(ScanParameters.LAST_MASS)

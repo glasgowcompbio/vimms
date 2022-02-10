@@ -50,7 +50,8 @@ class FullScanAgent(AbstractAgent):
 
 
 class TopNDEWAgent(AbstractAgent):
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity):
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                 min_ms1_intensity):
         super().__init__()
         self.ionisation_mode = ionisation_mode
         self.N = N
@@ -63,8 +64,8 @@ class TopNDEWAgent(AbstractAgent):
 
     def next_tasks(self, scan_to_process, controller, current_task_id):
         self.act(scan_to_process)
-        new_tasks, current_task_id, next_processed_scan_id = self._schedule_tasks(controller, current_task_id,
-                                                                                  scan_to_process)
+        new_tasks, current_task_id, next_processed_scan_id = \
+            self._schedule_tasks(controller, current_task_id, scan_to_process)
         return new_tasks, current_task_id, next_processed_scan_id
 
     def update(self, last_scan, controller):
@@ -89,15 +90,18 @@ class TopNDEWAgent(AbstractAgent):
             mz = mzs[i]
             intensity = intensities[i]
 
-            # stopping criteria is after we've fragmented N ions or we found ion < min_intensity
+            # stopping criteria is after we've fragmented N ions or
+            # we found ion < min_intensity
             if fragmented_count >= self.N:
-                logger.debug('Time %f Top-%d ions have been selected' % (rt, self.N))
+                logger.debug(
+                    'Time %f Top-%d ions have been selected' % (rt, self.N))
                 break
 
             if intensity < self.min_ms1_intensity:
                 logger.debug(
-                    'Time %f Minimum intensity threshold %f reached at %f, %d' % (
-                        rt, self.min_ms1_intensity, intensity, fragmented_count))
+                    'Time %f Minimum intensity threshold %f reached at %f, %d'
+                    % (rt, self.min_ms1_intensity, intensity, fragmented_count)
+                )
                 break
 
             # skip ion in the dynamic exclusion list of the mass spec
@@ -107,8 +111,9 @@ class TopNDEWAgent(AbstractAgent):
 
             # create a new ms2 scan parameter to be sent to the mass spec
             precursor_scan_id = scan_to_process.scan_id
-            dda_scan_params = controller.get_ms2_scan_params(mz, intensity, precursor_scan_id, self.isolation_width,
-                                                             self.mz_tol, self.rt_tol)
+            dda_scan_params = controller.get_ms2_scan_params(
+                mz, intensity, precursor_scan_id, self.isolation_width,
+                self.mz_tol, self.rt_tol)
             new_tasks.append(dda_scan_params)
             ms2_tasks.append(dda_scan_params)
             fragmented_count += 1
@@ -133,8 +138,10 @@ class TopNDEWAgent(AbstractAgent):
 
 
 class ReinforceAgent(TopNDEWAgent):
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity, pi, min_mz, max_mz):
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity)
+    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                 min_ms1_intensity, pi, min_mz, max_mz):
+        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                         min_ms1_intensity)
         self.pi = pi
         self.min_mz = min_mz
         self.max_mz = max_mz
@@ -190,7 +197,8 @@ class ReinforceAgent(TopNDEWAgent):
         features[6:20] = np.log(sorted_intensities[0:14])
 
         for i in range(len(features)):
-            if np.isnan(features[i]): features[i] = 0
+            if np.isnan(features[i]):
+                features[i] = 0
         return features
 
     def update(self, last_scan, controller):
@@ -216,7 +224,8 @@ class ReinforceAgent(TopNDEWAgent):
                 assert controller.last_ms1_scan.scan_id == parent_scan_id
 
             else:  # fragmenting noise
-                precursor = last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
+                precursor = \
+                    last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
                 intensity = precursor.precursor_intensity
                 reward = 0
                 if intensity > self.min_ms1_intensity:
@@ -230,8 +239,10 @@ class ReinforceAgent(TopNDEWAgent):
 
 
 class RandomAgent(TopNDEWAgent):
-    def __init__(self, ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity):
-        super().__init__(ionisation_mode, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity)
+    def __init__(self, ionisation_mode, N, isolation_window, mz_tol, rt_tol,
+                 min_ms1_intensity):
+        super().__init__(ionisation_mode, N, isolation_window, mz_tol, rt_tol,
+                         min_ms1_intensity)
         self.num_states = 10
 
     def act(self, scan_to_process):

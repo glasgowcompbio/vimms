@@ -1,3 +1,5 @@
+# flake8: noqa
+
 # Collection of methods to deal with mass spectra mzML files
 import numpy as np
 import pandas as pd

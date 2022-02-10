@@ -1,3 +1,5 @@
+# flake8: noqa
+
 import bisect
 import copy
 import math

@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from vimms.Box import IdentityDrift, LocatorGrid
 from vimms.Common import POSITIVE
 from vimms.Controller import TopNController, TopN_RoiController, TopNBoxRoiController, \

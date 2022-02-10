@@ -1,3 +1,5 @@
+# flake8: noqa
+
 import glob
 import inspect
 import itertools

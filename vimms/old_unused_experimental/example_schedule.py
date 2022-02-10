@@ -1,3 +1,5 @@
+# flake8: noqa
+
 class Scheduler(object):
     def __init__(self, queue, next_scheduler=None):
         self.next_scheduler = next_scheduler

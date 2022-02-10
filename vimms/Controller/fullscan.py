@@ -22,7 +22,8 @@ class IdleController(Controller):
 
 class SimpleMs1Controller(Controller):
     """
-    A simple MS1 controller which does a full scan of the chemical sample, but no fragmentation
+    A simple MS1 controller which does a full scan of the chemical sample,
+    but no fragmentation
     """
 
     def __init__(self, params=None):

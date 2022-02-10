@@ -37,7 +37,8 @@ class SimpleScan(object):
 
 
 class SimplePeak(object):
-    def __init__(self, mz, rt, sample_id, peak_id, peak_status, est_drift, est_drift_sd):
+    def __init__(self, mz, rt, sample_id, peak_id, peak_status, est_drift,
+                 est_drift_sd):
         self.mzs = [mz]
         self.rts = [rt]
         self.sample_ids = [sample_id]
@@ -50,7 +51,8 @@ class SimplePeak(object):
         self.frag_scans = []
         self.spectra = None
 
-    def add_ms1_scan(self, mz, rt, sample_id, peak_id, peak_status, est_drift, est_drift_sd):
+    def add_ms1_scan(self, mz, rt, sample_id, peak_id, peak_status, est_drift,
+                     est_drift_sd):
         self.mzs.append(mz)
         self.rts.append(rt)
         self.sample_ids.append(sample_id)
@@ -97,7 +99,8 @@ class SimpleChemical(object):
         self.spectra = id
 
 
-def get_chems(n_chems, rt_range, mz_range, peak_status=True, prev_range=None, start_idx=0):
+def get_chems(n_chems, rt_range, mz_range, peak_status=True, prev_range=None,
+              start_idx=0):
     chems = []
     for p in range(n_chems):
         rt = np.random.uniform(rt_range[0], rt_range[1], 1)[0]
@@ -112,9 +115,11 @@ def get_chems(n_chems, rt_range, mz_range, peak_status=True, prev_range=None, st
     return chems
 
 
-def get_datasets(n_samples, rt_range, n_gp_points, gp_params, data_params, n_chems, mz_range, prev_range, n_noise=0):
+def get_datasets(n_samples, rt_range, n_gp_points, gp_params, data_params,
+                 n_chems, mz_range, prev_range, n_noise=0):
     dataset_dict = dict()
-    drift_model = DriftSimulator(n_samples, rt_range, n_gp_points, gp_params, data_params)
+    drift_model = DriftSimulator(n_samples, rt_range, n_gp_points, gp_params,
+                                 data_params)
     chems = get_chems(n_chems, rt_range, mz_range, prev_range=prev_range)
     noise_idx = n_chems
     for i in range(n_samples):
@@ -125,10 +130,12 @@ def get_datasets(n_samples, rt_range, n_gp_points, gp_params, data_params, n_che
             if c.prevalence > urv:
                 drift = drift_model.get_drift(i, c.rt)
                 c.rt = c.rt + drift
-                new_chem = SimpleChemical(c.rt + drift, c.mz, c.prevalence, c.id, c.peak_status)
+                new_chem = SimpleChemical(c.rt + drift, c.mz, c.prevalence,
+                                          c.id, c.peak_status)
                 dataset.append(new_chem)
         # add noise for current dataset
-        new_noise = get_chems(n_noise, rt_range, mz_range, False, start_idx=noise_idx)
+        new_noise = get_chems(n_noise, rt_range, mz_range, False,
+                              start_idx=noise_idx)
         noise_idx += n_noise
         dataset.extend(new_noise)
         dataset_dict['dataset' + str(i)] = dataset
@@ -150,7 +157,8 @@ def plot_dataset(dataset, peak_colour='r', noise_colour='k'):
     peaks = plt.scatter(rts[0], mzs[0], color=peak_colour)
     noise = plt.scatter(rts[1], mzs[1], color=noise_colour)
 
-    plt.legend((peaks, noise), ('Peaks', 'Noise'), scatterpoints=1, loc='lower left')
+    plt.legend((peaks, noise), ('Peaks', 'Noise'), scatterpoints=1,
+               loc='lower left')
     plt.ylabel('m/z')
     plt.xlabel('rt')
     plt.show()
@@ -168,8 +176,9 @@ def plot_datasets(datasets, colours=['r', 'b', 'g', 'c', 'm', 'y']):
                 rts[i].append(d.rt)
                 mzs[i].append(d.mz)
         plt.scatter(rts[i], mzs[i], color=colours[i])
-        legend_elements.append(Line2D([0], [0], marker='o', color=colours[i], label=keys[i],
-                                      markerfacecolor='g'))
+        legend_elements.append(
+            Line2D([0], [0], marker='o', color=colours[i], label=keys[i],
+                   markerfacecolor='g'))
     ax.legend(handles=legend_elements, loc='lower left')
     plt.ylabel('m/z')
     plt.xlabel('rt')
@@ -182,11 +191,13 @@ def plot_datasets(datasets, colours=['r', 'b', 'g', 'c', 'm', 'y']):
 
 
 class DriftSimulator(object):
-    def __init__(self, n_samples, rt_range, n_gp_points, gp_params, data_params):
+    def __init__(self, n_samples, rt_range, n_gp_points, gp_params,
+                 data_params):
         self.n_samples = n_samples
         X = np.linspace(rt_range[0], rt_range[1], n_gp_points)[:, np.newaxis]
         y = np.random.normal(data_params[0], data_params[1], n_gp_points)
-        kernel = gp_params[0] * RBF(length_scale=gp_params[1], length_scale_bounds=(1e-1, 10.0))
+        kernel = gp_params[0] * RBF(length_scale=gp_params[1],
+                                    length_scale_bounds=(1e-1, 10.0))
         self.gp = GaussianProcessRegressor(kernel=kernel)
         self.gp.fit(X, y)
 
@@ -235,8 +246,10 @@ class SimplePeakMatching(PeakMatching):
         super().__init__(covariance, max_match_score, ms2_match)
 
     def update_xy(self):
-        current_rts = np.array([anchor.rts[-1] for anchor in self.matched_anchors])
-        anchor_est_rts = np.array([anchor.est_rt for anchor in self.matched_anchors])
+        current_rts = np.array(
+            [anchor.rts[-1] for anchor in self.matched_anchors])
+        anchor_est_rts = np.array(
+            [anchor.est_rt for anchor in self.matched_anchors])
         self.X = current_rts[:, np.newaxis]
         self.y = anchor_est_rts - current_rts
 
@@ -256,32 +269,50 @@ class SimplePeakMatching(PeakMatching):
                 if scan.ms_level == 1:
                     for i in range(len(scan.mzs)):
                         if len(self.possible_anchors) > 0:
-                            rt_diff = np.array([anchor.est_rt - scan.rts[i] for anchor in self.possible_anchors])
-                            mz_diff = np.array([anchor.est_mz - scan.mzs[i] for anchor in self.possible_anchors])
-                            diff_score = np.array([np.matmul(np.matmul(np.array([rt_diff[i], mz_diff[i]]),
-                                                                       np.linalg.inv(self.covariance)),
-                                                             np.array([rt_diff[i], mz_diff[i]]).T)
-                                                   for i in range(len(rt_diff))])
+                            rt_diff = np.array(
+                                [anchor.est_rt - scan.rts[i] for anchor in
+                                 self.possible_anchors])
+                            mz_diff = np.array(
+                                [anchor.est_mz - scan.mzs[i] for anchor in
+                                 self.possible_anchors])
+                            diff_score = np.array([np.matmul(
+                                np.matmul(np.array([rt_diff[i], mz_diff[i]]),
+                                          np.linalg.inv(self.covariance)),
+                                np.array([rt_diff[i], mz_diff[i]]).T)
+                                for i in
+                                range(len(rt_diff))])
                             if min(diff_score) < self.max_match_score:
-                                self.possible_anchors[diff_score.argmin()].add_ms1_scan(scan.mzs[i], scan.rts[i],
-                                                                                        scan.sample_id,
-                                                                                        scan.peak_ids[i],
-                                                                                        scan.peak_statuses[i],
-                                                                                        est_drift, est_drift_sd)
-                                self.matched_anchors.append(self.possible_anchors[diff_score.argmin()])
+                                self.possible_anchors[
+                                    diff_score.argmin()].add_ms1_scan(
+                                    scan.mzs[i], scan.rts[i],
+                                    scan.sample_id,
+                                    scan.peak_ids[i],
+                                    scan.peak_statuses[i],
+                                    est_drift, est_drift_sd)
+                                self.matched_anchors.append(
+                                    self.possible_anchors[diff_score.argmin()])
                                 self.possible_anchors.pop(diff_score.argmin())
                             else:
-                                self.matched_anchors.append(SimplePeak(scan.mzs[i], scan.rts[i], scan.sample_id,
-                                                                       scan.peak_ids[i], scan.peak_statuses[i],
-                                                                       est_drift, est_drift_sd))
+                                self.matched_anchors.append(
+                                    SimplePeak(scan.mzs[i], scan.rts[i],
+                                               scan.sample_id,
+                                               scan.peak_ids[i],
+                                               scan.peak_statuses[i],
+                                               est_drift, est_drift_sd))
                         else:
                             # creates new anchor
-                            self.matched_anchors.append(SimplePeak(scan.mzs[i], scan.rts[i], scan.sample_id,
-                                                                   scan.peak_ids[i], scan.peak_statuses[i], est_drift,
-                                                                   est_drift_sd))
+                            self.matched_anchors.append(
+                                SimplePeak(scan.mzs[i], scan.rts[i],
+                                           scan.sample_id,
+                                           scan.peak_ids[i],
+                                           scan.peak_statuses[i], est_drift,
+                                           est_drift_sd))
                 else:
-                    peak_ids = np.array([anchor.peak_ids[-1] for anchor in self.matched_anchors])
-                    np.array(self.matched_anchors)[np.where(peak_ids == scan.peak_ids[0])[0]][0].add_ms2_scan(scan)
+                    peak_ids = np.array([anchor.peak_ids[-1] for anchor in
+                                         self.matched_anchors])
+                    np.array(self.matched_anchors)[
+                        np.where(peak_ids == scan.peak_ids[0])[0]][
+                        0].add_ms2_scan(scan)
 
     # def match_scans(self, scans, est_drift, est_drift_sd):
     #     for scan in scans:
@@ -372,14 +403,19 @@ class SimplePeakMatching(PeakMatching):
 
     def find_matched_anchor(self, ms2_scan):
         # returns the location of the anchor related to the ms2 scan
-        sample_ids = np.array([anchor.sample_ids[-1] for anchor in self.matched_anchors])
-        peak_ids = np.array([anchor.sample_ids[-1] for anchor in self.matched_anchors])
-        anchor_where = np.where(sample_ids == ms2_scan.sample_id and peak_ids == ms2_scan.precursor_id)[0]
+        sample_ids = np.array(
+            [anchor.sample_ids[-1] for anchor in self.matched_anchors])
+        peak_ids = np.array(
+            [anchor.sample_ids[-1] for anchor in self.matched_anchors])
+        anchor_where = np.where(
+            sample_ids == ms2_scan.sample_id and peak_ids == ms2_scan.precursor_id)[
+            0]
         return anchor_where
 
 
 class SimpleDriftExperiment(object):
-    def __init__(self, datasets, drift_model, rt_range, covariance, max_match_score, sensitivity=1, specificity=1,
+    def __init__(self, datasets, drift_model, rt_range, covariance,
+                 max_match_score, sensitivity=1, specificity=1,
                  frag_method='random', N=0):
         # drift_model is a GP specified in notebook
         # frag_method - None gives full scan, 'random' gives random top N, 'targeted' gives targeted top N
@@ -390,7 +426,8 @@ class SimpleDriftExperiment(object):
         self.frag_method = frag_method
         self.N = N
         self.saved_datasets = [[] for d in datasets]
-        self.peak_matching = SimplePeakMatching(covariance, max_match_score)  # initialise peak matching
+        self.peak_matching = SimplePeakMatching(covariance,
+                                                max_match_score)  # initialise peak matching
         keys = list(self.datasets.keys())
         for idx in range(len(keys)):
             scan_time = rt_range[0]
@@ -399,11 +436,14 @@ class SimpleDriftExperiment(object):
             while scan_time < rt_range[1]:
                 new_scan_time = scan_time + 1
                 scans = self.scan(scan_time, new_scan_time, keys[idx])
-                saved_datasets = self.peak_matching.add_new_scans(scans, est_drift, est_drift_sd)
+                saved_datasets = self.peak_matching.add_new_scans(scans,
+                                                                  est_drift,
+                                                                  est_drift_sd)
                 self.saved_datasets[idx].append(saved_datasets)
                 if idx > 0:
                     self.model_fit()
-                    est_drift, est_drift_sd = self.model_predict(new_scan_time + 1)
+                    est_drift, est_drift_sd = self.model_predict(
+                        new_scan_time + 1)
                 scan_time = new_scan_time
             self.peak_matching.reset_current_statuses()
 
@@ -428,7 +468,8 @@ class SimpleDriftExperiment(object):
                 which_chems = random.sample(ms1_scan.peak_ids, n)
                 for p in self.datasets[dataset_key]:
                     if p.id in which_chems:
-                        ms2_scan = SimpleScan(initial_scan_time, new_scan_time, dataset_key, 2)
+                        ms2_scan = SimpleScan(initial_scan_time, new_scan_time,
+                                              dataset_key, 2)
                         ms2_scan.add(p)
                         scans.append(ms2_scan)
             else:
@@ -442,7 +483,8 @@ class SimpleDriftExperiment(object):
 
     def model_predict(self, current_rt):
         if len(self.peak_matching.X) > 0:
-            mean, sd = self.drift_model.predict(np.array([[current_rt]]), return_std=True)
+            mean, sd = self.drift_model.predict(np.array([[current_rt]]),
+                                                return_std=True)
         else:
             mean = 0
             sd = 0  # TODO: fix this properly
@@ -514,14 +556,16 @@ class SimpleMatchingScore(object):
             self._get_noise_scores(noise_id)
 
         # calculate percentage scores for chems
-        total_observed_chems = self.correct_matching + self.polluted_matching + self.incorrect_matching + self.split_matching
+        total_observed_chems = self.correct_matching + self.polluted_matching + \
+            self.incorrect_matching + self.split_matching
         self.correct_matching_percentage = self.correct_matching / total_observed_chems
         self.polluted_matching_percentage = self.polluted_matching / total_observed_chems
         self.incorrect_matching_percentage = self.incorrect_matching / total_observed_chems
         self.split_matching_percentage = self.split_matching / total_observed_chems
 
         # calculate percentage scores for noise
-        total_observed_noise = self.noise_separated + self.noise_contaminating + self.noise_connected
+        total_observed_noise = self.noise_separated + \
+            self.noise_contaminating + self.noise_connected
         if total_observed_noise > 0:
             self.noise_separated_percentage = self.noise_separated / total_observed_noise
             self.noise_contaminating_percentage = self.noise_contaminating / total_observed_noise
@@ -545,19 +589,23 @@ class SimpleMatchingScore(object):
         maximal_groups = []
         for idx in chem_ids:
             anchors = self.simple_experiment.peak_matching.anchors
-            group_total = np.array([sum(np.array(a.peak_ids) == idx) for a in anchors])
+            group_total = np.array(
+                [sum(np.array(a.peak_ids) == idx) for a in anchors])
             if sum(group_total == group_total.max()) == 1:
                 maximal_groups.append(group_total.argmax())
             else:
                 group_options = np.where(group_total == group_total.max())[0]
-                group_size = np.array([len(anchors[op].peak_ids) for op in group_options])
+                group_size = np.array(
+                    [len(anchors[op].peak_ids) for op in group_options])
                 maximal_groups.append(group_options[group_size.argmin()])
         return maximal_groups
 
     def _get_chem_scores(self, mg, chem_idx):
-        group_total = np.array([len(group.peak_ids) for group in self.simple_experiment.peak_matching.anchors])
+        group_total = np.array([len(group.peak_ids) for group in
+                                self.simple_experiment.peak_matching.anchors])
         group_chem_total = np.array(
-            [sum(np.array(group.peak_ids) == chem_idx) for group in self.simple_experiment.peak_matching.anchors])
+            [sum(np.array(group.peak_ids) == chem_idx) for group in
+             self.simple_experiment.peak_matching.anchors])
         if group_total[mg] == group_chem_total[mg]:
             self.correct_matching += group_total[mg]
             self.polluted_matching += 0
@@ -573,15 +621,19 @@ class SimpleMatchingScore(object):
                 self.incorrect_matching += group_chem_total[i]
 
     def _get_noise_scores(self, noise_id):
-        group_total = np.array([len(group.peak_ids) for group in self.simple_experiment.peak_matching.anchors])
+        group_total = np.array([len(group.peak_ids) for group in
+                                self.simple_experiment.peak_matching.anchors])
         group_noise_total = np.array(
-            [sum(np.array(group.peak_ids) == noise_id) for group in self.simple_experiment.peak_matching.anchors])
+            [sum(np.array(group.peak_ids) == noise_id) for group in
+             self.simple_experiment.peak_matching.anchors])
         for i in range(len(group_noise_total)):
             if group_noise_total[i] > 0:
                 if group_noise_total[i] == group_total[i] == 1:
                     self.noise_separated += 1
                 else:
-                    peak_statuses = self.simple_experiment.peak_matching.anchors[i].peak_statuses
+                    peak_statuses = \
+                        self.simple_experiment.peak_matching.anchors[
+                            i].peak_statuses
                     if all(np.array(peak_statuses) == False):
                         self.noise_connected += 1
                     else:

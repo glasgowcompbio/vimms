@@ -20,7 +20,8 @@ def get_times(mzml_object):
         delta_t = next_scan.rt_in_seconds - current_scan.rt_in_seconds
         current_level = s.ms_level
         next_level = next_scan.ms_level
-        times[(current_level, next_level)].append((current_scan.rt_in_seconds, delta_t))
+        times[(current_level, next_level)].append(
+            (current_scan.rt_in_seconds, delta_t))
     to_remove = set()
     for key in times:
         if len(times[key]) == 0:
@@ -61,7 +62,7 @@ if __name__ == '__main__':
             plt.title(title)
             try:
                 rt, de = zip(*v)
-            except:
+            except Exception:
                 print("No data for " + str(k))
             plt.hist(de)
             pos += 1
@@ -72,7 +73,7 @@ if __name__ == '__main__':
             try:
                 rt, de = zip(*v)
                 plt.plot(rt, de, 'ro')
-            except:
+            except Exception:
                 print("No data for " + str(k))
             pos += 1
 

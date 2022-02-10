@@ -16,13 +16,15 @@ def extract_hmdb_metabolite(in_file, delete=True):
     try:
         # extract from zip file
         zf = zipfile.ZipFile(in_file, 'r')
-        metabolite_xml_file = zf.namelist()[0]  # assume there's only a single file inside the zip file
+        metabolite_xml_file = zf.namelist()[
+            0]  # assume there's only a single file inside the zip file
         f = zf.open(metabolite_xml_file)
     except zipfile.BadZipFile:  # oops not a zip file
         zf = None
         f = in_file
 
-    # loops through file and extract the necessary element text to create a DatabaseCompound
+    # loops through file and extract the necessary element text to create a
+    # DatabaseCompound
     db = xml.etree.ElementTree.parse(f).getroot()
     compounds = []
     prefix = '{http://www.hmdb.ca}'
@@ -44,9 +46,11 @@ def extract_hmdb_metabolite(in_file, delete=True):
 
         # if all fields are present, then add them as a DatabaseCompound
         if None not in row:
-            compound = DatabaseCompound(row[0], row[1], row[2], row[3], row[4], row[5])
+            compound = DatabaseCompound(row[0], row[1], row[2], row[3], row[4],
+                                        row[5])
             compounds.append(compound)
-    logger.info('Loaded %d DatabaseCompounds from %s' % (len(compounds), in_file))
+    logger.info(
+        'Loaded %d DatabaseCompounds from %s' % (len(compounds), in_file))
 
     f.close()
     if zf is not None:
@@ -59,13 +63,17 @@ def extract_hmdb_metabolite(in_file, delete=True):
     return compounds
 
 
-def extract_roi(file_names, out_dir, pattern, mzml_path, param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):
+def extract_roi(file_names, out_dir, pattern, mzml_path,
+                param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):
     """
-    Extract ROI for all mzML files listed in file_names, and turn them into Chemical objecs
+    Extract ROI for all mzML files listed in file_names, and turn them
+    into Chemical objecs
     :param file_names: a list of mzML file names
-    :param out_dir: output directory to store pickled chemicals. If None, then the current directory is used
+    :param out_dir: output directory to store pickled chemicals. If None,
+    then the current directory is used
     :param pattern: pattern for output file
-    :param mzml_path: input directory containing all the mzML files in file_names.
+    :param mzml_path: input directory containing all the mzML files in
+    file_names.
     :param ps: a peak sampler object
     :param param_dict: dictionary of parameters
     :return: a list of extracted Chemicals, one for each mzML file
@@ -86,10 +94,13 @@ def extract_roi(file_names, out_dir, pattern, mzml_path, param_dict=DEFAULT_MZML
         datasets.append(dataset)
 
         # save extracted chemicals
-        if out_dir is None:  # if no out_dir provided, then same in the same location as the mzML file
+        if out_dir is None:
+            # if no out_dir provided, then same in the same location
+            # as the mzML file
             dataset_name = os.path.splitext(mzml_file)[0] + '.p'
             save_obj(dataset, dataset_name)
-        else:  # else save the chemicals in our_dir, using pattern as the filename
+        else:
+            # else save the chemicals in our_dir, using pattern as the filename
             basename = os.path.basename(file_names[i])
             out_name = pattern % int(basename.split('_')[2])
             save_obj(dataset, os.path.join(out_dir, out_name))

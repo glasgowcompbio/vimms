@@ -19,6 +19,7 @@ dependencies:
   - statsmodels
   - tabulate
   - flake8
+  - autopep8
   - pytest
   - intervaltree
   - jupyterlab

@@ -1,11 +1,11 @@
 from loguru import logger
 
 from tests.conftest import OUT_DIR
-from vimms.ChemicalSamplers import EvenMZFormulaSampler, UniformRTAndIntensitySampler, ConstantChromatogramSampler, \
-    FixedMS2Sampler
+from vimms.ChemicalSamplers import EvenMZFormulaSampler, UniformRTAndIntensitySampler, \
+    ConstantChromatogramSampler, FixedMS2Sampler
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.Common import DEFAULT_ISOLATION_WIDTH, POSITIVE, set_log_level_warning, get_default_scan_params, \
-    get_dda_scan_param
+from vimms.Common import DEFAULT_ISOLATION_WIDTH, POSITIVE, set_log_level_warning, \
+    get_default_scan_params, get_dda_scan_param
 from vimms.Controller import FixedScansController, MultiIsolationController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -37,12 +37,12 @@ class TestMultipleMS2Windows:
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
-        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
-                                        polarity=ionisation_mode)
-        ms2_scan_2 = get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol, rt_tol,
-                                        polarity=ionisation_mode)
-        ms2_scan_3 = get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol, rt_tol,
-                                        polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol,
+                                        rt_tol, polarity=ionisation_mode)
+        ms2_scan_2 = get_dda_scan_param(mz_to_target[1], 0.0, None, isolation_width, mz_tol,
+                                        rt_tol, polarity=ionisation_mode)
+        ms2_scan_3 = get_dda_scan_param(mz_to_target, [0.0, 0.0], None, isolation_width, mz_tol,
+                                        rt_tol, polarity=ionisation_mode)
 
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
@@ -80,12 +80,12 @@ class TestFixedScansController:
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
-        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
-                                        polarity=ionisation_mode)
-        ms2_scan_2 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
-                                        polarity=ionisation_mode)
-        ms2_scan_3 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol,
-                                        polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width,
+                                        mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_2 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width,
+                                        mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_3 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width,
+                                        mz_tol, rt_tol, polarity=ionisation_mode)
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
         set_log_level_warning()
@@ -105,9 +105,10 @@ class TestMultiIsolationController:
         ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=10)
         cr = ConstantChromatogramSampler()
         ms = FixedMS2Sampler()
-        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cr, ms2_sampler=ms)
+        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri,
+                                    chromatogram_sampler=cr, ms2_sampler=ms)
         d = cs.sample(3, 2)  # sample chems with m/z = 100 and 200
-        ionisation_mode = POSITIVE
+        # ionisation_mode = POSITIVE
         controller = MultiIsolationController(N)
         ms = IndependentMassSpectrometer(POSITIVE, d)
         env = Environment(ms, controller, 10, 20, progress_bar=True)

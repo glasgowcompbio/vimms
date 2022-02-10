@@ -11,7 +11,8 @@ from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Utils import write_msp
 from vimms.scripts.check_ms2_matches import main as ms2_main
-from vimms.scripts.optimal_performance import setup_scans, make_edges_chems, reducedUnweightedMaxMatchingFromLists
+from vimms.scripts.optimal_performance import setup_scans, make_edges_chems, \
+    reducedUnweightedMaxMatchingFromLists
 
 
 class TestMS2Matching:
@@ -20,7 +21,8 @@ class TestMS2Matching:
         fs = UniformMZFormulaSampler()
         adduct_prior_dict = {POSITIVE: {'M+H': 1}}
 
-        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=rti, adduct_prior_dict=adduct_prior_dict)
+        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=rti,
+                                    adduct_prior_dict=adduct_prior_dict)
         d = cs.sample(300, 2)
 
         group_list = ['control', 'control', 'case', 'case']
@@ -45,9 +47,9 @@ class TestMS2Matching:
 
         initial_exclusion_list = []
         for i, chem_list in enumerate(cl):
-            controller = TopNController(POSITIVE, N, isolation_width, \
-                                        mz_tol, rt_tol, min_ms1_intensity, \
-                                        initial_exclusion_list=initial_exclusion_list)
+            controller = TopNController(
+                POSITIVE, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity,
+                initial_exclusion_list=initial_exclusion_list)
             ms = IndependentMassSpectrometer(POSITIVE, chem_list)
             env = Environment(ms, controller, 10, 30, progress_bar=True)
             env.run()

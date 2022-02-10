@@ -1,4 +1,5 @@
-# Supporting methods needed to run in-silico optimisation of controllers in scripts/in_silico_optimise.py
+# Supporting methods needed to run in-silico optimisation of controllers in
+# scripts/in_silico_optimise.py
 import glob
 import json
 import os
@@ -25,7 +26,8 @@ from vimms.Roi import RoiParams
 def extract_chemicals(seed_file, params_dict):
     """
     Extract chemicals from a seed file
-    :param seed_file: the seed file in mzML format, should be a DDA file (containing MS1 and MS2 scans)
+    :param seed_file: the seed file in mzML format, should be a DDA file
+    (containing MS1 and MS2 scans)
     :param params_dict: a dictionary of parameters to extract ROI
     :return: a list of UnknownChemical objects
     """
@@ -56,7 +58,8 @@ def extract_timing(seed_file):
     """
     Extracts timing information from a seed file
     :param seed_file: the seed file in mzML format
-    If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and MS2 timing will be extracted.
+    If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and MS2
+    timing will be extracted.
     If it's only a fullscan file (containing MS1 scans) then only MS1 timing will be extracted.
     :return: a dictionary of time information. Key should be the ms-level, 1 or 2, and
     value is the average time of scans at that level
@@ -110,7 +113,8 @@ def run_TopN(chems, scan_duration, params, out_dir):
     """
     Simulate TopN controller
     :param chems: a list of UnknownChemicals present in the injection
-    :param ps: old PeakSampler object, now only used to generate MS2 scans (TODO: should be removed as part of issue #46)
+    :param ps: old PeakSampler object, now only used to generate MS2 scans
+    (TODO: should be removed as part of issue #46)
     :param params: a dictionary of parameters
     :param out_file: output mzML file
     :param out_dir: output directory
@@ -137,7 +141,8 @@ def run_SmartROI(chems, scan_duration, params, out_dir):
     """
     Simulate SmartROI controller
     :param chems: a list of UnknownChemicals present in the injection
-    :param ps: old PeakSampler object, now only used to generate MS2 scans (TODO: should be removed as part of issue #46)
+    :param ps: old PeakSampler object, now only used to generate MS2 scans
+    (TODO: should be removed as part of issue #46)
     :param params: a dictionary of parameters
     :param out_file: output mzML file
     :param out_dir: output directory
@@ -224,7 +229,8 @@ def run_WeightedDEW(chems, scan_duration, params, out_dir):
     """
     Simulate WeightedDEW controller
     :param chems: a list of UnknownChemicals present in the injection
-    :param ps: old PeakSampler object, now only used to generate MS2 scans (TODO: should be removed as part of issue #46)
+    :param ps: old PeakSampler object, now only used to generate MS2 scans
+    (TODO: should be removed as part of issue #46)
     :param params: a dictionary of parameters
     :param out_file: output mzML file
     :param out_dir: output directory
@@ -317,7 +323,8 @@ def string_to_list(my_str, convert=None):
 def extract_boxes(seed_file, out_dir, mzmine_command, xml_file):
     """
     Extract peak picked boxes using MzMine2 peak picking
-    :param seed_file: the seed file in mzML format, should be a DDA file (containing MS1 and MS2 scans)
+    :param seed_file: the seed file in mzML format, should be a DDA file
+    (containing MS1 and MS2 scans)
     :param mzmine_command: path to MzMine2 batch file
     :param xml_file: path to MzMine2 XML config file
     :return: a list of boxes

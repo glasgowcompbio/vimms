@@ -15,11 +15,12 @@ from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, \
     FlexibleNonOverlapController, \
     FixedScansController, AgentBasedController, TopNController
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
-from vimms.Environment import *
+from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.Evaluation import evaluate_multiple_simulated_env
-from vimms.GridEstimator import *
-from vimms.Roi import FrequentistRoiAligner
+from vimms.GridEstimator import CaseControlGridEstimator, GridEstimator
+from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Roi import FrequentistRoiAligner, RoiAligner
 
 
 def run_coverage_evaluation(box_file, mzml_file, half_isolation_window):
@@ -42,9 +43,9 @@ def run_env(mass_spec, controller, min_rt, max_rt, mzml_file):
     return chemical_coverage
 
 
-########################################################################################################################
+###################################################################################################
 # Evaluation methods
-########################################################################################################################
+###################################################################################################
 
 
 def top_n_evaluation(param_dict):
@@ -68,34 +69,34 @@ def top_n_evaluation(param_dict):
         return chemical_coverage
 
 
-def smart_roi_evaluation(param_dict):
-    mass_spec = load_obj(param_dict['mass_spec_file'])
-    params = load_obj(param_dict['params_file'])
-    smartroi = TopN_SmartRoiController(param_dict['ionisation_mode'],
-                                       param_dict['isolation_window'],
-                                       param_dict['mz_tol'],
-                                       param_dict['min_ms1_intensity'],
-                                       param_dict['min_roi_intensity'],
-                                       param_dict['min_roi_length'],
-                                       param_dict['N'], param_dict['rt_tol'],
-                                       param_dict[
-                                           'min_roi_length_for_fragmentation'],
-                                       param_dict['reset_length_seconds'],
-                                       param_dict['iif'], length_units="scans",
-                                       drop_perc=param_dict['dp'] / 100,
-                                       ms1_shift=0, params=params)
-    chemical_coverage = run_env(mass_spec, smartroi, param_dict['min_rt'],
-                                param_dict['max_rt'],
-                                param_dict['save_file_name'])
-    coverage = run_coverage_evaluation(param_dict['box_file'],
-                                       param_dict['save_file_name'],
-                                       param_dict['half_isolation_window'])
-    print('coverage', coverage)
-    print('chemical_coverage', chemical_coverage)
-    if param_dict['coverage_type'] == 'coverage':
-        return coverage
-    else:
-        return chemical_coverage
+# def smart_roi_evaluation(param_dict):
+#     mass_spec = load_obj(param_dict['mass_spec_file'])
+#     params = load_obj(param_dict['params_file'])
+#     smartroi = TopN_SmartRoiController(param_dict['ionisation_mode'],
+#                                        param_dict['isolation_window'],
+#                                        param_dict['mz_tol'],
+#                                        param_dict['min_ms1_intensity'],
+#                                        param_dict['min_roi_intensity'],
+#                                        param_dict['min_roi_length'],
+#                                        param_dict['N'], param_dict['rt_tol'],
+#                                        param_dict[
+#                                            'min_roi_length_for_fragmentation'],
+#                                        param_dict['reset_length_seconds'],
+#                                        param_dict['iif'], length_units="scans",
+#                                        drop_perc=param_dict['dp'] / 100,
+#                                        ms1_shift=0, params=params)
+#     chemical_coverage = run_env(mass_spec, smartroi, param_dict['min_rt'],
+#                                 param_dict['max_rt'],
+#                                 param_dict['save_file_name'])
+#     coverage = run_coverage_evaluation(param_dict['box_file'],
+#                                        param_dict['save_file_name'],
+#                                        param_dict['half_isolation_window'])
+#     print('coverage', coverage)
+#     print('chemical_coverage', chemical_coverage)
+#     if param_dict['coverage_type'] == 'coverage':
+#         return coverage
+#     else:
+#         return chemical_coverage
 
 
 def smart_roi_evaluation(param_dict):
@@ -147,9 +148,9 @@ def weighted_dew_evaluation(param_dict):
     return coverage
 
 
-########################################################################################################################
+###################################################################################################
 # Experiment evaluation methods
-########################################################################################################################
+###################################################################################################
 
 
 def top_n_experiment_evaluation(datasets, min_rt, max_rt, N, isolation_window,
@@ -294,16 +295,14 @@ def smart_roi_experiment_evaluation(datasets, min_rt, max_rt, N,
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
             mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[i])
-            controller = TopN_SmartRoiController(POSITIVE, isolation_window,
-                                                 mz_tol, min_ms1_intensity,
-                                                 min_roi_intensity,
-                                                 min_roi_length, N=N,
-                                                 rt_tol=rt_tol,
-                                                 min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                                                 reset_length_seconds=reset_length_seconds,
-                                                 intensity_increase_factor=intensity_increase_factor,
-                                                 drop_perc=drop_perc,
-                                                 ms1_shift=ms1_shift)
+            controller = TopN_SmartRoiController(
+                POSITIVE, isolation_window, mz_tol, min_ms1_intensity, min_roi_intensity,
+                min_roi_length, N=N, rt_tol=rt_tol,
+                min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+                reset_length_seconds=reset_length_seconds,
+                intensity_increase_factor=intensity_increase_factor,
+                drop_perc=drop_perc,
+                ms1_shift=ms1_shift)
             env = Environment(mass_spec, controller, min_rt, max_rt,
                               progress_bar=progress_bar)
             env.run()
@@ -427,7 +426,8 @@ def box_controller_experiment_evaluation(datasets, group_list, min_rt, max_rt,
 
 
 # change roi_type to ROI_TYPE_SMART to toggle smartroi
-# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
+# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to
+# toggle weighteddew
 def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                       isolation_window, mz_tol, rt_tol,
                                       min_ms1_intensity,
@@ -487,7 +487,8 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
 
 
 # change roi_type to ROI_TYPE_SMART to toggle smartroi
-# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
+# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to
+# toggle weighteddew
 def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                                 isolation_window, mz_tol,
                                                 rt_tol, min_ms1_intensity,
@@ -553,7 +554,8 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
 
 
 # change roi_type to ROI_TYPE_SMART to toggle smartroi
-# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to toggle weighteddew
+# change exclusion_method to ROI_EXCLUSION_WEIGHTED_DEW and specify exclusion_t_0 to
+# toggle weighteddew
 def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                                isolation_window, mz_tol,
                                                rt_tol, min_ms1_intensity,

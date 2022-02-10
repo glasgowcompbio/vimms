@@ -60,7 +60,8 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
 
 def evaluate_multiple_simulated_env(env_list, min_intensity=0.0,
                                     group_list=None):
-    '''Evaluates_multiple simulated injections against a base set of chemicals that were used to derive the datasets'''
+    '''Evaluates_multiple simulated injections against a base set of chemicals that
+    were used to derive the datasets'''
     all_chems = [chem for env in env_list for chem in env.mass_spec.chemicals]
     observed_chems = set(chem.get_original_parent() for chem in all_chems)
     base_chemicals = list(observed_chems)
@@ -196,7 +197,7 @@ def load_peakonly_boxes(box_file):
     boxes = []
     with open(box_file, 'r') as f:
         reader = csv.reader(f)
-        heads = next(reader)
+        # heads = next(reader)
         for line in reader:
             peak_id = int(line[0])
             peak_mz = float(line[1])
@@ -222,7 +223,7 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file,
             which_peak = source_files[source_file]
             max_possible_intensities.append(
                 peakset.peaks[which_peak].intensity)
-            if not evaluation_mzml_file is None:
+            if evaluation_mzml_file is not None:
                 boxes = [box for box, name in zip(roi_aligner.list_of_boxes,
                                                   roi_aligner.sample_names) if
                          name == source_file]
@@ -232,7 +233,7 @@ def evaluate_peak_roi_aligner(roi_aligner, source_file,
                 precursor_intensities, scores = get_precursor_intensities(
                     boxes2scans, boxes, 'max')
                 temp_max_possible_intensities = max_possible_intensities
-                max_possible_intensities = [max(*l) for l in
+                max_possible_intensities = [max(*obj) for obj in
                                             zip(precursor_intensities,
                                                 temp_max_possible_intensities)]
                 # TODO: actually check that this works

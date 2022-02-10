@@ -16,9 +16,8 @@ class DiaAnalyser(object):
         self.chemicals_identified = 0
         self.ms2_matched = 0
         self.entropy = 0
-        self.ms1_range = np.array(
-            [0,
-             1000])  # TODO: fix this (ie make it so it can be controller in controller and then here
+        # TODO: fix this (ie make it so it can be controller in controller and then here
+        self.ms1_range = np.array([0, 1000])
         self.min_intensity = min_intensity
 
         self.ms1_scan_times = np.array([scan.rt for scan in self.scans[1]])
@@ -174,8 +173,9 @@ class RestrictedDiaAnalyser(object):
 
 
 class DiaWindows(object):
-    # Class for creating windows for basic, tree and nested DIA methods. Method is used in DiaController in
-    # Controller/dia. Basic methods are approximately equal to a SWATH method with no overlapping windows
+    # Class for creating windows for basic, tree and nested DIA methods. Method is used in
+    # DiaController in Controller/dia. Basic methods are approximately equal to a SWATH method
+    # with no overlapping windows
     def __init__(self, ms1_mzs, ms1_range, dia_design, window_type,
                  kaufmann_design, extra_bins, num_windows=None,
                  range_slack=0.01):
@@ -218,14 +218,9 @@ class DiaWindows(object):
                 -1] + range_slack * ms1_range_difference
             internal_bin_walls_extra = None
             if extra_bins > 0:
-                internal_bin_walls_extra = np.percentile(ms1_mzs,
-                                                         np.arange(0,
-                                                                   100 + 100 / (
-                                                                       num_windows * (
-                                                                           2 ** extra_bins)),
-                                                                   100 / (
-                                                                       num_windows * (
-                                                                           2 ** extra_bins)))).tolist()
+                internal_bin_walls_extra = np.percentile(
+                    ms1_mzs, np.arange(0, 100 + 100 / (num_windows * (2 ** extra_bins)),
+                                       100 / (num_windows * (2 ** extra_bins)))).tolist()
                 internal_bin_walls_extra[0] = internal_bin_walls_extra[
                     0] - range_slack * ms1_range_difference
                 internal_bin_walls_extra[-1] = internal_bin_walls_extra[

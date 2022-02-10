@@ -7,9 +7,9 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 
 
-########################################################################################################################
+###################################################################################################
 # Simple Example Data Classes
-########################################################################################################################
+###################################################################################################
 
 
 class SimpleScan(object):
@@ -185,9 +185,9 @@ def plot_datasets(datasets, colours=['r', 'b', 'g', 'c', 'm', 'y']):
     plt.show()
 
 
-########################################################################################################################
+###################################################################################################
 # Generic classes
-########################################################################################################################
+###################################################################################################
 
 
 class DriftSimulator(object):
@@ -236,9 +236,9 @@ class PeakMatching(object):
         NotImplementedError()
 
 
-########################################################################################################################
+###################################################################################################
 # Simple Example Drift Method Classes
-########################################################################################################################
+###################################################################################################
 
 
 class SimplePeakMatching(PeakMatching):
@@ -319,35 +319,44 @@ class SimplePeakMatching(PeakMatching):
     #         if scan.ms_level == 1:
     #             for i in range(len(scan.mzs)):
     #                 if len(self.possible_anchors) > 0:
-    #                     rt_diff = np.array([anchor.est_rt - scan.rts[i] for anchor in self.possible_anchors])
-    #                     mz_diff = np.array([anchor.est_mz - scan.mzs[i] for anchor in self.possible_anchors])
-    #                     diff_score = np.array([np.matmul(np.matmul(np.array([rt_diff[i], mz_diff[i]]),
-    #                                                    np.linalg.inv(self.covariance)),
-    #                                          np.array([rt_diff[i], mz_diff[i]]).T) for i in range(len(rt_diff))])
+    #                     rt_diff = np.array([anchor.est_rt - scan.rts[i] for anchor in
+    #                                         self.possible_anchors])
+    #                     mz_diff = np.array([anchor.est_mz - scan.mzs[i] for anchor in
+    #                                         self.possible_anchors])
+    #                     diff_score = np.array(
+    #                         [np.matmul(
+    #                             np.matmul(np.array([rt_diff[i], mz_diff[i]]),
+    #                                       np.linalg.inv(self.covariance)), np.array(
+    #                                 [rt_diff[i], mz_diff[i]]).T) for i in range(len(rt_diff))])
     #                     if min(diff_score) < self.max_match_score:
-    #                         self.possible_anchors[diff_score.argmin()].add_ms1_scan(scan.mzs[i], scan.rts[i], scan.sample_id,
-    #                                                                        scan.peak_ids[i], scan.peak_statuses[i],
-    #                                                                        est_drift, est_drift_sd)
+    #                         self.possible_anchors[diff_score.argmin()].add_ms1_scan(
+    #                             scan.mzs[i], scan.rts[i], scan.sample_id, scan.peak_ids[i],
+    #                             scan.peak_statuses[i], est_drift, est_drift_sd)
     #                         self.matched_anchors.append(self.possible_anchors[diff_score.argmin()])
     #                         self.possible_anchors.pop(diff_score.argmin())
     #                     else:
-    #                         self.matched_anchors.append(SimplePeak(scan.mzs[i], scan.rts[i], scan.sample_id,
-    #                                                                scan.peak_ids[i], scan.peak_statuses[i], est_drift,
-    #                                                                est_drift_sd))
+    #                         self.matched_anchors.append(
+    #                             SimplePeak(scan.mzs[i], scan.rts[i], scan.sample_id,
+    #                                        scan.peak_ids[i], scan.peak_statuses[i],
+    #                                        est_drift, est_drift_sd))
     #                 else:
     #                     # creates new anchor
-    #                     self.matched_anchors.append(SimplePeak(scan.mzs[i], scan.rts[i], scan.sample_id, scan.peak_ids[i],
-    #                                                            scan.peak_statuses[i], est_drift, est_drift_sd))
+    #                     self.matched_anchors.append(SimplePeak(scan.mzs[i], scan.rts[i],
+    #                                                            scan.sample_id, scan.peak_ids[i],
+    #                                                            scan.peak_statuses[i], est_drift,
+    #                                                            est_drift_sd))
     #         elif scan.ms_level == 2:
-    #             # Note - In this system, all ms1s are assigned to anchors before any ms2 scans take place related to
-    #             # that ms1 scan. When an anchor comes in, there is a possibility that the ms1 scan gets moved from one
-    #             # anchor to another
+    #             # Note - In this system, all ms1s are assigned to anchors before any ms2 scans
+    #             # take place related to that ms1 scan. When an anchor comes in, there is a
+    #             # possibility that the ms1 scan gets moved from one anchor to another
     #             which_current_anchor = self.find_matched_anchor(scan)
     #             current_anchor = self.matched_anchors[which_current_anchor]
     #             possible_anchors_spectra = [anchor.spectra for anchor in self.possible_anchors]
     #             matched_anchors_spectra = [anchor.spectra for anchor in self.matched_anchors]
-    #             possible_which_anchor = np.where(np.array(possible_anchors_spectra) == current_anchor.spectra)[0]
-    #             matched_which_anchor = np.where(np.array(matched_anchors_spectra) == current_anchor.spectra)[0]
+    #             possible_which_anchor = np.where(
+    #                 np.array(possible_anchors_spectra) == current_anchor.spectra)[0]
+    #             matched_which_anchor = np.where(
+    #                 np.array(matched_anchors_spectra) == current_anchor.spectra)[0]
     #             if len(possible_which_anchor) == len(matched_which_anchor) == 0:
     #                 possible_or_matched = None
     #                 which_other_anchor = None
@@ -363,43 +372,43 @@ class SimplePeakMatching(PeakMatching):
     #
     #             if other_anchor is None:
     #                 # there are no matches at all, including to its currently asigned anchor
-    #                 if scan.frag_spectra == current_anchor.spectra or current_anchor.spectra is None:
+    #                 if scan.frag_spectra == current_anchor.spectra or \
+    #                         current_anchor.spectra is None:
     #                     # add spectra to current anchor
     #                     self.matched_anchors[which_current_anchor].add_new_ms2_scan(scan)
     #                 else:
     #                     # create new spectra
-    #                     self.matched_anchors.append(SimplePeak(current_anchor.mzs[-1], current_anchor.rts[-1],
-    #                                                                     current_anchor.sample_ids[-1],
-    #                                                                     current_anchor.peak_ids[-1],
-    #                                                                     current_anchor.peak_statuses[-1],
-    #                                                                     current_anchor.est_drifts[-1],
-    #                                                                     current_anchor.est_drifts_sd[-1]))
+    #                     self.matched_anchors.append(
+    #                         SimplePeak(current_anchor.mzs[-1],
+    #                                    current_anchor.rts[-1],
+    #                                    current_anchor.sample_ids[-1],
+    #                                    current_anchor.peak_ids[-1],
+    #                                    current_anchor.peak_statuses[-1],
+    #                                    current_anchor.est_drifts[-1],
+    #                                    current_anchor.est_drifts_sd[-1]))
     #                     self.matched_anchors[which_current_anchor].remove_last_entry()
     #                     self.matched_anchors[-1].add_new_ms2_scan(scan)
     #             else:
     #                 # match found with another anchor
     #                 if possible_or_matched == 'possible':
-    #                     self.possible_anchors[which_other_anchor].add_ms1_scan(current_anchor.mzs[-1],
-    #                                                                            current_anchor.rts[-1],
-    #                                                                            current_anchor.sample_ids[-1],
-    #                                                                            current_anchor.peak_ids[-1],
-    #                                                                            current_anchor.peak_statuses[-1],
-    #                                                                            current_anchor.est_drifts[-1],
-    #                                                                            current_anchor.est_drifts_sd[-1])
+    #                     self.possible_anchors[which_other_anchor].add_ms1_scan(
+    #                         current_anchor.mzs[-1], current_anchor.rts[-1],
+    #                         current_anchor.sample_ids[-1], current_anchor.peak_ids[-1],
+    #                         current_anchor.peak_statuses[-1], current_anchor.est_drifts[-1],
+    #                         current_anchor.est_drifts_sd[-1])
     #                     self.possible_anchors[which_other_anchor].add_new_ms2_scan(scan)
     #                 else:
-    #                     self.matched_anchors[which_other_anchor].add_ms1_scan(current_anchor.mzs[-1],
-    #                                                                           current_anchor.rts[-1],
-    #                                                                           current_anchor.sample_ids[-1],
-    #                                                                           current_anchor.peak_ids[-1],
-    #                                                                           current_anchor.peak_statuses[-1],
-    #                                                                           current_anchor.est_drifts[-1],
-    #                                                                           current_anchor.est_drifts_sd[-1])
+    #                     self.matched_anchors[which_other_anchor].add_ms1_scan(
+    #                         current_anchor.mzs[-1], current_anchor.rts[-1],
+    #                         current_anchor.sample_ids[-1], current_anchor.peak_ids[-1],
+    #                         current_anchor.peak_statuses[-1], current_anchor.est_drifts[-1],
+    #                         current_anchor.est_drifts_sd[-1])
     #                     self.matched_anchors[which_other_anchor].add_new_ms2_scan(scan)
     #                 self.matched_anchors[which_current_anchor].remove_last_entry()
     #                 # TODO: what happens if anchor already has scan for that sample
     #                 # TODO: look at moving the element to an alternative ancho
-    #                 # TODO: potentially add possibility of moving other elements to other / new anchor
+    #                 # TODO: potentially add possibility of moving other elements
+    #                 #  to other / new anchor
 
     def find_matched_anchor(self, ms2_scan):
         # returns the location of the anchor related to the ms2 scan
@@ -418,7 +427,8 @@ class SimpleDriftExperiment(object):
                  max_match_score, sensitivity=1, specificity=1,
                  frag_method='random', N=0):
         # drift_model is a GP specified in notebook
-        # frag_method - None gives full scan, 'random' gives random top N, 'targeted' gives targeted top N
+        # frag_method - None gives full scan, 'random' gives random top N, 'targeted'
+        # gives targeted top N
         self.datasets = datasets
         self.drift_model = drift_model
         self.sensitivity = sensitivity
@@ -506,18 +516,23 @@ def chem_test(chem, sensitivity, specificity):
 class SimpleMatchingScore(object):
     def __init__(self, simple_experiment):
         """
-        definition: The maximal group for a chemical is the group of peaks which contains the highest number of
-            that chemical. i.e. if group 1 = {chem 1, chem 1, chem 1, some other chems} and group 2 = {chem 1, some
-            other chems} then group 1 is the maximal group for chem 1
+        definition: The maximal group for a chemical is the group of peaks which contains the
+        highest number of that chemical. i.e. if group 1 = {chem 1, chem 1, chem 1, some other
+        chems} and group 2 = {chem 1, some other chems} then group 1 is the maximal group
+        for chem 1
 
         correct matching
-            - sum of the number of chemicals in their maximal group, where the maximal group only contains that chemical
+            - sum of the number of chemicals in their maximal group, where the maximal group
+            only contains that chemical
         polluted matching
-            - sum of the number of chemicals in their maximal group, where the maximal group contains other chemicals / noise
+            - sum of the number of chemicals in their maximal group, where the maximal group
+            contains other chemicals / noise
         incorrect matching
-            - sum of all the chemicals not in the maximal matched group that are in a group with another chemical / noise
+            - sum of all the chemicals not in the maximal matched group that are in a group
+            with another chemical / noise
         split matching
-            - sum of all the chemicals not in the maximal matched group that are in a group with just chemicals of the same type
+            - sum of all the chemicals not in the maximal matched group that are in a group
+            with just chemicals of the same type
 
         non-peaks separated
             - non peaks that are in a group by themselves
@@ -634,15 +649,15 @@ class SimpleMatchingScore(object):
                     peak_statuses = \
                         self.simple_experiment.peak_matching.anchors[
                             i].peak_statuses
-                    if all(np.array(peak_statuses) == False):
+                    if all(np.array(peak_statuses) == False): # noqa
                         self.noise_connected += 1
                     else:
                         self.noise_contaminating += 1
 
 
-########################################################################################################################
+###################################################################################################
 # ViMMS Drift Method Classes
-########################################################################################################################
+###################################################################################################
 
 
 class VimmsPeakMatching(PeakMatching):

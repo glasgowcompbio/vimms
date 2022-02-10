@@ -6,15 +6,15 @@ import numpy as np
 import pytest
 from loguru import logger
 
-from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, GaussianChromatogramSampler, \
-    EvenMZFormulaSampler, ConstantChromatogramSampler, MZMLFormulaSampler, MZMLRTandIntensitySampler, \
-    MZMLChromatogramSampler
+from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, \
+    GaussianChromatogramSampler, EvenMZFormulaSampler, ConstantChromatogramSampler, \
+    MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler
 from vimms.Chemicals import ChemicalMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, ADDUCT_DICT_POS_MH, \
-    POSITIVE, ScanParameters
+from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, \
+    ADDUCT_DICT_POS_MH, ScanParameters
 from vimms.Roi import RoiParams
 
-### define some useful constants ###
+# define some useful constants
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
@@ -40,7 +40,7 @@ MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
 MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
 
 
-### define some useful methods ###
+# define some useful methods
 
 def get_rt_bounds(dataset, centre):
     rts = [ds.rt for ds in dataset]
@@ -87,7 +87,7 @@ def check_non_empty(controller, ms_level):
     assert non_empty > 0
 
 
-### define the fixtures shared across all tests ###
+# define the fixtures shared across all tests
 
 @pytest.fixture(autouse=True)
 def random_seed():

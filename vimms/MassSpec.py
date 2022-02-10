@@ -38,9 +38,9 @@ class Peak(object):
             return NotImplemented
 
         return math.isclose(self.mz, other.mz) and \
-            math.isclose(self.rt, other.rt) and \
-            math.isclose(self.intensity, other.intensity) and \
-            self.ms_level == other.ms_level
+               math.isclose(self.rt, other.rt) and \
+               math.isclose(self.intensity, other.intensity) and \
+               self.ms_level == other.ms_level
 
 
 class Scan(object):
@@ -264,7 +264,7 @@ class IndependentMassSpectrometer(object):
                               self.STATE_CHANGED,))
         self.event_dict = {
             self.MS_SCAN_ARRIVED: self.events.MsScanArrived,
-            self.ACQUISITION_STREAM_OPENING: self.events.AcquisitionStreamOpening, # noqa
+            self.ACQUISITION_STREAM_OPENING: self.events.AcquisitionStreamOpening,  # noqa
             self.ACQUISITION_STREAM_CLOSED: self.events.AcquisitionStreamClosing,  # noqa
             self.STATE_CHANGED: self.events.StateChanged
         }
@@ -292,7 +292,7 @@ class IndependentMassSpectrometer(object):
         self.fragmentation_events = []  # which chemicals produce which peaks
 
         self.isolation_transition_window = isolation_transition_window
-        self.isolation_transition_window_params = isolation_transition_window_params # noqa
+        self.isolation_transition_window_params = isolation_transition_window_params  # noqa
 
         self.scan_duration_dict = scan_duration
 
@@ -461,6 +461,7 @@ class IndependentMassSpectrometer(object):
     # Scan generation methods
     ###########################################################################
 
+    # flake8: noqa: C901
     def _get_scan(self, scan_time, params):
         """
         Constructs a scan at a particular timepoint
@@ -485,7 +486,7 @@ class IndependentMassSpectrometer(object):
                     [(min_measurement_mz, max_measurement_mz)]]
             if not isolation_windows[0][0][0] == min_measurement_mz or not \
                     isolation_windows[0][0][
-                    1] == max_measurement_mz:
+                        1] == max_measurement_mz:
                 logger.warning(
                     "MS1 scan: MS1 isolation window and measurement "
                     "mz range mismatch")
@@ -529,7 +530,7 @@ class IndependentMassSpectrometer(object):
                 chem_intensities = []
                 for items in mzs:
                     peak_mz, peak_intensity, peak_ms1_int, peak_isotope, \
-                        peak_adduct = items
+                    peak_adduct = items
                     if (min_measurement_mz <= peak_mz <= max_measurement_mz) \
                             and peak_intensity > 0:
                         chem_mzs.append(peak_mz)
@@ -689,8 +690,8 @@ class IndependentMassSpectrometer(object):
     def _get_intensity(self, chemical, query_rt, which_isotope, which_adduct):
         if chemical.ms_level == 1:
             intensity = chemical.isotopes[which_isotope][1] * \
-                self._get_adducts(chemical)[which_adduct][1] * \
-                chemical.max_intensity
+                        self._get_adducts(chemical)[which_adduct][1] * \
+                        chemical.max_intensity
             return intensity * chemical.chromatogram.get_relative_intensity(
                 query_rt - chemical.rt)
         else:
@@ -714,7 +715,7 @@ class IndependentMassSpectrometer(object):
             while ms1_parent.ms_level != 1:
                 ms1_parent = chemical.parent
             isotope_transformation = ms1_parent.isotopes[which_isotope][0] - \
-                ms1_parent.isotopes[0][0]
+                                     ms1_parent.isotopes[0][0]
             # TODO: Needs improving
             return (adduct_transformation(chemical.isotopes[0][0],
                                           self._get_adducts(chemical)[

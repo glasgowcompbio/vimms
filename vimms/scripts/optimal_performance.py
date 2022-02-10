@@ -1,6 +1,4 @@
 # computes optimal performance
-from vimms.Common import POSITIVE
-from vimms.Roi import Roi
 import argparse
 import bisect
 import os
@@ -12,6 +10,9 @@ from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+from vimms.Common import POSITIVE
+from vimms.Roi import Roi
+
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
@@ -21,7 +22,7 @@ def get_times(mzfile_object):
     for i, scan in enumerate(mzfile_object.scans[1:]):
         scan_level = mzfile_object.scans[i].ms_level
         elapsed_time = scan.rt_in_seconds - \
-            mzfile_object.scans[i].rt_in_seconds
+                       mzfile_object.scans[i].rt_in_seconds
         if elapsed_time > 0:
             times[scan_level].append(elapsed_time)
     return times
@@ -48,6 +49,7 @@ def setup_scans(time_dict, N, min_rt, max_rt):
     return scan_levels, scan_start_times
 
 
+# flake8: noqa: C901
 def add_rois_to_boxes(boxes, mzfile, verbose=True):
     # reset in case we run more than once
     for box in boxes:
@@ -64,7 +66,7 @@ def add_rois_to_boxes(boxes, mzfile, verbose=True):
         # find the boxes that are active at this scan
         ok_boxes = list(
             filter(lambda x: x.rt_range_in_seconds[0] <= scan_rt and
-                   x.rt_range_in_seconds[1] >= scan_rt, boxes))
+                             x.rt_range_in_seconds[1] >= scan_rt, boxes))
         if len(ok_boxes) == 0:
             continue  # no boxes now, onto the next scan
 
@@ -104,10 +106,10 @@ def get_intensity(roi, rt, interpolate=False):
         after_pos = pos
         if interpolate:
             prop = (rt - roi.rt_list[before_pos]) / (
-                roi.rt_list[after_pos] - roi.rt_list[before_pos])
+                    roi.rt_list[after_pos] - roi.rt_list[before_pos])
             return roi.intensity_list[before_pos] + prop * (
-                roi.intensity_list[after_pos] - roi.intensity_list[
-                    before_pos])
+                    roi.intensity_list[after_pos] - roi.intensity_list[
+                before_pos])
         else:
             return roi.intensity_list[before_pos]
 

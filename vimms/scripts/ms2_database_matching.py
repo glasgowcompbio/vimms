@@ -1,5 +1,4 @@
 # MS2 matchinig
-from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug
 import argparse
 import csv
 import os
@@ -10,6 +9,8 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.library_matching.gnps import load_mgf
 from mass_spec_utils.library_matching.spectrum import Spectrum
 from tqdm.auto import tqdm
+
+from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug
 
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
@@ -29,7 +30,9 @@ def load_scans_from_mzml(mzml_file_name):
     return spectra
 
 
-if __name__ == '__main__':
+# flake8: noqa: C901
+def main():
+    global file_spectra
     parser = argparse.ArgumentParser(description='Limited dataset creation')
     parser.add_argument('input_file_names', type=str)
     parser.add_argument('library_cache', type=str)
@@ -46,7 +49,6 @@ if __name__ == '__main__':
                         default='warning')
     parser.add_argument('--mgf_id_field', dest='mgf_id_field', type=str,
                         default='SCANS')
-
     args = parser.parse_args()
     input_file_names = args.input_file_names
     if ',' in input_file_names:  # multiple items
@@ -54,11 +56,9 @@ if __name__ == '__main__':
     else:  # single item
         input_file_names = [input_file_names]
     assert len(input_file_names) > 0
-
     # assume all the files have the same extension as the first one
     first = input_file_names[0]
     root, ext = os.path.splitext(first)
-
     if ext.lower() == '.mzml':
         query_spectra = {}
         for input_file_name in input_file_names:
@@ -83,14 +83,11 @@ if __name__ == '__main__':
     else:
         logger.warning("Unknown input file format -- should be .mzML or .mgf")
         sys.exit(0)
-
     if args.log_level == 'warning':
         set_log_level_warning()
     elif args.log_level == 'debug':
         set_log_level_debug()
-
     libraries = args.libraries
-
     spec_libraries = {}
     if args.library_cache is not None:
         for library in libraries:
@@ -106,7 +103,6 @@ if __name__ == '__main__':
     else:
         logger.warning("You must supply a library folder")
         sys.exit(0)
-
     all_hits = []
     for input_file_name in query_spectra.keys():
         file_spectra = query_spectra[input_file_name]
@@ -121,7 +117,6 @@ if __name__ == '__main__':
                     new_hit = [spec_id, library, hit[0], hit[1],
                                hit[2].metadata['inchikey']]
                     all_hits.append(new_hit)
-
     if len(all_hits) == 0:
         logger.warning("No hits found!")
     else:
@@ -138,3 +133,7 @@ if __name__ == '__main__':
         logger.warning("{} unique spectra got hits".format(len(set(s))))
         logger.warning("{} unique structures were hit".format(
             len(set([a.split('-')[0] for a in ik if a is not None]))))
+
+
+if __name__ == '__main__':
+    main()

@@ -105,23 +105,21 @@ def extract_scan_sequence(lines, start_no=10000):
     return scan_sequence_list
 
 
-if __name__ == '__main__':
+# flake8: noqa: C901
+def main():
+    global plot_from, plot_to, i, y
     parser = argparse.ArgumentParser(description='Parse the log output')
     parser.add_argument('--plot_from', dest='plot_from',
                         type=int, default=None)
     parser.add_argument('--plot_to', dest='plot_to', type=int, default=None)
     parser.add_argument('txt_file', type=str)
-
     args = parser.parse_args()
-
     lines = []
     with open(args.txt_file, 'r') as f:
         for line in f:
             lines.append(line)
     print("Loaded {} lines".format(len(lines)))
-
     scan_sequence_list = extract_scan_sequence(lines)
-
     start_time = scan_sequence_list[0].send_time
     if args.plot_from is not None or args.plot_to is not None:
         if args.plot_from is None:
@@ -163,3 +161,7 @@ if __name__ == '__main__':
         plt.ylim(yl[0], yl[1] + 1)
         plt.grid()
         plt.show()
+
+
+if __name__ == '__main__':
+    main()

@@ -32,6 +32,7 @@ def decimal_to_string(fnum, no_dec=0):
     return res
 
 
+# flake8: noqa: C901
 def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
               all_isotopes=False, ion_mode=[POSITIVE]):
     """
@@ -95,9 +96,9 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
                                                            ionisation_mode][
                                                            which_adduct][0])
                         msn_peak = chem.isotopes[which_isotope][1] * \
-                            chem.adducts[ionisation_mode][which_adduct][
-                            1] * chem.max_intensity * \
-                            1 * msn.prop_ms2_mass
+                                   chem.adducts[ionisation_mode][which_adduct][
+                                       1] * chem.max_intensity * \
+                                   1 * msn.prop_ms2_mass
                         if decimal_to_string(msn_peak) != '0':
                             temp = decimal_to_string(msn_mz, 5) + ' ' + \
                                    decimal_to_string(msn_peak)

@@ -35,12 +35,12 @@ class Box():
         if (self.pt2.x - self.pt1.x < min_xwidth):
             midpoint = self.pt1.x + ((self.pt2.x - self.pt1.x) / 2)
             self.pt1.x, self.pt2.x = midpoint - (min_xwidth / 2), midpoint + (
-                min_xwidth / 2)
+                    min_xwidth / 2)
 
         if (self.pt2.y - self.pt1.y < min_ywidth):
             midpoint = self.pt1.y + ((self.pt2.y - self.pt1.y) / 2)
             self.pt1.y, self.pt2.y = midpoint - (min_ywidth / 2), midpoint + (
-                min_ywidth / 2)
+                    min_ywidth / 2)
 
     def __repr__(self):
         return "Box({}, {})".format(self.pt1, self.pt2)
@@ -84,15 +84,15 @@ class GenericBox(Box):
     def overlaps_with_box(self, other_box):
         return (self.pt1.x < other_box.pt2.x and
                 self.pt2.x > other_box.pt1.x) and (
-                self.pt1.y < other_box.pt2.y and
-                self.pt2.y > other_box.pt1.y)
+                       self.pt1.y < other_box.pt2.y and
+                       self.pt2.y > other_box.pt1.y)
 
     def contains_box(self, other_box):
         return (
-            self.pt1.x <= other_box.pt1.x
-            and self.pt1.y <= other_box.pt1.y
-            and self.pt2.x >= other_box.pt2.x
-            and self.pt2.y >= other_box.pt2.y
+                self.pt1.x <= other_box.pt1.x
+                and self.pt1.y <= other_box.pt1.y
+                and self.pt2.x >= other_box.pt2.x
+                and self.pt2.y >= other_box.pt2.y
         )
 
     def overlap_2(self, other_box):
@@ -188,7 +188,7 @@ class Grid():
             int((box.pt1.y - self.min_mz) / self.mz_box_size),
             int((box.pt2.y - self.min_mz) / self.mz_box_size) + 1)
         total_boxes = (rt_box_range[1] - rt_box_range[0]) * (
-            mz_box_range[1] - mz_box_range[0])
+                mz_box_range[1] - mz_box_range[0])
         return rt_box_range, mz_box_range, total_boxes
 
     @abstractmethod
@@ -224,13 +224,13 @@ class ArrayGrid(Grid):
     def non_overlap(self, box):
         rt_box_range, mz_box_range, total_boxes = self.get_box_ranges(box)
         boxes = self.boxes[rt_box_range[0]:rt_box_range[1],
-                           mz_box_range[0]:mz_box_range[1]]
+                mz_box_range[0]:mz_box_range[1]]
         return (total_boxes - np.sum(boxes)) / total_boxes
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         self.boxes[rt_box_range[0]:rt_box_range[1],
-                   mz_box_range[0]:mz_box_range[1]] = True
+        mz_box_range[0]:mz_box_range[1]] = True
 
 
 class LocatorGrid(Grid):
@@ -246,7 +246,7 @@ class LocatorGrid(Grid):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         boxes = set()
         for row in self.boxes[rt_box_range[0]:rt_box_range[1],
-                              mz_box_range[0]:mz_box_range[1]]:
+                   mz_box_range[0]:mz_box_range[1]]:
             for s in row:
                 boxes |= s
         return boxes
@@ -288,7 +288,7 @@ class LocatorGrid(Grid):
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         for row in self.boxes[rt_box_range[0]:rt_box_range[1],
-                              mz_box_range[0]:mz_box_range[1]]:
+                   mz_box_range[0]:mz_box_range[1]]:
             for s in row:
                 s.add(box)
 
@@ -329,7 +329,7 @@ class AllOverlapGrid(LocatorGrid):
         other_boxes = self.get_boxes(box)
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
         non_overlap = current_intensity ** (
-            sum(b.area() for b in this_non) / box.area())
+                sum(b.area() for b in this_non) / box.area())
         refragment = sum(max(0.0, current_intensity - b.intensity) **
                          (b.area() / box.area()) for b in overlaps)
         return non_overlap + scoring_params['theta1'] * refragment
@@ -383,7 +383,7 @@ class AllOverlapGrid(LocatorGrid):
                         b.intensity)) * b.area() / box.area())
                 for b in overlaps)
             return non_overlap + refragment + refragment2 + \
-                new_peak_score + model_score
+                   new_peak_score + model_score
 
     def register_box(self, box):
         other_boxes = self.get_boxes(box)
@@ -392,14 +392,14 @@ class AllOverlapGrid(LocatorGrid):
             if (box.overlaps_with_box(b)):
                 rt_box_range, mz_box_range, _ = self.get_box_ranges(b)
                 for row in self.boxes[rt_box_range[0]:rt_box_range[1],
-                                      mz_box_range[0]:mz_box_range[1]]:
+                           mz_box_range[0]:mz_box_range[1]]:
                     for s in row:
                         s.remove(b)
 
         for b in itertools.chain(this_non, other_non, overlaps):
             rt_box_range, mz_box_range, _ = self.get_box_ranges(b)
             for row in self.boxes[rt_box_range[0]:rt_box_range[1],
-                                  mz_box_range[0]:mz_box_range[1]]:
+                       mz_box_range[0]:mz_box_range[1]]:
                 for s in row:
                     s.add(b)
 
@@ -483,6 +483,7 @@ class OraclePointMatcher():
     def _next_model(self):
         self.not_sent = [True] * len(self.chem_rts_by_injection[0])
 
+    # flake8: noqa: C901
     def send_training_data(self, model, scan, roi, inj_num):
         if (self.mode == OraclePointMatcher.MODE_FRAGPAIRS):
             if (scan.fragevent is not None):
@@ -500,9 +501,11 @@ class OraclePointMatcher():
                         self.not_sent[i] = False
         else:
             if (self.mode == OraclePointMatcher.MODE_RTENABLED):
-                def enable(y): return scan.rt > y
+                def enable(y):
+                    return scan.rt > y
             else:
-                def enable(y): return True
+                def enable(y):
+                    return True
 
             for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num],
                                            self.chem_rts_by_injection[0])):

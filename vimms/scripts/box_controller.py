@@ -138,6 +138,7 @@ def run_vimms(no_injections, rt_box_size, mz_box_size):
     return boxes
 
 
+# flake8: noqa: C901
 def main():
     class Timer():
         def __init__(self): self.time = None
@@ -176,7 +177,7 @@ def main():
 
         print("\nExact Scores Grid:")
         rt_box_size, mz_box_size = (
-            boxenv.max_rt - boxenv.min_rt) / 50, boxenv.max_mz / 50
+                                           boxenv.max_rt - boxenv.min_rt) / 50, boxenv.max_mz / 50
         scores_by_injection_4, exact_grid_time = Timer().time_f(
             lambda: boxenv.test_non_overlap(LocatorGrid, rt_box_size,
                                             mz_box_size))
@@ -185,7 +186,7 @@ def main():
         def compare_scores(scores_1, scores_2):
             return {i: (x, y) for i, (x, y) in enumerate(
                 zip(itertools.chain(*scores_1), itertools.chain(*scores_2))) if
-                not math.isclose(x, y)}
+                    not math.isclose(x, y)}
 
         print("Differences between grid + no grid:",
               compare_scores(scores_by_injection_3, scores_by_injection_4))
@@ -206,7 +207,7 @@ def main():
     def box_adjust(boxenv, *no_boxes):
         for x_n, y_n in no_boxes:
             rt_box_size, mz_box_size = (
-                boxenv.max_rt - boxenv.min_rt) / x_n, boxenv.max_mz / y_n
+                                               boxenv.max_rt - boxenv.min_rt) / x_n, boxenv.max_mz / y_n
             _, exact_grid_time = Timer().time_f(
                 lambda: boxenv.test_non_overlap(LocatorGrid, rt_box_size,
                                                 mz_box_size))

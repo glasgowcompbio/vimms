@@ -9,6 +9,7 @@ from vimms.Common import DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, save_obj
 from vimms.Roi import RoiParams
 
 
+# flake8: noqa: C901
 def extract_hmdb_metabolite(in_file, delete=True):
     logger.debug('Extracting HMDB metabolites from %s' % in_file)
 

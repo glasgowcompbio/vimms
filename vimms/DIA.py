@@ -8,7 +8,10 @@ from vimms.Common import ScanParameters
 
 
 class DiaAnalyser(object):
-    # Class for deconvolving basic DIA methods. Only works with basic simulated data
+    """
+    Class for deconvolving basic DIA methods. Only works with basic simulated data
+    """
+
     def __init__(self, controller, min_intensity=0):
         self.controller = controller
         self.scans = controller.scans
@@ -55,7 +58,7 @@ class DiaAnalyser(object):
                         1 / len(self.dataset))
                 else:
                     self.entropy += -len(self.dataset[
-                        chem_num].children) * num_ms1_options * math.log(
+                                             chem_num].children) * num_ms1_options * math.log(
                         1 / num_ms1_options)
                     if num_ms1_options == 1:
                         self.chemicals_identified += 1
@@ -73,7 +76,7 @@ class DiaAnalyser(object):
         for chem_num in range(len(self.dataset)):
             relevant_times = self.ms1_scan_times[
                 (self.ms1_start_rt[chem_num] < self.ms1_scan_times) & (
-                    self.ms1_scan_times < self.ms1_end_rt[chem_num])]
+                        self.ms1_scan_times < self.ms1_end_rt[chem_num])]
             for time in relevant_times:
                 intensity = \
                     self.controller.environment.mass_spec._get_all_mz_peaks(
@@ -151,7 +154,10 @@ class DiaAnalyser(object):
 
 
 class RestrictedDiaAnalyser(object):
-    # Class for deconvolving toy DIA examples
+    """
+    Class for deconvolving toy DIA examples
+    """
+
     def __init__(self, controller):
         self.entropy = []
         self.chemicals_identified = []
@@ -173,9 +179,13 @@ class RestrictedDiaAnalyser(object):
 
 
 class DiaWindows(object):
-    # Class for creating windows for basic, tree and nested DIA methods. Method is used in
-    # DiaController in Controller/dia. Basic methods are approximately equal to a SWATH method
-    # with no overlapping windows
+    """
+    Class for creating windows for basic, tree and nested DIA methods. Method is used in
+    DiaController in Controller/dia. Basic methods are approximately equal to a SWATH method
+    with no overlapping windows
+    """
+
+    # flake8: noqa: C901
     def __init__(self, ms1_mzs, ms1_range, dia_design, window_type,
                  kaufmann_design, extra_bins, num_windows=None,
                  range_slack=0.01):
@@ -191,40 +201,40 @@ class DiaWindows(object):
             internal_bin_walls = [ms1_range[0][0]]
             for window_index in range(0, num_windows):
                 internal_bin_walls.append(ms1_range[0][0] + ((
-                    window_index + 1) / num_windows) * ms1_range_difference)
+                                                                     window_index + 1) / num_windows) * ms1_range_difference)
             internal_bin_walls[0] = internal_bin_walls[
-                0] - range_slack * ms1_range_difference
+                                        0] - range_slack * ms1_range_difference
             internal_bin_walls[-1] = internal_bin_walls[
-                -1] + range_slack * ms1_range_difference
+                                         -1] + range_slack * ms1_range_difference
             internal_bin_walls_extra = None
             if extra_bins > 0:
                 internal_bin_walls_extra = [ms1_range[0][0]]
                 for window_index in range(0, num_windows * (2 ** extra_bins)):
                     internal_bin_walls_extra.append(ms1_range[0][0] + (
-                        (window_index + 1) / (num_windows * (
+                            (window_index + 1) / (num_windows * (
                             2 ** extra_bins))) * ms1_range_difference)
                 internal_bin_walls_extra[0] = internal_bin_walls_extra[
-                    0] - range_slack * ms1_range_difference
+                                                  0] - range_slack * ms1_range_difference
                 internal_bin_walls_extra[-1] = internal_bin_walls_extra[
-                    -1] + range_slack * ms1_range_difference
+                                                   -1] + range_slack * ms1_range_difference
         elif window_type == "percentile":
             internal_bin_walls = np.percentile(ms1_mzs,
                                                np.arange(0,
                                                          100 + 100 / num_windows,
                                                          100 / num_windows)).tolist()
             internal_bin_walls[0] = internal_bin_walls[
-                0] - range_slack * ms1_range_difference
+                                        0] - range_slack * ms1_range_difference
             internal_bin_walls[-1] = internal_bin_walls[
-                -1] + range_slack * ms1_range_difference
+                                         -1] + range_slack * ms1_range_difference
             internal_bin_walls_extra = None
             if extra_bins > 0:
                 internal_bin_walls_extra = np.percentile(
                     ms1_mzs, np.arange(0, 100 + 100 / (num_windows * (2 ** extra_bins)),
                                        100 / (num_windows * (2 ** extra_bins)))).tolist()
                 internal_bin_walls_extra[0] = internal_bin_walls_extra[
-                    0] - range_slack * ms1_range_difference
+                                                  0] - range_slack * ms1_range_difference
                 internal_bin_walls_extra[-1] = internal_bin_walls_extra[
-                    -1] + range_slack * ms1_range_difference
+                                                   -1] + range_slack * ms1_range_difference
         else:
             raise ValueError(
                 "Incorrect window_type selected. Must be 'even' or 'percentile'.")
@@ -246,7 +256,10 @@ class DiaWindows(object):
 
 
 class KaufmannWindows(object):
-    # Class for creating windows for tree and nested DIA methods
+    """
+    Class for creating windows for tree and nested DIA methods
+    """
+
     def __init__(self, bin_walls, bin_walls_extra, kaufmann_design,
                  extra_bins=0):
         self.locations = []
@@ -295,5 +308,5 @@ class KaufmannWindows(object):
                             0 + i * ((2 ** extra_bins) / (2 ** j)))],
                          bin_walls_extra[int(
                              ((2 ** extra_bins) / (2 ** j)) / 2 + i * (
-                                 (2 ** extra_bins) / (2 ** j)))]))
+                                     (2 ** extra_bins) / (2 ** j)))]))
         self.locations.extend(locations_internal)

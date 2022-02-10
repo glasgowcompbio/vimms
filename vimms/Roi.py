@@ -297,6 +297,7 @@ class SmartRoi(Roi):
         elif self.status == 3:
             return "POST_PEAK"
 
+    # flake8: noqa: C901
     def add(self, mz, rt, intensity):
         """
         Adds a point to this SmartROI
@@ -313,11 +314,11 @@ class SmartRoi(Roi):
             # in a period after a fragmentation has happened
             # if enough time has elapsed, reset everything
             if self.rt_list[-1] - self.rt_list[
-                    self.fragmented_index] > self.reset_length_seconds:
+                self.fragmented_index] > self.reset_length_seconds:
                 self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
             elif self.rt_list[-1] - self.rt_list[
-                    self.fragmented_index] > self.dew:
+                self.fragmented_index] > self.dew:
                 # standard DEW has expired
                 # find the min intensity since the frag
                 # check current intensity -- if it is 5* when we fragmented,
@@ -325,7 +326,7 @@ class SmartRoi(Roi):
                 min_since_frag = min(
                     self.intensity_list[self.fragmented_index:])
                 if self.intensity_list[
-                        -1] > min_since_frag * self.intensity_increase_factor:
+                    -1] > min_since_frag * self.intensity_increase_factor:
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
                 elif self.intensity_list[-1] < self.drop_perc * \
@@ -337,7 +338,7 @@ class SmartRoi(Roi):
         # code below never happens
         elif self.status == SmartRoi.POST_PEAK:
             if self.rt_list[-1] - self.rt_list[
-                    self.fragmented_index] > self.dew:
+                self.fragmented_index] > self.dew:
                 if self.intensity_list[-1] > self.min_frag_intensity:
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
@@ -462,6 +463,7 @@ class RoiBuilder():
         # Grid stuff
         self.grid = grid
 
+    # flake8: noqa: C901
     def update_roi(self, new_scan):
         """
         Updates ROI in real-time based on incoming scans
@@ -580,7 +582,7 @@ class RoiBuilder():
             roi = SmartRoi(mz, rt, intensity,
                            initial_length_seconds=self.initial_length_seconds,
                            reset_length_seconds=self.reset_length_seconds,
-                           intensity_increase_factor=self.intensity_increase_factor, # noqa
+                           intensity_increase_factor=self.intensity_increase_factor,  # noqa
                            dew=self.rt_tol, drop_perc=self.drop_perc,
                            id=roi_id
                            )
@@ -806,7 +808,7 @@ class RoiAligner(object):
             for peakset in self.peaksets:
                 candidates = list(
                     filter(lambda x: peakset.is_in_box(x[0],
-                                                       self.mz_tolerance_absolute, # noqa
+                                                       self.mz_tolerance_absolute,  # noqa
                                                        self.mz_tolerance_ppm,
                                                        self.rt_tolerance),
                            zip(these_peaks, temp_boxes, frag_intensities)))
@@ -815,7 +817,7 @@ class RoiAligner(object):
                     continue
                 else:
                     candidates_peaks, candidates_boxes, \
-                        candidates_intensities = zip(*candidates)
+                    candidates_intensities = zip(*candidates)
 
                     best_peak = None
                     best_box = None
@@ -1016,6 +1018,7 @@ def spectrum_to_arrays(spectrum):
     return mzs, intensities
 
 
+# flake8: noqa: C901
 def match(mz, roi_list, mz_tol, mz_units=MZ_UNITS_PPM):
     """
     # Find the RoI that a particular mz falls into. If it falls into nothing,
@@ -1050,7 +1053,7 @@ def match(mz, roi_list, mz_tol, mz_units=MZ_UNITS_PPM):
             dist_right = roi_list[pos].get_mean_mz() - mz.get_mean_mz()
         else:  # ppm
             dist_right = 1e6 * (roi_list[
-                pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+                                    pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
 
         if dist_right < mz_tol:
             return roi_list[pos]
@@ -1064,7 +1067,7 @@ def match(mz, roi_list, mz_tol, mz_units=MZ_UNITS_PPM):
             dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
                 pos - 1].get_mean_mz()) / mz.get_mean_mz()
             dist_right = 1e6 * (roi_list[
-                pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+                                    pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
 
         if dist_left < mz_tol and dist_right > mz_tol:
             return roi_list[pos - 1]

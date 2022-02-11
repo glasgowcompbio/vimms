@@ -15,7 +15,7 @@ setup(
                      "metabolomics that allows for real-time scan-level "
                      "control of the MS2 acquisition process in-silico.",
     long_description_content_type="text/markdown",
-    url="https://github.com/sdrogers/vimms",
+    url="https://github.com/glasgowcompbio/vimms",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

@@ -72,7 +72,7 @@ It contains codes up to the first paper, but they are quite out-of-date now.
 
 To use the latest bleeding-edge ViMMS code in this repository, follow the steps below to check out the master branch. Note that this repository is in active development, so some things may break (please report an issue in that case).
 
-1. Clone this repository by checking out the master branch: `git clone https://github.com/sdrogers/vimms.git`.
+1. Clone this repository by checking out the master branch: `git clone https://github.com/glasgowcompbio/vimms.git`.
 2. We provide two ways to manage the dependencies required by ViMMS. The first is using [Pipenv](https://pipenv.pypa.io/en/latest/), and the second is to use [Anaconda Python](https://www.anaconda.com). Refer to Section A and B below respectively.
 
 ***A. Managing Dependencies using Pipenv***
@@ -91,7 +91,7 @@ To use the latest bleeding-edge ViMMS code in this repository, follow the steps 
 
 # Test Cases
 
-![Vimms](https://github.com/sdrogers/vimms/workflows/Vimms/badge.svg?branch=master&event=push)
+![Vimms](https://github.com/glasgowcompbio/vimms/workflows/Vimms/badge.svg?branch=master&event=push)
 
 Additionally unit tests that demonstrate how simulations can be run are available in the `tests` folder. You can use the script `run_tests.sh` or `run_tests.bat` to run them.
 

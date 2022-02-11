@@ -54,8 +54,7 @@ https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/topN.py.
 **Stable version**
 
 
-ViMMS requires Python 3+. Unfortunately it is not compatible with Python 2. You can install a stable version 
-of ViMMS using pip or pipenv. 
+ViMMS requires Python 3+. You can install the current release of ViMMS using pip or pipenv. 
 
 ```$ pip install vimms```
 or

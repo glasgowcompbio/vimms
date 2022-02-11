@@ -305,7 +305,7 @@ class Precursor(object):
 ###############################################################################
 
 def create_if_not_exist(out_dir):
-    if not os.path.exists(out_dir) and len(out_dir) > 0:
+    if not os.path.exists(out_dir):
         logger.info('Created %s' % out_dir)
         pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
@@ -343,7 +343,7 @@ def load_obj(filename):
     except OSError:
         logger.warning('Old, invalid or missing pickle in %s. '
                        'Please regenerate this file.' % filename)
-        return None
+        raise
 
 
 def chromatogramDensityNormalisation(rts, intensities):
@@ -351,6 +351,7 @@ def chromatogramDensityNormalisation(rts, intensities):
     Definition to standardise the area under a chromatogram to 1.
     Returns updated intensities
     """
+    assert len(rts) == len(intensities)
     area = 0.0
     for rt_index in range(len(rts) - 1):
         area += ((intensities[rt_index] + intensities[rt_index + 1]) / 2) / (

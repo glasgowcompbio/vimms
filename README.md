@@ -15,8 +15,8 @@ metabolomics.
 
 Can't wait to get started? Check out the following resources:
 - Project documentation page: [![Documentation Status](https://readthedocs.org/projects/vimms/badge/?version=latest)](http://vimms.readthedocs.io/?badge=latest)
-- Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/sdrogers/vimms/tree/master/demo).
-- Example notebooks to accompany publications can be found in the [Example folder](https://github.com/sdrogers/vimms/tree/master/examples)
+- Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/glasgowcompbio/vimms/tree/master/demo).
+- Example notebooks to accompany publications can be found in the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples)
 
 # Features
 
@@ -44,10 +44,10 @@ only the Thermo Fusion instrument via [IAPI](https://github.com/thermofisherlsms
 add support for other instruments.
 
 - For example, here we show an example MS1 (fullscan) controller that only sends MS1 scans and saves them back: 
-https://github.com/sdrogers/vimms/blob/master/vimms/Controller/fullscan.py.
+https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/fullscan.py.
 
 - Another example of a Top-N controller that fragments the top-N most intense precursor ions in the survey (MS1) scan:
-https://github.com/sdrogers/vimms/blob/master/vimms/Controller/topN.py.
+https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/topN.py.
 
 # Installation
 
@@ -106,6 +106,11 @@ For example:
 To see test output, add the `-s` switch, e.g.:
 
 `python -m pytest -s tests/integration/test_controllers.py::TestSMARTROIController`
+
+# Contributing
+
+ViMMS is an MIT-licensed open-sourced project, and we welcome all contributions such as bugfixes, new features etc.
+A guideline for community contribution can be found [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).
 
 # Research
 

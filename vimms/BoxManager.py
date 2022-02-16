@@ -6,6 +6,12 @@ from vimms.Box import BoxGrid, LineSweeper
 from vimms.DriftCorrection import IdentityDrift
 
 class BoxManager():
+
+    nosplit_errmsg = (
+        "Intensity Non-Overlap can't be used without splitting the boxes! "
+        "Please set the BoxManager's box_splitter to be an instance of BoxSplitter."
+    )
+
     def __init__(self, box_geometry=None,
                     box_converter=None,
                     box_splitter=None,
@@ -39,15 +45,23 @@ class BoxManager():
 
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         if(not isinstance(self.box_splitter, BoxSplitter)): 
-            raise ValueError("Intensity Non-Overlap can't be used without splitting the boxes! Please set the BoxManager's box_splitter to be an instance of BoxSplitter.")
+            raise ValueError(nosplit_errmsg)
         return self.box_geometry.intensity_non_overlap(box, current_intensity, scoring_params)
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
-        raise NotImplementedError("Some better exception should be (sometimes) thrown here if the BoxManager isn't set up properly!")
+        errmsg = (
+            "Some better exception should be (sometimes) thrown here "
+            "if the BoxManager isn't set up properly!"
+        )
+        raise NotImplementedError(errmsg)
         return self.box_geometry.flexible_non_overlap(box, current_intensity, scoring_params)
 
     def case_control_non_overlap(self, box, current_intensity, scoring_params):
-        raise NotImplementedError("Some better exception should be (sometimes) thrown here if the BoxManager isn't set up properly!")
+        errmsg = (
+            "Some better exception should be (sometimes) thrown here "
+            "if the BoxManager isn't set up properly!"
+        )
+        raise NotImplementedError(errmsg)
         return self.box_geometry.case_control_non_overlap(box, current_intensity, scoring_params)
         
     def register_roi(self, roi):

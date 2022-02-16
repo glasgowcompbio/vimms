@@ -50,11 +50,15 @@ class OraclePointMatcher():
     def __init__(self, chem_rts_by_injection, chemicals, max_points=None, mode=None):
         if (not max_points is None and max_points < len(chem_rts_by_injection[0])):
             idxes = random.sample([i for i, _ in enumerate(chem_rts_by_injection[0])], max_points)
-            self.chem_rts_by_injection = [[sample[i] for i in idxes] for sample in chem_rts_by_injection]
+            self.chem_rts_by_injection = [
+                [sample[i] for i in idxes] for sample in chem_rts_by_injection
+            ]
         else:
             self.chem_rts_by_injection = chem_rts_by_injection
-        self.chem_to_idx = {chem if chem.base_chemical is None else chem.base_chemical: idx for chem, idx in
-                            zip(chemicals, range(len(chem_rts_by_injection[0])))}
+        self.chem_to_idx = {
+            chem if chem.base_chemical is None else chem.base_chemical : idx 
+            for chem, idx in zip(chemicals, range(len(chem_rts_by_injection[0])))
+        }
         self.not_sent = [True] * len(self.chem_rts_by_injection[0])
         self.available = [False] * len(self.chem_rts_by_injection[0])
         self.mode = OraclePointMatcher.MODE_FRAGPAIRS if mode is None else mode
@@ -65,7 +69,13 @@ class OraclePointMatcher():
     def send_training_data(self, model, scan, roi, inj_num):
         if (self.mode == OraclePointMatcher.MODE_FRAGPAIRS):
             if (not scan.fragevent is None):
-                parent_chem = scan.fragevent.chem if scan.fragevent.chem.base_chemical is None else scan.fragevent.chem.base_chemical
+                
+                parent_chem = (
+                    scan.fragevent.chem 
+                    if scan.fragevent.chem.base_chemical is None 
+                    else scan.fragevent.chem.base_chemical
+                )
+                
                 if (parent_chem in self.chem_to_idx):
                     i = self.chem_to_idx[parent_chem]
                     if (inj_num == 0):
@@ -74,13 +84,16 @@ class OraclePointMatcher():
                         model.send_training_pair(self.chem_rts_by_injection[inj_num][i],
                                                  self.chem_rts_by_injection[0][i])
                         self.not_sent[i] = False
+        
         else:
             if (self.mode == OraclePointMatcher.MODE_RTENABLED):
                 enable = lambda y: scan.rt > y
             else:
                 enable = lambda y: True
 
-            for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num], self.chem_rts_by_injection[0])):
+            for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num], 
+                                            self.chem_rts_by_injection[0])
+                                       ):
                 if (self.not_sent[i] and enable(y)):
                     model.send_training_pair(y, x)
                     self.not_sent[i] = False
@@ -104,7 +117,11 @@ class MS2PointMatcher():
             if(len(self.ms2s[0]) > 0):
                 original_idx, original_spectrum, score = -1, None, -1
                 for i, (_, s, __) in enumerate(self.ms2s[0]):
-                    current_score, _ = cosine_similarity(spectrum, s, self.mass_tol, self.min_match)
+                    current_score, _ = cosine_similarity(spectrum, 
+                                                         s, 
+                                                         self.mass_tol, 
+                                                         self.min_match
+                                                        )
                     if (current_score > score):
                         original_idx, original_spectrum, score = i, s, current_score
                 if (score < self.min_score): return
@@ -137,8 +154,11 @@ class GPDrift(DriftModel):
                     Y, X = self.Y, self.X
                 else:
                     Y, X = self.Y[-self.max_points:], self.X[-self.max_points:]
-                self.model = GPy.models.GPRegression(np.array(Y).reshape((len(Y), 1)), np.array(X).reshape((len(X), 1)),
-                                                     kernel=self.kernel)
+                self.model = GPy.models.GPRegression(
+                    np.array(Y).reshape((len(Y), 1)), 
+                    np.array(X).reshape((len(X), 1)),
+                    kernel=self.kernel
+                )
                 self.model.optimize()
 
             def predict(roi, inj_num):

@@ -97,7 +97,10 @@ class Box():
         return (self.pt1, self.pt2).__hash__()
 
     def area(self):
-        return (Decimal(self.pt2.x) - Decimal(self.pt1.x)) * (Decimal(self.pt2.y) - Decimal(self.pt1.y))
+        return (
+            (Decimal(self.pt2.x) - Decimal(self.pt1.x))
+            * (Decimal(self.pt2.y) - Decimal(self.pt1.y))
+        )
 
     def copy(self, xshift=0, yshift=0):
         return type(self)(
@@ -154,14 +157,22 @@ class GenericBox(Box):
 
     def overlap_2(self, other_box):
         if (not self.overlaps_with_box(other_box)): return 0.0
-        b = Box(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x), max(self.pt1.y, other_box.pt1.y),
-                min(self.pt2.y, other_box.pt2.y))
+        b = type(self)(
+                max(self.pt1.x, other_box.pt1.x), 
+                min(self.pt2.x, other_box.pt2.x), 
+                max(self.pt1.y, other_box.pt1.y),
+                min(self.pt2.y, other_box.pt2.y)
+            )
         return b.area() / (self.area() + other_box.area() - b.area())
 
     def overlap_3(self, other_box):
         if (not self.overlaps_with_box(other_box)): return 0.0
-        b = Box(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x), max(self.pt1.y, other_box.pt1.y),
-                min(self.pt2.y, other_box.pt2.y))
+        b = type(self)(
+                max(self.pt1.x, other_box.pt1.x), 
+                min(self.pt2.x, other_box.pt2.x), 
+                max(self.pt1.y, other_box.pt1.y),
+                min(self.pt2.y, other_box.pt2.y)
+            )
         return b.area() / self.area()
 
     def non_overlap_split(self, other_box):
@@ -175,24 +186,37 @@ class GenericBox(Box):
         split_boxes = []
         if (other_box.pt1.x > self.pt1.x):
             x1 = other_box.pt1.x
-            split_boxes.append(GenericBox(self.pt1.x, x1, y1, y2, parents=self.parents, intensity=self.intensity))
+            split_boxes.append(
+                GenericBox(self.pt1.x, x1, y1, y2, parents=self.parents, intensity=self.intensity)
+            )
         if (other_box.pt2.x < self.pt2.x):
             x2 = other_box.pt2.x
-            split_boxes.append(GenericBox(x2, self.pt2.x, y1, y2, parents=self.parents, intensity=self.intensity))
+            split_boxes.append(
+                GenericBox(x2, self.pt2.x, y1, y2, parents=self.parents, intensity=self.intensity)
+            )
         if (other_box.pt1.y > self.pt1.y):
             y1 = other_box.pt1.y
-            split_boxes.append(GenericBox(x1, x2, self.pt1.y, y1, parents=self.parents, intensity=self.intensity))
+            split_boxes.append(
+                GenericBox(x1, x2, self.pt1.y, y1, parents=self.parents, intensity=self.intensity)
+            )
         if (other_box.pt2.y < self.pt2.y):
             y2 = other_box.pt2.y
-            split_boxes.append(GenericBox(x1, x2, y2, self.pt2.y, parents=self.parents, intensity=self.intensity))
+            split_boxes.append(
+                GenericBox(x1, x2, y2, self.pt2.y, parents=self.parents, intensity=self.intensity)
+            )
         return split_boxes
 
     def split_all(self, other_box):
         if (not self.overlaps_with_box(other_box)): return None, None, None
         both_parents = self.parents + other_box.parents
-        both_box = type(self)(max(self.pt1.x, other_box.pt1.x), min(self.pt2.x, other_box.pt2.x),
-                              max(self.pt1.y, other_box.pt1.y), min(self.pt2.y, other_box.pt2.y), parents=both_parents,
-                              intensity=max(self.intensity, other_box.intensity))
+        both_box = type(self)(
+                        max(self.pt1.x, other_box.pt1.x), 
+                        min(self.pt2.x, other_box.pt2.x),
+                        max(self.pt1.y, other_box.pt1.y), 
+                        min(self.pt2.y, other_box.pt2.y), 
+                        parents=both_parents,
+                        intensity=max(self.intensity, other_box.intensity)
+                   )
         b1_boxes = self.non_overlap_split(other_box)
         b2_boxes = other_box.non_overlap_split(self)
         return b1_boxes, b2_boxes, both_box
@@ -219,17 +243,27 @@ class Grid(metaclass=ABCMeta):
 
     def get_box_ranges(self, box):
         rt_box_range = (
-        int((box.pt1.x - self.min_rt) / self.rt_box_size), int((box.pt2.x - self.min_rt) / self.rt_box_size) + 1)
+            int((box.pt1.x - self.min_rt) / self.rt_box_size), 
+            int((box.pt2.x - self.min_rt) / self.rt_box_size) + 1
+        )
         mz_box_range = (
-        int((box.pt1.y - self.min_mz) / self.mz_box_size), int((box.pt2.y - self.min_mz) / self.mz_box_size) + 1)
-        total_boxes = (rt_box_range[1] - rt_box_range[0]) * (mz_box_range[1] - mz_box_range[0])
+            int((box.pt1.y - self.min_mz) / self.mz_box_size), 
+            int((box.pt2.y - self.min_mz) / self.mz_box_size) + 1
+        )
+        total_boxes = (
+            (rt_box_range[1] - rt_box_range[0]) 
+            * (mz_box_range[1] - mz_box_range[0])
+        )
         return rt_box_range, mz_box_range, total_boxes
 
     @abstractmethod
     def register_box(self, box): pass
 
     def clear(self):
-        self.__init__(self.min_rt, self.max_rt, self.rt_box_size, self.min_mz, self.max_mz, self.mz_box_size)
+        self.__init__(
+            self.min_rt, self.max_rt, self.rt_box_size, 
+            self.min_mz, self.max_mz, self.mz_box_size
+        )
         
 
 class DictGrid(Grid):
@@ -243,8 +277,12 @@ class DictGrid(Grid):
 
     def approx_non_overlap(self, box):
         rt_box_range, mz_box_range, total_boxes = self.get_box_ranges(box)
-        return sum(
-            float(not self.boxes[(rt, mz)]) for rt in range(*rt_box_range) for mz in range(*mz_box_range)) / total_boxes
+        active = sum(
+                float(not self.boxes[(rt, mz)]) 
+                for rt in range(*rt_box_range) 
+                for mz in range(*mz_box_range)
+        )
+        return active / total_boxes
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
@@ -299,6 +337,8 @@ class LocatorGrid(Grid):
         for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
             for s in row:
                 s.add(box)
+                
+    #TODO: probably can clear without reallocating array, because that's slow
 
 
 class BoxGeometry(metaclass=ABCMeta):
@@ -464,7 +504,8 @@ class BoxExact(BoxGeometry):
         box.intensity = Decimal(0.0)
         
         #TODO: remove this
-        def boxsort(boxes): return sorted(boxes, key=lambda b: (b.pt1.x, b.pt2.x, b.pt1.y, b.pt2.y))
+        def box2pt(b): return (b.pt1.x, b.pt2.x, b.pt1.y, b.pt2.y)
+        def boxsort(boxes): return sorted(boxes, key=box2pt)
         other_boxes = boxsort(other_boxes)
         
         this_non, _, overlaps = BoxExact.split_all_boxes(box, other_boxes)
@@ -691,7 +732,9 @@ class LineSweeper(BoxExact):
         sliced = box.copy()
         sliced.pt1.x = self.previous_loc
         
-        other_boxes = self.interval_overlaps_which_boxes(sliced.pt1.y, sliced.pt2.y) + self.was_active #TODO: If the manual intersection check is removed from this non-overlap, then filter to intersecting boxes
+        other_boxes = (
+            self.interval_overlaps_which_boxes(sliced.pt1.y, sliced.pt2.y) + self.was_active
+        ) #TODO: If the manual intersection check is removed from this non-overlap, then filter to intersecting boxes
         sliced_uncovered = sum(b.area() for b in BoxGrid.non_overlap_boxes(sliced, other_boxes))
         
         running_uncovered, running_total = self.running_scores.get(sliced.id, (0, 0))
@@ -781,53 +824,3 @@ class LineSweeper(BoxExact):
     
     #for matching
     #find which precursors lie in which boxes with points from a single scan, then create edge with intensity at that point
-
-'''
-def sweep_split(boxes):
-    EndPoint = namedtuple("EndPoint", ["pos", "is_start", "box"])
-    new_id, new_boxes = 0, []
-        
-    x_ends = [EndPoint(b.pt1.x, True, b) for b in boxes]
-    x_ends += [EndPoint(b.pt2.x, False, b) for b in boxes]
-    x_ends.sort(key=attrgetter("pos")) #TODO: what about when boxes start/end at same place
-    
-    #whenever we enter a new box, or push a box, related boxes should remember where we pushed at
-    #(this is so we can only slice boxes whenever something relevant happens)
-    #we should also only target all boxes which overlap with current range of our interval
-    
-    prev_x_pos, y_ends = 0, []
-    for x_pos, x_start, x_box in x_ends:
-    
-        prev_y_pos, active = 0, []
-        for y_pos, y_start, y_box in y_ends:
-            if(active != []):
-                new_box = GenericBox(
-                            prev_x_pos, 
-                            x_pos, 
-                            prev_y_pos, 
-                            y_pos,
-                            parents = copy.copy(active),
-                            intensity = max(b.intensity for b in active),
-                            id = new_id
-                        )
-                new_boxes.append(new_box)
-                new_id += 1
-                
-            if(y_start):
-                active.append(y_box)
-            else:
-                active.remove(y_box)
-        
-        y_start = EndPoint(b.pt1.y, True, b)
-        y_end = EndPoint(b.pt2.y, False, b)
-        
-        if(x_start):
-            y_ends.append(y_start)
-            y_ends.append(y_end)
-            y_ends.sort(key=attrgetter("pos"))
-        else:
-            y_ends.remove(y_start)
-            y_ends.remove(y_end)
-            
-    return new_boxes
-'''

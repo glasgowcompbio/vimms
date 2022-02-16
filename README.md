@@ -140,4 +140,4 @@ at [Metabolomics 2020 conference](http://metabolomics2020.org/).
 ##### Departmental Talks
 
 Slides and recorded videos from other departmental talks:
-- [Computational Metabolomics as a Game of Battleships - Statistics Seminar, School of Mathematics and Statistics, University of Glasgow (2022)](https://github.com/vinnydavies/presentations/blob/master/Computational%20Metabolomics%20as%20a%20game%20of%20Battleships%20-%20Glasgow.pptx)
+- [Computational Metabolomics as a Game of Battleships - Statistics Seminar, School of Mathematics and Statistics, University of Glasgow (2022)](https://media.ed.ac.uk/media/Vinny+Davies+%28University+of+Glasgow%29+Computational+Metabolomics+as+a+game+of+Battleships/1_as78pwks)

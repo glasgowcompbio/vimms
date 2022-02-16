@@ -124,9 +124,17 @@ class Roi(object):
             self.rt_list[0], self.rt_list[-1])
 
     def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
-        return GenericBox(self.min_rt + rt_shift, self.max_rt + rt_shift, self.min_mz + mz_shift,
-                          self.max_mz + mz_shift,
-                          min_xwidth=min_rt_width, min_ywidth=min_mz_width, intensity=self.max_fragmentation_intensity, id=self.id)
+        return GenericBox(
+                    self.min_rt + rt_shift, 
+                    self.max_rt + rt_shift, 
+                    self.min_mz + mz_shift,
+                    self.max_mz + mz_shift,
+                    min_xwidth=min_rt_width, 
+                    min_ywidth=min_mz_width, 
+                    intensity=self.max_fragmentation_intensity, 
+                    id=self.id,
+                    roi=self
+              )
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)

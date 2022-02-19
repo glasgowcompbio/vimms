@@ -1,4 +1,5 @@
-# Supporting methods needed to run in-silico optimisation of controllers in scripts/in_silico_optimise.py
+# Supporting methods needed to run in-silico optimisation of controllers in
+# scripts/in_silico_optimise.py
 import glob
 import json
 import os
@@ -8,13 +9,15 @@ import ipyparallel as ipp
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
+    map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import set_log_level_warning, set_log_level_debug
-from vimms.Controller import TopNController, TopN_SmartRoiController, WeightedDEWController
+from vimms.Controller import TopNController, TopN_SmartRoiController, \
+    WeightedDEWController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiParams
@@ -23,7 +26,8 @@ from vimms.Roi import RoiParams
 def extract_chemicals(seed_file, params_dict):
     """
     Extract chemicals from a seed file
-    :param seed_file: the seed file in mzML format, should be a DDA file (containing MS1 and MS2 scans)
+    :param seed_file: the seed file in mzML format, should be a DDA file
+    (containing MS1 and MS2 scans)
     :param params_dict: a dictionary of parameters to extract ROI
     :return: a list of UnknownChemical objects
     """
@@ -44,7 +48,8 @@ def get_timing(time_dict_str):
     value is the average time of scans at that level
     """
     time_dict = json.loads(time_dict_str)
-    time_dict = {int(k): v for k, v in time_dict.items()}  # turn keys from string to int
+    time_dict = {int(k): v for k, v in
+                 time_dict.items()}  # turn keys from string to int
     logger.debug('Got timing dictionary from config file')
     return time_dict
 
@@ -53,7 +58,8 @@ def extract_timing(seed_file):
     """
     Extracts timing information from a seed file
     :param seed_file: the seed file in mzML format
-    If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and MS2 timing will be extracted.
+    If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and MS2
+    timing will be extracted.
     If it's only a fullscan file (containing MS1 scans) then only MS1 timing will be extracted.
     :return: a dictionary of time information. Key should be the ms-level, 1 or 2, and
     value is the average time of scans at that level
@@ -66,12 +72,12 @@ def extract_timing(seed_file):
         current = s.ms_level
         next_ = seed_mzml.scans[i + 1].ms_level
         tup = (current, next_)
-        time_dict[tup].append(60 * seed_mzml.scans[i + 1].rt_in_minutes - 60 * s.rt_in_minutes)
+        time_dict[tup].append(
+            60 * seed_mzml.scans[i + 1].rt_in_minutes - 60 * s.rt_in_minutes)
 
     is_frag_file = False
     if (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0 and \
-        (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
-
+            (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
         # seed_file must contain timing on (1,2) and (2,2)
         # i.e. it must be a DDA file with MS1 and MS2 scans
         is_frag_file = True
@@ -107,7 +113,8 @@ def run_TopN(chems, scan_duration, params, out_dir):
     """
     Simulate TopN controller
     :param chems: a list of UnknownChemicals present in the injection
-    :param ps: old PeakSampler object, now only used to generate MS2 scans (TODO: should be removed as part of issue #46)
+    :param ps: old PeakSampler object, now only used to generate MS2 scans
+    (TODO: should be removed as part of issue #46)
     :param params: a dictionary of parameters
     :param out_file: output mzML file
     :param out_dir: output directory
@@ -116,11 +123,15 @@ def run_TopN(chems, scan_duration, params, out_dir):
     logger.info('Running TopN simulation')
     logger.info(params)
 
-    out_file = '%s_%s.mzML' % (params['controller_name'], params['sample_name'])
-    controller = TopNController(params['ionisation_mode'], params['N'], params['isolation_width'], params['mz_tol'],
+    out_file = '%s_%s.mzML' % (
+        params['controller_name'], params['sample_name'])
+    controller = TopNController(params['ionisation_mode'], params['N'],
+                                params['isolation_width'], params['mz_tol'],
                                 params['rt_tol'], params['min_ms1_intensity'])
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems, scan_duration=scan_duration)
-    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True, out_dir=out_dir,
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], chems,
+                                            scan_duration=scan_duration)
+    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'],
+                      progress_bar=True, out_dir=out_dir,
                       out_file=out_file)
     logger.info('Generating %s' % out_file)
     env.run()
@@ -130,7 +141,8 @@ def run_SmartROI(chems, scan_duration, params, out_dir):
     """
     Simulate SmartROI controller
     :param chems: a list of UnknownChemicals present in the injection
-    :param ps: old PeakSampler object, now only used to generate MS2 scans (TODO: should be removed as part of issue #46)
+    :param ps: old PeakSampler object, now only used to generate MS2 scans
+    (TODO: should be removed as part of issue #46)
     :param params: a dictionary of parameters
     :param out_file: output mzML file
     :param out_dir: output directory
@@ -169,7 +181,8 @@ def run_SmartROI(chems, scan_duration, params, out_dir):
         run_serial = True
 
     if run_serial:  # if any exception from above, try to run it serially
-        logger.warning('IPython cluster not found, running controllers in serial mode')
+        logger.warning(
+            'IPython cluster not found, running controllers in serial mode')
         for copy_params in params_list:
             run_single_SmartROI(copy_params)
 
@@ -177,28 +190,37 @@ def run_SmartROI(chems, scan_duration, params, out_dir):
 
 
 def run_single_SmartROI(params):
-    out_file = 'SMART_{}_{}_{}.mzml'.format(params['sample_name'], params['iif'], params['dp'])
+    out_file = 'SMART_{}_{}_{}.mzml'.format(params['sample_name'],
+                                            params['iif'], params['dp'])
     logger.warning('Generating %s' % out_file)
     if os.path.isfile(os.path.join(params['out_dir'], out_file)):
         logger.warning('Already done')
         return
 
-    intensity_increase_factor = params['iif']  # fragment ROI again if intensity increases 10 fold
+    intensity_increase_factor = params[
+        'iif']  # fragment ROI again if intensity increases 10 fold
     drop_perc = params['dp'] / 100
     reset_length_seconds = 1e6  # set so reset never happens
 
-    controller = TopN_SmartRoiController(params['ionisation_mode'], params['isolation_width'], params['mz_tol'],
-                                         params['min_ms1_intensity'], params['min_roi_intensity'],
-                                         params['min_roi_length'], N=params['N'], rt_tol=params['rt_tol'],
+    controller = TopN_SmartRoiController(params['ionisation_mode'],
+                                         params['isolation_width'],
+                                         params['mz_tol'],
+                                         params['min_ms1_intensity'],
+                                         params['min_roi_intensity'],
+                                         params['min_roi_length'],
+                                         N=params['N'], rt_tol=params['rt_tol'],
                                          min_roi_length_for_fragmentation=params[
                                              'min_roi_length_for_fragmentation'],
                                          reset_length_seconds=reset_length_seconds,
                                          intensity_increase_factor=intensity_increase_factor,
                                          drop_perc=drop_perc)
 
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
-                                            scan_duration=params['scan_duration'])
-    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'],
+                                            params['chems'],
+                                            scan_duration=params[
+                                                'scan_duration'])
+    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'],
+                      progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()
 
@@ -207,7 +229,8 @@ def run_WeightedDEW(chems, scan_duration, params, out_dir):
     """
     Simulate WeightedDEW controller
     :param chems: a list of UnknownChemicals present in the injection
-    :param ps: old PeakSampler object, now only used to generate MS2 scans (TODO: should be removed as part of issue #46)
+    :param ps: old PeakSampler object, now only used to generate MS2 scans
+    (TODO: should be removed as part of issue #46)
     :param params: a dictionary of parameters
     :param out_file: output mzML file
     :param out_dir: output directory
@@ -246,7 +269,8 @@ def run_WeightedDEW(chems, scan_duration, params, out_dir):
         run_serial = True
 
     if run_serial:  # if any exception from above, try to run it serially
-        logger.warning('IPython cluster not found, running controllers in serial mode')
+        logger.warning(
+            'IPython cluster not found, running controllers in serial mode')
         for copy_params in params_list:
             run_single_WeightedDEW(copy_params)
 
@@ -254,7 +278,8 @@ def run_WeightedDEW(chems, scan_duration, params, out_dir):
 
 
 def run_single_WeightedDEW(params):
-    out_file = 'WeightedDEW_{}_{}_{}.mzml'.format(params['sample_name'], params['t0'], params['r'])
+    out_file = 'WeightedDEW_{}_{}_{}.mzml'.format(params['sample_name'],
+                                                  params['t0'], params['r'])
     logger.warning('Generating %s' % out_file)
     if os.path.isfile(os.path.join(params['out_dir'], out_file)):
         logger.warning('Already done')
@@ -263,12 +288,18 @@ def run_single_WeightedDEW(params):
         logger.warning('Impossible combination')
         return
 
-    controller = WeightedDEWController(params['ionisation_mode'], params['N'], params['isolation_width'],
-                                       params['mz_tol'], params['r'], params['min_ms1_intensity'],
-                                       exclusion_t_0=params['t0'], log_intensity=True)
-    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'], params['chems'],
-                                            scan_duration=params['scan_duration'])
-    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'], progress_bar=True,
+    controller = WeightedDEWController(params['ionisation_mode'], params['N'],
+                                       params['isolation_width'],
+                                       params['mz_tol'], params['r'],
+                                       params['min_ms1_intensity'],
+                                       exclusion_t_0=params['t0'],
+                                       log_intensity=True)
+    mass_spec = IndependentMassSpectrometer(params['ionisation_mode'],
+                                            params['chems'],
+                                            scan_duration=params[
+                                                'scan_duration'])
+    env = Environment(mass_spec, controller, params['min_rt'], params['max_rt'],
+                      progress_bar=True,
                       out_dir=params['out_dir'], out_file=out_file)
     env.run()
 
@@ -292,7 +323,8 @@ def string_to_list(my_str, convert=None):
 def extract_boxes(seed_file, out_dir, mzmine_command, xml_file):
     """
     Extract peak picked boxes using MzMine2 peak picking
-    :param seed_file: the seed file in mzML format, should be a DDA file (containing MS1 and MS2 scans)
+    :param seed_file: the seed file in mzML format, should be a DDA file
+    (containing MS1 and MS2 scans)
     :param mzmine_command: path to MzMine2 batch file
     :param xml_file: path to MzMine2 XML config file
     :return: a list of boxes
@@ -302,7 +334,8 @@ def extract_boxes(seed_file, out_dir, mzmine_command, xml_file):
     logger.info('Peak picking, results will be in %s' % seed_picked_peaks_csv)
 
     # run peak picking using MzMine2
-    pick_peaks([seed_file], xml_template=xml_file, output_dir=out_dir, mzmine_command=mzmine_command)
+    pick_peaks([seed_file], xml_template=xml_file, output_dir=out_dir,
+               mzmine_command=mzmine_command)
 
     # the peak picked csv must exist at this point
     assert Path(seed_picked_peaks_csv).is_file()
@@ -329,7 +362,8 @@ def evaluate_boxes_as_dict(boxes, out_dir):
     for filename in glob.glob(os.path.join(out_dir, '*.mzML')):
         basename = os.path.basename(filename)
         mzml = MZMLFile(filename)
-        scans2boxes, boxes2scans = map_boxes_to_scans(mzml, boxes, half_isolation_window=0)
+        scans2boxes, boxes2scans = map_boxes_to_scans(mzml, boxes,
+                                                      half_isolation_window=0)
         c = len(boxes2scans)
         logger.info('- %s: found %d boxes with scans' % (basename, c))
         counts[basename] = c
@@ -345,7 +379,8 @@ def evaluate_boxes_as_array(boxes, out_dir, yticks, xticks, pattern, params):
             try:
                 fname = pattern.format(sample_name, y, x)
                 mz_file = MZMLFile(os.path.join(out_dir, fname))
-                scans2boxes, boxes2scans = map_boxes_to_scans(mz_file, boxes, half_isolation_window=0)
+                scans2boxes, boxes2scans = map_boxes_to_scans(mz_file, boxes,
+                                                              half_isolation_window=0)
                 counts[i, j] = len(boxes2scans)
             except FileNotFoundError:
                 counts[i, j] = np.nan

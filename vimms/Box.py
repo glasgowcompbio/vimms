@@ -1,5 +1,6 @@
 import copy
 import math
+import random
 import itertools
 from abc import abstractmethod, ABCMeta
 from collections import defaultdict, namedtuple
@@ -10,7 +11,6 @@ from operator import attrgetter
 import intervaltree
 import numpy as np
 from mass_spec_utils.data_import.mzmine import PickedBox
-
 
 class Point():
     def __init__(self, x, y): 
@@ -65,8 +65,7 @@ class Box():
                     min_ywidth=0, 
                     intensity=0, 
                     id=None, 
-                    roi=None
-                ):
+                    roi=None):
                 
         self.id = id
         self.roi = roi
@@ -77,11 +76,13 @@ class Box():
 
         if (self.pt2.x - self.pt1.x < min_xwidth):
             midpoint = self.pt1.x + ((self.pt2.x - self.pt1.x) / 2)
-            self.pt1.x, self.pt2.x = midpoint - (min_xwidth / 2), midpoint + (min_xwidth / 2)
+            self.pt1.x, self.pt2.x = midpoint - (min_xwidth / 2), midpoint + (
+                    min_xwidth / 2)
 
         if (self.pt2.y - self.pt1.y < min_ywidth):
             midpoint = self.pt1.y + ((self.pt2.y - self.pt1.y) / 2)
-            self.pt1.y, self.pt2.y = midpoint - (min_ywidth / 2), midpoint + (min_ywidth / 2)
+            self.pt1.y, self.pt2.y = midpoint - (min_ywidth / 2), midpoint + (
+                    min_ywidth / 2)
 
     def __repr__(self):
         return "Box({}, {})".format(self.pt1, self.pt2)
@@ -126,7 +127,8 @@ class Box():
     def to_pickedbox(self, peak_id):
         rts = [self.pt1.x, self.pt2.x]
         mzs = [self.pt1.y, self.pt2.y]
-        return PickedBox(peak_id, sum(mzs) / 2, sum(rts) / 2, mzs[0], mzs[1], rts[0], rts[1])
+        return PickedBox(peak_id, sum(mzs) / 2, sum(rts) / 2, mzs[0], mzs[1],
+                         rts[0], rts[1])
 
 
 class GenericBox(Box):
@@ -136,8 +138,12 @@ class GenericBox(Box):
         return "Generic{}".format(super().__repr__())
 
     def overlaps_with_box(self, other_box):
-        return (self.pt1.x < other_box.pt2.x and self.pt2.x > other_box.pt1.x) and (
-                    self.pt1.y < other_box.pt2.y and self.pt2.y > other_box.pt1.y)
+        return (
+            self.pt1.x < other_box.pt2.x 
+            and self.pt2.x > other_box.pt1.x 
+            and self.pt1.y < other_box.pt2.y 
+            and self.pt2.y > other_box.pt1.y
+        )
                     
     def contains_point(self, pt):
         return (
@@ -156,7 +162,8 @@ class GenericBox(Box):
         )
 
     def overlap_2(self, other_box):
-        if (not self.overlaps_with_box(other_box)): return 0.0
+        if (not self.overlaps_with_box(other_box)): 
+            return 0.0
         b = type(self)(
                 max(self.pt1.x, other_box.pt1.x), 
                 min(self.pt2.x, other_box.pt2.x), 
@@ -166,7 +173,8 @@ class GenericBox(Box):
         return b.area() / (self.area() + other_box.area() - b.area())
 
     def overlap_3(self, other_box):
-        if (not self.overlaps_with_box(other_box)): return 0.0
+        if (not self.overlaps_with_box(other_box)): 
+            return 0.0
         b = type(self)(
                 max(self.pt1.x, other_box.pt1.x), 
                 min(self.pt2.x, other_box.pt2.x), 
@@ -176,12 +184,13 @@ class GenericBox(Box):
         return b.area() / self.area()
 
     def non_overlap_split(self, other_box):
-        '''
-           Finds 1 to 4 boxes describing the polygon of area of this box not overlapped by other_box.
-           If one box is found, crops this box to dimensions of that box, and returns None.
-           Otherwise, returns list of 2 to 4 boxes. Number of boxes found is equal to number of edges overlapping area does NOT share with this box.
-        '''
-        if (not self.overlaps_with_box(other_box)): return None
+        '''Finds 1 to 4 boxes describing the polygon of area of this box
+        not overlapped by other_box. If one box is found, crops this box to
+        dimensions of that box, and returns None. Otherwise, returns list of
+        2 to 4 boxes. Number of boxes found is equal to number of edges
+        overlapping area does NOT share with this box.'''
+        if (not self.overlaps_with_box(other_box)): 
+            return None
         x1, x2, y1, y2 = self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y
         split_boxes = []
         if (other_box.pt1.x > self.pt1.x):
@@ -207,7 +216,8 @@ class GenericBox(Box):
         return split_boxes
 
     def split_all(self, other_box):
-        if (not self.overlaps_with_box(other_box)): return None, None, None
+        if (not self.overlaps_with_box(other_box)):
+            return None, None, None
         both_parents = self.parents + other_box.parents
         both_box = type(self)(
                         max(self.pt1.x, other_box.pt1.x), 
@@ -231,14 +241,17 @@ class Grid(metaclass=ABCMeta):
     @abstractmethod
     def init_boxes(): pass
 
-    def __init__(self, min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size):
+    def __init__(self, min_rt, max_rt, rt_box_size, min_mz, max_mz,
+                 mz_box_size):
         self.min_rt, self.max_rt = min_rt, max_rt
         self.min_mz, self.max_mz = min_mz, max_mz
         self.rt_box_size, self.mz_box_size = rt_box_size, mz_box_size
         self.box_area = float(Decimal(rt_box_size) * Decimal(mz_box_size))
 
-        self.rtboxes = range(0, int((self.max_rt - self.min_rt) / rt_box_size) + 1)
-        self.mzboxes = range(0, int((self.max_mz - self.min_mz) / mz_box_size) + 1)
+        self.rtboxes = range(0, int((self.max_rt - self.min_rt) /
+                                    rt_box_size) + 1)
+        self.mzboxes = range(0, int((self.max_mz - self.min_mz) /
+                                    mz_box_size) + 1)
         self.boxes = self.init_boxes(self.rtboxes, self.mzboxes)
 
     def get_box_ranges(self, box):
@@ -302,12 +315,14 @@ class ArrayGrid(Grid):
 
     def approx_non_overlap(self, box):
         rt_box_range, mz_box_range, total_boxes = self.get_box_ranges(box)
-        boxes = self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]
+        boxes = self.boxes[rt_box_range[0]:rt_box_range[1],
+                mz_box_range[0]:mz_box_range[1]]
         return (total_boxes - np.sum(boxes)) / total_boxes
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
-        self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]] = True
+        self.boxes[rt_box_range[0]:rt_box_range[1],
+        mz_box_range[0]:mz_box_range[1]] = True
 
 
 class LocatorGrid(Grid):
@@ -319,14 +334,17 @@ class LocatorGrid(Grid):
     def init_boxes(rtboxes, mzboxes):
         arr = np.empty((max(rtboxes), max(mzboxes)), dtype=object)
         for i, row in enumerate(arr):
-            for j, _ in enumerate(row): arr[i, j] = set()
+            for j, _ in enumerate(row):
+                arr[i, j] = set()
         return arr
 
     def get_boxes(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         boxes = set()
-        for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
-            for s in row: boxes |= s
+        for row in self.boxes[rt_box_range[0]:rt_box_range[1],
+                   mz_box_range[0]:mz_box_range[1]]:
+            for s in row:
+                boxes |= s
         return boxes
 
     def get_all_boxes(self):
@@ -441,14 +459,18 @@ class BoxExact(BoxGeometry):
     @staticmethod
     def non_overlap_boxes(box, other_boxes):
         new_boxes = [box]
-        for b in other_boxes:  # filter boxes down via grid with large boxes for this loop + boxes could be potentially sorted by size (O(n) insert time in worst-case)?
-            if (box.overlaps_with_box(b)):  # quickly exits any box not overlapping new box
+        # filter boxes down via grid with large boxes for this loop + boxes
+        # could be potentially sorted by size (O(n) insert time in worst-case)?
+        for b in other_boxes:
+            if (box.overlaps_with_box(
+                    b)):  # quickly exits any box not overlapping new box
                 updated_boxes = []
                 for b2 in new_boxes:
                     if (not b.contains_box(
-                            b2)):  # if your box is contained within a previous box area is 0 and box is not carried over
+                            b2)):  # if your box is contained within a
+                        # previous box area is 0 and box is not carried over
                         split_boxes = b2.non_overlap_split(b)
-                        if (not split_boxes is None):
+                        if (split_boxes is not None):
                             updated_boxes.extend(split_boxes)
                         else:
                             updated_boxes.append(b2)
@@ -475,14 +497,15 @@ class BoxExact(BoxGeometry):
                     updated_others, split = [], False
                     for o in others:
                         this_bs, other_bs, both_b = this.split_all(o)
-                        if (not both_b is None):
+                        if (both_b is not None):
                             overlaps.append(both_b)
                             split = True
                             updated_this.extend(this_bs)
                             updated_others.extend(other_bs)
                         else:
                             updated_others.append(o)
-                    if(not split): updated_this.append(this)
+                    if(not split):
+                        updated_this.append(this)
                     others = updated_others
                 other_non.extend(others)
                 this_non = updated_this
@@ -534,15 +557,19 @@ class BoxExact(BoxGeometry):
         box.intensity = 0.0
         other_boxes = self.get_overlapping_boxes(box)
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
-        non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
-        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - np.log(max(1.0, b.intensity))
-                                                    * b.area() / box.area()) for b in overlaps)
-        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - np.log(max(1.0, b.intensity)) *
-                                                     (b.area() / box.area()) for b in overlaps)
+        non_overlap = np.log(current_intensity **
+                             (sum(b.area() for b in this_non) / box.area()))
+        refragment = scoring_params['theta1'] * sum(
+            max(0.0, np.log(current_intensity) - np.log(max(1.0, b.intensity))
+                * b.area() / box.area()) for b in overlaps)
+        refragment2 = scoring_params['theta2'] * sum(
+            np.log(current_intensity) - np.log(max(1.0, b.intensity)) *
+            (b.area() / box.area()) for b in overlaps)
         new_peak = []
         for b in overlaps:
             if b.intensity == 0.0:
-                new_peak.append(np.log(current_intensity) * (b.area() / box.area()))
+                new_peak.append(
+                    np.log(current_intensity) * (b.area() / box.area()))
         new_peak_score = scoring_params['theta3'] * sum(new_peak)
         return non_overlap + refragment + refragment2 + new_peak_score
 
@@ -551,33 +578,48 @@ class BoxExact(BoxGeometry):
         box.intensity = 0.0
         other_boxes = self.get_overlapping_boxes(box)
         this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
-        non_overlap = np.log(current_intensity ** (sum(b.area() for b in this_non) / box.area()))
-        refragment = scoring_params['theta1'] * sum(max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
-                                                    * b.area() / box.area()) for b in overlaps)
-        refragment2 = scoring_params['theta2'] * sum(np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
-                                                     (b.area() / box.area()) for b in overlaps)
+        non_overlap = np.log(current_intensity **
+                             (sum(b.area() for b in this_non) / box.area()))
+        refragment = scoring_params['theta1'] * sum(
+            max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
+                * b.area() / box.area()) for b in overlaps)
+        refragment2 = scoring_params['theta2'] * sum(
+            np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
+            (b.area() / box.area()) for b in overlaps)
         new_peak = []
         for b in overlaps:
             if b.intensity == 0.0:
-                new_peak.append(np.log(current_intensity) * (b.area() / box.area()))
+                new_peak.append(
+                    np.log(current_intensity) * (b.area() / box.area()))
         new_peak_score = scoring_params['theta3'] * sum(new_peak)
         if box.pvalue is None:
             return non_overlap + refragment + refragment2 + new_peak_score
         else:
-            model_score = scoring_params['theta4'] * (1 - box.pvalue) * sum(max(0.0, np.log(current_intensity) -
-                                            max(0.0, np.log(b.intensity)) * b.area() / box.area()) for b in overlaps)
-            return non_overlap + refragment + refragment2 + new_peak_score + model_score
-            
+            model_score = scoring_params['theta4'] * (1 - box.pvalue) * sum(
+                max(0.0, np.log(current_intensity) -
+                    max(0.0, np.log(
+                        b.intensity)) * b.area() / box.area())
+                for b in overlaps)
+            return non_overlap + refragment + refragment2 + \
+                   new_peak_score + model_score
+
     def boxes_by_overlaps(self, boxes=None):
-        binned, boxes = [], self.all_boxes() if boxes is None else reduce(
-            lambda bs, b: [bx for t in self.split_all_boxes(b, bs) for bx in t], boxes, [])
+        binned = []
+        boxes = (
+            self.all_boxes() 
+            if boxes is None 
+            else reduce(
+                lambda bs, b: [bx for t in self.split_all_boxes(b, bs) for bx in t],
+                boxes, 
+                []
+            )
+        )
         for b in boxes:
             while (len(binned) < b.num_overlaps()):
                 binned.append([])
             binned[b.num_overlaps() - 1].append(b)
         return binned
             
-
 class BoxGrid(BoxExact): 
     def __init__(self, min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size):
         self.grid = LocatorGrid(min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size)

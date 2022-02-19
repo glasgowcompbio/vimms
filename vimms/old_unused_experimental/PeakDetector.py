@@ -1,8 +1,10 @@
+# flake8: noqa
+
 import numpy as np
 import pandas as pd
 
+from vimms.Roi import make_roi, RoiParams
 from vimms.old_unused_experimental.PythonMzmine import get_base_scoring_df
-from vimms.Roi import make_roi
 
 QCB_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
                        'mz_tol': 2,
@@ -14,10 +16,11 @@ QCB_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
 
 
 def get_rois(mzml, min_roi_length, mzml2chems_dict=QCB_MZML2CHEMS_DICT):
-    good_roi, junk_roi = make_roi(mzml, mz_tol=mzml2chems_dict['mz_tol'], mz_units=mzml2chems_dict['mz_units'],
-                                  min_length=min_roi_length, min_intensity=mzml2chems_dict['min_intensity'],
-                                  start_rt=mzml2chems_dict['start_rt'], stop_rt=mzml2chems_dict['stop_rt'])
-    return good_roi, junk_roi
+    roi_params = RoiParams(mz_tol=mzml2chems_dict['mz_tol'], mz_units=mzml2chems_dict['mz_units'],
+                           min_length=min_roi_length, min_intensity=mzml2chems_dict['min_intensity'],
+                           start_rt=mzml2chems_dict['start_rt'], stop_rt=mzml2chems_dict['stop_rt'])
+    good_roi = make_roi(mzml, roi_params)
+    return good_roi
 
 
 def mzml2classificationdata(mzmls, mzml_picked_peaks_files, min_roi_length=5, mzml2chems_dict=QCB_MZML2CHEMS_DICT,

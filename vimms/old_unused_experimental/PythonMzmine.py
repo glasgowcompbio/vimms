@@ -1,10 +1,13 @@
+# flake8: noqa
+
 import numpy as np
 import pandas as pd
 from loguru import logger
 
 from vimms.Chemicals import UnknownChemical
 from vimms.Common import PROTON_MASS, ScanParameters
-from vimms.old_unused_experimental.PlotsForPaper import get_chem_frag_counts, update_matched_status, compute_pref_rec_f1, get_frag_events
+from vimms.old_unused_experimental.PlotsForPaper import get_chem_frag_counts, update_matched_status, \
+    compute_pref_rec_f1, get_frag_events
 from vimms.old_unused_experimental.SpectralUtils import get_scans
 
 

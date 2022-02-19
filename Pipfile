@@ -26,9 +26,11 @@ tabulate = "*"
 pysmiles = "*"
 pipenv-setup = "*"
 flake8 = "*"
+autopep8 = "*"
 pytest = "*"
 intervaltree = "*"
 jupyterlab = "*"
+ipywidgets = "*"
 gpy = "*"
 
 [dev-packages]

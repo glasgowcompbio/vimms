@@ -35,12 +35,14 @@ class EmpiricalChromatogram(Chromatogram):
             mzs = mzs[p]
             intensities = intensities[p]
         else:
-            rts = np.array([rts[0] - 0.5 * single_point_length, rts[0] + 0.5 * single_point_length])
+            rts = np.array([rts[0] - 0.5 * single_point_length,
+                            rts[0] + 0.5 * single_point_length])
             mzs = np.array([mzs[0], mzs[0]])
             intensities = np.array([intensities[0], intensities[0]])
         # normalise arrays
         self.rts = rts - min(rts)
-        self.mzs = mzs - np.mean(mzs)  # may want to just set this to 0 and remove from input
+        self.mzs = mzs - np.mean(
+            mzs)  # may want to just set this to 0 and remove from input
         self.intensities = intensities / max(intensities)
         # chromatogramDensityNormalisation(rts, intensities)
 
@@ -63,7 +65,9 @@ class EmpiricalChromatogram(Chromatogram):
             neighbours_which = self._get_rt_neighbours_which(query_rt)
             intensity_below = self.intensities[neighbours_which[0]]
             intensity_above = self.intensities[neighbours_which[1]]
-            return intensity_below + (intensity_above - intensity_below) * self._get_distance(query_rt)
+            return intensity_below + (
+                intensity_above - intensity_below) * self._get_distance(
+                query_rt)
 
     def get_relative_mz(self, query_rt):
         if not self._rt_match(query_rt):
@@ -72,10 +76,12 @@ class EmpiricalChromatogram(Chromatogram):
             neighbours_which = self._get_rt_neighbours_which(query_rt)
             mz_below = self.mzs[neighbours_which[0]]
             mz_above = self.mzs[neighbours_which[1]]
-            return mz_below + (mz_above - mz_below) * self._get_distance(query_rt)
+            return mz_below + (mz_above - mz_below) * self._get_distance(
+                query_rt)
 
     def _get_rt_neighbours(self, query_rt):
-        which_rt_below, which_rt_above = self._get_rt_neighbours_which(query_rt)
+        which_rt_below, which_rt_above = self._get_rt_neighbours_which(
+            query_rt)
         rt_below = self.rts[which_rt_below]
         rt_above = self.rts[which_rt_above]
         return [rt_below, rt_above]
@@ -101,10 +107,11 @@ class EmpiricalChromatogram(Chromatogram):
         if not isinstance(other, EmpiricalChromatogram):
             # don't attempt to compare against unrelated types
             return NotImplemented
-
-        return np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs)) and \
-               np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
-               np.array_equal(sorted(self.raw_intensities), sorted(other.raw_intensities))
+        res = np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs)) and \
+            np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
+            np.array_equal(
+                sorted(self.raw_intensities), sorted(other.raw_intensities))
+        return res
 
 
 class ConstantChromatogram(Chromatogram):
@@ -127,7 +134,8 @@ class ConstantChromatogram(Chromatogram):
         return self.min_rt
 
 
-# Make this more generalisable. Make scipy.stats... as input, However this makes it difficult to do the cutoff
+# Make this more generalisable. Make scipy.stats... as input,
+# However this makes it difficult to do the cutoff
 class FunctionalChromatogram(Chromatogram):
     """
     Functional Chromatograms to be used within Chemicals
@@ -141,27 +149,32 @@ class FunctionalChromatogram(Chromatogram):
         if distribution == "normal":
             self.distrib = scipy.stats.norm(parameters[0], parameters[1])
         elif distribution == "gamma":
-            self.distrib = scipy.stats.gamma(parameters[0], parameters[1], parameters[2])
+            self.distrib = scipy.stats.gamma(parameters[0], parameters[1],
+                                             parameters[2])
         elif distribution == "uniform":
             self.distrib = scipy.stats.uniform(parameters[0], parameters[1])
         else:
             raise NotImplementedError("distribution not implemented")
         self.min_rt = 0
-        self.max_rt = self.distrib.ppf(1 - (self.cutoff / 2)) - self.distrib.ppf(self.cutoff / 2)
+        self.max_rt = self.distrib.ppf(
+            1 - (self.cutoff / 2)) - self.distrib.ppf(self.cutoff / 2)
 
     def get_relative_intensity(self, query_rt):
-        if self._rt_match(query_rt) == False:
+        if not self._rt_match(query_rt):
             return None
         elif self.distribution_name == 'normal':
             rv = np.exp(
-                (-0.5 * (query_rt + self.distrib.ppf(self.cutoff / 2) - self.parameters[0]) ** 2) / self.parameters[
+                (-0.5 * (query_rt + self.distrib.ppf(self.cutoff / 2) -
+                         self.parameters[0]) ** 2) / self.parameters[
                     1] ** 2)
             return rv
         else:
-            return (self.distrib.pdf(query_rt + self.distrib.ppf(self.cutoff / 2)) * (1 / (1 - self.cutoff)))
+            return (self.distrib.pdf(
+                query_rt + self.distrib.ppf(self.cutoff / 2)) * (
+                1 / (1 - self.cutoff)))
 
     def get_relative_mz(self, query_rt):
-        if self._rt_match(query_rt) == False:
+        if not self._rt_match(query_rt):
             return None
         else:
             return self.mz

@@ -1,3 +1,5 @@
+# flake8: noqa
+
 # class OptimalTopNController(TopNController):
 #     def __init__(self, ionisation_mode, N,
 #                  isolation_widths, mz_tols, rt_tols, min_ms1_intensity, box_file, score_method='intensity',

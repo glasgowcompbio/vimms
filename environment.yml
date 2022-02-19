@@ -1,6 +1,5 @@
 name: vimms
 channels:
-- defaults
 - conda-forge
 dependencies:
   - numpy
@@ -20,9 +19,11 @@ dependencies:
   - statsmodels
   - tabulate
   - flake8
+  - autopep8
   - pytest
   - intervaltree
   - jupyterlab
+  - ipywidgets
   - gpy
   - mkdocs
   - mkdocstrings

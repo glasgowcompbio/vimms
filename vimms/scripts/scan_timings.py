@@ -20,7 +20,8 @@ def get_times(mzml_object):
         delta_t = next_scan.rt_in_seconds - current_scan.rt_in_seconds
         current_level = s.ms_level
         next_level = next_scan.ms_level
-        times[(current_level, next_level)].append((current_scan.rt_in_seconds, delta_t))
+        times[(current_level, next_level)].append(
+            (current_scan.rt_in_seconds, delta_t))
     to_remove = set()
     for key in times:
         if len(times[key]) == 0:
@@ -30,26 +31,24 @@ def get_times(mzml_object):
     return times
 
 
-if __name__ == '__main__':
+# flake8: noqa: C901
+def main():
+    global rt
     parser = argparse.ArgumentParser(description='Create scan time plots')
     parser.add_argument('file_or_folder', type=str)
     parser.add_argument('--save_plots', dest='save_plots', action='store_true')
-
     args = parser.parse_args()
-
     if os.path.isdir(args.file_or_folder):
         print("Extracting mzml from folder")
         file_list = glob.glob(os.path.join(args.file_or_folder, '*.mzML'))
     else:
         print("Individual file")
         file_list = [args.file_or_folder]
-
     mzml_file_objects = {}
     timings = {}
     for mzml_file in file_list:
         mzml_file_objects[mzml_file] = MZMLFile(mzml_file)
         timings[mzml_file] = get_times(mzml_file_objects[mzml_file])
-
     # plot
     for mo, t in timings.items():
         nsp = len(t)  # number of subplots
@@ -61,7 +60,7 @@ if __name__ == '__main__':
             plt.title(title)
             try:
                 rt, de = zip(*v)
-            except:
+            except Exception:
                 print("No data for " + str(k))
             plt.hist(de)
             pos += 1
@@ -72,7 +71,7 @@ if __name__ == '__main__':
             try:
                 rt, de = zip(*v)
                 plt.plot(rt, de, 'ro')
-            except:
+            except Exception:
                 print("No data for " + str(k))
             pos += 1
 
@@ -81,3 +80,7 @@ if __name__ == '__main__':
             plt.savefig(plot_filename)
         else:
             plt.show()
+
+
+if __name__ == '__main__':
+    main()

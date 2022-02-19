@@ -4,10 +4,10 @@ from pathlib import Path
 
 from loguru import logger
 
-from tests.conftest import N_CHEMS, get_rt_bounds, CENTRE_RANGE, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, \
-    BEER_MAX_BOUND, check_non_empty_MS2
-from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, ConstantChromatogramSampler, \
-    UniformRTAndIntensitySampler
+from tests.conftest import N_CHEMS, get_rt_bounds, CENTRE_RANGE, check_mzML, \
+    OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND, check_non_empty_MS2
+from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, \
+    ConstantChromatogramSampler, UniformRTAndIntensitySampler
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
 from vimms.Controller import AdvancedParams, AIF, SWATH, DiaController
@@ -18,7 +18,8 @@ from vimms.Noise import GaussianPeakNoiseLevelSpecific, UniformSpikeNoise
 
 class TestAIFControllers:
     """
-    Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the simulated mass spec class.
+    Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the
+    simulated mass spec class.
     """
 
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset):
@@ -27,24 +28,25 @@ class TestAIFControllers:
         # create some chemical object
         assert len(fragscan_dataset) == N_CHEMS
 
-        isolation_width = 1
-        N = 10
-        rt_tol = 15
-        mz_tol = 10
+        # isolation_width = 1
+        # N = 10
+        # rt_tol = 15
+        # mz_tol = 10
         ionisation_mode = POSITIVE
 
         min_mz = 100
         max_mz = 500
 
         # shorten  the rt range for quicker tests
-        min_rt = 0
-        max_rt = 400
+        # min_rt = 0
+        # max_rt = 400
 
         scan_time_dict = {1: 0.12, 2: 0.06}
 
         # create a simulated mass spec without noise and Top-N controller
         logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset, scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset,
+                                                scan_duration=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, params=params)
@@ -53,7 +55,8 @@ class TestAIFControllers:
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
+        # set the log level to WARNING so we don't see too many messages when
+        # environment is running
         set_log_level_warning()
 
         # run the simulation
@@ -70,8 +73,10 @@ class TestAIFControllers:
         logger.info('With noise')
         mz_noise = GaussianPeakNoiseLevelSpecific({2: 0.01})
         intensity_noise = GaussianPeakNoiseLevelSpecific({2: 1000.})
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset, mz_noise=mz_noise,
-                                                intensity_noise=intensity_noise, scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset,
+                                                mz_noise=mz_noise,
+                                                intensity_noise=intensity_noise,
+                                                scan_duration=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, params=params)
@@ -80,7 +85,8 @@ class TestAIFControllers:
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
+        # set the log level to WARNING so we don't see too many messages
+        # when environment is running
         set_log_level_warning()
 
         # run the simulation
@@ -96,28 +102,31 @@ class TestAIFControllers:
     def test_AIF_controller_with_beer_chems(self):
         logger.info('Testing Top-N controller with QC beer chemicals')
 
-        isolation_width = 1
-        N = 10
-        rt_tol = 15
-        mz_tol = 10
+        # isolation_width = 1
+        # N = 10
+        # rt_tol = 15
+        # mz_tol = 10
         ionisation_mode = POSITIVE
         min_mz = 100
         max_mz = 500
 
-        min_rt = 0
-        max_rt = 500
+        # min_rt = 0
+        # max_rt = 500
 
         # create a simulated mass spec without noise and Top-N controller
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS, scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS,
+                                                scan_duration=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, params=params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
+                          progress_bar=True)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
+        # set the log level to WARNING so we don't see too many messages
+        # when environment is running
         set_log_level_warning()
 
         # run the simulation
@@ -155,7 +164,8 @@ class TestAIFControllers:
         ms = FixedMS2Sampler(n_frags=2)
         cs = ConstantChromatogramSampler()
         ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=1)
-        cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri)
+        cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs,
+                                    rt_and_intensity_sampler=ri)
         d = cs.sample(1, 2)
 
         ms1_source_cid_energy = 30
@@ -194,7 +204,8 @@ class TestSWATH:
 
         spike_noise = UniformSpikeNoise(0.1, 1)
 
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems, spike_noise=spike_noise,
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems,
+                                                spike_noise=spike_noise,
                                                 scan_duration=scan_time_dict)
 
         env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
@@ -222,7 +233,8 @@ class TestSWATH:
         scan_overlap = 0
         controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
+                                                scan_duration=scan_time_dict)
         env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -235,7 +247,8 @@ class TestSWATH:
         width = 200
         controller2 = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
+                                                scan_duration=scan_time_dict)
         env = Environment(mass_spec, controller2, 200, 300, progress_bar=True)
         env.run()
 
@@ -247,7 +260,8 @@ class TestSWATH:
         width = 400
         controller3 = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems, scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
+                                                scan_duration=scan_time_dict)
         env = Environment(mass_spec, controller3, 200, 300, progress_bar=True)
         env.run()
 
@@ -296,8 +310,10 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, scan_duration=scan_time_dict)
-        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset,
+                                                scan_duration=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
+                                   scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -325,8 +341,10 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, scan_duration=scan_time_dict)
-        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset,
+                                                scan_duration=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
+                                   scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -354,8 +372,10 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, scan_duration=scan_time_dict)
-        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset,
+                                                scan_duration=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
+                                   scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
         env.run()
@@ -383,8 +403,10 @@ class TestDiaController:
         max_mz = 1000
 
         # run controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset, scan_duration=scan_time_dict)
-        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows, scan_overlap=scan_overlap)
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, simple_dataset,
+                                                scan_duration=scan_time_dict)
+        controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
+                                   scan_overlap=scan_overlap)
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
         set_log_level_warning()
         env.run()

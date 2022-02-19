@@ -1,8 +1,11 @@
+# flake8: noqa
+
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Roi import make_roi
+from vimms.Common import MZ_UNITS_PPM
+from vimms.Roi import make_roi, RoiParams
 
 
 def picked_peaks_evaluation(mzml_file, picked_peaks_file):
@@ -12,10 +15,11 @@ def picked_peaks_evaluation(mzml_file, picked_peaks_file):
     return float(len(boxes2scans))
 
 
-def roi_scoring(mzml_file, mz_tol=10, mz_units='ppm', min_length=3, min_intensity=500):
+def roi_scoring(mzml_file, mz_tol=10, mz_units=MZ_UNITS_PPM, min_length=3, min_intensity=500):
     mz_file = MZMLFile(mzml_file)
-    good_roi, junk_roi = make_roi(mzml_file, mz_tol=mz_tol, mz_units=mz_units, min_length=min_length,
-                                  min_intensity=min_intensity)
+    roi_params = RoiParams(mz_tol=mz_tol, min_length=min_length,
+                           min_intensity=min_intensity, mz_units=mz_units)
+    good_roi = make_roi(mzml_file, roi_params)
     roi_roi2scan, roi_scan2roi = match_scans_to_rois(mz_file, good_roi)
     with_scan, without_scan, num_scan = prop_roi_with_scans(roi_roi2scan)
     return dict({'with_scan': with_scan, 'without_scan': without_scan, 'num_scan': num_scan})

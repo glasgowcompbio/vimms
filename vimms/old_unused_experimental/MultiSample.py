@@ -1,9 +1,12 @@
-from vimms.Box import *
-from vimms.Common import *
+# flake8: noqa
+
+from vimms.Box import IdentityDrift, LocatorGrid
+from vimms.Common import POSITIVE
 from vimms.Controller import TopNController, TopN_RoiController, TopNBoxRoiController, \
     NonOverlapController
 from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multiple_simulated_env
+from vimms.GridEstimator import GridEstimator
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiAligner
 

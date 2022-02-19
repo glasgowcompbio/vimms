@@ -1,6 +1,7 @@
 # check ms2 matches
-# simple script that loads an msp and an mzml and sees how many of the spectra in the MSP file
-# can be matched to a spectrum in an ms2 scan in the .mzml
+# simple script that loads an msp and an mzml and sees how many of the
+# spectra in the MSP file can be matched to a spectrum in an ms2 scan
+# in the .mzml
 import argparse
 import glob
 import os
@@ -54,7 +55,8 @@ def process_block(block, file_name):
     assert precursor_mz is not None
     assert spectrum_id is not None
 
-    new_record = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+    new_record = SpectralRecord(precursor_mz, peaks, metadata, original_file,
+                                spectrum_id)
     return new_record
 
 
@@ -63,7 +65,7 @@ def library_from_msp(msp_file_name):
     with open(msp_file_name, 'r') as f:
         for line in f:
             lines.append(line)
-    in_block = False
+    # in_block = False
     block = []
     records = {}
     for line in lines:
@@ -87,11 +89,13 @@ def library_from_msp(msp_file_name):
 
 def make_queries_from_aligned_msdial(msdial_file_name):
     query_spectra = []
-    msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='Alignment ID', header=4)
+    msdial_df = pd.read_csv(msdial_file_name, sep='\t',
+                            index_col='Alignment ID', header=4)
     for i in range(msdial_df.shape[0]):
         precursor_mz = msdial_df['Average Mz'][i]
         peaks = []
-        if msdial_df['MS/MS spectrum'][i] == msdial_df['MS/MS spectrum'][i]:  # checking if nan
+        if msdial_df['MS/MS spectrum'][i] == msdial_df['MS/MS spectrum'][
+                i]:  # checking if nan
             for info in msdial_df['MS/MS spectrum'][i].split():
                 mz, intensity = info.split(':')
                 peak = np.array([float(mz), float(intensity)])
@@ -107,7 +111,8 @@ def make_queries_from_msdial(msdial_file_name):
     for i in range(msdial_df.shape[0]):
         precursor_mz = msdial_df['Precursor m/z'][i]
         peaks = []
-        if msdial_df['MSMS spectrum'][i] == msdial_df['MSMS spectrum'][i]:  # checking if nan
+        if msdial_df['MSMS spectrum'][i] == msdial_df['MSMS spectrum'][
+                i]:  # checking if nan
             for info in msdial_df['MSMS spectrum'][i].split():
                 mz, intensity = info.split(':')
                 peak = np.array([float(mz), float(intensity)])
@@ -158,7 +163,8 @@ def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):
         sys.exit(0)
 
     for m, mzml_file_object in mzml_file_objects.items():
-        logger.debug("Loaded {} scans from {}".format(len(mzml_file_object.scans), m))
+        logger.debug(
+            "Loaded {} scans from {}".format(len(mzml_file_object.scans), m))
 
     sl = library_from_msp(msp_file_name)
     logger.debug("Created library from {}".format(msp_file_name))
@@ -167,7 +173,8 @@ def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):
     for m, mzml_file_object in mzml_file_objects.items():
         query_spectra = make_queries_from_mzml(mzml_file_object)
         for q in query_spectra:
-            hits = sl.spectral_match(q, ms1_tol=precursor_tolerance, score_thresh=hit_threshold)
+            hits = sl.spectral_match(q, ms1_tol=precursor_tolerance,
+                                     score_thresh=hit_threshold)
             for hit in hits:
                 hit_id = hit[0]
                 hit_ids.add(hit_id)
@@ -176,7 +183,7 @@ def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):
     n_library_ids = len(all_library_ids)
     n_hits = len(hit_ids)
     logger.debug("Out of {} IDs, {} got hits".format(n_library_ids, n_hits))
-    missing_ids = all_library_ids - hit_ids
+    # missing_ids = all_library_ids - hit_ids
     # print("Missing")
     # for i in missing_ids:
     #     print(i)
@@ -187,10 +194,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Limited dataset creation')
     parser.add_argument('mzml_file_name', type=str)
     parser.add_argument('msp_file_name', type=str)
-    parser.add_argument('--precursor_tolerance', dest='precursor_tolerance', default=1., type=float)
-    parser.add_argument('--hit_threshold', dest='hit_threshold', default=0.7, type=float)
+    parser.add_argument('--precursor_tolerance', dest='precursor_tolerance',
+                        default=1., type=float)
+    parser.add_argument('--hit_threshold', dest='hit_threshold', default=0.7,
+                        type=float)
 
     args = parser.parse_args()
 
-    n_hits, out_of = main(str(args.mzml_file_name), str(args.msp_file_name), args.precursor_tolerance,
+    n_hits, out_of = main(str(args.mzml_file_name), str(args.msp_file_name),
+                          args.precursor_tolerance,
                           args.hit_threshold)

@@ -14,9 +14,9 @@ metabolomics.
 # Example Codes and Documentations
 
 Can't wait to get started? Check out the following resources:
-- Project documentation page: https://vimms.readthedocs.io/en/latest
-- Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/sdrogers/vimms/tree/master/demo).
-- Example notebooks to accompany publications can be found in the [Example folder](https://github.com/sdrogers/vimms/tree/master/examples)
+- Project documentation page: [![Documentation Status](https://readthedocs.org/projects/vimms/badge/?version=latest)](http://vimms.readthedocs.io/?badge=latest)
+- Demo notebooks illustrating the use of the framework in a simulated setting can be found in the [Demo folder](https://github.com/glasgowcompbio/vimms/tree/master/demo).
+- Example notebooks to accompany publications can be found in the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples)
 
 # Features
 
@@ -44,18 +44,17 @@ only the Thermo Fusion instrument via [IAPI](https://github.com/thermofisherlsms
 add support for other instruments.
 
 - For example, here we show an example MS1 (fullscan) controller that only sends MS1 scans and saves them back: 
-https://github.com/sdrogers/vimms/blob/master/vimms/Controller/fullscan.py.
+https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/fullscan.py.
 
 - Another example of a Top-N controller that fragments the top-N most intense precursor ions in the survey (MS1) scan:
-https://github.com/sdrogers/vimms/blob/master/vimms/Controller/topN.py.
+https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/topN.py.
 
 # Installation
 
 **Stable version**
 
 
-ViMMS requires Python 3+. Unfortunately it is not compatible with Python 2. You can install a stable version 
-of ViMMS using pip or pipenv. 
+ViMMS requires Python 3+. You can install the current release of ViMMS using pip or pipenv. 
 
 ```$ pip install vimms```
 or
@@ -72,16 +71,26 @@ It contains codes up to the first paper, but they are quite out-of-date now.
 
 To use the latest bleeding-edge ViMMS code in this repository, follow the steps below to check out the master branch. Note that this repository is in active development, so some things may break (please report an issue in that case).
 
-1. Install Python 3. We recommend Python >3.7.
-2. Install pipenv (https://pipenv.readthedocs.io).
-3. Clone this repository by checking out the master branch: `git clone https://github.com/sdrogers/vimms.git`.
-4. In this cloned directory, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
-5. Go into the newly created virtual environment in step (4) by typing `$ pipenv shell`.
-6. Run Jupyter (`$ jupyter lab`) so you could run the example notebooks below.
+1. Clone this repository by checking out the master branch: `git clone https://github.com/glasgowcompbio/vimms.git`.
+2. We provide two ways to manage the dependencies required by ViMMS. The first is using [Pipenv](https://pipenv.pypa.io/en/latest/), and the second is to use [Anaconda Python](https://www.anaconda.com). Refer to Section A and B below respectively.
+
+***A. Managing Dependencies using Pipenv***
+
+1. Install pipenv (https://pipenv.readthedocs.io).
+2. In the cloned Github repo, run `$ pipenv install` to create a new virtual environment and install all the packages need to run ViMMS.
+3. Go into the newly created virtual environment in step (4) by typing `$ pipenv shell`.
+4. In this environment, you could develop new controllers, run notebooks (`$ jupyter lab`) etc. 
+
+***B. Managing Dependencies using Pipenv***
+
+1. Install Anaconda Python (https://www.anaconda.com/products/individual).
+2. In the cloned Github repo, run `$ conda env create --file environment.yml` to create a new virtual environment and install all the packages need to run ViMMS.
+3. Go into the newly created virtual environment in step (4) by typing `$ conda activate vimms`.
+4. In this environment, you could develop new controllers, run notebooks (`$ jupyter lab`) etc. 
 
 # Test Cases
 
-![Vimms](https://github.com/sdrogers/vimms/workflows/Vimms/badge.svg?branch=master&event=push)
+![Vimms](https://github.com/glasgowcompbio/vimms/workflows/Vimms/badge.svg?branch=master&event=push)
 
 Additionally unit tests that demonstrate how simulations can be run are available in the `tests` folder. You can use the script `run_tests.sh` or `run_tests.bat` to run them.
 
@@ -97,6 +106,11 @@ To see test output, add the `-s` switch, e.g.:
 
 `python -m pytest -s tests/integration/test_controllers.py::TestSMARTROIController`
 
+# Contributing
+
+ViMMS is an MIT-licensed open-sourced project, and we welcome all contributions such as bugfixes, new features etc.
+A guideline for community contribution can be found [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).
+
 # Research
 
 ### Publications
@@ -109,12 +123,21 @@ If you develop new controllers on top of ViMMS, please also cite the following p
 
 [2] Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" Analytical Chemistry (2020). https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895 ([data](http://researchdata.gla.ac.uk/1137/))
 
-### Talks and Poster Presentations
+### Presentations
 
-The following [poster](https://f1000research.com/posters/9-973) was presented in the CompMS COSI track in [ISMB 2020](https://www.iscb.org/ismb2020), and was voted the 
+ViMMS has been presented in various metabolomics and computational biology venues. The following are our highlights:
+
+##### Conference and Workshop Presentations 
+
+- The following [poster](https://f1000research.com/posters/9-973) was presented in the CompMS COSI track in [ISMB 2020](https://www.iscb.org/ismb2020), and was voted the 
 best poster for that track. An accompanying video presentation is also available. A similar poster was also presented
 at [Metabolomics 2020 conference](http://metabolomics2020.org/).
 
 [![SmartROI](http://img.youtube.com/vi/kHPYQicGoHE/0.jpg)](https://www.youtube.com/watch?v=kHPYQicGoHE "SmartROI")
 
-ViMMS was also presented as a talk at [Metabolomics 2021](https://www.metabolomics2021.org/) conference. You can find the [slides here](https://docs.google.com/presentation/d/e/2PACX-1vTADW9uJBYEMK91UGUw_99kHwn8jviT_Wvyj30Z2Akm0rswF_xbS_fUxuq23dVC4g/pub?start=false&loop=false&delayms=3000).
+- ViMMS was also presented as a talk at [Metabolomics 2021](https://www.metabolomics2021.org/) conference. You can find the [slides here](https://docs.google.com/presentation/d/e/2PACX-1vTADW9uJBYEMK91UGUw_99kHwn8jviT_Wvyj30Z2Akm0rswF_xbS_fUxuq23dVC4g/pub?start=false&loop=false&delayms=3000).
+
+##### Departmental Talks
+
+Slides and recorded videos from other departmental talks:
+- [Computational Metabolomics as a Game of Battleships - Statistics Seminar, School of Mathematics and Statistics, University of Glasgow (2022)](https://github.com/vinnydavies/presentations/blob/master/Computational%20Metabolomics%20as%20a%20game%20of%20Battleships%20-%20Glasgow.pptx)

@@ -1,7 +1,7 @@
 from loguru import logger
 
-from tests.conftest import get_rt_bounds, CENTRE_RANGE, N_CHEMS, run_environment, check_mzML, OUT_DIR, BEER_CHEMS, \
-    BEER_MIN_BOUND, BEER_MAX_BOUND
+from tests.conftest import get_rt_bounds, CENTRE_RANGE, N_CHEMS, run_environment, \
+    check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND
 from vimms.Common import POSITIVE
 from vimms.Controller import SimpleMs1Controller, AdvancedParams
 from vimms.Environment import Environment

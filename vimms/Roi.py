@@ -17,8 +17,9 @@ import pylab as plt
 import pymzml
 import statsmodels.api as sm
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
-    map_boxes_to_scans
+from mass_spec_utils.data_import.mzmine import (
+    load_picked_boxes, map_boxes_to_scans
+)
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from scipy.stats import pearsonr

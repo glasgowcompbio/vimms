@@ -25,8 +25,9 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 # TODO: MatchingChem.env2nodes could split chemicals on RoI bounds to have
 #  a slightly more accurate view of simulated chemicals
 # TODO: MatchingChem.env2nodes could also work on non-RoI controllers
-from vimms.Common import get_default_scan_params, INITIAL_SCAN_ID, \
-    get_dda_scan_param
+from vimms.Common import (
+    get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
+)
 
 
 class MatchingScan():
@@ -263,7 +264,7 @@ class Matching():
         active_chems, edges = [], {ch: [] for ch in chems}
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
-            rt_intervals.addi(ch.min_rt, ch.max_rt, ch)
+            rt_intervals.addi(ch.min_rt, math.nextafter(ch.max_rt, math.inf), ch)
 
         seen_intersected = set()
         seen_intensities = {}

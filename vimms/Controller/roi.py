@@ -4,12 +4,16 @@ import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW, \
+from vimms.Common import (
+    ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW,
     MZ_UNITS_PPM, ROI_TYPE_NORMAL, ROI_TYPE_SMART
+)
 from vimms.Controller.topN import TopNController
-from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, \
-    WeightedDEWExclusion, DEWFilter, \
+from vimms.Exclusion import (
+    MinIntensityFilter, LengthFilter, SmartROIFilter,
+    WeightedDEWExclusion, DEWFilter,
     WeightedDEWFilter
+)
 from vimms.Roi import RoiBuilder
 
 

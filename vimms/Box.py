@@ -700,8 +700,8 @@ class BoxIntervalTrees(BoxExact):
         
     def register_boxes(self, boxes):
         for b in boxes:
-            self.x_tree.addi(b.pt1.x, b.pt2.x, b)
-            self.y_tree.addi(b.pt1.y, b.pt2.y, b)
+            self.x_tree.addi(b.pt1.x, math.nextafter(b.pt2.x, math.inf), b)
+            self.y_tree.addi(b.pt1.y, math.nextafter(b.pt2.y, math.inf), b)
         
     def clear(self):
         self.__init__()
@@ -725,7 +725,7 @@ class LineSweeper(BoxExact):
     def _add_active(self, new_ptr, current_loc):
         for b in itertools.islice(self.all_boxes, self.active_pointer, new_ptr):
             self.active.append(b)
-            self.active_intervals.addi(b.pt1.y, b.pt2.y, b)
+            self.active_intervals.addi(b.pt1.y, math.nextafter(b.pt2.y, math.inf), b)
             self.last_accessed[b] = current_loc
         self.active.sort(key=attrgetter("pt2.x"), reverse=True)
         self.active_pointer = new_ptr
@@ -733,7 +733,7 @@ class LineSweeper(BoxExact):
     def _remove_active(self):
         b = self.active.pop()
         self.was_active.append(b)
-        self.active_intervals.removei(b.pt1.y, b.pt2.y, b)
+        self.active_intervals.removei(b.pt1.y, math.nextafter(b.pt2.y, math.inf), b)
     
     def set_active_boxes(self, current_loc):
         if(current_loc < self.current_loc):

@@ -655,52 +655,63 @@ class BoxGrid(BoxExact):
         
 class BoxIntervalTrees(BoxExact):  
     def __init__(self):
-        self.x_tree = intervaltree.IntervalTree()
         self.y_tree = intervaltree.IntervalTree()
         
     def get_all_boxes(self):
         return (
-            set(it.data for it in self.x_tree.items()) 
-            & set(it.data for it in self.y_tree.items())
+            inv.data for inv in self.y_tree.items()
         )
     
     def point_in_box(self, pt):
-        return (
-            self.x_tree.overlaps_point(pt.x)
-            and self.y_tree.overlaps_point(pt.y)
+        return any(
+            yb.data.pt1.x <= pt.x and yb.data.pt2.x >= pt.x
+            for yb in self.y_tree.at(pt.y)
         )
         
     def point_in_which_boxes(self, pt):
-        x_boxes = set(xb.data for xb in self.x_tree.at(pt.x))
-        y_boxes = set(yb.data for yb in self.y_tree.at(pt.y))
-        return x_boxes & y_boxes
+        return set(
+            yb.data
+            for yb in self.y_tree.at(pt.y)
+            if yb.data.pt1.x <= pt.x and yb.data.pt2.x >= pt.x
+        )
         
     def interval_overlaps_which_boxes(self, inv):
         if(inv.is_vertical()):
-            x_boxes = set(xb.data for xb in self.x_tree.at(inv.pt1.x))
-            y_boxes = set(yb.data for yb in self.y_tree.overlap(inv.pt1.y, inv.pt2.y))
+            return set(
+                yb.data 
+                for yb in self.y_tree.overlap(inv.pt1.y, inv.pt2.y)
+                if yb.data.pt1.x <= inv.pt1.x and yb.data.pt2.x >= inv.pt1.x
+            )
         else:
-            x_boxes = set(xb.data for xb in self.x_tree.overlap(inv.pt1.x, inv.pt2.x))
-            y_boxes = set(yb.data for yb in self.y_tree.at(inv.pt1.y))
-        return x_boxes & y_boxes
+            return set(
+                yb.data
+                for yb in self.y_tree.at(inv.pt1.y)
+                if not (yb.data.pt1.x > inv.pt2.x or yb.data.pt2.x < inv.pt1.x)
+            )
         
     def interval_covers_which_boxes(self, inv):
         if(inv.is_vertical()):
-            x_boxes = set(xb.data for xb in self.x_tree.at(inv.pt1.x))
-            y_boxes = set(yb.data for yb in self.y_tree.envelop(inv.pt1.y, inv.pt2.y))
+            return set(
+                yb.data 
+                for yb in self.y_tree.envelop(inv.pt1.y, inv.pt2.y)
+                if yb.data.pt1.x <= inv.pt1.x and yb.data.pt2.x >= inv.pt1.x
+            )
         else:
-            x_boxes = set(xb.data for xb in self.x_tree.envelop(inv.pt1.x, inv.pt2.x))
-            y_boxes = set(yb.data for yb in self.y_tree.at(inv.pt1.y))
-        return x_boxes & y_boxes
+            return set(
+                yb.data
+                for yb in self.y_tree.at(inv.pt1.y)
+                if yb.data.pt1.x <= inv.pt1.x and yb.data.pt2.x >= inv.pt2.x
+            )
         
     def _get_overlapping_boxes(self, box):
-        x_boxes = set(xb.data for xb in self.x_tree.overlap(box.pt1.x, box.pt2.x))
-        y_boxes = set(yb.data for yb in self.y_tree.overlap(box.pt1.y, box.pt2.y))
-        return x_boxes & y_boxes
+        return set(
+            yb.data 
+            for yb in self.y_tree.overlap(box.pt1.y, box.pt2.y)
+            if not (yb.data.pt1.x > box.pt2.x or yb.data.pt2.x < box.pt1.x)
+        )
         
     def register_boxes(self, boxes):
         for b in boxes:
-            self.x_tree.addi(b.pt1.x, math.nextafter(b.pt2.x, math.inf), b)
             self.y_tree.addi(b.pt1.y, math.nextafter(b.pt2.y, math.inf), b)
         
     def clear(self):

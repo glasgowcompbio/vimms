@@ -644,7 +644,7 @@ class ScanTimeSampler(ABC):
     """
 
     @abstractmethod
-    def sample_time(self, current_level, next_level):
+    def sample(self, current_level, next_level):
         pass
 
 
@@ -665,7 +665,7 @@ class DefaultScanTimeSampler(ScanTimeSampler):
         self.scan_time_dict = scan_time_dict if scan_time_dict is not None \
             else DEFAULT_SCAN_TIME_DICT
 
-    def sample_time(self, current_level, next_level):
+    def sample(self, current_level, next_level):
         return self.scan_time_dict[current_level]
 
 
@@ -697,7 +697,7 @@ class MzMLScanTimeSampler(ScanTimeSampler):
                 'The default of %f will be used' % default)
             self.time_dict[(1, 1)] = [default]
 
-    def sample_time(self, current_level, next_level):
+    def sample(self, current_level, next_level):
         if self.use_mean:
             # return only the average time for current_level
             return self.mean_time_dict[current_level]

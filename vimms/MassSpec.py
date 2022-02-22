@@ -449,8 +449,8 @@ class IndependentMassSpectrometer():
                 ScanParameters.MS_LEVEL) if next_scan_param is not None else 1
 
             # pass both current and next MS level when sampling scan duration
-            current_scan_duration = scan_sampler.sample_time(current_level,
-                                                             next_level)
+            current_scan_duration = scan_sampler.sample(current_level,
+                                                        next_level)
 
         self.time += current_scan_duration
         logger.debug(

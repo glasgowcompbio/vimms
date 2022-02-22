@@ -34,4 +34,4 @@ jobs:
         pipenv run flake8 . --count --exit-zero --statistics
     - name: Test with pytest
       run: |
-        pytest --exitfirst --verbose --failed-first --cov=. --cov-report html
+        pipenv run pytest --exitfirst --verbose --failed-first --cov=. --cov-report html

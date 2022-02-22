@@ -21,6 +21,7 @@ dependencies:
   - flake8
   - autopep8
   - pytest
+  - pytest-cov
   - intervaltree
   - jupyterlab
   - ipywidgets

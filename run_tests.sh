@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python -m pytest tests/
+pytest --exitfirst --verbose --failed-first --cov=. --cov-report html

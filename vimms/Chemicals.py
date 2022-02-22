@@ -3,6 +3,7 @@ Provides implementation of Chemicals objects that are used as input
 to the simulation.
 """
 import copy
+from abc import ABC, abstractmethod
 
 import numpy as np
 import scipy
@@ -144,54 +145,35 @@ class Adducts():
         return self.adduct_names
 
 
-class Chemical():
+class BaseChemical(ABC):
     """
-    The base class that represents a Chemical object.
+    The base class for Chemical objects across all MS levels.
+    Chemicals at MS level = 1 is special and should be instantiated as either Known
+    or Unknown chemicals.
+    For other MS levels, please use the MSN class.
+    """
+
+    def __init__(self, ms_level, children):
+        self.ms_level = ms_level
+        self.children = children
+
+
+class Chemical(BaseChemical):
+    """
+    The class that represents a Chemical object of MS-level 1.
     Should be realised as either Known or Unknown chemicals.
     """
 
-    def __repr__(self):
-        raise NotImplementedError()
+    def __init__(self, rt, max_intensity, chromatogram, children,
+                 base_chemical):
+        ms_level = 1
+        super().__init__(ms_level, children)
 
-
-class UnknownChemical(Chemical):
-    """
-    A Chemical representation from an unknown chemical formula
-    """
-
-    def __init__(self, mz, rt, max_intensity, chromatogram, children=None,
-                 base_chemical=None):
-        self.max_intensity = max_intensity
-        self.isotopes = [
-            (mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
-        self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.rt = rt
+        self.max_intensity = max_intensity
         self.chromatogram = chromatogram
-        self.children = children
-        self.ms_level = 1
         self.mz_diff = 0
-        self.mass = mz
         self.base_chemical = base_chemical
-
-    def __repr__(self):
-        return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
-            self.isotopes[0][0], self.rt, self.max_intensity)
-
-    def get_key(self):
-        """
-        Turns a chemical object into (mz, rt, intensity) tuples for
-        equal comparison
-        :return: a tuple of the three values
-        """
-        return (tuple(self.isotopes), self.rt, self.max_intensity)
-
-    def __eq__(self, other):
-        if not isinstance(other, UnknownChemical):
-            return False
-        return self.get_key() == other.get_key()
-
-    def __hash__(self):
-        return hash(self.get_key())
 
     def get_apex_rt(self):
         return self.rt + self.chromatogram.get_apex_rt()
@@ -200,16 +182,63 @@ class UnknownChemical(Chemical):
         return self if self.base_chemical is None else \
             self.base_chemical.get_original_parent()
 
+    @abstractmethod
+    def get_key(self):
+        """
+        Turns a chemical object into some sensible keys for comparison
+        :return: keys for comparisons in __eq__ and __hash__
+        """
+        pass
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.get_key() == other.get_key()
+        return False
+
+    def __hash__(self):
+        return hash(self.get_key())
+
+
+class UnknownChemical(Chemical):
+    """
+    A Chemical representation from an unknown chemical formula.
+    Unknown chemicals are typically created by extracting Regions-of-Interest
+    from an existing mzML file.
+    """
+
+    def __init__(self, mz, rt, max_intensity, chromatogram, children=None,
+                 base_chemical=None):
+        """
+        Initialises an UnknownChemical object.
+        """
+        super().__init__(rt, max_intensity, chromatogram, children, base_chemical)
+        self.isotopes = [
+            (mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
+        self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
+        self.mass = mz
+
+    def get_key(self):
+        return tuple(self.isotopes), self.rt, self.max_intensity
+
+    def __repr__(self):
+        return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
+            self.isotopes[0][0], self.rt, self.max_intensity)
+
 
 class KnownChemical(Chemical):
     """
-    A Chemical representation from a known chemical formula
+    A Chemical representation from a known chemical formula.
+    Known chemicals have formula which are defined during creation.
     """
 
     def __init__(self, formula, isotopes, adducts, rt, max_intensity,
                  chromatogram, children=None,
                  include_adducts_isotopes=True, total_proportion=0.99,
                  database_accession=None, base_chemical=None):
+        """
+        Initialises a known chemical object
+        """
+        super().__init__(rt, max_intensity, chromatogram, children, base_chemical)
         self.formula = formula
         self.mz_diff = C13_MZ_DIFF
         if include_adducts_isotopes is True:
@@ -219,50 +248,33 @@ class KnownChemical(Chemical):
             mz = isotopes.get_isotopes(total_proportion)[0][0]
             self.isotopes = [(mz, 1, MONO)]
             self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
-        self.rt = rt
-        self.max_intensity = max_intensity
-        self.chromatogram = chromatogram
-        self.children = children
-        self.ms_level = 1
         self.mass = self.formula.mass
         self.database_accession = database_accession
-        self.base_chemical = base_chemical
+
+    def get_key(self):
+        return tuple(self.formula.formula_string), self.rt
 
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
             self.formula.formula_string, self.rt, self.max_intensity)
 
-    def get_key(self):
-        return (tuple(self.formula.formula_string), self.rt)
 
-    def __eq__(self, other):
-        if not isinstance(other, KnownChemical):
-            return False
-        return self.get_key() == other.get_key()
-
-    def __hash__(self):
-        return hash(self.get_key())
-
-    def get_apex_rt(self):
-        return self.rt + self.chromatogram.get_apex_rt()
-
-    def get_original_parent(self):
-        return self if self.base_chemical is None else \
-            self.base_chemical.get_original_parent()
-
-
-class MSN(Chemical):
+class MSN(BaseChemical):
     """
     A chemical that represents an MS2+ fragment.
     """
 
     def __init__(self, mz, ms_level, prop_ms2_mass, parent_mass_prop,
                  children=None, parent=None):
+        """
+        Initialises an MSN object
+        """
+        super().__init__(ms_level, children)
+
         self.isotopes = [(mz, None, "MSN")]
         self.ms_level = ms_level
         self.prop_ms2_mass = prop_ms2_mass
         self.parent_mass_prop = parent_mass_prop
-        self.children = children
         self.parent = parent
 
     def __repr__(self):
@@ -399,8 +411,8 @@ class MultipleMixtureCreator():
                 if np.random.rand() <= changing_probability:
                     self.group_multipliers[group][chemical] = np.exp(
                         np.random.rand() * (
-                            np.log(5) - np.log(0.2) + np.log(
-                                0.2)))  # uniform between doubling and halving
+                                np.log(5) - np.log(0.2) + np.log(
+                            0.2)))  # uniform between doubling and halving
                 if np.random.rand() <= missing_probability:
                     self.group_multipliers[group][chemical] = 0.0
 
@@ -413,7 +425,7 @@ class MultipleMixtureCreator():
                         self.group_multipliers[group][chemical] == 0.:
                     continue  # chemical is missing overall
                 new_intensity = chemical.max_intensity * \
-                    self.group_multipliers[group][chemical]
+                                self.group_multipliers[group][chemical]
                 new_intensity = self.intensity_noise.get(new_intensity, 1)
 
                 # make a new known chemical
@@ -462,7 +474,7 @@ class ChemicalMixtureFromMZML():
             logger.warning("Requested more chemicals than ROIs")
         else:
             rois_to_use = np.random.permutation(len(self.good_rois))[
-                :n_chemicals]
+                          :n_chemicals]
         chemicals = []
         for roi_idx in rois_to_use:
             r = self.good_rois[roi_idx]

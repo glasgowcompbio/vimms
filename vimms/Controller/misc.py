@@ -71,6 +71,9 @@ class FixedScansController(Controller):
     def update_state_after_scan(self, last_scan):
         pass
 
+    def _process_scan(self, scan):
+        pass
+
 
 class MS2PlannerController(FixedScansController):
 

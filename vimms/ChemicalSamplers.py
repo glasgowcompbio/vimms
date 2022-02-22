@@ -437,8 +437,7 @@ class UniformMS2Sampler(MS2Sampler):
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + \
-                            self.min_proportion
+                    self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -500,9 +499,8 @@ class CRPMS2Sampler(MS2Sampler):
         mz_list = unique_vals
         s = sum(counts)
         intensity_list = [c / s for c in counts]
-        parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + \
-                            self.min_proportion
+        parent_proportion = \
+            np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -552,8 +550,7 @@ class MGFMS2Sampler(MS2Sampler):
         while not found_permissable:
             n_attempts += 1
             spec = np.random.choice(len(sub_spec))
-            if self.replace is True or sub_spec[spec][
-                2] == 0 or n_attempts > 100:
+            if self.replace is True or sub_spec[spec][2] == 0 or n_attempts > 100:
                 found_permissable = True
 
         sub_spec[spec][2] += 1  # add one to the count
@@ -562,8 +559,7 @@ class MGFMS2Sampler(MS2Sampler):
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + \
-                            self.min_proportion
+                    self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -580,8 +576,7 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)
         parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + \
-                            self.min_proportion
+                    self.max_proportion - self.min_proportion) + self.min_proportion
         return mz_list, intensity_list, parent_proportion
 
 
@@ -603,11 +598,9 @@ class MZMLMS2Sampler(MS2Sampler):
         self._filter_scans()
 
     def _filter_scans(self):
-        ms2_scans = list(filter(lambda x: x.ms_level == 2 and
-                                          len(x.peaks) >= self.min_n_peaks and
-                                          sum([i for mz, i in
-                                               x.peaks]) >= self.min_total_intensity,
-                                self.mzml_object.scans))
+        ms2_scans = list(filter(
+            lambda x: x.ms_level == 2 and len(x.peaks) >= self.min_n_peaks and sum(
+                [i for mz, i in x.peaks]) >= self.min_total_intensity, self.mzml_object.scans))
         assert len(
             ms2_scans) > 0, "After filtering no ms2 scans remain - " \
                             "consider loosening filter parameters"
@@ -626,8 +619,7 @@ class MZMLMS2Sampler(MS2Sampler):
             del self.ms2_scans[scan_idx]
 
         parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + \
-                            self.min_proportion
+                self.max_proportion - self.min_proportion) + self.min_proportion
 
         mz_list, intensity_list = zip(*scan.peaks)
 
@@ -673,6 +665,7 @@ class MzMLScanTimeSampler(ScanTimeSampler):
     """
     A scan time sampler that obtains its values from an existing MZML file.
     """
+
     def __init__(self, mzml_file, use_mean=True):
         """
         Initialises a MZML scan time sampler object.

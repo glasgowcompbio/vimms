@@ -409,10 +409,9 @@ class MultipleMixtureCreator():
                 self.group_multipliers[group][
                     chemical] = 1.0  # default is no change
                 if np.random.rand() <= changing_probability:
+                    # uniform between doubling and halving
                     self.group_multipliers[group][chemical] = np.exp(
-                        np.random.rand() * (
-                                np.log(5) - np.log(0.2) + np.log(
-                            0.2)))  # uniform between doubling and halving
+                        np.random.rand() * (np.log(5) - np.log(0.2) + np.log(0.2)))
                 if np.random.rand() <= missing_probability:
                     self.group_multipliers[group][chemical] = 0.0
 
@@ -424,8 +423,7 @@ class MultipleMixtureCreator():
                 if np.random.rand() < self.overall_missing_probability or \
                         self.group_multipliers[group][chemical] == 0.:
                     continue  # chemical is missing overall
-                new_intensity = chemical.max_intensity * \
-                                self.group_multipliers[group][chemical]
+                new_intensity = chemical.max_intensity * self.group_multipliers[group][chemical]
                 new_intensity = self.intensity_noise.get(new_intensity, 1)
 
                 # make a new known chemical

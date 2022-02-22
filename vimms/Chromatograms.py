@@ -114,9 +114,8 @@ class EmpiricalChromatogram(Chromatogram):
             # don't attempt to compare against unrelated types
             return NotImplemented
         res = np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs)) and \
-              np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
-              np.array_equal(
-                  sorted(self.raw_intensities), sorted(other.raw_intensities))
+            np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
+            np.array_equal(sorted(self.raw_intensities), sorted(other.raw_intensities))
         return res
 
 

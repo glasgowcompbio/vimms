@@ -1,6 +1,6 @@
 # flake8: noqa
 
-class Scheduler(object):
+class Scheduler():
     def __init__(self, queue, next_scheduler=None):
         self.next_scheduler = next_scheduler
         self.queue = queue  # where the scans are sent

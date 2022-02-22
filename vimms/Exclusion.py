@@ -12,7 +12,7 @@ from vimms.Common import ScanParameters
 ###############################################################################
 
 
-class ExclusionItem(object):
+class ExclusionItem():
     """
     A class to store the item to exclude when computing dynamic
     exclusion window
@@ -63,7 +63,7 @@ class ExclusionItem(object):
             return False
 
 
-class BoxHolder(object):
+class BoxHolder():
     """
     A class to allow quick lookup of boxes (e.g. exclusion items,
     targets, etc). Creates an interval tree on mz as this is likely to
@@ -163,7 +163,7 @@ class BoxHolder(object):
         return it
 
 
-class TopNExclusion(object):
+class TopNExclusion():
     def __init__(self, initial_exclusion_list=None):
         self.exclusion_list = BoxHolder()
         if initial_exclusion_list is not None:  # add initial list, if provided

@@ -1,21 +1,23 @@
+import argparse
+import configparser
+import os
+import sys
+from abc import ABC, abstractmethod
+
+from vimms.Common import IN_SILICO_OPTIMISE_TOPN, add_log_file, \
+    IN_SILICO_OPTIMISE_SMART_ROI, \
+    IN_SILICO_OPTIMISE_WEIGHTED_DEW
 from vimms.InSilicoSimulation import extract_chemicals, get_timing, \
     extract_timing, run_TopN, run_SmartROI, \
     run_WeightedDEW, extract_boxes, evaluate_boxes_as_dict, \
     evaluate_boxes_as_array, save_counts, string_to_list, \
     plot_counts
-from vimms.Common import IN_SILICO_OPTIMISE_TOPN, add_log_file, \
-    IN_SILICO_OPTIMISE_SMART_ROI, \
-    IN_SILICO_OPTIMISE_WEIGHTED_DEW
-import argparse
-import configparser
-import os
-import sys
 
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
 
-class InSilicoSimulator(object):
+class InSilicoSimulator(ABC):
     def __init__(self, sample_name, seed_file, out_dir, controller_name,
                  config_parser):
         self.sample_name = sample_name
@@ -58,11 +60,13 @@ class InSilicoSimulator(object):
             time_dict_str) > 0 else extract_timing(self.seed_file)
         return time_dict
 
+    @abstractmethod
     def simulate(self):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def evaluate(self, params):
-        raise NotImplementedError()
+        pass
 
 
 class TopNSimulator(InSilicoSimulator):

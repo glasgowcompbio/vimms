@@ -33,7 +33,7 @@ QCB_XML_TEMPLATE_MS1 = os.path.join(batch_file_dir, 'QCB_mzmine_batch_ms1.xml')
 QCB_XML_TEMPLATE_MS2 = os.path.join(batch_file_dir, 'QCB_mzmine_batch_ms2.xml')
 
 
-class BaseSequenceManager(object):
+class BaseSequenceManager():
     def __init__(self, controller_schedule, evaluation_methods, base_dir, mzmine_command,
                  evaluaton_min_ms1_intensity=1.75E5,
                  evaluation_params=None,
@@ -187,7 +187,7 @@ class VimmsSequenceManager(BaseSequenceManager):
 # Experiments
 ########################################################################################################################
 
-class Experiment(object):
+class Experiment():
     def __init__(self, sequence_manager):
         self.sequence_manager = sequence_manager
         self.results = self.sequence_manager.create_results_df()

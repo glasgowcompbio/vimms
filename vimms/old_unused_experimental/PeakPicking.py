@@ -51,7 +51,7 @@ def MSmixture_posterior(theta, y, t, N, sigma=None, prior_mu=None, prior_var=Non
     return log_like
 
 
-class SMC_MSmixture(object):
+class SMC_MSmixture():
     def __init__(self, n_particles, n_mixtures, prior_mu, prior_var, jitter_params, prior_sigsq=None):
         self.n_particles = n_particles
         self.n_mixtures = n_mixtures

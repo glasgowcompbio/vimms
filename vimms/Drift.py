@@ -12,7 +12,7 @@ from sklearn.gaussian_process.kernels import RBF
 ###################################################################################################
 
 
-class SimpleScan(object):
+class SimpleScan():
     def __init__(self, start_time, end_time, sample_id, ms_level):
         self.start_time = start_time
         self.end_time = end_time
@@ -36,7 +36,7 @@ class SimpleScan(object):
             self.peak_statuses.append(peak.peak_status)
 
 
-class SimplePeak(object):
+class SimplePeak():
     def __init__(self, mz, rt, sample_id, peak_id, peak_status, est_drift,
                  est_drift_sd):
         self.mzs = [mz]
@@ -89,7 +89,7 @@ class SimplePeak(object):
         self.est_mz = sum(self.mzs) / len(self.mzs)
 
 
-class SimpleChemical(object):
+class SimpleChemical():
     def __init__(self, rt, mz, prevalence, id, peak_status):
         self.rt = rt
         self.mz = mz
@@ -190,7 +190,7 @@ def plot_datasets(datasets, colours=['r', 'b', 'g', 'c', 'm', 'y']):
 ###################################################################################################
 
 
-class DriftSimulator(object):
+class DriftSimulator():
     def __init__(self, n_samples, rt_range, n_gp_points, gp_params,
                  data_params):
         self.n_samples = n_samples
@@ -209,7 +209,7 @@ class DriftSimulator(object):
         NotImplementedError()
 
 
-class PeakMatching(object):
+class PeakMatching():
     def __init__(self, covariance, max_match_score, ms2_match):
         self.covariance = covariance
         self.max_match_score = max_match_score
@@ -422,7 +422,7 @@ class SimplePeakMatching(PeakMatching):
         return anchor_where
 
 
-class SimpleDriftExperiment(object):
+class SimpleDriftExperiment():
     def __init__(self, datasets, drift_model, rt_range, covariance,
                  max_match_score, sensitivity=1, specificity=1,
                  frag_method='random', N=0):
@@ -513,7 +513,7 @@ def chem_test(chem, sensitivity, specificity):
     return (result == 1)[0]
 
 
-class SimpleMatchingScore(object):
+class SimpleMatchingScore():
     def __init__(self, simple_experiment):
         """
         definition: The maximal group for a chemical is the group of peaks which contains the

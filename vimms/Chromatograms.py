@@ -1,22 +1,28 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 import scipy.stats
 
 from vimms.Common import MAX_POSSIBLE_RT
 
 
-class Chromatogram(object):
+class Chromatogram(ABC):
 
+    @abstractmethod
     def get_relative_intensity(self, query_rt):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def get_relative_mz(self, query_rt):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def _rt_match(self, rt):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def get_apex_rt(self):
-        raise NotImplementedError()
+        pass
 
 
 class EmpiricalChromatogram(Chromatogram):
@@ -66,7 +72,7 @@ class EmpiricalChromatogram(Chromatogram):
             intensity_below = self.intensities[neighbours_which[0]]
             intensity_above = self.intensities[neighbours_which[1]]
             return intensity_below + (
-                intensity_above - intensity_below) * self._get_distance(
+                    intensity_above - intensity_below) * self._get_distance(
                 query_rt)
 
     def get_relative_mz(self, query_rt):
@@ -108,9 +114,9 @@ class EmpiricalChromatogram(Chromatogram):
             # don't attempt to compare against unrelated types
             return NotImplemented
         res = np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs)) and \
-            np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
-            np.array_equal(
-                sorted(self.raw_intensities), sorted(other.raw_intensities))
+              np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
+              np.array_equal(
+                  sorted(self.raw_intensities), sorted(other.raw_intensities))
         return res
 
 
@@ -171,7 +177,7 @@ class FunctionalChromatogram(Chromatogram):
         else:
             return (self.distrib.pdf(
                 query_rt + self.distrib.ppf(self.cutoff / 2)) * (
-                1 / (1 - self.cutoff)))
+                            1 / (1 - self.cutoff)))
 
     def get_relative_mz(self, query_rt):
         if not self._rt_match(query_rt):

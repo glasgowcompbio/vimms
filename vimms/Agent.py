@@ -1,5 +1,6 @@
 # Agent.py
 import collections
+from abc import ABC, abstractmethod
 from random import randrange
 
 import numpy as np
@@ -9,21 +10,25 @@ from vimms.Common import ScanParameters
 from vimms.Exclusion import TopNExclusion
 
 
-class AbstractAgent(object):
+class AbstractAgent(ABC):
     def __init__(self):
         self.task_list = []
 
+    @abstractmethod
     def next_tasks(self, scan_to_process, controller, current_task_id):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def update(self, last_scan, controller):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def act(self, scan_to_process):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def reset(self):
-        raise NotImplementedError
+        pass
 
 
 class FullScanAgent(AbstractAgent):

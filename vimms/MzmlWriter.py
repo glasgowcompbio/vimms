@@ -9,7 +9,7 @@ from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, \
     ScanParameters
 
 
-class MzmlWriter(object):
+class MzmlWriter():
     """A class to write peak data to mzML file"""
 
     def __init__(self, analysis_name, scans):

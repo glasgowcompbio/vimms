@@ -19,7 +19,7 @@ from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiParams
 
 
-class DatabaseCompound(object):
+class DatabaseCompound():
     """
     A class to represent a compound stored in a database, e.g. HMDB
     """
@@ -34,7 +34,7 @@ class DatabaseCompound(object):
         self.inchikey = inchikey
 
 
-class Isotopes(object):
+class Isotopes():
     """
     A class to represent an isotope of a chemical
     """
@@ -85,7 +85,7 @@ class Isotopes(object):
             return None
 
 
-class Adducts(object):
+class Adducts():
     """
     A class to represent an adduct of a chemical
     """
@@ -144,7 +144,7 @@ class Adducts(object):
         return self.adduct_names
 
 
-class Chemical(object):
+class Chemical():
     """
     The base class that represents a Chemical object.
     Should be realised as either Known or Unknown chemicals.
@@ -270,7 +270,7 @@ class MSN(Chemical):
             self.isotopes[0][0], self.ms_level)
 
 
-class ChemicalMixtureCreator(object):
+class ChemicalMixtureCreator():
     '''
     A class to create a list of known chemical objects using simplified,
     cleaned methods.
@@ -352,7 +352,7 @@ class ChemicalMixtureCreator(object):
         return chemicals
 
 
-class MultipleMixtureCreator(object):
+class MultipleMixtureCreator():
     '''
     A class to create a list of known chemical objects in multiple
     samples (mixtures)
@@ -425,7 +425,7 @@ class MultipleMixtureCreator(object):
         return chemical_lists
 
 
-class ChemicalMixtureFromMZML(object):
+class ChemicalMixtureFromMZML():
     '''
     A class to create a list of known chemical objects from an mzML file
     using simplified, cleaned methods.

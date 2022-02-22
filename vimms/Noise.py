@@ -21,7 +21,7 @@ def trunc_normal(mean, sigma, log_space):
         return np.exp(s)
 
 
-class NoPeakNoise(object):
+class NoPeakNoise():
     """
     The base peak noise object that doesn't add any noise
     """
@@ -81,7 +81,7 @@ class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
             return original
 
 
-class UniformSpikeNoise(object):
+class UniformSpikeNoise():
     def __init__(self, density, max_val, min_val=0, min_mz=None, max_mz=None):
         self.density = density  # number of spike peaks per mz unit
         self.max_val = max_val

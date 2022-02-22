@@ -29,7 +29,7 @@ from vimms.Evaluation import load_peakonly_boxes, load_xcms_boxes, \
 from vimms.MassSpec import Scan
 
 
-class Roi(object):
+class Roi():
     """
     A class to store an ROI (Regions-of-interest). An ROI is a region of
     consecutive scans that potentially form a chromatographic peak. This is the
@@ -364,7 +364,7 @@ class SmartRoi(Roi):
             self.intensity_diff = 0
 
 
-class RoiParams(object):
+class RoiParams():
     """
     A parameter object that stores various settings required for ROIBuilder
     """
@@ -655,7 +655,7 @@ class RoiBuilder():
         return filtered_roi + self.dead_roi
 
 
-class RoiAligner(object):
+class RoiAligner():
     """
     A class that aligns multiple ROIs in different samples
     """

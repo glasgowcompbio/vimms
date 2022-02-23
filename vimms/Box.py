@@ -72,7 +72,7 @@ class Box():
         self.pt1 = Point(min(x1, x2), min(y1, y2))
         self.pt2 = Point(max(x1, x2), max(y1, y2))
         self.parents = [self] if parents is None else parents
-        self.intensity = Decimal(intensity)
+        self.intensity = intensity
 
         if (self.pt2.x - self.pt1.x < min_xwidth):
             midpoint = self.pt1.x + ((self.pt2.x - self.pt1.x) / 2)
@@ -99,8 +99,8 @@ class Box():
 
     def area(self):
         return (
-            (Decimal(self.pt2.x) - Decimal(self.pt1.x))
-            * (Decimal(self.pt2.y) - Decimal(self.pt1.y))
+            (self.pt2.x - self.pt1.x)
+            * (self.pt2.y - self.pt1.y)
         )
 
     def copy(self, xshift=0, yshift=0):
@@ -539,8 +539,7 @@ class BoxExact(BoxGeometry):
                                         scoring_params
                                        ):
         box = box.copy()
-        current_intensity = Decimal(current_intensity)
-        box.intensity = Decimal(0.0)
+        box.intensity = 0.0
         
         #TODO: remove this
         def box2pt(b): return (b.pt1.x, b.pt2.x, b.pt1.y, b.pt2.y)
@@ -555,10 +554,10 @@ class BoxExact(BoxGeometry):
         
         non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
         refragment = sum(
-            max(Decimal(0.0), current_intensity - b.intensity) ** (b.area() / box.area()) 
+            max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) 
             for b in overlaps
         )
-        return float(non_overlap + scoring_params["theta1"] * refragment)
+        return non_overlap + scoring_params["theta1"] * refragment
         
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         return BoxExact.splitting_intensity_non_overlap(
@@ -848,43 +847,41 @@ class LineSweeper(BoxExact):
         new_id, new_boxes = 0, []
         x_ends = self._to_endpoint(self.all_boxes, "x")
         
-        for x_pos, x_end, x_box in x_ends:
-            inv = Interval(x_pos, x_pos, x_box.pt1.y, x_box.pt2.y)
-            overlapped = self.interval_overlaps_which_boxes(inv)
-            y_ends = self._to_endpoint(overlapped, "y")
-            
-            prev_y_pos, y_active = 0, []
-            for y_pos, y_end, y_box in y_ends:
+        for i, (x_pos, x_end, x_box) in enumerate(x_ends):
+            if(
+                i + 1 == len(x_ends)
+                or not math.isclose(x_pos, x_ends[i+1][0])
+            ):
+                inv = Interval(x_pos, x_pos, x_box.pt1.y, x_box.pt2.y)
+                overlapped = self.interval_overlaps_which_boxes(inv)
+                y_ends = self._to_endpoint(overlapped, "y")
                 
-                if(y_active != []):
-                    new_box = GenericBox(
-                                        self.last_accessed[y_box],
-                                        x_pos, 
-                                        prev_y_pos, 
-                                        y_pos,
-                                        parents = copy.copy(y_active),
-                                        intensity = max(b.intensity for b in y_active),
-                                        id = new_id
-                                    )
-                    if(math.isclose(new_box.pt1.x, new_box.pt2.x)):
-                        print(f"x_pos: {x_pos}, y_pos: {y_pos}")
-                        print(f"ZERO BOX: {new_box}")
-                        xstr = '\n'.join(str(a) for a in self.active)
-                        print(f"XACTIVE: {xstr}")
-                        print(f"YACTIVE: {y_active}")
-                        #print(f"XEND: {[xe.pos for xe in x_ends]}")
-                        print(f"YEND: {[ye.pos for ye in y_ends]}")
-                        print(f"LAST_ACCESSED[y_box]: {self.last_accessed[y_box]}")
-                        print("---")
-                    new_boxes.append(new_box)
-                    new_id += 1
+                prev_y_pos, y_active = 0, []
+                for j, (y_pos, y_end, y_box) in enumerate(y_ends):
+                    
+                    if(
+                        j + 1 == len(y_ends)
+                        or not math.isclose(y_pos, y_ends[j+1][0])
+                    ):
+                        if(y_active != []):
+                            new_box = GenericBox(
+                                                self.last_accessed[y_box],
+                                                x_pos, 
+                                                prev_y_pos, 
+                                                y_pos,
+                                                parents = copy.copy(y_active),
+                                                intensity = max(b.intensity for b in y_active),
+                                                id = new_id
+                                            )
+                            new_boxes.append(new_box)
+                            new_id += 1
+                        prev_y_pos = y_pos
+                    
+                    if(y_end): y_active.remove(y_box)
+                    else: y_active.append(y_box)
                 
-                if(y_end): y_active.remove(y_box)
-                else: y_active.append(y_box)
-                prev_y_pos = y_pos
-                
-            for _, __, y_box in y_ends:
-                self.last_accessed[y_box] = x_pos
+                for _, __, y_box in y_ends:
+                    self.last_accessed[y_box] = x_pos
             
             if(x_end):
                 self._remove_active()

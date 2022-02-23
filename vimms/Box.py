@@ -137,20 +137,36 @@ class GenericBox(Box):
     def __repr__(self):
         return "Generic{}".format(super().__repr__())
 
-    def overlaps_with_box(self, other_box):
-        return (
-            self.pt1.x < other_box.pt2.x 
-            and self.pt2.x > other_box.pt1.x 
-            and self.pt1.y < other_box.pt2.y 
-            and self.pt2.y > other_box.pt1.y
-        )
-                    
     def contains_point(self, pt):
         return (
                 self.pt1.x <= pt.x
                 and self.pt1.y <= pt.y
                 and self.pt2.x >= pt.x
                 and self.pt2.y >= pt.y
+        )
+        
+    def interval_contains(self, inv):
+        if(inv.is_vertical()):
+            return (
+                self.pt1.x <= inv.pt1.x
+                and self.pt2.x >= inv.pt1.x
+                and self.pt1.y >= inv.pt1.y
+                and self.pt2.y <= inv.pt2.y
+            )
+        else:
+            return (
+                self.pt1.x >= inv.pt1.x
+                and self.pt2.x <= inv.pt2.x
+                and self.pt1.y <= inv.pt1.y
+                and self.pt2.y >= inv.pt1.y
+            )
+
+    def overlaps_with_box(self, other_box):
+        return (
+            self.pt1.x < other_box.pt2.x 
+            and self.pt2.x > other_box.pt1.x 
+            and self.pt1.y < other_box.pt2.y 
+            and self.pt2.y > other_box.pt1.y
         )
 
     def contains_box(self, other_box):
@@ -628,16 +644,28 @@ class BoxGrid(BoxExact):
         return self.grid.get_all_boxes()
     
     def point_in_box(self, pt):
-        raise NotImplementedError("BoxGrid doesn't implement this yet!")
+        box = GenericBox(pt.x, pt.x, pt.y, pt.y)
+        return any(
+            box.contains_point(pt) for b in self.grid.get_boxes(box)
+        )
         
     def point_in_which_boxes(self, pt):
-        raise NotImplementedError("BoxGrid doesn't implement this yet!")
+        box = GenericBox(pt.x, pt.x, pt.y, pt.y)
+        return set(
+            b for b in self.grid.get_boxes(box) if b.contains_point(pt)
+        )
         
     def interval_overlaps_which_boxes(self, inv):
-        raise NotImplementedError("BoxGrid doesn't implement this yet!")
+        box = GenericBox(inv.pt1.x, inv.pt2.x, inv.pt1.y, inv.pt2.y)
+        return set(
+            b for b in self.grid.get_boxes(box) if b.overlaps_with_box(box)
+        )
         
     def interval_covers_which_boxes(self, inv):
-        raise NotImplementedError("BoxGrid doesn't implement this yet!")
+        box = GenericBox(inv.pt1.x, inv.pt2.x, inv.pt1.y, inv.pt2.y)
+        return set(
+            b for b in self.grid.get_boxes(box) if b.interval_contains(inv)
+        )
         
     def _get_overlapping_boxes(self, box):
         return set(

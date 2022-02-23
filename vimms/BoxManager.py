@@ -2,7 +2,7 @@ from collections import deque
 from operator import attrgetter
 
 from vimms.Roi import Roi, RoiAligner
-from vimms.Box import BoxGrid, LineSweeper
+from vimms.Box import BoxGrid, BoxIntervalTrees, LineSweeper
 from vimms.DriftCorrection import IdentityDrift
 
 class BoxManager():
@@ -108,6 +108,10 @@ class BoxManager():
         self._update_geometry()
         self._next_model()
         
+class BoxConverterIgnore():
+    def rois2boxes(self, rois):
+        return []
+        
 class BoxConverter():
     def __init__(self, min_rt_width=0.000001, min_mz_width=0.000001):
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
@@ -122,7 +126,7 @@ class BoxConverterUnique(BoxConverter):
         for r in rois:
             b = r.to_box(self.min_rt_width, self.min_mz_width)
             if(b.id in boxes_by_id):
-                boxes_by_id[b.id] = max(r, boxes_by_id[b.id], key=lambda b: b.area())
+                boxes_by_id[b.id] = max(b, boxes_by_id[b.id], key=lambda b: b.area())
             else:
                 boxes_by_id[b.id] = b
         

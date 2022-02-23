@@ -514,7 +514,7 @@ class BoxExact(BoxGeometry):
         return this_non, other_non, overlaps
         
     def non_overlap(self, box):
-        return self.splitting_non_overlap(box, self._get_overlapping_boxes(box))
+        return float(self.splitting_non_overlap(box, self._get_overlapping_boxes(box)))
         
     @staticmethod
     def splitting_intensity_non_overlap(box, 
@@ -542,7 +542,7 @@ class BoxExact(BoxGeometry):
             max(Decimal(0.0), current_intensity - b.intensity) ** (b.area() / box.area()) 
             for b in overlaps
         )
-        return non_overlap + scoring_params["theta1"] * refragment
+        return float(non_overlap + scoring_params["theta1"] * refragment)
         
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         return BoxExact.splitting_intensity_non_overlap(
@@ -786,7 +786,15 @@ class LineSweeper(BoxExact):
         sliced.pt1.x = self.previous_loc
         
         other_boxes = (
-            self.interval_overlaps_which_boxes(sliced.pt1.y, sliced.pt2.y) + self.was_active
+            self.interval_overlaps_which_boxes(
+                Interval(
+                    self.current_loc,
+                    self.current_loc,
+                    sliced.pt1.y,
+                    sliced.pt2.y
+                )
+            ) 
+            + self.was_active
         ) #TODO: If the manual intersection check is removed from this non-overlap, then filter to intersecting boxes
         sliced_uncovered = sum(b.area() for b in BoxGrid.non_overlap_boxes(sliced, other_boxes))
         

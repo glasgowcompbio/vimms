@@ -8,6 +8,7 @@ from vimms.Common import (
 )
 from vimms.Controller.roi import RoiController
 from vimms.Roi import RoiBuilder
+from vimms.Box import Point, GenericBox
 
 
 class GridController(RoiController):
@@ -25,6 +26,7 @@ class GridController(RoiController):
                  # smartroi parameters
                  exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):  # weighted dew parameters
+                 
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity,
@@ -39,7 +41,7 @@ class GridController(RoiController):
             mz_units=mz_units, reset_length_seconds=reset_length_seconds,
             intensity_increase_factor=intensity_increase_factor,
             drop_perc=drop_perc, length_units=length_units,
-            roi_type=roi_type, grid=grid)
+            roi_type=roi_type)
 
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid  # helps us understand previous RoIs
@@ -59,6 +61,10 @@ class GridController(RoiController):
         if len(scores) > 0 and max(scores) > 0:
             scores = scores / max(scores)
         return scores
+        
+    def _set_fragmented(self, i, roi_id, rt, intensity):
+        super()._set_fragmented(i, roi_id, rt, intensity)
+        self.grid.register_roi(self.roi_builder.live_roi[i])
 
     def _get_scores(self):
         if(self.roi_builder.live_roi != []):
@@ -68,14 +74,15 @@ class GridController(RoiController):
         non_overlaps = self._overlap_scores()
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
             smartroi_scores = self._smartroi_filter()
-            dda_scores = self._log_roi_intensities() * \
-                self._min_intensity_filter()
+            dda_scores = self._log_roi_intensities() * self._min_intensity_filter()
 
             if self.smartroi_score_add:  # add the scores
                 dda_scores = self._scale(dda_scores)
-                final_scores = (self.dda_weight * dda_scores) + (
-                    self.smartroi_weight * smartroi_scores) + (
-                    self.overlap_weight * non_overlaps)
+                final_scores = (
+                    (self.dda_weight * dda_scores) 
+                    + (self.smartroi_weight * smartroi_scores) 
+                    + (self.overlap_weight * non_overlaps)
+                )
 
             else:
                 # multiply them, this might not work well because a lot of
@@ -91,6 +98,42 @@ class GridController(RoiController):
 
     def after_injection_cleanup(self):
         self.grid.update_after_injection()
+
+
+class TopNExController(GridController):
+    def _overlap_scores(self):
+        fn = self.grid.get_estimator()
+        exclude = np.array([
+            not self.grid.point_in_box(
+                Point(r[-1][0], r[-1][1])
+            )
+            for r in self.roi_builder.live_roi
+        ])
+        return exclude
+
+    def after_injection_cleanup(self):
+        super().after_injection_cleanup()
+        for ex in self.exclusion.exclusion_list:
+            self.grid.register_box(
+                GenericBox(
+                    ex.from_rt,
+                    ex.to_rt,
+                    ex.from_mz,
+                    ex.to_mz
+                )
+            )
+        
+
+class HardRoIExcludeController(GridController):
+    def _overlap_scores(self):
+        fn = self.grid.get_estimator()
+        exclude = np.array([
+            not self.grid.point_in_box(
+                Point(r[-1][0], r[-1][1])
+            )
+            for r in self.roi_builder.live_roi
+        ])
+        return exclude
 
 
 class NonOverlapController(GridController):

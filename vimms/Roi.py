@@ -217,7 +217,7 @@ class Roi(object):
 
     def __getitem__(self, idx):
         """
-        Returns a single (m/z, rt, intensity) point in this ROI at the
+        Returns a single (rt, m/z, intensity) point in this ROI at the
         specified index
         :param idx: the index of item to retrieve
         """
@@ -424,7 +424,7 @@ class RoiBuilder():
                  initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, drop_perc=0.01,
                  length_units="scans",
-                 roi_type=ROI_TYPE_NORMAL, grid=None):
+                 roi_type=ROI_TYPE_NORMAL):
         """
         Initialises an ROI Builder object.
         :param mz_tol: the m/z tolerance when matching a new point to
@@ -441,8 +441,6 @@ class RoiBuilder():
         :param length_units: the length unit (either in 'scans' or 'seconds')
         :param roi_type: the type of ROI object generated, either
         ROI_TYPE_NORMAL or ROI_TYPE_SMART
-        :param grid: non-overlap grid, if any. Used to track overlapping
-        fragmentation of ROI across samples.
         """
 
         if (mz_units == MZ_UNITS_DA and mz_tol > 1) or (
@@ -480,9 +478,6 @@ class RoiBuilder():
         self.reset_length_seconds = reset_length_seconds
         self.intensity_increase_factor = intensity_increase_factor
         self.drop_perc = drop_perc
-
-        # Grid stuff
-        self.grid = grid
 
     # flake8: noqa: C901
     def update_roi(self, new_scan):
@@ -634,11 +629,10 @@ class RoiBuilder():
             {'scan_id': current_task_id, 'roi_id': roi_id,
              'precursor_intensity': intensity})
 
-        # grid stuff
-        if self.grid is not None:
-            self.grid.register_roi(self.live_roi[i])
+        #need to track for intensity non-overlap
         self.live_roi[i].max_fragmentation_intensity = max(
-            self.live_roi[i].max_fragmentation_intensity, intensity)
+            self.live_roi[i].max_fragmentation_intensity, intensity
+        )
 
     def add_scan_to_roi(self, scan):
         """

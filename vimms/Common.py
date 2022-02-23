@@ -138,7 +138,7 @@ ROI_TYPE_SMART = 'smart'
 ###############################################################################
 
 
-class Formula(object):
+class Formula():
     def __init__(self, formula_string):
         self.formula_string = formula_string
         self.atom_names = ATOM_NAMES
@@ -181,7 +181,7 @@ class Formula(object):
         return self.formula_string
 
 
-class DummyFormula(object):
+class DummyFormula():
     # wrapper to store an mz as a 'formula'
     def __init__(self, mz):
         self.mass = mz
@@ -190,7 +190,7 @@ class DummyFormula(object):
         return self.mass
 
 
-class ScanParameters(object):
+class ScanParameters():
     """
     A class to store parameters used to instruct the mass spec how to
     generate a scan. This object is usually created by the controllers.
@@ -287,7 +287,7 @@ class ScanParameters(object):
         return 'ScanParameters %s' % (self.params)
 
 
-class Precursor(object):
+class Precursor():
     def __init__(self, precursor_mz, precursor_intensity, precursor_charge,
                  precursor_scan_id):
         self.precursor_mz = precursor_mz

@@ -9,7 +9,7 @@ from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
 
 
-class Environment(object):
+class Environment():
     def __init__(self, mass_spec, controller, min_time, max_time,
                  progress_bar=True, out_dir=None, out_file=None,
                  dump_debug=False):

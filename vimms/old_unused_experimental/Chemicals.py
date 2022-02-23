@@ -14,7 +14,7 @@ from vimms.Common import Formula, GET_MS2_BY_PEAKS, GET_MS2_BY_SPECTRA, CHEM_DAT
     save_obj
 
 
-class ChemicalCreator(object):
+class ChemicalCreator():
     def __init__(self, peak_sampler, ROI_sources=None, database=None):
         self.peak_sampler = peak_sampler
         self.ROI_sources = ROI_sources
@@ -348,7 +348,7 @@ class RoiToChemicalCreator(ChemicalCreator):
             plt.show()
 
 
-class MultiSampleCreator(object):
+class MultiSampleCreator():
 
     def __init__(self, original_dataset,
                  n_samples,  # a list of the number of samples for each class, e.g. [2,2] for ['class1', 'class2']

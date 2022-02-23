@@ -130,7 +130,7 @@ class TopNController(Controller):
         pass
 
 
-class ScanItem(object):
+class ScanItem():
     """
     Represents a scan item object. Used by the WeightedDEW controller.
     """

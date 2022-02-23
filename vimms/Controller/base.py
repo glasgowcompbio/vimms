@@ -1,6 +1,8 @@
 import time
 from collections import defaultdict
 
+from abc import ABC, abstractmethod
+
 import pandas as pd
 from loguru import logger
 
@@ -17,7 +19,7 @@ from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, \
     get_dda_scan_param
 
 
-class AdvancedParams(object):
+class AdvancedParams():
     def __init__(self,
                  default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
@@ -57,7 +59,7 @@ class AdvancedParams(object):
         self.ms2_source_cid_energy = ms2_source_cid_energy
 
 
-class Controller(object):
+class Controller(ABC):
     def __init__(self, params=None):
         if params is None:
             self.params = AdvancedParams()
@@ -168,8 +170,13 @@ class Controller(object):
             new_tasks = self._process_scan(scan)
         return new_tasks
 
+    @abstractmethod
     def update_state_after_scan(self, last_scan):
-        raise NotImplementedError()
+        pass
+
+    @abstractmethod
+    def _process_scan(self, scan):
+        pass
 
     def dump_scans(self, output_method):
         all_scans = self.scans[1] + self.scans[2]
@@ -191,9 +198,6 @@ class Controller(object):
         # dump to csv
         df = pd.DataFrame(out_list)
         output_method(df.to_csv(index=False, line_terminator='\n'))
-
-    def _process_scan(self, scan):
-        raise NotImplementedError()
 
     def _check_scan(self, params):
 

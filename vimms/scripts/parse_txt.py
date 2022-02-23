@@ -14,7 +14,7 @@ def get_running_number(line):
         return int(m.group(1))
 
 
-class SequenceItem(object):
+class SequenceItem():
     def __init__(self, runningNumber):
         self.running_number = runningNumber
         self.ms_level = None

@@ -2,6 +2,8 @@
 Sampling classes for ChemicalMixtureCreator
 """
 
+from abc import ABC, abstractmethod
+
 import numpy as np
 from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
@@ -23,7 +25,7 @@ MIN_MZ_MS2 = DEFAULT_MSN_SCAN_WINDOW[0]
 # Formula samplers
 ###############################################################################
 
-class FormulaSampler(object):
+class FormulaSampler(ABC):
     """
     Base class for formula sampler
     """
@@ -32,8 +34,9 @@ class FormulaSampler(object):
         self.min_mz = min_mz
         self.max_mz = max_mz
 
+    @abstractmethod
     def sample(self, n_formulas):
-        raise NotImplementedError
+        pass
 
 
 class DatabaseFormulaSampler(FormulaSampler):
@@ -66,7 +69,7 @@ class DatabaseFormulaSampler(FormulaSampler):
         sub_formulas = list(
             filter(lambda x: Formula(x[0]).mass >= self.min_mz and Formula(
                 x[0]).mass <= self.max_mz - offset,
-                formulas))
+                   formulas))
         logger.debug(
             '{} unique formulas in filtered database'.format(
                 len(sub_formulas)))
@@ -94,7 +97,7 @@ class UniformMZFormulaSampler(FormulaSampler):
         :return: a list of Formula objects
         """
         mz_list = np.random.rand(n_formulas) * (
-            self.max_mz - self.min_mz) + self.min_mz
+                self.max_mz - self.min_mz) + self.min_mz
         return [(DummyFormula(m), None) for m in mz_list]
 
 
@@ -199,14 +202,15 @@ class MZMLFormulaSampler(FormulaSampler):
 ###############################################################################
 
 
-class RTAndIntensitySampler(object):
+class RTAndIntensitySampler(ABC):
     """
     Base class for RT and intensity sampler. Usually used when initialising
     a formula object.
     """
 
+    @abstractmethod
     def sample(self, formula):
-        raise NotImplementedError
+        pass
 
 
 class UniformRTAndIntensitySampler(RTAndIntensitySampler):
@@ -304,7 +308,7 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
                                              p=self.intensity_probs)
         intensity_bin = self.intensity_bins[intensity_bin_idx]
         log_intensity = np.random.rand() * (
-            intensity_bin[1] - intensity_bin[0]) + intensity_bin[0]
+                intensity_bin[1] - intensity_bin[0]) + intensity_bin[0]
         return rt, np.exp(log_intensity)
 
 
@@ -313,13 +317,14 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
 ###############################################################################
 
 
-class ChromatogramSampler(object):
+class ChromatogramSampler(ABC):
     """
     Base class for chromatogram sampler.
     """
 
+    @abstractmethod
     def sample(self, formula, rt, intensity):
-        raise NotImplementedError
+        pass
 
 
 class GaussianChromatogramSampler(ChromatogramSampler):
@@ -381,13 +386,14 @@ class MZMLChromatogramSampler(ChromatogramSampler):
 ###############################################################################
 
 
-class MS2Sampler(object):
+class MS2Sampler(ABC):
     """
     Base class for MS2 sampler
     """
 
+    @abstractmethod
     def sample(self, formula):
-        raise NotImplementedError
+        pass
 
 
 class UniformMS2Sampler(MS2Sampler):
@@ -431,8 +437,7 @@ class UniformMS2Sampler(MS2Sampler):
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         parent_proportion = np.random.rand() * (
-            self.max_proportion - self.min_proportion) + \
-            self.min_proportion
+                    self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -494,9 +499,8 @@ class CRPMS2Sampler(MS2Sampler):
         mz_list = unique_vals
         s = sum(counts)
         intensity_list = [c / s for c in counts]
-        parent_proportion = np.random.rand() * (
-            self.max_proportion - self.min_proportion) + \
-            self.min_proportion
+        parent_proportion = \
+            np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -546,8 +550,7 @@ class MGFMS2Sampler(MS2Sampler):
         while not found_permissable:
             n_attempts += 1
             spec = np.random.choice(len(sub_spec))
-            if self.replace is True or sub_spec[spec][
-                    2] == 0 or n_attempts > 100:
+            if self.replace is True or sub_spec[spec][2] == 0 or n_attempts > 100:
                 found_permissable = True
 
         sub_spec[spec][2] += 1  # add one to the count
@@ -556,8 +559,7 @@ class MGFMS2Sampler(MS2Sampler):
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         parent_proportion = np.random.rand() * (
-            self.max_proportion - self.min_proportion) + \
-            self.min_proportion
+                    self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -574,8 +576,7 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)
         parent_proportion = np.random.rand() * (
-            self.max_proportion - self.min_proportion) + \
-            self.min_proportion
+                    self.max_proportion - self.min_proportion) + self.min_proportion
         return mz_list, intensity_list, parent_proportion
 
 
@@ -597,11 +598,9 @@ class MZMLMS2Sampler(MS2Sampler):
         self._filter_scans()
 
     def _filter_scans(self):
-        ms2_scans = list(filter(lambda x: x.ms_level == 2 and
-                                len(x.peaks) >= self.min_n_peaks and
-                                sum([i for mz, i in
-                                     x.peaks]) >= self.min_total_intensity,
-                                self.mzml_object.scans))
+        ms2_scans = list(filter(
+            lambda x: x.ms_level == 2 and len(x.peaks) >= self.min_n_peaks and sum(
+                [i for mz, i in x.peaks]) >= self.min_total_intensity, self.mzml_object.scans))
         assert len(
             ms2_scans) > 0, "After filtering no ms2 scans remain - " \
                             "consider loosening filter parameters"
@@ -620,8 +619,7 @@ class MZMLMS2Sampler(MS2Sampler):
             del self.ms2_scans[scan_idx]
 
         parent_proportion = np.random.rand() * (
-            self.max_proportion - self.min_proportion) + \
-            self.min_proportion
+                self.max_proportion - self.min_proportion) + self.min_proportion
 
         mz_list, intensity_list = zip(*scan.peaks)
 
@@ -632,13 +630,50 @@ class MZMLMS2Sampler(MS2Sampler):
 # Scan time samplers
 ###############################################################################
 
-class DefaultScanTimeSampler():
-    def sample_time(self, current_level, next_level):
-        return DEFAULT_SCAN_TIME_DICT[current_level]
+class ScanTimeSampler(ABC):
+    """
+    Base class for scan time sampler
+    """
+
+    @abstractmethod
+    def sample(self, current_level, next_level):
+        pass
 
 
-class MzMLScanTimeSampler():
+class DefaultScanTimeSampler(ScanTimeSampler):
+    """
+    A scan time sampler that returns some fixed values that represent the average scan times for
+    MS1 and MS2 scans.
+    """
+
+    def __init__(self, scan_time_dict=None):
+        """
+        Initialises a default scan time sampler object.
+        :param scan_time_dict: a dictionary of scan times for each MS-level.
+        It should look like this: {1: 0.4, 2: 0.2}. If not specified, then the default
+        value is used. Note that this default is obtained from our Orbitrap instrument and
+        would certainly differ from yours!
+        """
+        self.scan_time_dict = scan_time_dict if scan_time_dict is not None \
+            else DEFAULT_SCAN_TIME_DICT
+
+    def sample(self, current_level, next_level):
+        return self.scan_time_dict[current_level]
+
+
+class MzMLScanTimeSampler(ScanTimeSampler):
+    """
+    A scan time sampler that obtains its values from an existing MZML file.
+    """
+
     def __init__(self, mzml_file, use_mean=True):
+        """
+        Initialises a MZML scan time sampler object.
+        :param mzml_file: the source MZML file
+        :param use_mean: whether to store the scan times as distributions of values to sample
+        from, or as a single mean value
+        """
+
         self.mzml_file = str(mzml_file)
         self.use_mean = use_mean
 
@@ -655,7 +690,7 @@ class MzMLScanTimeSampler():
                 'The default of %f will be used' % default)
             self.time_dict[(1, 1)] = [default]
 
-    def sample_time(self, current_level, next_level):
+    def sample(self, current_level, next_level):
         if self.use_mean:
             # return only the average time for current_level
             return self.mean_time_dict[current_level]
@@ -700,7 +735,9 @@ class MzMLScanTimeSampler():
         return is_frag_file
 
     def _extract_mean_time(self, time_dict, is_frag_file):
-        # construct timing dict in the right format for later use
+        """
+        Construct timing dict in the right format for later use
+        """
         mean_time_dict = {}
         if is_frag_file:
             # extract ms1 and ms2 timing from fragmentation mzML

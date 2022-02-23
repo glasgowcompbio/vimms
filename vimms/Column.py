@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-class Column(object):
+class Column():
     def __init__(self, dataset, noise_sd):
         self.dataset = dataset
         self.dataset_rts = np.array([chem.rt for chem in self.dataset])

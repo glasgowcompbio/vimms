@@ -10,7 +10,7 @@ import scipy
 from loguru import logger
 
 
-class BlockData(object):
+class BlockData():
     def __init__(self, datasets, mz_step, rt_step, rt_range=[(0, 1450)], mz_range=[(50, 1070)]):
         self.datasets = datasets
         self.mz_step = mz_step
@@ -147,7 +147,7 @@ def gibbs_sampler(X, observed, R, prior_u, prec_u, prior_v, prec_v, alpha, n_its
             return range_U, updated_samples_U
 
 
-class VB_PCA(object):
+class VB_PCA():
     def __init__(self, Y, Z, D, MaxIts=100, a=1, b=1, tol=1e-3, compute_LB=False, VB_PCA_model=None):
 
         # intialise parameters

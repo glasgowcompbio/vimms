@@ -70,7 +70,7 @@ def filter_df(df, min_ms1_intensity, rt_range, mz_range):
     return df
 
 
-class DataSource(object):
+class DataSource():
     """
     A class to load and extract centroided peaks from CSV and mzML files.
     :param min_ms1_intensity: minimum ms1 intensity for filtering
@@ -365,7 +365,7 @@ class DataSource(object):
             return True
 
 
-class PeakSampler(object):
+class PeakSampler():
     """A class to sample peaks from a trained density estimator"""
 
     # TODO: add min intensity threshold here so we don't store everything??!!!

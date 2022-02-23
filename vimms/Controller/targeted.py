@@ -60,7 +60,7 @@ def create_targets_from_toxid(toxid_file_name, file_rt_units='minutes',
     return target_list
 
 
-class Target(object):
+class Target():
     def __init__(self, mz, min_mz, max_mz, min_rt, max_rt, name=None,
                  adduct=None, metadata=None):
         self.mz = mz

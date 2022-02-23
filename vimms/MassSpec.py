@@ -12,7 +12,7 @@ from vimms.Common import (
 from vimms.Noise import NoPeakNoise
 
 
-class Peak(object):
+class Peak():
     """
     A class to represent an empirical or sampled scan-level peak object
     """
@@ -45,7 +45,7 @@ class Peak(object):
                self.ms_level == other.ms_level
 
 
-class Scan(object):
+class Scan():
     """
     A class to store scan information
     """
@@ -97,7 +97,7 @@ class Scan(object):
             self.scan_id, self.num_peaks, self.rt, self.ms_level)
 
 
-class ScanEvent(object):
+class ScanEvent():
     """
     A class to store fragmentation events. Mostly used for benchmarking purpose
     """
@@ -138,7 +138,7 @@ class ScanEvent(object):
             self.ms_level, self.chem, self.query_rt)
 
 
-class TaskManager(object):
+class TaskManager():
     """
     A class to track how many new tasks (scan commands) that we can send,
     given the buffer size of the mass spec.
@@ -236,7 +236,7 @@ class TaskManager(object):
         return len(self.pending_tasks)
 
 
-class IndependentMassSpectrometer(object):
+class IndependentMassSpectrometer():
     """
     A class that represents (synchronous) mass spectrometry process.
     Independent here refers to how the intensity of each peak in a scan is
@@ -462,8 +462,8 @@ class IndependentMassSpectrometer(object):
                 ScanParameters.MS_LEVEL) if next_scan_param is not None else 1
 
             # pass both current and next MS level when sampling scan duration
-            current_scan_duration = scan_sampler.sample_time(current_level,
-                                                             next_level)
+            current_scan_duration = scan_sampler.sample(current_level,
+                                                        next_level)
 
         self.time += current_scan_duration
         logger.debug(

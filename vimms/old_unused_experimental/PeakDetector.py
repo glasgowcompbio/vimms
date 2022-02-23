@@ -40,7 +40,7 @@ def mzml2classificationdata(mzmls, mzml_picked_peaks_files, min_roi_length=5, mz
     return df, rois
 
 
-class get_prob_classifier(object):
+class get_prob_classifier():
     def __init__(self, mzmls, mzml_picked_peaks_files, min_roi_length=5, mzml2chems_dict=QCB_MZML2CHEMS_DICT,
                  mz_slack=0.01, roi_change_n=5, rt_peak_tol=2):
         self.roi_change_n = roi_change_n

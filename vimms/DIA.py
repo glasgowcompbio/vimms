@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from vimms.Common import ScanParameters
 
 
-class DiaAnalyser(object):
+class DiaAnalyser():
     """
     Class for deconvolving basic DIA methods. Only works with basic simulated data
     """
@@ -153,7 +153,7 @@ class DiaAnalyser(object):
         return False
 
 
-class RestrictedDiaAnalyser(object):
+class RestrictedDiaAnalyser():
     """
     Class for deconvolving toy DIA examples
     """
@@ -178,7 +178,7 @@ class RestrictedDiaAnalyser(object):
         self.scan_num.reverse()
 
 
-class DiaWindows(object):
+class DiaWindows():
     """
     Class for creating windows for basic, tree and nested DIA methods. Method is used in
     DiaController in Controller/dia. Basic methods are approximately equal to a SWATH method
@@ -255,7 +255,7 @@ class DiaWindows(object):
                 "Incorrect dia_design selected. Must be 'basic' or 'kaufmann'.")
 
 
-class KaufmannWindows(object):
+class KaufmannWindows():
     """
     Class for creating windows for tree and nested DIA methods
     """

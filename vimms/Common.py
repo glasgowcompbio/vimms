@@ -305,7 +305,7 @@ class Precursor():
 ###############################################################################
 
 def create_if_not_exist(out_dir):
-    if not os.path.exists(out_dir):
+    if not pathlib.Path(out_dir).exists():
         logger.info('Created %s' % out_dir)
         pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 

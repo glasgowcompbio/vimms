@@ -22,8 +22,7 @@ from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import MZ_UNITS_PPM, MZ_UNITS_DA, ROI_TYPE_NORMAL, \
-    ROI_TYPE_SMART
+from vimms.Common import ROI_TYPE_NORMAL, ROI_TYPE_SMART
 from vimms.Evaluation import load_peakonly_boxes, load_xcms_boxes, \
     get_precursor_intensities
 from vimms.MassSpec import Scan
@@ -371,8 +370,7 @@ class RoiParams():
 
     def __init__(self, mz_tol=10, min_length=1,
                  min_intensity=0, min_roi_intensity_for_fragmentation=0,
-                 start_rt=0, stop_rt=10000000,
-                 mz_units=MZ_UNITS_PPM, length_units="scans"):
+                 start_rt=0, stop_rt=10000000):
         """
         Initialises an RoiParams object
         :param mz_tol: m/z  tolerance
@@ -389,8 +387,6 @@ class RoiParams():
         self.min_roi_intensity_for_fragmentation = min_roi_intensity_for_fragmentation
         self.start_rt = start_rt
         self.stop_rt = stop_rt
-        self.mz_units = mz_units
-        self.length_units = length_units
 
     def __repr__(self):
         return str(self.__dict__)
@@ -403,10 +399,8 @@ class RoiBuilder():
     """
 
     def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                 mz_units=MZ_UNITS_PPM,
                  initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, drop_perc=0.01,
-                 length_units="scans",
                  roi_type=ROI_TYPE_NORMAL, grid=None,
                  min_roi_intensity_for_fragmentation=0):
         """
@@ -415,14 +409,12 @@ class RoiBuilder():
         existing ROIs
         :param rt_tol: dynamic exclusion window (in seconds) before an ROI
         can be fragmented again
-        :param min_roi_length: minimum length of ROI (in length_units) before
+        :param min_roi_length: minimum length of ROI (in number of scans) before
         an ROI is considered to be junk ROI (and can be discarded)
-        :param mz_units: m/z units, either in 'Da' or 'ppm'
         :param initial_length_seconds: SmartROI parameter
         :param reset_length_seconds: SmartROI parameter
         :param intensity_increase_factor: SmartROI parameter
         :param drop_perc: SmartROI parameter
-        :param length_units: the length unit (either in 'scans' or 'seconds')
         :param roi_type: the type of ROI object generated, either
         ROI_TYPE_NORMAL or ROI_TYPE_SMART
         :param grid: non-overlap grid, if any. Used to track overlapping
@@ -431,22 +423,16 @@ class RoiBuilder():
         fragmented above this threshold.
         """
 
-        if (mz_units == MZ_UNITS_DA and mz_tol > 1) or (
-                mz_units == MZ_UNITS_PPM and mz_tol < 0.1):
-            logger.warning(
-                f'Is your m/z tolerance unit correct? mz_tol={mz_tol}, '
-                f'mz_units={mz_units}')
+        if mz_tol < 0.1:
+            logger.warning(f'Is your m/z tolerance correct? mz_tol={mz_tol}')
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity
         self.min_roi_intensity_for_fragmentation = min_roi_intensity_for_fragmentation
         self.mz_tol = mz_tol
-        self.mz_units = mz_units
         self.rt_tol = rt_tol
         self.min_roi_length = min_roi_length
-        self.length_units = length_units
         self.roi_type = roi_type
-        assert self.mz_units in [MZ_UNITS_PPM, MZ_UNITS_DA]
         assert self.roi_type in [ROI_TYPE_NORMAL, ROI_TYPE_SMART]
 
         # Create ROI
@@ -512,8 +498,7 @@ class RoiBuilder():
 
                     # Match dummy ROI to currently live ROIs based on mean
                     # m/z values. If no match, then return None
-                    match_roi = match(roi, self.live_roi, self.mz_tol,
-                                      mz_units=self.mz_units)
+                    match_roi = match(roi, self.live_roi, self.mz_tol)
                     if match_roi:
 
                         # Got a match, so we grow this ROI
@@ -542,18 +527,10 @@ class RoiBuilder():
             # Dead ROIs are longer than self.min_roi_length but they haven't
             # been grown. Junk ROIs are too short and not grown.
             for roi in not_grew:
-
-                if self.length_units == "scans":  # number of scans
-                    if roi.n >= self.min_roi_length:
-                        self.dead_roi.append(roi)
-                    else:
-                        self.junk_roi.append(roi)
-
-                else:  # seconds
-                    if roi.length_in_seconds >= self.min_roi_length:
-                        self.dead_roi.append(roi)
-                    else:
-                        self.junk_roi.append(roi)
+                if roi.n >= self.min_roi_length:
+                    self.dead_roi.append(roi)
+                else:
+                    self.junk_roi.append(roi)
 
                 # Remove not-grown ROI from the list of live ROIs
                 pos = self.live_roi.index(roi)
@@ -565,15 +542,7 @@ class RoiBuilder():
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in
                                             self.live_roi]
-
-            # FIXME: only the 'scans' mode seems to work on the real mass
-            # spec (IAPI), why??
-            if self.length_units == "scans":
-                self.current_roi_length = np.array(
-                    [roi.n for roi in self.live_roi])
-            else:
-                self.current_roi_length = np.array(
-                    [roi.length_in_seconds for roi in self.live_roi])
+            self.current_roi_length = np.array([roi.n for roi in self.live_roi])
 
     def _get_roi_obj(self, mz, rt, intensity, roi_id):
         """
@@ -590,7 +559,7 @@ class RoiBuilder():
             roi = SmartRoi(mz, rt, intensity,
                            initial_length_seconds=self.initial_length_seconds,
                            reset_length_seconds=self.reset_length_seconds,
-                           intensity_increase_factor=self.intensity_increase_factor,  # noqa
+                           intensity_increase_factor=self.intensity_increase_factor,
                            dew=self.rt_tol, drop_perc=self.drop_perc,
                            id=roi_id
                            )
@@ -978,8 +947,6 @@ class FrequentistRoiAligner(RoiAligner):
 ###############################################################################
 
 # Make the RoI from an input file
-# mz_units = Da for Daltons
-# mz_units = ppm for ppm
 def make_roi(input_file, roi_params):
     """
     Make ROIs from an input file
@@ -996,8 +963,6 @@ def make_roi(input_file, roi_params):
     roi_builder = RoiBuilder(
         roi_params.mz_tol, 0, roi_params.min_intensity,
         roi_params.min_length,
-        mz_units=roi_params.mz_units,
-        length_units=roi_params.length_units,
         min_roi_intensity_for_fragmentation=roi_params.min_roi_intensity_for_fragmentation)
     for i, spectrum in enumerate(run):
         ms_level = 1
@@ -1043,7 +1008,7 @@ def spectrum_to_arrays(spectrum):
 
 
 # flake8: noqa: C901
-def match(mz, roi_list, mz_tol, mz_units=MZ_UNITS_PPM):
+def match(mz, roi_list, mz_tol):
     """
     # Find the RoI that a particular mz falls into. If it falls into nothing,
     return None.
@@ -1053,45 +1018,29 @@ def match(mz, roi_list, mz_tol, mz_units=MZ_UNITS_PPM):
     :param mz_tol: m/z tolerance. This is the window above and below the
     mean_mz of the RoI.
                    E.g. if mz_tol = 1 Da, then it looks plus and minus 1Da
-    :param mz_units: units for tolerance, in either 'Da' or 'ppm'
     """
-    assert mz_units in [MZ_UNITS_PPM, MZ_UNITS_DA]
-
     if len(roi_list) == 0:
         return None
     pos = bisect.bisect_right(roi_list, mz)
 
     if pos == len(roi_list):
-        if mz_units == MZ_UNITS_DA:
-            dist_left = mz.get_mean_mz() - roi_list[pos - 1].get_mean_mz()
-        else:  # ppm
-            dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
-                pos - 1].get_mean_mz()) / mz.get_mean_mz()
-
+        dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
+            pos - 1].get_mean_mz()) / mz.get_mean_mz()
         if dist_left < mz_tol:
             return roi_list[pos - 1]
         else:
             return None
     elif pos == 0:
-        if mz_units == MZ_UNITS_DA:
-            dist_right = roi_list[pos].get_mean_mz() - mz.get_mean_mz()
-        else:  # ppm
-            dist_right = 1e6 * (roi_list[
-                                    pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
-
+        dist_right = 1e6 * (roi_list[pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
         if dist_right < mz_tol:
             return roi_list[pos]
         else:
             return None
     else:
-        if mz_units == MZ_UNITS_DA:
-            dist_left = mz.get_mean_mz() - roi_list[pos - 1].get_mean_mz()
-            dist_right = roi_list[pos].get_mean_mz() - mz.get_mean_mz()
-        else:  # ppm
-            dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
-                pos - 1].get_mean_mz()) / mz.get_mean_mz()
-            dist_right = 1e6 * (roi_list[
-                                    pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+        dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
+            pos - 1].get_mean_mz()) / mz.get_mean_mz()
+        dist_right = 1e6 * (roi_list[
+                                pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
 
         if dist_left < mz_tol and dist_right > mz_tol:
             return roi_list[pos - 1]

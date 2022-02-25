@@ -3,8 +3,7 @@ from copy import deepcopy
 import numpy as np
 
 from vimms.Common import ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS, \
-    MZ_UNITS_PPM, ROI_TYPE_NORMAL, \
-    ROI_TYPE_SMART
+    ROI_TYPE_NORMAL, ROI_TYPE_SMART
 from vimms.Controller.roi import RoiController
 from vimms.Roi import RoiBuilder
 
@@ -14,9 +13,8 @@ class GridController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
-                 mz_units=MZ_UNITS_PPM,
                  params=None, register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
                  roi_type=ROI_TYPE_NORMAL, reset_length_seconds=1e6,
@@ -30,15 +28,14 @@ class GridController(RoiController):
             min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift, params=params,
-            exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0,
-            mz_units=mz_units
+            ms1_shift=ms1_shift, params=params,
+            exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0
         )
         self.roi_builder = RoiBuilder(
             mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-            mz_units=mz_units, reset_length_seconds=reset_length_seconds,
+            reset_length_seconds=reset_length_seconds,
             intensity_increase_factor=intensity_increase_factor,
-            drop_perc=drop_perc, length_units=length_units,
+            drop_perc=drop_perc,
             roi_type=roi_type, grid=grid)
 
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
@@ -116,7 +113,7 @@ class FlexibleNonOverlapController(GridController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False,
                  scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0},
@@ -130,7 +127,7 @@ class FlexibleNonOverlapController(GridController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, grid, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift,
+            ms1_shift=ms1_shift,
             min_rt_width=min_rt_width, min_mz_width=min_mz_width,
             params=params, register_all_roi=register_all_roi,
             roi_type=roi_type, reset_length_seconds=reset_length_seconds,
@@ -158,7 +155,7 @@ class CaseControlNonOverlapController(GridController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False,
                  scoring_params={'theta1': 1, 'theta2': 0, 'theta3': 0,
@@ -173,7 +170,6 @@ class CaseControlNonOverlapController(GridController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, grid, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units,
             ms1_shift=ms1_shift,
             min_rt_width=min_rt_width,
             min_mz_width=min_mz_width,
@@ -205,7 +201,7 @@ class TopNBoxRoiController2(GridController):
                  min_ms1_intensity, min_roi_intensity, min_roi_length,
                  N, grid, boxes_params=None, boxes=None, boxes_intensity=None,
                  boxes_pvalues=None, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, min_rt_width=0.01,
                  min_mz_width=0.01, params=None, box_min_rt_width=0.01,
                  box_min_mz_width=0.01):
@@ -220,7 +216,7 @@ class TopNBoxRoiController2(GridController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, grid=grid, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift,
+            ms1_shift=ms1_shift,
             min_rt_width=min_rt_width, min_mz_width=min_mz_width,
             params=params)
 

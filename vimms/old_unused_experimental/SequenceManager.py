@@ -615,7 +615,7 @@ def create_controller(controller_method, param_dict):
                                         param_dict['mz_tol'], param_dict['min_ms1_intensity'],
                                         param_dict['min_roi_intensity'], param_dict['min_roi_length'], param_dict['N'],
                                         param_dict['rt_tol'], param_dict['min_roi_length_for_fragmentation'],
-                                        param_dict['length_units'], param_dict['ms1_shift'], param_dict['params'])
+                                        param_dict['ms1_shift'], param_dict['params'])
 
     if controller_method == 'TopN_SmartRoiController':
         controller = TopN_SmartRoiController(param_dict['ionisation_mode'], param_dict['isolation_width'],
@@ -624,7 +624,7 @@ def create_controller(controller_method, param_dict):
                                              param_dict['N'], param_dict['rt_tol'],
                                              param_dict['min_roi_length_for_fragmentation'],
                                              param_dict['reset_length_seconds'],
-                                             param_dict['intensity_increase_factor'], param_dict['length_units'],
+                                             param_dict['intensity_increase_factor'],
                                              param_dict['drop_perc'], param_dict['ms1_shift'], param_dict['params'])
 
     elif controller_method == 'TopNController':

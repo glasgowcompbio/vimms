@@ -82,7 +82,7 @@ def top_n_evaluation(param_dict):
 #                                        param_dict[
 #                                            'min_roi_length_for_fragmentation'],
 #                                        param_dict['reset_length_seconds'],
-#                                        param_dict['iif'], length_units="scans",
+#                                        param_dict['iif'],
 #                                        drop_perc=param_dict['dp'] / 100,
 #                                        ms1_shift=0, params=params)
 #     chemical_coverage = run_env(mass_spec, smartroi, param_dict['min_rt'],

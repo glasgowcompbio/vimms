@@ -125,9 +125,6 @@ GRID_CONTROLLER_SCORING_PARAMS = {
     'smartroi_score_add': True
 }
 
-MZ_UNITS_PPM = 'ppm'
-MZ_UNITS_DA = 'Da'
-
 ROI_TYPE_NORMAL = 'roi'
 ROI_TYPE_SMART = 'smart'
 

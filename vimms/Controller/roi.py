@@ -5,7 +5,7 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW, \
-    MZ_UNITS_PPM, ROI_TYPE_NORMAL, ROI_TYPE_SMART
+    ROI_TYPE_NORMAL, ROI_TYPE_SMART
 from vimms.Controller.topN import TopNController
 from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, \
     WeightedDEWExclusion, DEWFilter, \
@@ -21,19 +21,17 @@ class RoiController(TopNController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0,
                  params=None, exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None, mz_units=MZ_UNITS_PPM):
+                 exclusion_t_0=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,
                          params=params)
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation # noqa
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity,
                                       min_roi_length,
-                                      length_units=length_units,
-                                      roi_type=ROI_TYPE_NORMAL,
-                                      mz_units=mz_units)
+                                      roi_type=ROI_TYPE_NORMAL)
 
         self.exclusion_method = exclusion_method
         assert self.exclusion_method in [ROI_EXCLUSION_DEW,
@@ -161,19 +159,17 @@ class TopN_SmartRoiController(RoiController):
                  min_roi_length, N, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
                  reset_length_seconds=100, intensity_increase_factor=2,
-                 length_units="scans",
                  drop_perc=0.01, ms1_shift=0, params=None):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift, params=params)
+            ms1_shift=ms1_shift, params=params)
         self.roi_builder = RoiBuilder(
             mz_tol, rt_tol, min_roi_intensity, min_roi_length,
             reset_length_seconds=reset_length_seconds,
             intensity_increase_factor=intensity_increase_factor,
             drop_perc=drop_perc,
-            length_units=length_units,
             roi_type=ROI_TYPE_SMART)
 
     def _get_dda_scores(self):
@@ -190,14 +186,14 @@ class TopN_RoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N=None, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, params=None, exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift, params=params,
+            ms1_shift=ms1_shift, params=params,
             exclusion_method=exclusion_method, exclusion_t_0=exclusion_t_0)
 
     def _get_scores(self):
@@ -212,7 +208,7 @@ class TopNBoxRoiController(RoiController):
                  min_roi_length, boxes_params=None, boxes=None,
                  boxes_intensity=None, boxes_pvalues=None, N=None,
                  rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
 
@@ -227,7 +223,7 @@ class TopNBoxRoiController(RoiController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift, params=params)
+            ms1_shift=ms1_shift, params=params)
 
     def _get_scores(self):
         if self.boxes is not None:

@@ -7,7 +7,7 @@ class ModelRoiController(RoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         self.boxes = boxes
@@ -19,20 +19,20 @@ class ModelRoiController(RoiController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            length_units=length_units, ms1_shift=ms1_shift, params=params)
+            ms1_shift=ms1_shift, params=params)
 
 
 class FullPrioritisationModelRoiController(ModelRoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         super().__init__(ionisation_mode, isolation_width, mz_tol,
                          min_ms1_intensity, min_roi_intensity,
                          min_roi_length, boxes, p_values, N, rt_tol,
-                         min_roi_length_for_fragmentation, length_units,
+                         min_roi_length_for_fragmentation,
                          ms1_shift, params,
                          box_min_rt_width, box_min_mz_width)
 
@@ -56,13 +56,13 @@ class TopNBoxModelRoiController(ModelRoiController):
     def __init__(self, ionisation_mode, isolation_width, mz_tol,
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
-                 min_roi_length_for_fragmentation=1, length_units="scans",
+                 min_roi_length_for_fragmentation=1,
                  ms1_shift=0, params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, boxes, p_values, N, rt_tol,
-            min_roi_length_for_fragmentation, length_units, ms1_shift,
+            min_roi_length_for_fragmentation, ms1_shift,
             params, box_min_rt_width, box_min_mz_width)
 
         # this is highest to lowest

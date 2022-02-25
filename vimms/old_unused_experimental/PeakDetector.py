@@ -16,7 +16,7 @@ QCB_MZML2CHEMS_DICT = {'min_ms1_intensity': 1.75E5,
 
 
 def get_rois(mzml, min_roi_length, mzml2chems_dict=QCB_MZML2CHEMS_DICT):
-    roi_params = RoiParams(mz_tol=mzml2chems_dict['mz_tol'], mz_units=mzml2chems_dict['mz_units'],
+    roi_params = RoiParams(mz_tol=mzml2chems_dict['mz_tol'],
                            min_length=min_roi_length, min_intensity=mzml2chems_dict['min_intensity'],
                            start_rt=mzml2chems_dict['start_rt'], stop_rt=mzml2chems_dict['stop_rt'])
     good_roi = make_roi(mzml, roi_params)

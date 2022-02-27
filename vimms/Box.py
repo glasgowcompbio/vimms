@@ -838,56 +838,74 @@ class LineSweeper(BoxExact):
     @staticmethod
     def _to_endpoint(boxes, coord):
         EndPoint = namedtuple("EndPoint", ["pos", "is_end", "box"])
-        eps = [EndPoint(getattr(b.pt1, coord), False, b) for b in boxes]
-        eps += [EndPoint(getattr(b.pt2, coord), True, b) for b in boxes]
+        eps = []
+        for b in boxes:
+            eps.append(EndPoint(getattr(b.pt1, coord), False, b))
+            eps.append(EndPoint(getattr(b.pt2, coord), True, b))
         eps.sort(key=lambda ep: ep[:2]) #TODO: confirm not issue if boxes start/end at same place
         return eps
+       
+    @staticmethod
+    def _group_endpoints(endpts):
+        return (
+            list(v) for k, v in itertools.groupby(endpts, key=attrgetter("pos"))
+        )
+        
+    @staticmethod
+    def _unify_intervals(endpts):
+        begin, count = -1, 0
+        for pos, end, _ in endpts:
+            if(end):
+                count -= 1
+                if(count == 0): yield (begin, pos)
+            else:
+                if(count == 0): begin = pos
+                count += 1
         
     def reduce_all_boxes(self):
         new_id, new_boxes = 0, []
         x_ends = self._to_endpoint(self.all_boxes, "x")
         
-        for i, (x_pos, x_end, x_box) in enumerate(x_ends):
-            if(
-                i + 1 == len(x_ends)
-                or not math.isclose(x_pos, x_ends[i+1][0])
-            ):
-                inv = Interval(x_pos, x_pos, x_box.pt1.y, x_box.pt2.y)
-                overlapped = self.interval_overlaps_which_boxes(inv)
+        for x_group in self._group_endpoints(x_ends):
+            to_query = self._to_endpoint((x.box for x in x_group), "y")
+            invs = self._unify_intervals(to_query)
+            
+            x_pos = x_group[0][0]
+            for begin, end in invs:
+                overlapped = self.interval_overlaps_which_boxes(
+                    Interval(x_pos, x_pos, begin, end)
+                )
                 y_ends = self._to_endpoint(overlapped, "y")
                 
                 prev_y_pos, y_active = 0, []
-                for j, (y_pos, y_end, y_box) in enumerate(y_ends):
-                    
-                    if(
-                        j + 1 == len(y_ends)
-                        or not math.isclose(y_pos, y_ends[j+1][0])
-                    ):
-                        if(y_active != []):
-                            new_box = GenericBox(
-                                                self.last_accessed[y_box],
-                                                x_pos, 
-                                                prev_y_pos, 
-                                                y_pos,
-                                                parents = copy.copy(y_active),
-                                                intensity = max(b.intensity for b in y_active),
-                                                id = new_id
-                                            )
-                            new_boxes.append(new_box)
-                            new_id += 1
-                        prev_y_pos = y_pos
-                    
-                    if(y_end): y_active.remove(y_box)
-                    else: y_active.append(y_box)
+                for y_group in self._group_endpoints(y_ends):
+                    y_pos = y_group[0][0]
+                    if(y_active != []):
+                        new_boxes.append(
+                            GenericBox(
+                                self.last_accessed[y_box],
+                                x_pos, 
+                                prev_y_pos, 
+                                y_pos,
+                                parents = copy.copy(y_active),
+                                intensity = max(b.intensity for b in y_active),
+                                id = new_id
+                            )
+                        )
+                        new_id += 1
+                    prev_y_pos = y_pos
                 
-                for _, __, y_box in y_ends:
+                    for y_pos, y_end, y_box in y_group:
+                        if(y_end): y_active.remove(y_box)
+                        else: y_active.append(y_box)
+                    
+                for _, __, y_box in y_ends:    
                     self.last_accessed[y_box] = x_pos
             
-            if(x_end):
-                self._remove_active()
-            else:
-                self._add_active(self.active_pointer + 1, x_pos)
-                
+            for x_pos, x_end, _ in x_group:
+                if(x_end): self._remove_active()
+                else: self._add_active(self.active_pointer + 1, x_pos)
+                    
         return new_boxes
     
     def register_boxes(self, boxes):

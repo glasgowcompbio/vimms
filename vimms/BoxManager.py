@@ -45,7 +45,7 @@ class BoxManager():
 
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         if(not isinstance(self.box_splitter, BoxSplitter)): 
-            raise ValueError(nosplit_errmsg)
+            raise ValueError(self.nosplit_errmsg)
         return self.box_geometry.intensity_non_overlap(box, current_intensity, scoring_params)
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):

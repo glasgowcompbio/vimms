@@ -264,7 +264,7 @@ class Matching():
         active_chems, edges = [], {ch: [] for ch in chems}
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
-            rt_intervals.addi(ch.min_rt, math.nextafter(ch.max_rt, math.inf), ch)
+            rt_intervals.addi(ch.min_rt, ch.max_rt + 1E-12, ch)
 
         seen_intersected = set()
         seen_intensities = {}

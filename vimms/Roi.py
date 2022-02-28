@@ -390,8 +390,9 @@ class RoiParams():
     A parameter object that stores various settings required for ROIBuilder
     """
 
-    def __init__(self, mz_tol=10, min_length=1, min_intensity=0, start_rt=0,
-                 stop_rt=10000000,
+    def __init__(self, mz_tol=10, min_length=1,
+                 min_intensity=0, min_roi_intensity_for_fragmentation=0,
+                 start_rt=0, stop_rt=10000000,
                  mz_units=MZ_UNITS_PPM, length_units="scans"):
         """
         Initialises an RoiParams object
@@ -400,10 +401,13 @@ class RoiParams():
         :param min_intensity: minimum intensity to be included for ROI building
         :param start_rt: start RT of scans to be included for ROI building
         :param start_rt: end RT of scans to be included for ROI building
+        :param min_roi_intensity_for_fragmentation: keep only the ROIs that can be
+        fragmented above this threshold.
         """
         self.mz_tol = mz_tol
         self.min_length = min_length
         self.min_intensity = min_intensity
+        self.min_roi_intensity_for_fragmentation = min_roi_intensity_for_fragmentation
         self.start_rt = start_rt
         self.stop_rt = stop_rt
         self.mz_units = mz_units
@@ -424,7 +428,8 @@ class RoiBuilder():
                  initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, drop_perc=0.01,
                  length_units="scans",
-                 roi_type=ROI_TYPE_NORMAL):
+                 roi_type=ROI_TYPE_NORMAL,
+                 min_roi_intensity_for_fragmentation=0):
         """
         Initialises an ROI Builder object.
         :param mz_tol: the m/z tolerance when matching a new point to
@@ -441,6 +446,8 @@ class RoiBuilder():
         :param length_units: the length unit (either in 'scans' or 'seconds')
         :param roi_type: the type of ROI object generated, either
         ROI_TYPE_NORMAL or ROI_TYPE_SMART
+        :param min_roi_intensity_for_fragmentation: keep only the ROIs that can be
+        fragmented above this threshold.
         """
 
         if (mz_units == MZ_UNITS_DA and mz_tol > 1) or (
@@ -451,6 +458,7 @@ class RoiBuilder():
 
         # ROI stuff
         self.min_roi_intensity = min_roi_intensity
+        self.min_roi_intensity_for_fragmentation = min_roi_intensity_for_fragmentation
         self.mz_tol = mz_tol
         self.mz_units = mz_units
         self.rt_tol = rt_tol
@@ -663,11 +671,25 @@ class RoiBuilder():
 
     def get_good_rois(self):
         """
-        Returns all ROIs above min_roi_length
+        Returns all ROIs above filtering criteria
         """
+        # length check
         filtered_roi = [roi for roi in self.live_roi if
                         roi.n >= self.min_roi_length]
-        return filtered_roi + self.dead_roi
+
+        # intensity check:
+        # Keep only the ROIs that can be fragmented above
+        # min_roi_intensity_for_fragmentation threshold.
+        all_roi = filtered_roi + self.dead_roi
+        if self.min_roi_intensity_for_fragmentation > 0:
+            keep = []
+            for roi in all_roi:
+                if np.count_nonzero(np.array(
+                        roi.intensity_list) > self.min_roi_intensity_for_fragmentation) > 0:
+                    keep.append(roi)
+        else:
+            keep = all_roi
+        return keep
 
 
 class RoiAligner():
@@ -958,10 +980,12 @@ def make_roi(input_file, roi_params):
                             obo_version='4.0.1')
 
     scan_id = 0
-    roi_builder = RoiBuilder(roi_params.mz_tol, 0, roi_params.min_intensity,
-                             roi_params.min_length,
-                             mz_units=roi_params.mz_units,
-                             length_units=roi_params.length_units)
+    roi_builder = RoiBuilder(
+        roi_params.mz_tol, 0, roi_params.min_intensity,
+        roi_params.min_length,
+        mz_units=roi_params.mz_units,
+        length_units=roi_params.length_units,
+        min_roi_intensity_for_fragmentation=roi_params.min_roi_intensity_for_fragmentation)
     for i, spectrum in enumerate(run):
         ms_level = 1
         if spectrum['ms level'] == ms_level:

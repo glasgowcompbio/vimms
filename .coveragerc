@@ -1,3 +1,5 @@
 [run]
 omit =
+    setup.py
     tests/*.py
+    old_unused_experimental/*.py

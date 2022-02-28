@@ -14,15 +14,18 @@ class GridController(RoiController):
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, grid, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
-                 ms1_shift=0, min_rt_width=0.01, min_mz_width=0.01,
+                 ms1_shift=0, max_skips_allowed=0,
+                 min_rt_width=0.01, min_mz_width=0.01,
                  params=None, register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
-                 roi_type=ROI_TYPE_NORMAL, reset_length_seconds=1e6,
+                 roi_type=ROI_TYPE_NORMAL,
                  # smartroi parameters
-                 intensity_increase_factor=10, drop_perc=0.1 / 100,
-                 # smartroi parameters
+                 reset_length_seconds=1e6,
+                 intensity_increase_factor=10,
+                 drop_perc=0.1 / 100,
+                 #  # weighted dew parameters
                  exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None):  # weighted dew parameters
+                 exclusion_t_0=None):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity,
@@ -36,7 +39,8 @@ class GridController(RoiController):
             reset_length_seconds=reset_length_seconds,
             intensity_increase_factor=intensity_increase_factor,
             drop_perc=drop_perc,
-            roi_type=roi_type, grid=grid)
+            roi_type=roi_type, grid=grid,
+            max_skips_allowed=max_skips_allowed)
 
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid  # helps us understand previous RoIs

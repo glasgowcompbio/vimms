@@ -6,7 +6,7 @@ input.
 """
 import bisect
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 
 import numpy as np
 import pandas as pd
@@ -402,7 +402,8 @@ class RoiBuilder():
                  initial_length_seconds=5, reset_length_seconds=100,
                  intensity_increase_factor=2, drop_perc=0.01,
                  roi_type=ROI_TYPE_NORMAL, grid=None,
-                 min_roi_intensity_for_fragmentation=0):
+                 min_roi_intensity_for_fragmentation=0,
+                 max_skips_allowed=0):
         """
         Initialises an ROI Builder object.
         :param mz_tol: the m/z tolerance when matching a new point to
@@ -457,6 +458,11 @@ class RoiBuilder():
         # Grid stuff
         self.grid = grid
 
+        # Store the last few RT values of scans
+        self.max_skips_allowed = max_skips_allowed
+        self.rt_buffer = [0] * (self.max_skips_allowed+1) # 0 is current scan RT, others are past
+        self.skipped_roi_count = defaultdict(int)
+
     # flake8: noqa: C901
     def update_roi(self, new_scan):
         """
@@ -477,7 +483,25 @@ class RoiBuilder():
 
             # Current scan retention time of the MS1 scan is the RT of all
             # points in this scan
-            current_ms1_scan_rt = new_scan.rt
+            current_rt = new_scan.rt
+
+            # keep track of the last few RT values up to max_skips_allowed
+            # e.g. [110, 109, 107, 106, 103] for max_skips_allowed = 5
+            # the front of the list contains the current MS1 scan's RT value
+            self.rt_buffer.pop(-1)
+            self.rt_buffer.insert(0, current_rt)
+
+            # ensures data structure is in a consistent state
+            assert len(self.rt_buffer) == self.max_skips_allowed+1
+            assert self.rt_buffer[0] == current_rt
+
+            # check ordering, front element is larger than back
+            for i in range(len(self.rt_buffer) - 1):
+                assert self.rt_buffer[i] >= self.rt_buffer[i+1]
+
+            # check that there's no ROI with skip_count > self.max_skips_allowed
+            skip_counts = np.array(list(self.skipped_roi_count.values()))
+            assert np.sum(skip_counts > self.max_skips_allowed) == 0
 
             # The set of ROIs that are not grown yet.
             # Initially all currently live ROIs are included, and they're
@@ -486,32 +510,68 @@ class RoiBuilder():
 
             # For every (mz, intensity) in scan ..
             for idx in range(len(new_scan.intensities)):
-                intensity = new_scan.intensities[idx]
-                mz = new_scan.mzs[idx]
+                current_intensity = new_scan.intensities[idx]
+                current_mz = new_scan.mzs[idx]
 
-                if intensity >= self.min_roi_intensity:
+                if current_intensity >= self.min_roi_intensity:
 
                     # Create a dummy ROI object to represent the current m/z
                     # value. This produces either a normal ROI or smart ROI
                     # object, depending on self.roi_type
-                    roi = self._get_roi_obj(mz, 0, 0, None)
+                    roi = self._get_roi_obj(current_mz, 0, 0, None)
 
                     # Match dummy ROI to currently live ROIs based on mean
                     # m/z values. If no match, then return None
-                    match_roi = match(roi, self.live_roi, self.mz_tol)
-                    if match_roi:
+                    match_roi = self._match(roi, self.live_roi, self.mz_tol)
+                    if match_roi: # Got a match, so we grow this ROI
 
-                        # Got a match, so we grow this ROI
-                        match_roi.add(mz, current_ms1_scan_rt, intensity)
+                        # get how many scans have been skipped for this matched ROI
+                        repeat = 0 if match_roi not in self.skipped_roi_count else \
+                            self.skipped_roi_count[match_roi]
+
+                        if repeat == 0: # nothing has been skipped
+
+                            scan_rt = self.rt_buffer[0]
+                            intensity = current_intensity
+                            match_roi.add(current_mz, scan_rt, intensity)
+
+                        else: # some scans have been skipped
+
+                            x1 = match_roi.rt_list[-1]          # last RT of the ROI
+                            y1 = match_roi.intensity_list[-1]   # last intensity of the ROI
+                            x2 = self.rt_buffer[0]              # current RT to insert
+                            y2 = current_intensity              # current intensity to insert
+                            slope = (y2-y1)/(x2-x1)
+
+                            # insert previously missing points into this ROI
+                            # count down from repeat .. 0
+                            for i in range(repeat, -1, -1):
+
+                                # Get the RT value of previously skipped scans:
+                                # the front of rt_buffer[0] contains the most recent value
+                                # (current_rt), followed by the RT values of past few scans.
+                                scan_rt = self.rt_buffer[i]
+
+                                # linear interpolation of missing intensity values
+                                intensity = y1 + slope * (scan_rt-x1)
+                                match_roi.add(current_mz, scan_rt, intensity)
+
+                        # ROI has been matched and can be removed from not_grew
                         if match_roi in not_grew:
                             not_grew.remove(match_roi)
+
+                            # this ROI has been grown so delete from skip count if possible
+                            try:
+                                del self.skipped_roi_count[match_roi]
+                            except KeyError:
+                                pass
 
                     else:
 
                         # No match, so create a new ROI and insert it in the
                         # right place in the sorted list
-                        new_roi = self._get_roi_obj(mz, current_ms1_scan_rt,
-                                                    intensity,
+                        new_roi = self._get_roi_obj(current_mz, current_rt,
+                                                    current_intensity,
                                                     self.roi_id_counter)
                         self.roi_id_counter += 1
                         bisect.insort_right(self.live_roi, new_roi)
@@ -527,22 +587,79 @@ class RoiBuilder():
             # Dead ROIs are longer than self.min_roi_length but they haven't
             # been grown. Junk ROIs are too short and not grown.
             for roi in not_grew:
-                if roi.n >= self.min_roi_length:
-                    self.dead_roi.append(roi)
-                else:
-                    self.junk_roi.append(roi)
 
-                # Remove not-grown ROI from the list of live ROIs
-                pos = self.live_roi.index(roi)
-                del self.live_roi[pos]
-                del self.live_roi_fragmented[pos]
-                del self.live_roi_last_rt[pos]
+                # if too much gaps ...
+                self.skipped_roi_count[roi] += 1
+                if self.skipped_roi_count[roi] > self.max_skips_allowed:
+
+                    # then set the roi to either dead or junk (depending on length)
+                    if roi.n >= self.min_roi_length:
+                        self.dead_roi.append(roi)
+                    else:
+                        self.junk_roi.append(roi)
+
+                    # Remove not-grown ROI from the list of live ROIs
+                    pos = self.live_roi.index(roi)
+                    del self.live_roi[pos]
+                    del self.live_roi_fragmented[pos]
+                    del self.live_roi_last_rt[pos]
+
+                    # this ROI is either dead or junk, so delete from skip count
+                    # as we don't need to track it anymore
+                    del self.skipped_roi_count[roi]
 
             self.current_roi_ids = [roi.id for roi in self.live_roi]
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in
                                             self.live_roi]
             self.current_roi_length = np.array([roi.n for roi in self.live_roi])
+
+    # flake8: noqa: C901
+    def _match(self, mz, roi_list, mz_tol):
+        """
+        # Find the RoI that a particular mz falls into. If it falls into nothing,
+        return None.
+        :param mz: an ROI object containing the m/z we want to find
+        :param roi_list: the list of other ROIs to determine where to place the
+        mz ROI into
+        :param mz_tol: m/z tolerance. This is the window above and below the
+        mean_mz of the RoI.
+                       E.g. if mz_tol = 1 Da, then it looks plus and minus 1Da
+        """
+        if len(roi_list) == 0:
+            return None
+        pos = bisect.bisect_right(roi_list, mz)
+
+        if pos == len(roi_list):
+            dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
+                pos - 1].get_mean_mz()) / mz.get_mean_mz()
+            if dist_left < mz_tol:
+                return roi_list[pos - 1]
+            else:
+                return None
+        elif pos == 0:
+            dist_right = 1e6 * (roi_list[pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+            if dist_right < mz_tol:
+                return roi_list[pos]
+            else:
+                return None
+        else:
+            dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
+                pos - 1].get_mean_mz()) / mz.get_mean_mz()
+            dist_right = 1e6 * (roi_list[
+                                    pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+
+            if dist_left < mz_tol < dist_right:
+                return roi_list[pos - 1]
+            elif dist_left > mz_tol > dist_right:
+                return roi_list[pos]
+            elif dist_left < mz_tol and dist_right < mz_tol:
+                if dist_left <= dist_right:
+                    return roi_list[pos - 1]
+                else:
+                    return roi_list[pos]
+            else:
+                return None
 
     def _get_roi_obj(self, mz, rt, intensity, roi_id):
         """
@@ -1005,54 +1122,6 @@ def spectrum_to_arrays(spectrum):
     mzs = np.array(mzs)
     intensities = np.array(intensities)
     return mzs, intensities
-
-
-# flake8: noqa: C901
-def match(mz, roi_list, mz_tol):
-    """
-    # Find the RoI that a particular mz falls into. If it falls into nothing,
-    return None.
-    :param mz: an ROI object containing the m/z we want to find
-    :param roi_list: the list of other ROIs to determine where to place the
-    mz ROI into
-    :param mz_tol: m/z tolerance. This is the window above and below the
-    mean_mz of the RoI.
-                   E.g. if mz_tol = 1 Da, then it looks plus and minus 1Da
-    """
-    if len(roi_list) == 0:
-        return None
-    pos = bisect.bisect_right(roi_list, mz)
-
-    if pos == len(roi_list):
-        dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
-            pos - 1].get_mean_mz()) / mz.get_mean_mz()
-        if dist_left < mz_tol:
-            return roi_list[pos - 1]
-        else:
-            return None
-    elif pos == 0:
-        dist_right = 1e6 * (roi_list[pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
-        if dist_right < mz_tol:
-            return roi_list[pos]
-        else:
-            return None
-    else:
-        dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
-            pos - 1].get_mean_mz()) / mz.get_mean_mz()
-        dist_right = 1e6 * (roi_list[
-                                pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
-
-        if dist_left < mz_tol and dist_right > mz_tol:
-            return roi_list[pos - 1]
-        elif dist_left > mz_tol and dist_right < mz_tol:
-            return roi_list[pos]
-        elif dist_left < mz_tol and dist_right < mz_tol:
-            if dist_left <= dist_right:
-                return roi_list[pos - 1]
-            else:
-                return roi_list[pos]
-        else:
-            return None
 
 
 def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method='pearson'):

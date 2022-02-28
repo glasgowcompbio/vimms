@@ -22,7 +22,7 @@ class RoiController(TopNController):
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, N, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
-                 ms1_shift=0,
+                 ms1_shift=0, max_skips_allowed=0,
                  params=None, exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
@@ -31,7 +31,8 @@ class RoiController(TopNController):
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation # noqa
         self.roi_builder = RoiBuilder(mz_tol, rt_tol, min_roi_intensity,
                                       min_roi_length,
-                                      roi_type=ROI_TYPE_NORMAL)
+                                      roi_type=ROI_TYPE_NORMAL,
+                                      max_skips_allowed=max_skips_allowed)
 
         self.exclusion_method = exclusion_method
         assert self.exclusion_method in [ROI_EXCLUSION_DEW,

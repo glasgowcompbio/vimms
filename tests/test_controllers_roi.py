@@ -1,3 +1,4 @@
+import numpy as np
 from loguru import logger
 
 from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE, \
@@ -9,7 +10,106 @@ from vimms.Controller import TopN_RoiController, TopN_SmartRoiController, NonOve
     IntensityNonOverlapController, FlexibleNonOverlapController
 from vimms.Environment import Environment
 from vimms.GridEstimator import GridEstimator
-from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.MassSpec import IndependentMassSpectrometer, Scan
+from vimms.Roi import RoiBuilder
+
+
+def delete_point(scans, mz, rt):
+    # find scan
+    filtered = [sc for sc in scans if sc.rt == rt]
+    scan = filtered[0]
+
+    # delete point
+    idx = np.where(scan.mzs == mz)[0][0]
+    scan.mzs = np.delete(scan.mzs, idx)
+    scan.intensities = np.delete(scan.intensities, idx)
+    scan.num_peaks = len(scan.mzs)
+
+
+class TestRoiBuilder:
+    """
+    Tests the codes that performs ROI building
+    """
+
+    def test_simple(self):
+        """
+        Test the simple case of building ROIs without any gaps in the scans
+        """
+
+        # create some scans in 3 contiguous ROIs
+        ms_level = 1
+        mzs = np.array([100, 101, 102])
+        intensities = np.array([25, 50, 75])
+
+        scans = []
+        for rt in range(20):
+            sc = Scan(1, mzs, intensities, ms_level, rt)
+            scans.append(sc)
+
+        # Build ROIs
+        roi_builder = RoiBuilder(10, 0, 0, 0)
+        for sc in scans:
+            roi_builder.update_roi(sc)
+        rois = roi_builder.get_good_rois()
+        assert len(rois) == 3
+
+    def test_gaps(self):
+        """
+        Test the case of building ROIs with gaps in the scans
+        """
+
+        # create some scans with gaps
+        ms_level = 1
+        mzs = np.array([100, 101, 102])
+        intensities = np.array([25, 50, 75])
+
+        scans = []
+        for rt in range(20):
+            sc = Scan(1, mzs, intensities, ms_level, rt)
+            scans.append(sc)
+
+        # Introduce one gap
+        delete_point(scans, 100, 10)
+
+        # Build ROIs with no gap-filling.
+        # We should get 4 ROIs as one ROI (at m/z 100) has been broken into two parts.
+        roi_builder = RoiBuilder(10, 0, 0, 0)
+        for sc in scans:
+            roi_builder.update_roi(sc)
+        rois = roi_builder.get_good_rois()
+        assert len(rois) == 4
+
+        # Build ROIs with `max_skips_allowed` set to 1.
+        # Here we still get 3 ROIs due to gap-filling.
+        roi_builder = RoiBuilder(10, 0, 0, 0, max_skips_allowed=1)
+        for sc in scans:
+            roi_builder.update_roi(sc)
+        rois = roi_builder.get_good_rois()
+        assert len(rois) == 3
+
+        # Introduce more gaps
+        delete_point(scans, 100, 5)
+        delete_point(scans, 100, 15)
+        delete_point(scans, 102, 10)
+        delete_point(scans, 102, 11)
+        delete_point(scans, 102, 12)
+
+        # Build ROIs with no gap-filling.
+        # We should get 7 ROIs as the bottom ROI (at m/z 100) is now split into 4 parts, and
+        # the top ROI (at m/z 102) is split into two with large gaps.
+        roi_builder = RoiBuilder(10, 0, 0, 0)
+        for sc in scans:
+            roi_builder.update_roi(sc)
+        rois = roi_builder.get_good_rois()
+        assert len(rois) == 7
+
+        # Build ROIs with `max_skips_allowed` set to 3.
+        # Here we still get 3 ROIs due to gap-filling.
+        roi_builder = RoiBuilder(10, 0, 0, 0, max_skips_allowed=3)
+        for sc in scans:
+            roi_builder.update_roi(sc)
+        rois = roi_builder.get_good_rois()
+        assert len(rois) == 3
 
 
 class TestROIController:

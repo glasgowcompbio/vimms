@@ -453,9 +453,7 @@ class RoiBuilder():
         # Grid stuff
         self.grid = grid
 
-        # Store the last few RT values of scans
-        # 0 is current scan RT, others are past
-        self.rt_buffer = [0] * (self.roi_params.max_gaps_allowed + 1)
+        # count how many times an ROI is not grown
         self.skipped_roi_count = defaultdict(int)
 
     # flake8: noqa: C901
@@ -479,20 +477,6 @@ class RoiBuilder():
             # Current scan retention time of the MS1 scan is the RT of all
             # points in this scan
             current_rt = new_scan.rt
-
-            # keep track of the last few RT values up to max_skips_allowed
-            # e.g. [110, 109, 107, 106, 103] for max_skips_allowed = 5
-            # the front of the list contains the current MS1 scan's RT value
-            self.rt_buffer.pop(-1)
-            self.rt_buffer.insert(0, current_rt)
-
-            # ensures data structure is in a consistent state
-            assert len(self.rt_buffer) == self.roi_params.max_gaps_allowed + 1
-            assert self.rt_buffer[0] == current_rt
-
-            # check ordering, front element is larger than back
-            for i in range(len(self.rt_buffer) - 1):
-                assert self.rt_buffer[i] >= self.rt_buffer[i + 1]
 
             # check that there's no ROI with skip_count > self.max_skips_allowed
             skip_counts = np.array(list(self.skipped_roi_count.values()))
@@ -518,37 +502,10 @@ class RoiBuilder():
                     # Match dummy ROI to currently live ROIs based on mean
                     # m/z values. If no match, then return None
                     match_roi = self._match(roi, self.live_roi, self.roi_params.mz_tol)
-                    if match_roi:  # Got a match, so we grow this ROI
+                    if match_roi:
 
-                        # get how many scans have been skipped for this matched ROI
-                        repeat = 0 if match_roi not in self.skipped_roi_count else \
-                            self.skipped_roi_count[match_roi]
-
-                        if repeat == 0:  # nothing has been skipped
-
-                            scan_rt = self.rt_buffer[0]
-                            intensity = current_intensity
-                            match_roi.add(current_mz, scan_rt, intensity)
-
-                        else:  # some scans have been skipped
-
-                            x1 = match_roi.rt_list[-1]  # last RT of the ROI
-                            y1 = match_roi.intensity_list[-1]  # last intensity of the ROI
-                            x2 = self.rt_buffer[0]  # current RT to insert
-                            y2 = current_intensity  # current intensity to insert
-                            slope = (y2 - y1) / (x2 - x1)
-
-                            # insert previously missing points into this ROI
-                            # count down from repeat .. 0
-                            for i in range(repeat, -1, -1):
-                                # Get the RT value of previously skipped scans:
-                                # the front of rt_buffer[0] contains the most recent value
-                                # (current_rt), followed by the RT values of past few scans.
-                                scan_rt = self.rt_buffer[i]
-
-                                # linear interpolation of missing intensity values
-                                intensity = y1 + slope * (scan_rt - x1)
-                                match_roi.add(current_mz, scan_rt, intensity)
+                        # Got a match, so we grow this ROI
+                        match_roi.add(current_mz, current_rt, current_intensity)
 
                         # ROI has been matched and can be removed from not_grew
                         if match_roi in not_grew:

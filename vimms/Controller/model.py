@@ -8,7 +8,7 @@ class ModelRoiController(RoiController):
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
-                 ms1_shift=0, params=None,
+                 ms1_shift=0, advanced_params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         self.boxes = boxes
         self.p_values = np.array(p_values)
@@ -19,7 +19,7 @@ class ModelRoiController(RoiController):
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            ms1_shift=ms1_shift, params=params)
+            ms1_shift=ms1_shift, advanced_params=advanced_params)
 
 
 class FullPrioritisationModelRoiController(ModelRoiController):
@@ -27,13 +27,13 @@ class FullPrioritisationModelRoiController(ModelRoiController):
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
-                 ms1_shift=0, params=None,
+                 ms1_shift=0, advanced_params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         super().__init__(ionisation_mode, isolation_width, mz_tol,
                          min_ms1_intensity, min_roi_intensity,
                          min_roi_length, boxes, p_values, N, rt_tol,
                          min_roi_length_for_fragmentation,
-                         ms1_shift, params,
+                         ms1_shift, advanced_params,
                          box_min_rt_width, box_min_mz_width)
 
         self.p_values_order = np.argsort(
@@ -57,13 +57,13 @@ class TopNBoxModelRoiController(ModelRoiController):
                  min_ms1_intensity, min_roi_intensity,
                  min_roi_length, boxes, p_values, N=None, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
-                 ms1_shift=0, params=None,
+                 ms1_shift=0, advanced_params=None,
                  box_min_rt_width=0.01, box_min_mz_width=0.01):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity, min_roi_length, boxes, p_values, N, rt_tol,
             min_roi_length_for_fragmentation, ms1_shift,
-            params, box_min_rt_width, box_min_mz_width)
+            advanced_params, box_min_rt_width, box_min_mz_width)
 
         # this is highest to lowest
         self.p_values_order = np.argsort(-np.array(self.p_values))

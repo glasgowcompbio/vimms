@@ -234,9 +234,7 @@ class SmartRoi(Roi):
     AFTER_FRAGMENT = 2
     POST_PEAK = 3
 
-    def __init__(self, mz, rt, intensity, initial_length_seconds=5,
-                 reset_length_seconds=100,
-                 intensity_increase_factor=2, dew=15, drop_perc=0.01, id=None):
+    def __init__(self, mz, rt, intensity, smartroi_params, id=None):
         """
         Constructs a new Smart ROI
         :param mz: the initial m/z of this ROI.
@@ -245,20 +243,12 @@ class SmartRoi(Roi):
         Can be either a single value or a list of values.
         :param intensity: the initial intensity  of this ROI.
         Can be either a single value or a list of values.
-        :param initial_length_seconds: the initial length (in seconds) before
-        this ROI can be fragmented
-        :param reset_length_seconds: the length (in seconds) before this ROI
-        can be fragmented again (CAN_FRAGMENT)
-        :param intensity_increase_factor: a factor of which the intensity
-        should increase from the **minimum** since
-        last fragmentation before this ROI can be fragmented again
-        :param drop_perc: percentage drop in intensity since last fragmentation
-         before this ROI can be fragmented again
         :param id: the ID of this ROI
         """
         super().__init__(mz, rt, intensity, id=id)
+        self.params = smartroi_params
 
-        if initial_length_seconds > 0:
+        if self.params.initial_length_seconds > 0:
             self.status = SmartRoi.INITIAL_WAITING
             self.set_can_fragment(False)
         else:
@@ -267,12 +257,6 @@ class SmartRoi(Roi):
 
         self.min_frag_intensity = None
         self.intensity_diff = 0
-
-        self.initial_length_seconds = initial_length_seconds
-        self.reset_length_seconds = reset_length_seconds
-        self.intensity_increase_factor = intensity_increase_factor
-        self.drop_perc = drop_perc
-        self.dew = dew
 
     def fragmented(self):
         """
@@ -306,18 +290,18 @@ class SmartRoi(Roi):
         """
         super().add(mz, rt, intensity)
         if self.status == SmartRoi.INITIAL_WAITING:
-            if self.length_in_seconds >= self.initial_length_seconds:
+            if self.length_in_seconds >= self.params.initial_length_seconds:
                 self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
         elif self.status == SmartRoi.AFTER_FRAGMENT:
             # in a period after a fragmentation has happened
             # if enough time has elapsed, reset everything
             if self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.reset_length_seconds:
+                self.fragmented_index] > self.params.reset_length_seconds:
                 self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
             elif self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.dew:
+                self.fragmented_index] > self.params.dew:
                 # standard DEW has expired
                 # find the min intensity since the frag
                 # check current intensity -- if it is 5* when we fragmented,
@@ -325,10 +309,10 @@ class SmartRoi(Roi):
                 min_since_frag = min(
                     self.intensity_list[self.fragmented_index:])
                 if self.intensity_list[
-                    -1] > min_since_frag * self.intensity_increase_factor:
+                    -1] > min_since_frag * self.params.intensity_increase_factor:
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
-                elif self.intensity_list[-1] < self.drop_perc * \
+                elif self.intensity_list[-1] < self.params.drop_perc * \
                         self.intensity_list[self.fragmented_index]:
                     # signal has dropped, but ROI still exists.
                     self.status = SmartRoi.CAN_FRAGMENT
@@ -337,7 +321,7 @@ class SmartRoi(Roi):
         # code below never happens
         elif self.status == SmartRoi.POST_PEAK:
             if self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.dew:
+                self.fragmented_index] > self.params.dew:
                 if self.intensity_list[-1] > self.min_frag_intensity:
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
@@ -363,30 +347,68 @@ class SmartRoi(Roi):
             self.intensity_diff = 0
 
 
-class RoiParams():
+class SmartRoiParams():
+    """
+    A parameter object that stores various settings required for SmartRoi
+    """
+
+    def __init__(self, initial_length_seconds=5, reset_length_seconds=1E6,
+                 intensity_increase_factor=10, dew=15, drop_perc=0.1/100):
+        """
+        Initialises a SmartRoiParams object
+        :param initial_length_seconds: the initial length (in seconds) before
+        this ROI can be fragmented
+        :param reset_length_seconds: the length (in seconds) before this ROI
+        can be fragmented again (CAN_FRAGMENT)
+        :param intensity_increase_factor: a factor of which the intensity
+        should increase from the **minimum** since
+        last fragmentation before this ROI can be fragmented again
+        :param dew: dynamic exclusion window (DEW) in seconds before this ROI
+        can be fragmented again
+        :param drop_perc: percentage drop in intensity since last fragmentation
+         before this ROI can be fragmented again
+
+        """
+        self.initial_length_seconds = initial_length_seconds
+        self.reset_length_seconds = reset_length_seconds
+        self.intensity_increase_factor = intensity_increase_factor
+        self.drop_perc = drop_perc
+        self.dew = dew
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+
+class RoiBuilderParams():
     """
     A parameter object that stores various settings required for ROIBuilder
     """
 
-    def __init__(self, mz_tol=10, min_length=1,
-                 min_intensity=0, min_roi_intensity_for_fragmentation=0,
-                 start_rt=0, stop_rt=10000000):
+    def __init__(self, mz_tol=10, min_roi_length=0,
+                 min_roi_intensity=0, at_least_one_point_above=0,
+                 start_rt=0, stop_rt=1E5, max_gaps_allowed=0):
         """
-        Initialises an RoiParams object
+        Initialises an RoiBuilderParams object
         :param mz_tol: m/z  tolerance
         :param min_length: minimum ROI length
         :param min_intensity: minimum intensity to be included for ROI building
         :param start_rt: start RT of scans to be included for ROI building
         :param start_rt: end RT of scans to be included for ROI building
-        :param min_roi_intensity_for_fragmentation: keep only the ROIs that can be
-        fragmented above this threshold.
+        :param at_least_one_point_above: keep only the ROIs containing at least one point
+        above this threshold
+        :param max_gaps_allowed: the number of gaps allowed in successive scans
+        when building ROIs
         """
+        if mz_tol < 0.1:
+            logger.warning(f'Is your m/z tolerance correct? mz_tol={mz_tol}')
+
         self.mz_tol = mz_tol
-        self.min_length = min_length
-        self.min_intensity = min_intensity
-        self.min_roi_intensity_for_fragmentation = min_roi_intensity_for_fragmentation
+        self.min_roi_length = min_roi_length
+        self.min_roi_intensity = min_roi_intensity
+        self.at_least_one_point_above = at_least_one_point_above
         self.start_rt = start_rt
         self.stop_rt = stop_rt
+        self.max_gaps_allowed = max_gaps_allowed
 
     def __repr__(self):
         return str(self.__dict__)
@@ -398,42 +420,21 @@ class RoiBuilder():
     in a controller, or for extracting ROIs from an mzML file.
     """
 
-    def __init__(self, mz_tol, rt_tol, min_roi_intensity, min_roi_length,
-                 initial_length_seconds=5, reset_length_seconds=100,
-                 intensity_increase_factor=2, drop_perc=0.01,
-                 roi_type=ROI_TYPE_NORMAL, grid=None,
-                 min_roi_intensity_for_fragmentation=0,
-                 max_skips_allowed=0):
+    def __init__(self, roi_params, smartroi_params=None, grid=None):
         """
         Initialises an ROI Builder object.
         :param mz_tol: the m/z tolerance when matching a new point to
         existing ROIs
-        :param rt_tol: dynamic exclusion window (in seconds) before an ROI
-        can be fragmented again
-        :param min_roi_length: minimum length of ROI (in number of scans) before
-        an ROI is considered to be junk ROI (and can be discarded)
-        :param initial_length_seconds: SmartROI parameter
-        :param reset_length_seconds: SmartROI parameter
-        :param intensity_increase_factor: SmartROI parameter
-        :param drop_perc: SmartROI parameter
-        :param roi_type: the type of ROI object generated, either
-        ROI_TYPE_NORMAL or ROI_TYPE_SMART
+        :param smartroi_params: SmartROI parameters
         :param grid: non-overlap grid, if any. Used to track overlapping
         fragmentation of ROI across samples.
-        :param min_roi_intensity_for_fragmentation: keep only the ROIs that can be
-        fragmented above this threshold.
         """
+        self.roi_params = roi_params
+        self.smartroi_params = smartroi_params
 
-        if mz_tol < 0.1:
-            logger.warning(f'Is your m/z tolerance correct? mz_tol={mz_tol}')
-
-        # ROI stuff
-        self.min_roi_intensity = min_roi_intensity
-        self.min_roi_intensity_for_fragmentation = min_roi_intensity_for_fragmentation
-        self.mz_tol = mz_tol
-        self.rt_tol = rt_tol
-        self.min_roi_length = min_roi_length
-        self.roi_type = roi_type
+        self.roi_type = ROI_TYPE_NORMAL
+        if self.smartroi_params is not None:
+            self.roi_type = ROI_TYPE_SMART
         assert self.roi_type in [ROI_TYPE_NORMAL, ROI_TYPE_SMART]
 
         # Create ROI
@@ -449,18 +450,12 @@ class RoiBuilder():
         self.frag_roi_dicts = []  # scan_id, roi_id, precursor_intensity
         self.roi_id_counter = 0
 
-        # Only used by SmartROI
-        self.initial_length_seconds = initial_length_seconds
-        self.reset_length_seconds = reset_length_seconds
-        self.intensity_increase_factor = intensity_increase_factor
-        self.drop_perc = drop_perc
-
         # Grid stuff
         self.grid = grid
 
         # Store the last few RT values of scans
-        self.max_skips_allowed = max_skips_allowed
-        self.rt_buffer = [0] * (self.max_skips_allowed+1) # 0 is current scan RT, others are past
+        # 0 is current scan RT, others are past
+        self.rt_buffer = [0] * (self.roi_params.max_gaps_allowed + 1)
         self.skipped_roi_count = defaultdict(int)
 
     # flake8: noqa: C901
@@ -492,16 +487,16 @@ class RoiBuilder():
             self.rt_buffer.insert(0, current_rt)
 
             # ensures data structure is in a consistent state
-            assert len(self.rt_buffer) == self.max_skips_allowed+1
+            assert len(self.rt_buffer) == self.roi_params.max_gaps_allowed + 1
             assert self.rt_buffer[0] == current_rt
 
             # check ordering, front element is larger than back
             for i in range(len(self.rt_buffer) - 1):
-                assert self.rt_buffer[i] >= self.rt_buffer[i+1]
+                assert self.rt_buffer[i] >= self.rt_buffer[i + 1]
 
             # check that there's no ROI with skip_count > self.max_skips_allowed
             skip_counts = np.array(list(self.skipped_roi_count.values()))
-            assert np.sum(skip_counts > self.max_skips_allowed) == 0
+            assert np.sum(skip_counts > self.roi_params.max_gaps_allowed) == 0
 
             # The set of ROIs that are not grown yet.
             # Initially all currently live ROIs are included, and they're
@@ -513,7 +508,7 @@ class RoiBuilder():
                 current_intensity = new_scan.intensities[idx]
                 current_mz = new_scan.mzs[idx]
 
-                if current_intensity >= self.min_roi_intensity:
+                if current_intensity >= self.roi_params.min_roi_intensity:
 
                     # Create a dummy ROI object to represent the current m/z
                     # value. This produces either a normal ROI or smart ROI
@@ -522,38 +517,37 @@ class RoiBuilder():
 
                     # Match dummy ROI to currently live ROIs based on mean
                     # m/z values. If no match, then return None
-                    match_roi = self._match(roi, self.live_roi, self.mz_tol)
-                    if match_roi: # Got a match, so we grow this ROI
+                    match_roi = self._match(roi, self.live_roi, self.roi_params.mz_tol)
+                    if match_roi:  # Got a match, so we grow this ROI
 
                         # get how many scans have been skipped for this matched ROI
                         repeat = 0 if match_roi not in self.skipped_roi_count else \
                             self.skipped_roi_count[match_roi]
 
-                        if repeat == 0: # nothing has been skipped
+                        if repeat == 0:  # nothing has been skipped
 
                             scan_rt = self.rt_buffer[0]
                             intensity = current_intensity
                             match_roi.add(current_mz, scan_rt, intensity)
 
-                        else: # some scans have been skipped
+                        else:  # some scans have been skipped
 
-                            x1 = match_roi.rt_list[-1]          # last RT of the ROI
-                            y1 = match_roi.intensity_list[-1]   # last intensity of the ROI
-                            x2 = self.rt_buffer[0]              # current RT to insert
-                            y2 = current_intensity              # current intensity to insert
-                            slope = (y2-y1)/(x2-x1)
+                            x1 = match_roi.rt_list[-1]  # last RT of the ROI
+                            y1 = match_roi.intensity_list[-1]  # last intensity of the ROI
+                            x2 = self.rt_buffer[0]  # current RT to insert
+                            y2 = current_intensity  # current intensity to insert
+                            slope = (y2 - y1) / (x2 - x1)
 
                             # insert previously missing points into this ROI
                             # count down from repeat .. 0
                             for i in range(repeat, -1, -1):
-
                                 # Get the RT value of previously skipped scans:
                                 # the front of rt_buffer[0] contains the most recent value
                                 # (current_rt), followed by the RT values of past few scans.
                                 scan_rt = self.rt_buffer[i]
 
                                 # linear interpolation of missing intensity values
-                                intensity = y1 + slope * (scan_rt-x1)
+                                intensity = y1 + slope * (scan_rt - x1)
                                 match_roi.add(current_mz, scan_rt, intensity)
 
                         # ROI has been matched and can be removed from not_grew
@@ -590,10 +584,10 @@ class RoiBuilder():
 
                 # if too much gaps ...
                 self.skipped_roi_count[roi] += 1
-                if self.skipped_roi_count[roi] > self.max_skips_allowed:
+                if self.skipped_roi_count[roi] > self.roi_params.max_gaps_allowed:
 
                     # then set the roi to either dead or junk (depending on length)
-                    if roi.n >= self.min_roi_length:
+                    if roi.n >= self.roi_params.min_roi_length:
                         self.dead_roi.append(roi)
                     else:
                         self.junk_roi.append(roi)
@@ -673,13 +667,8 @@ class RoiBuilder():
         if self.roi_type == ROI_TYPE_NORMAL:
             roi = Roi(mz, rt, intensity, id=roi_id)
         elif self.roi_type == ROI_TYPE_SMART:
-            roi = SmartRoi(mz, rt, intensity,
-                           initial_length_seconds=self.initial_length_seconds,
-                           reset_length_seconds=self.reset_length_seconds,
-                           intensity_increase_factor=self.intensity_increase_factor,
-                           dew=self.rt_tol, drop_perc=self.drop_perc,
-                           id=roi_id
-                           )
+            assert self.smartroi_params is not None
+            roi = SmartRoi(mz, rt, intensity, self.smartroi_params, id=roi_id)
         return roi
 
     def get_mz_intensity(self, i):
@@ -746,17 +735,17 @@ class RoiBuilder():
         """
         # length check
         filtered_roi = [roi for roi in self.live_roi if
-                        roi.n >= self.min_roi_length]
+                        roi.n >= self.roi_params.min_roi_length]
 
         # intensity check:
         # Keep only the ROIs that can be fragmented above
         # min_roi_intensity_for_fragmentation threshold.
         all_roi = filtered_roi + self.dead_roi
-        if self.min_roi_intensity_for_fragmentation > 0:
+        if self.roi_params.at_least_one_point_above > 0:
             keep = []
             for roi in all_roi:
                 if np.count_nonzero(np.array(
-                        roi.intensity_list) > self.min_roi_intensity_for_fragmentation) > 0:
+                        roi.intensity_list) > self.roi_params.at_least_one_point_above) > 0:
                     keep.append(roi)
         else:
             keep = all_roi
@@ -1077,10 +1066,7 @@ def make_roi(input_file, roi_params):
                             obo_version='4.0.1')
 
     scan_id = 0
-    roi_builder = RoiBuilder(
-        roi_params.mz_tol, 0, roi_params.min_intensity,
-        roi_params.min_length,
-        min_roi_intensity_for_fragmentation=roi_params.min_roi_intensity_for_fragmentation)
+    roi_builder = RoiBuilder(roi_params)
     for i, spectrum in enumerate(run):
         ms_level = 1
         if spectrum['ms level'] == ms_level:

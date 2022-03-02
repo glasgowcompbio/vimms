@@ -6,7 +6,7 @@ from loguru import logger
 
 from vimms.Chemicals import DatabaseCompound, ChemicalMixtureFromMZML
 from vimms.Common import DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, save_obj
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 
 
 # flake8: noqa: C901
@@ -89,7 +89,7 @@ def extract_roi(file_names, out_dir, pattern, mzml_path,
         else:
             mzml_file = file_names[i]
 
-        rp = RoiParams(**param_dict)
+        rp = RoiBuilderParams(**param_dict)
         cm = ChemicalMixtureFromMZML(mzml_file, roi_params=rp)
         dataset = cm.sample(None, 2)
         datasets.append(dataset)

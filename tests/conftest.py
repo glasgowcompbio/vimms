@@ -12,7 +12,7 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
 from vimms.Chemicals import ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, \
     ADDUCT_DICT_POS_MH, ScanParameters
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 
 # define some useful constants
 
@@ -176,7 +176,7 @@ def even_chems():
 def chems_from_mzml():
     np.random.seed(0)
     rand.seed(0)
-    roi_params = RoiParams(min_intensity=10, min_length=5)
+    roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
     cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
     return cm.sample(None, 2)
 

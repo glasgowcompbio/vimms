@@ -115,9 +115,9 @@ class TargetedController(Controller):
 
     def __init__(self, targets, ce_values, N=10, n_replicates=1,
                  min_ms1_intensity=5e3,
-                 isolation_width=DEFAULT_ISOLATION_WIDTH, params=None,
+                 isolation_width=DEFAULT_ISOLATION_WIDTH, advanced_params=None,
                  limit_acquisition=True):
-        super().__init__(params=params)
+        super().__init__(advanced_params=advanced_params)
         self.targets = targets
         self.ce_values = ce_values
         self.n_replicates = n_replicates
@@ -219,8 +219,8 @@ class TargetedController(Controller):
 
 class SimpleTargetController(Controller):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                 min_ms1_intensity, params=None):
-        super().__init__(params=params)
+                 min_ms1_intensity, advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
         self.ionisation_mode = ionisation_mode
         self.N = N
         # the isolation width (in Dalton) to select a precursor ion

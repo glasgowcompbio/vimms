@@ -14,9 +14,9 @@ class TopNController(Controller):
 
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity,
-                 ms1_shift=0, initial_exclusion_list=None, params=None,
+                 ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False):
-        super().__init__(params=params)
+        super().__init__(advanced_params=advanced_params)
         self.ionisation_mode = ionisation_mode
         self.N = N
         # the isolation width (in Dalton) to select a precursor ion
@@ -155,10 +155,10 @@ class WeightedDEWController(TopNController):
 
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity, ms1_shift=0,
-                 exclusion_t_0=15, log_intensity=False, params=None):
+                 exclusion_t_0=15, log_intensity=False, advanced_params=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,
-                         params=params)
+                         advanced_params=advanced_params)
         self.log_intensity = log_intensity
         self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
 

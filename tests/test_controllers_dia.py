@@ -49,7 +49,7 @@ class TestAIFControllers:
                                                 scan_duration=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
-        controller = AIF(ms1_source_cid_energy, params=params)
+        controller = AIF(ms1_source_cid_energy, advanced_params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
@@ -79,7 +79,7 @@ class TestAIFControllers:
                                                 scan_duration=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
-        controller = AIF(ms1_source_cid_energy, params=params)
+        controller = AIF(ms1_source_cid_energy, advanced_params=params)
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
@@ -119,7 +119,7 @@ class TestAIFControllers:
                                                 scan_duration=scan_time_dict)
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
-        controller = AIF(ms1_source_cid_energy, params=params)
+        controller = AIF(ms1_source_cid_energy, advanced_params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
@@ -144,7 +144,7 @@ class TestAIFControllers:
         max_mz = 300
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
-        controller = AIF(ms1_source_cid_energy, params=params)
+        controller = AIF(ms1_source_cid_energy, advanced_params=params)
         out_file = Path(OUT_DIR, 'AIF_experiment.txt')
         controller.write_msdial_experiment_file(out_file)
 

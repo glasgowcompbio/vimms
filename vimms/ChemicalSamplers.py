@@ -14,7 +14,7 @@ from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, \
 from vimms.Common import Formula, DummyFormula, uniform_list, \
     DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW, \
     POSITIVE, NEGATIVE, PROTON_MASS, DEFAULT_SCAN_TIME_DICT
-from vimms.Roi import make_roi, RoiParams
+from vimms.Roi import make_roi, RoiBuilderParams
 
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
 MAX_MZ = DEFAULT_MS1_SCAN_WINDOW[1]
@@ -259,7 +259,7 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         self.roi_params = roi_params
         self.n_intensity_bins = n_intensity_bins
         if self.roi_params is None:
-            self.roi_params = RoiParams()
+            self.roi_params = RoiBuilderParams()
         self._get_distributions()
 
     def _get_distributions(self):
@@ -361,7 +361,7 @@ class MZMLChromatogramSampler(ChromatogramSampler):
         self.mzml_file_name = mzml_file_name
         self.roi_params = roi_params
         if self.roi_params is None:
-            self.roi_params = RoiParams()
+            self.roi_params = RoiBuilderParams()
 
         self.good_rois = self._extract_rois()
 

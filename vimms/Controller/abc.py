@@ -2,8 +2,8 @@ from vimms.Controller.base import Controller
 
 
 class AgentBasedController(Controller):
-    def __init__(self, agent, params=None):
-        super().__init__(params=params)
+    def __init__(self, agent, advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
         self.agent = agent
 
     def _process_scan(self, scan):

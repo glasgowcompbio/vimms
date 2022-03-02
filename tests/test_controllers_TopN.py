@@ -222,7 +222,7 @@ class TestTopNAdvanced:
         # create a simulated mass spec without noise and Top-N controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    MIN_MS1_INTENSITY, params=params)
+                                    MIN_MS1_INTENSITY, advanced_params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)

@@ -46,10 +46,10 @@ the generated RT, intensity, chromatograms and MS2 peaks for a Chemical object. 
 ```python
 import os
 from vimms.Common import load_obj
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.ChemicalSamplers import DatabaseFormulaSampler, CRPMS2Sampler, \
-  MZMLChromatogramSampler
+from vimms.ChemicalSamplers import DatabaseFormulaSampler, CRPMS2Sampler,
+    MZMLChromatogramSampler
 
 # specify ViMMS directory containing some test data
 vimms_dir = '<specify the basedir of vimms here>'
@@ -61,7 +61,7 @@ hmdb = load_obj(HMDB)
 
 # load an example mzML file
 MZML = os.path.join(data_dir, 'small_mzml.mzML')
-roi_params = RoiParams(min_intensity=1000)
+roi_params = RoiBuilderParams(min_intensity=1000)
 cs = MZMLChromatogramSampler(MZML, roi_params=roi_params)
 
 # samples some chemicals using HMDB as the formula database

@@ -16,16 +16,16 @@ from vimms.DIA import DiaWindows
 
 
 class AIF(Controller):
-    def __init__(self, ms1_source_cid_energy, params=None):
-        super().__init__(params=params)
+    def __init__(self, ms1_source_cid_energy, advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
         self.scan_number = self.initial_scan_id
         self.ms1_source_cid_energy = ms1_source_cid_energy
 
     def write_msdial_experiment_file(self, filename):
         heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE',
                  'DecTarget(1:Yes, 0:No)']
-        start = self.params.default_ms1_scan_window[0]
-        stop = self.params.default_ms1_scan_window[1]
+        start = self.advanced_params.default_ms1_scan_window[0]
+        stop = self.advanced_params.default_ms1_scan_window[1]
         ce = self.ms1_source_cid_energy
         ms1_row = ['0', 'SCAN', start, stop, "0eV", 0, 0]
         aif_row = ['1', 'ALL', start, stop, "{}eV".format(ce), ce, 1]
@@ -81,8 +81,8 @@ class AIF(Controller):
 class SWATH(Controller):
     def __init__(self, min_mz, max_mz,
                  width, scan_overlap=0,
-                 params=None):
-        super().__init__(params=params)
+                 advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
         self.width = width
         self.scan_overlap = scan_overlap
         self.min_mz = min_mz  # scan from this mz
@@ -94,7 +94,7 @@ class SWATH(Controller):
     def write_msdial_experiment_file(self, filename):
         heads = ['Experiment', 'MS Type', 'Min m/z', 'Max m/z']
         start_mz, stop_mz = self._get_start_stop()
-        ms1_mz_range = self.params.default_ms1_scan_window
+        ms1_mz_range = self.advanced_params.default_ms1_scan_window
         ms1_row = ['0', 'SCAN', ms1_mz_range[0], ms1_mz_range[1]]
         swath_rows = []
         for i, start in enumerate(start_mz):

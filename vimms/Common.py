@@ -122,7 +122,11 @@ GRID_CONTROLLER_SCORING_PARAMS = {
     'dda_weight': 1,
     'overlap_weight': 1,
     'smartroi_weight': 1,
-    'smartroi_score_add': True
+    'smartroi_score_add': True,
+    'theta1': 1,
+    'theta2': 0,
+    'theta3': 0,
+    'theta4': 0
 }
 
 ROI_TYPE_NORMAL = 'roi'

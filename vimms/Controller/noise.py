@@ -49,13 +49,13 @@ class NoiseController(RoiController):
                  min_roi_length, N, noise_estimator, rt_tol=10,
                  min_roi_length_for_fragmentation=1,
                  ms1_shift=0,
-                 params=None):
+                 advanced_params=None):
         super().__init__(
             ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
             min_roi_intensity,
             min_roi_length, N, rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            ms1_shift=ms1_shift, params=params
+            ms1_shift=ms1_shift, advanced_params=advanced_params
         )
 
         # given a RoI, returns probability that it is noise

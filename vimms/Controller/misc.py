@@ -18,14 +18,14 @@ class FixedScansController(Controller):
     tasks in queue
     """
 
-    def __init__(self, schedule=None, params=None):
+    def __init__(self, schedule=None, advanced_params=None):
         """
         Creates a FixedScansController that accepts a list of schedule of
         scan parameters
         :param schedule: a list of ScanParameter objects
-        :param params: mass spec advanced parameters, if any
+        :param advanced_params: mass spec advanced parameters, if any
         """
-        super().__init__(params=params)
+        super().__init__(advanced_params=advanced_params)
         self.tasks = None
         self.initial_task = None
         if schedule is not None and len(schedule) > 0:
@@ -279,8 +279,8 @@ class MatchingController(FixedScansController):
 
 class MultiIsolationController(Controller):
     def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH,
-                 params=None):
-        super().__init__(params=params)
+                 advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
         assert N > 1
         self.N = N
         self.isolation_width = isolation_width

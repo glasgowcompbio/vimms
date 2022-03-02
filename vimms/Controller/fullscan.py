@@ -6,8 +6,8 @@ class IdleController(Controller):
     A controller that doesn't do any controlling.
     """
 
-    def __init__(self, params=None):
-        super().__init__(params=params)
+    def __init__(self, advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
 
     def _process_scan(self, scan):
         new_tasks = []
@@ -26,8 +26,8 @@ class SimpleMs1Controller(Controller):
     but no fragmentation
     """
 
-    def __init__(self, params=None):
-        super().__init__(params=params)
+    def __init__(self, advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
 
     def _process_scan(self, scan):
         if self.scan_to_process is not None:

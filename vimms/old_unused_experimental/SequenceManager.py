@@ -24,7 +24,7 @@ from vimms.Controller import TopNController, WeightedDEWController
 from vimms.Controller.roi import get_box_intensity, TopN_RoiController, TopN_SmartRoiController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 from vimms.old_unused_experimental.Scoring import picked_peaks_evaluation, roi_scoring
 
 parent_dir = dirname(dirname(abspath(__file__)))
@@ -219,7 +219,7 @@ class Experiment():
 
 class BasicExperiment(Experiment):
     def __init__(self, sequence_manager, parallel=True, mzml_file_list=None,
-                 roi_params=RoiParams(min_intensity=10, min_length=5), ps=None):
+                 roi_params=RoiBuilderParams(min_intensity=10, min_length=5), ps=None):
         self.parallel = parallel
         self.roi_params = roi_params
         self.ps = ps
@@ -313,7 +313,7 @@ def run_single(params):
 
 class GridSearchExperiment(BasicExperiment):
     def __init__(self, sequence_manager, controller_method, mass_spec_param_dict, dataset_file, variable_params_dict,
-                 base_params_dict, mzml_file=None, roi_params=RoiParams(min_intensity=10, min_length=5), ps=None,
+                 base_params_dict, mzml_file=None, roi_params=RoiBuilderParams(min_intensity=10, min_length=5), ps=None,
                  parallel=True):
 
         self.sequence_manager = sequence_manager

@@ -5,7 +5,7 @@ from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_s
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Common import MZ_UNITS_PPM
-from vimms.Roi import make_roi, RoiParams
+from vimms.Roi import make_roi, RoiBuilderParams
 
 
 def picked_peaks_evaluation(mzml_file, picked_peaks_file):
@@ -17,8 +17,8 @@ def picked_peaks_evaluation(mzml_file, picked_peaks_file):
 
 def roi_scoring(mzml_file, mz_tol=10, min_length=3, min_intensity=500):
     mz_file = MZMLFile(mzml_file)
-    roi_params = RoiParams(mz_tol=mz_tol, min_length=min_length,
-                           min_intensity=min_intensity)
+    roi_params = RoiBuilderParams(mz_tol=mz_tol, min_length=min_length,
+                                  min_intensity=min_intensity)
     good_roi = make_roi(mzml_file, roi_params)
     roi_roi2scan, roi_scan2roi = match_scans_to_rois(mz_file, good_roi)
     with_scan, without_scan, num_scan = prop_roi_with_scans(roi_roi2scan)

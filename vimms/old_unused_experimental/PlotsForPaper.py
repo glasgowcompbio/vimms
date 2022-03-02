@@ -14,7 +14,7 @@ from loguru import logger
 from vimms.Chemicals import UnknownChemical
 from vimms.Common import load_obj, PROTON_MASS, find_nearest_index_in_array
 from vimms.MassSpec import ScanEvent
-from vimms.Roi import make_roi, RoiParams
+from vimms.Roi import make_roi, RoiBuilderParams
 from vimms.old_unused_experimental.Chemicals import RoiToChemicalCreator
 from vimms.old_unused_experimental.SpectralUtils import get_precursor_info, get_chemicals
 
@@ -683,8 +683,8 @@ def get_chemicals(mzML_file, mz_tol, min_ms1_intensity, start_rt, stop_rt, min_l
     :return: a list of UnknownChemical objects
     '''
     min_intensity = 0
-    roi_params = RoiParams(mz_tol=mz_tol, min_length=min_length,
-                           min_intensity=min_intensity, start_rt=start_rt, stop_rt=stop_rt)
+    roi_params = RoiBuilderParams(mz_tol=mz_tol, min_length=min_length,
+                                  min_intensity=min_intensity, start_rt=start_rt, stop_rt=stop_rt)
     good_roi = make_roi(mzML_file, roi_params)
 
     # keep ROI that have at least one point above the minimum to fragment threshold

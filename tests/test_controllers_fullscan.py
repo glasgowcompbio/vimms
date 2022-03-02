@@ -58,7 +58,7 @@ class TestMS1Controller:
         mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS)
         params = AdvancedParams()
         params.default_ms1_scan_window = (min_mz, max_mz)
-        controller = SimpleMs1Controller(params=params)
+        controller = SimpleMs1Controller(advanced_params=params)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)

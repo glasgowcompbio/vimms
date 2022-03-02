@@ -20,7 +20,7 @@ from vimms.Controller import TopNController, TopN_SmartRoiController, \
     WeightedDEWController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 
 
 def extract_chemicals(seed_file, params_dict):
@@ -34,7 +34,7 @@ def extract_chemicals(seed_file, params_dict):
     logger.info('Seed file = %s' % seed_file)
     logger.info('params = %s' % params_dict)
 
-    rp = RoiParams(**params_dict)
+    rp = RoiBuilderParams(**params_dict)
     cm = ChemicalMixtureFromMZML(seed_file, roi_params=rp)
     dataset = cm.sample(None, 2)
     return dataset

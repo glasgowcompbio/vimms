@@ -17,7 +17,7 @@ from vimms.Common import POS_TRANSFORMATIONS, Formula, DummyFormula, \
     PROTON_MASS, POSITIVE, NEGATIVE, C12_PROPORTION, \
     C13_MZ_DIFF, C, MONO, C13
 from vimms.Noise import GaussianPeakNoise
-from vimms.Roi import make_roi, RoiParams
+from vimms.Roi import make_roi, RoiBuilderParams
 
 
 class DatabaseCompound():
@@ -448,7 +448,7 @@ class ChemicalMixtureFromMZML():
         self.roi_params = roi_params
 
         if roi_params is None:
-            self.roi_params = RoiParams()
+            self.roi_params = RoiBuilderParams()
 
         self.good_rois = self._extract_rois()
         assert len(self.good_rois) > 0

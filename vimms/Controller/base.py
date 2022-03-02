@@ -60,11 +60,11 @@ class AdvancedParams():
 
 
 class Controller(ABC):
-    def __init__(self, params=None):
-        if params is None:
-            self.params = AdvancedParams()
+    def __init__(self, advanced_params=None):
+        if advanced_params is None:
+            self.advanced_params = AdvancedParams()
         else:
-            self.params = params
+            self.advanced_params = advanced_params
 
         self.scans = defaultdict(
             list)  # key: ms level, value: list of scans for that level
@@ -79,15 +79,15 @@ class Controller(ABC):
     def get_ms1_scan_params(self, metadata=None):
         task = get_default_scan_params(
             polarity=self.environment.mass_spec.ionisation_mode,
-            default_ms1_scan_window=self.params.default_ms1_scan_window,
-            agc_target=self.params.ms1_agc_target,
-            max_it=self.params.ms1_max_it,
-            collision_energy=self.params.ms1_collision_energy,
-            source_cid_energy=self.params.ms1_source_cid_energy,
-            orbitrap_resolution=self.params.ms1_orbitrap_resolution,
-            activation_type=self.params.ms1_activation_type,
-            mass_analyser=self.params.ms1_mass_analyser,
-            isolation_mode=self.params.ms1_isolation_mode,
+            default_ms1_scan_window=self.advanced_params.default_ms1_scan_window,
+            agc_target=self.advanced_params.ms1_agc_target,
+            max_it=self.advanced_params.ms1_max_it,
+            collision_energy=self.advanced_params.ms1_collision_energy,
+            source_cid_energy=self.advanced_params.ms1_source_cid_energy,
+            orbitrap_resolution=self.advanced_params.ms1_orbitrap_resolution,
+            activation_type=self.advanced_params.ms1_activation_type,
+            mass_analyser=self.advanced_params.ms1_mass_analyser,
+            isolation_mode=self.advanced_params.ms1_isolation_mode,
             metadata=metadata)
         return task
 
@@ -95,14 +95,14 @@ class Controller(ABC):
                             isolation_width, mz_tol, rt_tol, metadata=None):
         task = get_dda_scan_param(
             mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
-            agc_target=self.params.ms2_agc_target,
-            max_it=self.params.ms2_max_it,
-            collision_energy=self.params.ms2_collision_energy,
-            source_cid_energy=self.params.ms2_source_cid_energy,
-            orbitrap_resolution=self.params.ms2_orbitrap_resolution,
-            activation_type=self.params.ms2_activation_type,
-            mass_analyser=self.params.ms2_mass_analyser,
-            isolation_mode=self.params.ms2_isolation_mode,
+            agc_target=self.advanced_params.ms2_agc_target,
+            max_it=self.advanced_params.ms2_max_it,
+            collision_energy=self.advanced_params.ms2_collision_energy,
+            source_cid_energy=self.advanced_params.ms2_source_cid_energy,
+            orbitrap_resolution=self.advanced_params.ms2_orbitrap_resolution,
+            activation_type=self.advanced_params.ms2_activation_type,
+            mass_analyser=self.advanced_params.ms2_mass_analyser,
+            isolation_mode=self.advanced_params.ms2_isolation_mode,
             polarity=self.environment.mass_spec.ionisation_mode,
             metadata=metadata)
         return task

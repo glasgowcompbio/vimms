@@ -1,14 +1,24 @@
+"""
+A controller based on the notion of generic boxes.
+
+Note: this module is still under development and might change significantly.
+"""
+
 from copy import deepcopy
 
 import numpy as np
 
 from vimms.Common import ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS, \
-    ROI_TYPE_NORMAL, ROI_TYPE_SMART
+    ROI_TYPE_SMART
 from vimms.Controller.roi import RoiController
 from vimms.Roi import RoiBuilder
 
 
 class GridController(RoiController):
+    """
+    A multi-sample controller that use a grid to track which regions-of-interests (ROIs)
+    have been fragmented across multiple injections.
+    """
 
     def __init__(self,
                  ionisation_mode,
@@ -29,6 +39,36 @@ class GridController(RoiController):
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
                  exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):
+        """
+        Create a grid controller.
+
+        Args:
+            ionisation_mode: ionisation mode, either POSITIVE or NEGATIVE
+            isolation_width: isolation width in Dalton
+            N: the number of highest-score precursor ions to fragment
+            mz_tol: m/z tolerance -- m/z tolerance for dynamic exclusion window
+            rt_tol: RT tolerance -- RT tolerance for dynamic exclusion window
+            min_ms1_intensity: the minimum intensity to fragment a precursor ion
+            roi_params: an instance of [vimms.Roi.RoiBuilderParams][] that describes
+                        how to build ROIs in real time based on incoming scans.
+            grid: an instance of grid object.
+            smartroi_params: an instance of [vimms.Roi.SmartRoiParams][]. If provided, then
+                             the SmartROI rules (as described in the paper) will be used to select
+                             which ROI to fragment. Otherwise set to None to use standard ROIs.
+            min_roi_length_for_fragmentation: how long a ROI should be before it can be fragmented.
+            ms1_shift: advanced parameter -- best to leave it.
+            min_rt_width: minimum RT width when converting a ROI to a box
+            min_mz_width: minimum RT width when converting a ROI to a box
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+            register_all_roi: whether to register all ROIs or not
+            scoring_params: a dictionary of parameters used when calculating scores
+            exclusion_method: an instance of [vimms.Exclusion.TopNExclusion][] or its subclasses,
+                              used to describe how to perform dynamic exclusion so that precursors
+                              that have been fragmented are not fragmented again.
+            exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
+        """
         super().__init__(ionisation_mode,
                          isolation_width,
                          N,
@@ -59,6 +99,15 @@ class GridController(RoiController):
         self.grid.send_training_data(scan)
 
     def _scale(self, scores):
+        """
+        Scale scores by its maximum value so it goes from 0 to 1
+
+        Args:
+            scores: a numpy array of scores
+
+        Returns: the scaled score array
+
+        """
         if len(scores) > 0 and max(scores) > 0:
             scores = scores / max(scores)
         return scores
@@ -67,8 +116,7 @@ class GridController(RoiController):
         non_overlaps = self._overlap_scores()
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
             smartroi_scores = self._smartroi_filter()
-            dda_scores = self._log_roi_intensities() * \
-                         self._min_intensity_filter()
+            dda_scores = self._log_roi_intensities() * self._min_intensity_filter()
 
             if self.smartroi_score_add:  # add the scores
                 dda_scores = self._scale(dda_scores)
@@ -93,6 +141,10 @@ class GridController(RoiController):
 
 
 class NonOverlapController(GridController):
+    """
+    A controller that implements the `non-overlapping` idea to determine how regions-of-interests
+    should be fragmented across injections.
+    """
     def _overlap_scores(self):
         fn = self.grid.get_estimator()
         non_overlaps = np.array(
@@ -104,6 +156,9 @@ class NonOverlapController(GridController):
 
 
 class IntensityNonOverlapController(GridController):
+    """
+    A variant of the non-overlap controller but it takes into account intensity changes.
+    """
     def _overlap_scores(self):
         fn = self.grid.get_estimator()
         scores = np.log([self.grid.intensity_non_overlap(
@@ -116,6 +171,9 @@ class IntensityNonOverlapController(GridController):
 
 
 class FlexibleNonOverlapController(GridController):
+    """
+    TODO: this class can probably be removed.
+    """
     def __init__(self,
                  ionisation_mode,
                  isolation_width,
@@ -155,10 +213,8 @@ class FlexibleNonOverlapController(GridController):
             exclusion_method=exclusion_method,
             exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
-        if self.scoring_params[
-            'theta3'] != 0 and self.register_all_roi is False:
-            print('Warning: register_all_roi should be set to '
-                  'True id theta3 is not 0')
+        if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
+            print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
     def _overlap_scores(self):
         fn = self.grid.get_estimator()
@@ -172,6 +228,9 @@ class FlexibleNonOverlapController(GridController):
 
 
 class CaseControlNonOverlapController(GridController):
+    """
+    Case-control non-overlap controller
+    """
     def __init__(self,
                  ionisation_mode,
                  isolation_width,
@@ -211,10 +270,8 @@ class CaseControlNonOverlapController(GridController):
             exclusion_method=exclusion_method,
             exclusion_t_0=exclusion_t_0)
         self.scoring_params = scoring_params
-        if self.scoring_params[
-            'theta3'] != 0 and self.register_all_roi is False:
-            print('Warning: register_all_roi should be set to True id '
-                  'theta3 is not 0')
+        if self.scoring_params['theta3'] != 0 and self.register_all_roi is False:
+            print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
     def _get_scores(self):
         fn = self.grid.get_estimator()
@@ -226,6 +283,9 @@ class CaseControlNonOverlapController(GridController):
 
 
 class TopNBoxRoiController2(GridController):
+    """
+    TODO: This class can probably be removed too?
+    """
     def __init__(self,
                  ionisation_mode,
                  isolation_width,

@@ -1,12 +1,25 @@
+"""
+This file implements controllers that produce only full-scan (MS1) data, so no MSN fragmentation
+is performed at all.
+"""
+
 from vimms.Controller import Controller
 
 
 class IdleController(Controller):
     """
     A controller that doesn't do any controlling.
+    Mostly used as a skeleton code to illustrate the code structure in ViMMS controllers.
     """
 
     def __init__(self, advanced_params=None):
+        """
+        Initialise an idle controller
+        Args:
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+        """
         super().__init__(advanced_params=advanced_params)
 
     def _process_scan(self, scan):
@@ -27,6 +40,13 @@ class SimpleMs1Controller(Controller):
     """
 
     def __init__(self, advanced_params=None):
+        """
+        Initialise a full-scan MS1 controller
+        Args:
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+        """
         super().__init__(advanced_params=advanced_params)
 
     def _process_scan(self, scan):

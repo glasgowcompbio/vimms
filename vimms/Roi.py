@@ -41,12 +41,15 @@ class Roi():
     def __init__(self, mz, rt, intensity, id=None):
         """
         Constructs a new ROI
-        :param mz: the initial m/z of this ROI. Can be either a single value
-        or a list of values.
-        :param rt: the initial rt  of this ROI. Can be either a single value
-        or a list of values.
-        :param intensity: the initial intensity  of this ROI. Can be either
-        a single value or a list of values.
+
+        Args:
+            mz: the initial m/z of this ROI. Can be either a single value
+                or a list of values.
+            rt: the initial rt  of this ROI. Can be either a single value
+                or a list of values.
+            intensity: the initial intensity  of this ROI. Can be either
+                       a single value or a list of values.
+            id: ID of this ROI if provided
         """
         self.id = id
         self.fragmentation_events = []
@@ -101,9 +104,14 @@ class Roi():
     def add(self, mz, rt, intensity):
         """
         Adds a point to this ROI
-        :param mz: the m/z value to add
-        :param rt: the retention time value to add
-        :param intensity: the intensity value to add
+
+        Args:
+            mz: the m/z value to add
+            rt: the retention time value to add
+            intensity: the intensity value to add
+
+        Returns: None
+
         """
         self.mz_list.append(mz)
         self.rt_list.append(rt)
@@ -115,8 +123,13 @@ class Roi():
     def add_fragmentation_event(self, scan, precursor_intensity):
         """
         Stores the fragmentation events (MS2 scan) linked to this ROI
-        :param scan: the MS2 scan
-        :param precursor_intensity: the precursor intensity
+
+        Args:
+            scan: the MS2 scan
+            precursor_intensity: the precursor intensity
+
+        Returns: None
+
         """
         self.fragmentation_events.append(scan)
         self.fragmentation_intensities.append(precursor_intensity)
@@ -136,10 +149,15 @@ class Roi():
     def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         """
         Returns a generic box representation of this ROI
-        :param min_rt_width: minimum RT width of the box
-        :param min_mz_width: minimum m/z width of the box
-        :param rt_shift: shift in retention time, if any
-        :param mz_shift: shift in m/z, if any
+
+        Args:
+            min_rt_width: minimum RT width of the box
+            min_mz_width: minimum m/z width of the box
+            rt_shift: shift in retention time, if any
+            mz_shift: shift in m/z, if any
+
+        Returns: a [vimms.Box.GenericBox][] object.
+
         """
         return GenericBox(min(self.rt_list) + rt_shift,
                           max(self.rt_list) + rt_shift,
@@ -151,13 +169,17 @@ class Roi():
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0,
                           mz_shift=0):
         """
-        TODO: ask Ross to add comment
-        Returns ???
-        :param boxes: the boxes to check
-        :param min_rt_width: minimum RT width of the box
-        :param min_mz_width: minimum m/z width of the box
-        :param rt_shift: shift in retention time, if any
-        :param mz_shift: shift in m/z, if any
+        TODO: ask Ross or Vinny to add comment
+
+        Args:
+            boxes: the boxes to check
+            min_rt_width: minimum RT width of the box
+            min_mz_width: minimum m/z width of the box
+            rt_shift: shift in retention time, if any
+            mz_shift: shift in m/z, if any
+
+        Returns: ???
+
         """
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
         # print(roi_box)
@@ -167,13 +189,17 @@ class Roi():
     def get_roi_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0,
                         mz_shift=0):
         """
-        TODO: ask Ross to add comment
-        Returns ???
-        :param boxes: the boxes to check
-        :param min_rt_width: minimum RT width of the box
-        :param min_mz_width: minimum m/z width of the box
-        :param rt_shift: shift in retention time, if any
-        :param mz_shift: shift in m/z, if any
+        TODO: ask Ross or Vinny to add comment
+
+        Args:
+            boxes: the boxes to check
+            min_rt_width: minimum RT width of the box
+            min_mz_width: minimum m/z width of the box
+            rt_shift: shift in retention time, if any
+            mz_shift: shift in m/z, if any
+
+        Returns: ???
+
         """
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
         overlaps = [roi_box.overlap_3(box) for box in boxes]
@@ -188,16 +214,26 @@ class Roi():
     def _to_list(self, val):
         """
         Ensures that the value passed in is a list
-        :param val: the value to check, can be either a list or a single value
+
+        Args:
+            val: the value to check, can be either a list or a single value
+
+        Returns: val, but always as a list
+
         """
         values = val if type(val) == list else [val]
         return values
 
     def __getitem__(self, idx):
         """
-        Returns a single (m/z, rt, intensity) point in this ROI at the
+        Returns a single point in this ROI at the
         specified index
-        :param idx: the index of item to retrieve
+
+        Args:
+            idx: the index of item to retrieve
+
+        Returns: a tuple of (rt, m/z, intensity) value
+
         """
         return list(zip(self.rt_list, self.mz_list, self.intensity_list))[idx]
 
@@ -205,6 +241,12 @@ class Roi():
         """
         Compares this ROI to other based on the mean m/z value.
         Used for sorting.
+
+        Args:
+            other: the other ROI object for comparison
+
+        Returns: comparison is done by mean m/z of ROIs
+
         """
         return self.get_mean_mz() <= other.get_mean_mz()
 
@@ -236,14 +278,18 @@ class SmartRoi(Roi):
 
     def __init__(self, mz, rt, intensity, smartroi_params, id=None):
         """
-        Constructs a new Smart ROI
-        :param mz: the initial m/z of this ROI.
-        Can be either a single value or a list of values.
-        :param rt: the initial rt  of this ROI.
-        Can be either a single value or a list of values.
-        :param intensity: the initial intensity  of this ROI.
-        Can be either a single value or a list of values.
-        :param id: the ID of this ROI
+        Constructs a new Smart ROI object
+
+        Args:
+            mz: the initial m/z of this ROI.
+                Can be either a single value or a list of values.
+            rt: the initial rt  of this ROI.
+                Can be either a single value or a list of values.
+            intensity: the initial intensity  of this ROI.
+                       Can be either a single value or a list of values.
+            smartroi_params: other SmartROI parameters, as defined in
+                             [vimms.Roi.SmartRoiParams][].
+            id: the ID of this ROI
         """
         super().__init__(mz, rt, intensity, id=id)
         self.params = smartroi_params
@@ -284,9 +330,14 @@ class SmartRoi(Roi):
     def add(self, mz, rt, intensity):
         """
         Adds a point to this SmartROI
-        :param mz: the m/z value to add
-        :param rt: the retention time value to add
-        :param intensity: the intensity value to add
+
+        Args:
+            mz: the m/z value to add
+            rt: the retention time value to add
+            intensity: the intensity value to add
+
+        Returns: None
+
         """
         super().add(mz, rt, intensity)
         if self.status == SmartRoi.INITIAL_WAITING:
@@ -335,8 +386,13 @@ class SmartRoi(Roi):
     def set_can_fragment(self, status):
         """
         Sets the status of this SmartROI
-        :param status: True if this SmartROI can be fragmented again,
-        False otherwise
+
+        Args:
+            status: True if this SmartROI can be fragmented again,
+                    False otherwise
+
+        Returns: None
+
         """
         self.can_fragment = status
         try:
@@ -356,18 +412,19 @@ class SmartRoiParams():
                  intensity_increase_factor=10, dew=15, drop_perc=0.1/100):
         """
         Initialises a SmartRoiParams object
-        :param initial_length_seconds: the initial length (in seconds) before
-        this ROI can be fragmented
-        :param reset_length_seconds: the length (in seconds) before this ROI
-        can be fragmented again (CAN_FRAGMENT)
-        :param intensity_increase_factor: a factor of which the intensity
-        should increase from the **minimum** since
-        last fragmentation before this ROI can be fragmented again
-        :param dew: dynamic exclusion window (DEW) in seconds before this ROI
-        can be fragmented again
-        :param drop_perc: percentage drop in intensity since last fragmentation
-         before this ROI can be fragmented again
 
+        Args:
+            initial_length_seconds: the initial length (in seconds) before
+                                    this ROI can be fragmented
+            reset_length_seconds: the length (in seconds) before this ROI
+                                  can be fragmented again (CAN_FRAGMENT)
+            intensity_increase_factor: a factor of which the intensity
+                                       should increase from the **minimum** since
+                                       last fragmentation before this ROI can be fragmented again
+            dew: dynamic exclusion window (DEW) in seconds before this ROI
+                 can be fragmented again
+            drop_perc: percentage drop in intensity since last fragmentation
+                       before this ROI can be fragmented again
         """
         self.initial_length_seconds = initial_length_seconds
         self.reset_length_seconds = reset_length_seconds
@@ -389,15 +446,17 @@ class RoiBuilderParams():
                  start_rt=0, stop_rt=1E5, max_gaps_allowed=0):
         """
         Initialises an RoiBuilderParams object
-        :param mz_tol: m/z  tolerance
-        :param min_length: minimum ROI length
-        :param min_intensity: minimum intensity to be included for ROI building
-        :param start_rt: start RT of scans to be included for ROI building
-        :param start_rt: end RT of scans to be included for ROI building
-        :param at_least_one_point_above: keep only the ROIs containing at least one point
-        above this threshold
-        :param max_gaps_allowed: the number of gaps allowed in successive scans
-        when building ROIs
+
+        Args:
+            mz_tol: m/z tolerance
+            min_roi_length: minimum ROI length
+            min_roi_intensity: minimum intensity to be included for ROI building
+            at_least_one_point_above: keep only the ROIs containing at least one point
+                                      above this threshold
+            start_rt: start RT of scans to be included for ROI building
+            stop_rt: end RT of scans to be included for ROI building
+            max_gaps_allowed: the number of gaps allowed in successive scans
+                              when building ROIs
         """
         if mz_tol < 0.1:
             logger.warning(f'Is your m/z tolerance correct? mz_tol={mz_tol}')
@@ -423,11 +482,12 @@ class RoiBuilder():
     def __init__(self, roi_params, smartroi_params=None, grid=None):
         """
         Initialises an ROI Builder object.
-        :param mz_tol: the m/z tolerance when matching a new point to
-        existing ROIs
-        :param smartroi_params: SmartROI parameters
-        :param grid: non-overlap grid, if any. Used to track overlapping
-        fragmentation of ROI across samples.
+
+        Args:
+            roi_params: parameters for ROI building, as defined in [vimms.Roi.RoiBuilderParams][].
+            smartroi_params: other SmartROI parameters, as defined in
+                             [vimms.Roi.SmartRoiParams][].
+            grid: a grid object, if available
         """
         self.roi_params = roi_params
         self.smartroi_params = smartroi_params
@@ -460,7 +520,12 @@ class RoiBuilder():
     def update_roi(self, new_scan):
         """
         Updates ROI in real-time based on incoming scans
-        :param new_scan: a newly arriving Scan object
+
+        Args:
+            new_scan: a newly arriving Scan object
+
+        Returns: None
+
         """
         if new_scan.ms_level == 1:
 
@@ -568,14 +633,19 @@ class RoiBuilder():
     # flake8: noqa: C901
     def _match(self, mz, roi_list, mz_tol):
         """
-        # Find the RoI that a particular mz falls into. If it falls into nothing,
+        Find the RoI that a particular mz falls into. If it falls into nothing,
         return None.
-        :param mz: an ROI object containing the m/z we want to find
-        :param roi_list: the list of other ROIs to determine where to place the
-        mz ROI into
-        :param mz_tol: m/z tolerance. This is the window above and below the
-        mean_mz of the RoI.
-                       E.g. if mz_tol = 1 Da, then it looks plus and minus 1Da
+
+        Args:
+            mz: an ROI object containing the m/z we want to find
+            roi_list: the list of other ROIs to determine where to place the
+                      mz ROI into
+            mz_tol: m/z tolerance. This is the window above and below the
+                    mean_mz of the RoI.
+                    E.g. if mz_tol = 1 Da, then it looks plus and minus 1Da
+
+        Returns: the ROI that has been matched, or None if not found.
+
         """
         if len(roi_list) == 0:
             return None
@@ -616,10 +686,15 @@ class RoiBuilder():
         """
         Constructs a new ROI object based on the currently defined type in
         this builder
-        :param mz: the m/z value
-        :param rt: the RT value
-        :param intensity: the intensity value
-        :param roi_id: the ROI id
+
+        Args:
+            mz: the m/z value
+            rt: the RT value
+            intensity: the intensity value
+            roi_id: the ROI id
+
+        Returns: a new ROI object
+
         """
         if self.roi_type == ROI_TYPE_NORMAL:
             roi = Roi(mz, rt, intensity, id=roi_id)
@@ -632,7 +707,12 @@ class RoiBuilder():
         """
         Returns the (m/z, intensity, ROI ID) value of point at position i in
         this ROI
-        :param the index of point to return
+
+        Args:
+            i: the index of point to return
+
+        Returns: a tuple of (mz, intensity, roi ID)
+
         """
         mz = self.current_roi_mzs[i]
         intensity = self.current_roi_intensities[i]
@@ -642,6 +722,16 @@ class RoiBuilder():
     def set_fragmented(self, current_task_id, i, roi_id, rt, intensity):
         """
         Updates this ROI to indicate that it has been fragmented
+
+        Args:
+            current_task_id:  the current task ID
+            i: index of fragmented ROI in the live ROI list
+            roi_id: the ID of ROI
+            rt: time of fragmentation
+            intensity: intensity at fragmentation
+
+        Returns: None
+
         """
         # updated fragmented list and times
         self.live_roi_fragmented[i] = True
@@ -724,17 +814,18 @@ class RoiAligner():
                  min_mz_width=0.01,
                  n_categories=1):
         """
-        TODO: add docstring comment
-        Creates a new ROI aligner
-        :param mz_tolerance_absolute: ???
-        :param mz_tolerance_ppm: ???
-        :param rt_tolerance: ???
-        :param mz_column_pos: ???
-        :param rt_column_pos: ???
-        :param intensity_column_pos: ???
-        :param min_rt_width: ???
-        :param min_mz_width: ???
-        :param n_categories: ???
+        TODO: ask Ross or Vinny to add comment
+
+        Args:
+            mz_tolerance_absolute:
+            mz_tolerance_ppm:
+            rt_tolerance:
+            mz_column_pos:
+            rt_column_pos:
+            intensity_column_pos:
+            min_rt_width:
+            min_mz_width:
+            n_categories:
         """
         self.peaksets = []
         self.mz_tolerance_absolute = mz_tolerance_absolute
@@ -759,13 +850,17 @@ class RoiAligner():
     def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None,
                    mz_shifts=None):
         """
-        TODO: add docstring comment
-        Adds a new sample for alignment
-        :param rois: ???
-        :param sample_name: ???
-        :param sample_type: ???
-        :param rt_shifts: ???
-        :param mz_shifts: ???
+        TODO: ask Ross or Vinny to add comment
+
+        Args:
+            rois:
+            sample_name:
+            sample_type:
+            rt_shifts:
+            mz_shifts:
+
+        Returns: ???
+
         """
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
@@ -795,17 +890,21 @@ class RoiAligner():
                          half_isolation_window=0, allow_last_overlap=False,
                          rt_shifts=None, mz_shifts=None):
         """
-        TODO: add docstring comment
-        Adds picked peak information to the aligner
-        :param mzml_file: ???
-        :param peak_file: ???
-        :param sample_name: ???
-        :param picking_method: ???
-        :param sample_type: ???
-        :param half_isolation_window: ???
-        :param allow_last_overlap: ???
-        :param rt_shifts: ???
-        :param mz_shifts: ???
+        TODO: ask Ross or Vinny to add comment
+
+        Args:
+            mzml_file:
+            peak_file:
+            sample_name:
+            picking_method:
+            sample_type:
+            half_isolation_window:
+            allow_last_overlap:
+            rt_shifts:
+            mz_shifts:
+
+        Returns: ???
+
         """
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
@@ -844,12 +943,16 @@ class RoiAligner():
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
         """
-        TODO: add docstring comment
-        Performs alignment of ...
-        :param these_peaks: ???
-        :param temp_boxes: ???
-        :param frag_intensities: ???
-        :param short_name: ???
+        TODO: ask Ross or Vinny to add comment
+
+        Args:
+            these_peaks:
+            temp_boxes:
+            frag_intensities:
+            short_name:
+
+        Returns: ???
+
         """
         if len(self.peaksets) == 0:
             # first file
@@ -922,6 +1025,12 @@ class RoiAligner():
     def get_boxes(self, method='mean'):
         """
         Converts peaksets to generic boxes
+
+        Args:
+            method: which method to use for the conversion
+
+        Returns: a list of [vimms.Box.GenericBox][] objects.
+
         """
         boxes = []
         for ps in self.peaksets:
@@ -961,8 +1070,13 @@ class FrequentistRoiAligner(RoiAligner):
 
     def get_boxes(self, method='mean'):
         """
-        TODO: add docstring comment
         Converts peaksets to generic boxes in a different way
+
+        Args:
+            method:
+
+        Returns: ???
+
         """
         boxes = super().get_boxes(method)
         categories = np.unique(np.array(self.sample_types))
@@ -976,8 +1090,12 @@ class FrequentistRoiAligner(RoiAligner):
 
     def get_p_values(self, enough_catergories):
         """
-        TODO: add docstring comment
-        Returns the p-values of ...
+
+        Args:
+            enough_catergories:
+
+        Returns: ???
+
         """
         # need to match boxes, not base chemicals
         if enough_catergories:
@@ -1013,8 +1131,14 @@ class FrequentistRoiAligner(RoiAligner):
 def make_roi(input_file, roi_params):
     """
     Make ROIs from an input file
-    :param input_file: input mzML file
-    :param roi_params: an RoiParam object
+
+    Args:
+        input_file: input mzML file
+        roi_params: an RoiParam object
+
+    Returns: the list of good ROI objects that have been filtered according to
+             certain criteria.
+
     """
 
     run = pymzml.run.Reader(input_file, MS1_Precision=5e-6,
@@ -1053,9 +1177,13 @@ def make_roi(input_file, roi_params):
 def spectrum_to_arrays(spectrum):
     """
     Converts pymzml spectrum to parallel arrays
-    :param spectrum: a pymzml spectrum object
-    :return a tuple (mzs, intensities) where mzs and intensities are numpy
-    arrays of m/z and intensity values
+
+    Args:
+        spectrum: a pymzml spectrum object
+
+    Returns: a tuple (mzs, intensities) where mzs and intensities are numpy
+             arrays of m/z and intensity values
+
     """
     mzs = []
     intensities = []
@@ -1070,12 +1198,17 @@ def spectrum_to_arrays(spectrum):
 def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method='pearson'):
     """
     Computes the correlation between two ROI objects
-    :param roi1: first ROI
-    :param roi2: second ROI
-    :param min_rt_point_overlap: minimum points that overlap in RT,
-    currently unused
-    :param correlation method, if 'pearson' then Peason's correlation is
-    used, otherwise the cosine score is used
+
+    Args:
+        roi1: first ROI
+        roi2: second ROI
+        min_rt_point_overlap: minimum points that overlap in RT,
+                              currently unused
+        method: if 'pearson' then Peason's correlation is
+                used, otherwise the cosine score is used
+
+    Returns: the correlation between the two ROIs.
+
     """
     # flip around so that roi1 starts earlier (or equal)
     if roi2.rt_list[0] < roi1.rt_list[0]:
@@ -1115,8 +1248,13 @@ def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method='pearson'):
 def cosine_score(u, v):
     """
     Computes the cosine similarity between two vectors
-    :param u: first vector
-    :param v: second vector
+
+    Args:
+        u: first vector
+        v: second vector
+
+    Returns: the cosine similarity
+
     """
     numerator = (u * v).sum()
     denominator = np.sqrt((u * u).sum()) * np.sqrt((v * v).sum())
@@ -1126,9 +1264,14 @@ def cosine_score(u, v):
 def greedy_roi_cluster(roi_list, corr_thresh=0.75, corr_type='cosine'):
     """
     Performs a greedy clustering of ROIs
-    :param roi_list: a list of ROIs
-    :param corr_thresh: the threshold on correlation for clustering
-    :param corr_type: correlation type, currently unused
+
+    Args:
+        roi_list: a list of ROIs to cluster
+        corr_thresh: the threshold on correlation for clustering
+        corr_type: correlation type, currently unused
+
+    Returns: a list of lists of ROIs, each member list is a cluster.
+
     """
     # sort in descending intensity
     roi_list_copy = [r for r in roi_list]
@@ -1153,9 +1296,14 @@ def greedy_roi_cluster(roi_list, corr_thresh=0.75, corr_type='cosine'):
 def plot_roi(roi, statuses=None, log=False):
     """
     Plots an ROI
-    :param roi: the ROI to plot
-    :param statuses: flags for coloring
-    :param log: whether to log the intensity (defaults False)
+
+    Args:
+        roi: the ROI to plot
+        statuses: flags for coloring
+        log: whether to log the intensity (defaults False)
+
+    Returns: None
+
     """
     if log:
         intensities = np.log(roi.intensity_list)
@@ -1184,11 +1332,14 @@ def plot_roi(roi, statuses=None, log=False):
 def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
     """
     Updates picked boxes ??
-    TODO: add docstring comment
 
-    :param picked_boxes: ???
-    :param rt_shifts: ???
-    :param mz_shifts: ???
+    Args:
+        picked_boxes:
+        rt_shifts:
+        mz_shifts:
+
+    Returns: ???
+
     """
     if rt_shifts is None and mz_shifts is None:
         return picked_boxes

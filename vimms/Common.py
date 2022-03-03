@@ -139,7 +139,18 @@ ROI_TYPE_SMART = 'smart'
 
 
 class Formula():
+    """
+    A class to represent a chemical formula
+    """
+
     def __init__(self, formula_string):
+        """
+        Creates a Formula object. Formulae can be sampled to generate [vimms.Chemicals.Chemical][]
+        objects.
+
+        Args:
+            formula_string (string): the chemical formula
+        """
         self.formula_string = formula_string
         self.atom_names = ATOM_NAMES
         self.atoms = {}
@@ -148,9 +159,23 @@ class Formula():
         self.mass = self._get_mz()
 
     def _get_mz(self):
+        """
+        Computes the m/z value of this formula
+        Returns: the m/z value
+
+        """
+        # Assume no charge
         return self.compute_exact_mass()
 
     def _get_n_element(self, atom_name):
+        """
+        Computes how many elements of an atom is present in the formula
+        Args:
+            atom_name: the atom to check
+
+        Returns: the total number of atoms present in the formula
+
+        """
         # Do some regex matching to find the numbers of the important atoms
         ex = atom_name + '(?![a-z])' + '\\d*'
         m = re.search(ex, self.formula_string)
@@ -168,6 +193,11 @@ class Formula():
             return total
 
     def compute_exact_mass(self):
+        """
+        Computes the exact mass of this formula
+        Returns: the exact mass
+
+        """
         masses = ATOM_MASSES
         exact_mass = 0.0
         for a in self.atoms:
@@ -182,8 +212,17 @@ class Formula():
 
 
 class DummyFormula():
-    # wrapper to store an mz as a 'formula'
+    """
+    A dummy wrapper to store an mz as a [vimms.Common.Formula][].
+    This is convenient as it allows us to treat an m/z value like an (unknown) formula.
+    """
+
     def __init__(self, mz):
+        """
+        Create a DummyFormula object
+        Args:
+            mz: the m/z value to wrap
+        """
         self.mass = mz
 
     def compute_exact_mass(self):
@@ -193,7 +232,9 @@ class DummyFormula():
 class ScanParameters():
     """
     A class to store parameters used to instruct the mass spec how to
-    generate a scan. This object is usually created by the controllers.
+    generate a scan. This object is usually created by the controller.
+    It is used by the controller to instruct the mass spec what actions (scans)
+    to perform next.
     """
 
     MS_LEVEL = 'ms_level'
@@ -237,24 +278,30 @@ class ScanParameters():
 
     def __init__(self):
         """
-        Creates a scan parameter object
+        Create a scan parameter object
         """
         self.params = {}
 
     def set(self, key, value):
         """
-        Sets scan parameter value
-        :param key: a scan parameter name
-        :param value: a scan parameter value
-        :return:
+        Set scan parameter value
+
+        Args:
+            key: a scan parameter name
+            value: a scan parameter value
+
+        Returns: None
         """
         self.params[key] = value
 
     def get(self, key):
         """
         Gets scan parameter value
-        :param key:
-        :return:
+
+        Args:
+            key: the key to look for
+
+        Returns: the corresponding value in this ScanParameter
         """
         if key in self.params:
             return self.params[key]
@@ -262,6 +309,10 @@ class ScanParameters():
             return None
 
     def get_all(self):
+        """
+        Get all scan parameters
+        Returns: all the scan parameters
+        """
         return self.params
 
     def compute_isolation_windows(self):
@@ -288,8 +339,20 @@ class ScanParameters():
 
 
 class Precursor():
+    """
+    A class to store precursor peak information when writing an MS2 scan.
+    """
+
     def __init__(self, precursor_mz, precursor_intensity, precursor_charge,
                  precursor_scan_id):
+        """
+        Create a Precursor object.
+        Args:
+            precursor_mz: the m/z value of this precursor peak.
+            precursor_intensity: the intensity value of this precursor peak.
+            precursor_charge: the charge of this precursor peak
+            precursor_scan_id: the assocated MS1 scan ID that contains this precursor peak
+        """
         self.precursor_mz = precursor_mz
         self.precursor_intensity = precursor_intensity
         self.precursor_charge = precursor_charge
@@ -306,6 +369,14 @@ class Precursor():
 ###############################################################################
 
 def create_if_not_exist(out_dir):
+    """
+    Creates a directory if it doesn't already exist
+    Args:
+        out_dir: the directory to create, if it doesn't exist
+
+    Returns: None.
+
+    """
     if not pathlib.Path(out_dir).exists():
         logger.info('Created %s' % out_dir)
         pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -313,10 +384,16 @@ def create_if_not_exist(out_dir):
 
 def save_obj(obj, filename):
     """
-    Save object to file
-    :param obj: the object to save
-    :param filename: the output file
-    :return: None
+    Save object to file. This is useful for storing simulation results and other objects.
+
+    If the directory containing the specified filename doesn't exist, it will be created first.
+    The object will be saved using gzip + pickle (highest protocol).
+
+    Args:
+        obj: the Python object to save
+        filename: the output filename to use
+
+    Returns: None
     """
 
     # workaround for
@@ -335,8 +412,12 @@ def save_obj(obj, filename):
 def load_obj(filename):
     """
     Load saved object from file
-    :param filename: The file to load
-    :return: the loaded object
+
+    Args:
+        filename: The filename to load. Should be saved using the `save_obj` method.
+
+    Returns: the loaded object
+
     """
     try:
         with gzip.GzipFile(filename, 'rb') as f:
@@ -350,24 +431,41 @@ def load_obj(filename):
 def chromatogramDensityNormalisation(rts, intensities):
     """
     Definition to standardise the area under a chromatogram to 1.
-    Returns updated intensities
+
+    Args:
+        rts: the RT values of this chromatogram
+        intensities: the intensity values of this chromatogram
+
+    Returns: updated intensities that have been standardised so the area is 1.
+
     """
     assert len(rts) == len(intensities)
     area = 0.0
     for rt_index in range(len(rts) - 1):
         area += ((intensities[rt_index] + intensities[rt_index + 1]) / 2) / (
-            rts[rt_index + 1] - rts[rt_index])
+                rts[rt_index + 1] - rts[rt_index])
     new_intensities = [x * (1 / area) for x in intensities]
     return new_intensities
 
 
 def adduct_transformation(mz, adduct):
+    """
+    Transform m/z value according to the selected adduct transformation.
+
+    Args:
+        mz: the m/z value to check
+        adduct: the selected adduct transformation
+
+    Returns: the new m/z value for the adduct
+
+    """
     if adduct in POS_TRANSFORMATIONS:
         f = POS_TRANSFORMATIONS[adduct]
     elif adduct in NEG_TRANSFORMATIONS:
         f = NEG_TRANSFORMATIONS[adduct]
     else:
-        def f(mz): return mz
+        def f(mz):
+            return mz
     return f(mz)
 
 
@@ -375,7 +473,12 @@ def take_closest(my_list, my_number):
     """
     Assumes myList is sorted. Returns closest value to myNumber.
 
-    If two numbers are equally close, return the smallest number.
+    Args:
+        my_list: the list to check
+        my_number: the number to find in the list
+
+    Returns: The closest value to myNumber. If two numbers are equally close,
+    return the smallest number.
     """
     pos = bisect_left(my_list, my_number)
     if pos == 0:
@@ -391,6 +494,15 @@ def take_closest(my_list, my_number):
 
 
 def set_log_level(level, remove_id=None):
+    """
+    Set the logging level of the default logger
+    Args:
+        level: the new level to set
+        remove_id: ID of previous log handler to be removed
+
+    Returns: the new log handler after setting the log level
+
+    """
     if remove_id is None:
         try:
             logger.remove(0)  # try to remove the default handler with id 0
@@ -405,27 +517,64 @@ def set_log_level(level, remove_id=None):
 
 
 def set_log_level_warning(remove_id=None):
+    """
+    Set log level to WARNING
+    Args:
+        remove_id: ID of previous log handler to be removed
+
+    Returns: None
+
+    """
     return set_log_level(logging.WARNING, remove_id=remove_id)
 
 
 def set_log_level_info(remove_id=None):
+    """
+    Set log level to INFO
+    Args:
+        remove_id: ID of previous log handler to be removed
+
+    Returns: None
+
+    """
     return set_log_level(logging.INFO, remove_id=remove_id)
 
 
 def set_log_level_debug(remove_id=None):
+    """
+    Set log level to DEBUG
+    Args:
+        remove_id: ID of previous log handler to be removed
+
+    Returns: None
+
+    """
     return set_log_level(logging.DEBUG, remove_id=remove_id)
 
 
 def add_log_file(log_path, level):
+    """
+    Add path to log file
+    Args:
+        log_path: filename to output the logging to
+        level: the log level
+
+    Returns: None
+
+    """
     logger.add(log_path, level=level)
 
 
 def get_rt(spectrum):
-    '''
+    """
     Extracts RT value from a pymzml spectrum object
-    :param spectrum: a pymzml spectrum object
-    :return: the retention time (in seconds)
-    '''
+
+    Args:
+        spectrum: a pymzml spectrum object
+
+    Returns: the retention time (in seconds)
+
+    """
     rt, units = spectrum.scan_time
     if units == 'minute':
         rt *= 60.0
@@ -433,17 +582,30 @@ def get_rt(spectrum):
 
 
 def find_nearest_index_in_array(array, value):
-    '''
+    """
     Finds index in array where the value is the nearest
-    :param array:
-    :param value:
-    :return:
-    '''
+
+    Args:
+        array: the array to check
+        value: the value to check
+
+    Returns: index in array where the value is the nearest
+
+    """
     idx = (np.abs(array - value)).argmin()
     return idx
 
 
 def download_file(url, out_file=None):
+    """
+    Download a file from the given URL
+    Args:
+        url: URL to download
+        out_file: filename of output file to save to
+
+    Returns: filename of the out_file
+
+    """
     r = requests.get(url, stream=True)
     total_size = int(r.headers.get('content-length', 0))
     block_size = 1024
@@ -464,6 +626,15 @@ def download_file(url, out_file=None):
 
 
 def extract_zip_file(in_file, delete=True):
+    """
+    Extract a zip file
+    Args:
+        in_file: the input zip file
+        delete: whether to delete the input zip file after extracting
+
+    Returns: None
+
+    """
     logger.info('Extracting %s' % in_file)
     with zipfile.ZipFile(file=in_file) as zip_file:
         for file in tqdm(iterable=zip_file.namelist(),
@@ -476,6 +647,16 @@ def extract_zip_file(in_file, delete=True):
 
 
 def uniform_list(N, min_val, max_val):
+    """
+    Generates a list of N uniformly random values from min_val to max_val
+    Args:
+        N: the number of items to generate
+        min_val: the minimum range
+        max_val: the maximum range
+
+    Returns: a list of N values
+
+    """
     return list(np.random.rand(N) * (max_val - min_val) + min_val)
 
 
@@ -493,8 +674,24 @@ def get_default_scan_params(
         metadata=None,
         scan_id=None):
     """
-    Gets the default method scan parameters. Now it's set to do MS1 scan only.
-    :return: the default scan parameters
+    Generate the default MS1 scan parameters.
+
+    Args:
+        polarity: the polarity value, either POSITIVE or NEGATIVE
+        agc_target: AGC (automatic gain control) target
+        max_it: maximum time to collect ion
+        collision_energy: the collision energy to use
+        source_cid_energy: source CID energy
+        orbitrap_resolution: resolution of the mass-spec (Orbitrap) instrument
+        default_ms1_scan_window: the default MS1 scan window
+        mass_analyser: which mass analyser to use
+        activation_type: activation type, either HCD or CID
+        isolation_mode: isolation mode, either None, or Quadrupole or IonTrap
+        metadata: additional metadata to include in this scan
+        scan_id: the scan ID, if specified
+
+    Returns: the parameters of the MS1 scan to create
+
     """
     default_scan_params = ScanParameters()
     default_scan_params.set(ScanParameters.MS_LEVEL, 1)
@@ -534,6 +731,32 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width,
                        isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
                        polarity=POSITIVE,
                        metadata=None, scan_id=None):
+    """
+    Generate the default MS2 scan parameters.
+
+    Args:
+        mz: m/z of precursor peak to fragment
+        intensity: intensity of precursor peak to fragment
+        precursor_scan_id: scan ID of the MS1 scan containing the precursor peak
+        isolation_width: isolation width, in Dalton
+        mz_tol: m/z tolerance for dynamic exclusion # FIXME: this shouldn't be here
+        rt_tol: RT tolerance for dynamic exclusion # FIXME: this shouldn't be here
+        agc_target: AGC (automatic gain control) target
+        max_it: maximum time to collect ion
+        collision_energy: the collision energy to use
+        source_cid_energy: source CID energy
+        orbitrap_resolution: resolution of the mass-spec (Orbitrap) instrument
+        mass_analyser: which mass analyser to use
+        activation_type: activation type, either HCD or CID
+        isolation_mode: isolation mode, either None, or Quadrupole or IonTrap
+        polarity: the polarity value, either POSITIVE or NEGATIVE
+        metadata: additional metadata to include in this scan
+        scan_id: the scan ID, if specified
+
+    Returns: the parameters of the MS2 scan to create
+
+    """
+
     dda_scan_params = ScanParameters()
     dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
 

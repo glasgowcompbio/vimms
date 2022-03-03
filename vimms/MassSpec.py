@@ -18,10 +18,12 @@ class Peak():
     def __init__(self, mz, rt, intensity, ms_level):
         """
         Creates a peak object
-        :param mz: mass-to-charge value
-        :param rt: retention time value
-        :param intensity: intensity value
-        :param ms_level: MS level
+
+        Args:
+            mz: mass-to-charge value
+            rt: retention time value
+            intensity: intensity value
+            ms_level: MS level
         """
         self.mz = mz
         self.rt = rt
@@ -53,14 +55,17 @@ class Scan():
                  fragevent=None):
         """
         Creates a scan
-        :param scan_id: current scan id
-        :param mzs: an array of mz values
-        :param intensities: an array of intensity values
-        :param ms_level: the ms level of this scan
-        :param rt: the retention time of this scan
-        :param scan_duration: how long this scan takes, if known.
-        :param scan_params: the parameters used to generate this scan, if known
-        :param parent: parent precursor peak, if known
+
+        Args:
+            scan_id: current scan id
+            mzs: an array of mz values
+            intensities: an array of intensity values
+            ms_level: the ms level of this scan
+            rt: the retention time of this scan
+            scan_duration: how long this scan takes, if known.
+            scan_params: the parameters used to generate this scan, if known
+            parent: parent precursor peak, if known
+            fragevent: fragmentation event associated to this scan, if any
         """
         assert len(mzs) == len(intensities)
         self.scan_id = scan_id
@@ -95,18 +100,20 @@ class ScanEvent():
                  scan_params=None):
         """
         Creates a fragmentation event
-        :param chem: the chemical that were fragmented
-        :param query_rt: the time when fragmentation occurs
-        :param ms_level: MS level of fragmentation
-        :param peaks: the set of peaks produced during the fragmentation event
-        :param scan_id: the scan id linked to this fragmentation event
-        :param parents_intensity: the intensity of the chemical that was
-        fragmented at the time it was fragmented
-        :param parent_adduct: the adduct that was fragmented of the chemical
-        :param parent_isotope: the isotope that was fragmented of the chemical
-        :param precursor_mz: the precursor mz of the scan
-        :param isolation_window: the isolation window of the scan
-        :param scan_params: the scan parameter settings that were used
+
+        Args:
+            chem: the chemical that were fragmented
+            query_rt: the time when fragmentation occurs
+            ms_level: MS level of fragmentation
+            peaks: the set of peaks produced during the fragmentation event
+            scan_id: the scan id linked to this fragmentation event
+            parents_intensity: the intensity of the chemical that was
+                               fragmented at the time it was fragmented
+            parent_adduct: the adduct that was fragmented of the chemical
+            parent_isotope: the isotope that was fragmented of the chemical
+            precursor_mz: the precursor mz of the scan
+            isolation_window: the isolation window of the scan
+            scan_params: the scan parameter settings that were used
         """
         self.chem = chem
         self.query_rt = query_rt
@@ -134,10 +141,13 @@ class TaskManager():
     def __init__(self, buffer_size=5):
         """
         Initialises the task manager.
-        :param buffer_size: maximum buffer or queue size on the mass spec.
+
         At any point, this class will ensure that there is not more than this
         number of tasks enqueued on the mass spec, see
         https://github.com/thermofisherlsms/iapi/issues/22.
+
+        Args:
+            buffer_size: maximum buffer or queue size on the mass spec.
         """
         self.current_tasks = []
         self.pending_tasks = []
@@ -146,24 +156,36 @@ class TaskManager():
     def add_current(self, tasks):
         """
         Add to the list of current tasks (ready to send)
-        :param tasks: list of current tasks
-        :return: None
+
+        Args:
+            tasks: list of current tasks
+
+        Returns: None
+
         """
         self.current_tasks.extend(tasks)
 
     def add_pending(self, tasks):
         """
         Add to the list of pending tasks (sent but not received)
-        :param tasks: list of pending tasks
-        :return: None
+
+        Args:
+            tasks: list of pending tasks
+
+        Returns: None
+
         """
         self.pending_tasks.extend(tasks)
 
     def remove_pending(self, completed_task):
         """
         Remove a completed task from the list of pending tasks
-        :param completed_task: a newly completed task
-        :return:
+
+        Args:
+            completed_task: a newly completed task
+
+        Returns: None
+
         """
         self.pending_tasks = [t for t in self.pending_tasks if
                               t != completed_task]
@@ -172,7 +194,9 @@ class TaskManager():
         """
         Select current tasks that could be sent to the mass spec,
         ensuring that buffer_size on the mass spec is not exceeded.
-        :return:
+
+        Returns: None
+
         """
         batch_size = self.buffer_size - self.pending_size()
         batch = []
@@ -183,42 +207,54 @@ class TaskManager():
     def pop_current(self):
         """
         Remove the first current task (ready to send)
-        :return: a current task
+
+        Returns: a current task
+
         """
         return self.current_tasks.pop(0)
 
     def pop_pending(self):
         """
         Remove the first pending task (sent but not received)
-        :return: a pending task
+
+        Returns: a pending task
+
         """
         return self.pending_tasks.pop(0)
 
     def peek_current(self):
         """
         Get the first current task (ready to send) without removing it
-        :return: a current task
+
+        Returns: a current task
+
         """
         return self.current_tasks[0]
 
     def peek_pending(self):
         """
         Get the first pending task (sent but not received) without removing it
-        :return: a pending task
+
+        Returns: a pending task
+
         """
         return self.pending_tasks[0]
 
     def current_size(self):
         """
         Get the size of current tasks
-        :return: the size of current tasks
+
+        Returns: the size of current tasks
+
         """
         return len(self.current_tasks)
 
     def pending_size(self):
         """
         Get the size of pending tasks
-        :return: the size of pending tasks
+
+        Returns: the size of pending tasks
+
         """
         return len(self.pending_tasks)
 
@@ -241,12 +277,23 @@ class IndependentMassSpectrometer():
                  scan_duration=DEFAULT_SCAN_TIME_DICT, task_manager=None):
         """
         Creates a mass spec object.
-        :param ionisation_mode: POSITIVE or NEGATIVE
-        :param chemicals: a list of Chemical objects in the dataset
-        :param peak_sampler: an instance of DataGenerator.PeakSampler object
-        :param add_noise: a flag to indicate whether to add noise
-        :param use_exclusion_list: a flag to indicate whether to perform
-        dynamic exclusion
+
+        Args:
+            ionisation_mode: POSITIVE or NEGATIVE
+            chemicals: a list of Chemical objects in the dataset
+            mz_noise: noise to apply to m/z values of generated peaks.
+                      Should be an instance of [vimms.Noise.NoPeakNoise][] or
+                      others that inherit from it.
+            intensity_noise: noise to apply to intensity values of generated peaks.
+                             Should be an instance of [vimms.Noise.NoPeakNoise][] or
+                             others that inherit from it.
+            spike_noise: spike noise in the generated spectra. Should be either None, or
+                         set an instance of [vimms.Noise.UniformSpikeNoise][] if needed.
+            isolation_transition_window: transition window for isolating peaks
+            isolation_transition_window_params: parameters for isolation
+            scan_duration: a dictionary of scan time for each MS level, or
+                           an instance of [vimms.ChemicalSamplers.ScanTimeSampler][].
+            task_manager: an instance of [vimms.MassSpec.TaskManager] to manage tasks, or None.
         """
 
         # current scan index and internal time
@@ -306,7 +353,13 @@ class IndependentMassSpectrometer():
     def step(self, params=None, call_controller=True):
         """
         Performs one step of a mass spectrometry process
-        :return:
+
+        Args:
+            params: initial set of tasks from the controller
+            call_controller: whether to actually call the controller or not
+
+        Returns: a newly generated scan
+
         """
         # if no params passed in, then try to get one from the queue
         if params is None:
@@ -340,10 +393,18 @@ class IndependentMassSpectrometer():
         return new_scan
 
     def dispatch_scan(self, scan):
-        # notify the controller that a new scan has been generated
-        # at this point, the MS_SCAN_ARRIVED event handler in the
-        # controller is called and the processing queue will be updated
-        # with new sets of scan parameters to do
+        """
+        Notify the controller that a new scan has been generated
+        at this point, the MS_SCAN_ARRIVED event handler in the
+        controller is called and the processing queue will be updated
+        with new sets of scan parameters to do.
+
+        Args:
+            scan: a newly generated scan.
+
+        Returns: None
+
+        """
         self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
         # sample scan duration and increase internal time
@@ -360,27 +421,42 @@ class IndependentMassSpectrometer():
     def get_params(self):
         """
         Retrieves a new set of scan parameters from the processing queue
-        :return: A new set of scan parameters from the queue if available,
-            otherwise it returns nothing (default scan set in actual MS)
+
+        Returns: A new set of scan parameters from the queue if available,
+                 otherwise it returns nothing (default scan set in actual MS)
+
         """
         params_list = self.task_manager.to_send()
         logger.debug('Selected %d tasks to send' % (len(params_list)))
         return params_list
 
     def send_params(self, params_list):
-        # in the real IAPI mass spec, we would send these params
-        # to the instrument.
-        # but here we just store them in the list of pending tasks
-        # to be processed later
+        """
+        Send parameters to the instrument.
+
+        In the real IAPI mass spec, we would send these params
+        to the instrument, but here we just store them in the list of pending tasks
+        to be processed later
+
+        Args:
+            params_list: the list of scan parameters to send.
+
+        Returns: None
+
+        """
         self.task_manager.add_pending(params_list)
         logger.debug('Successfully sent %d tasks' % (len(params_list)))
 
     def fire_event(self, event_name, arg=None):
         """
         Simulates sending an event
-        :param event_name: the event name
-        :param arg: the event parameter
-        :return: None
+
+        Args:
+            event_name: the event name
+            arg: the event parameter
+
+        Returns: None
+
         """
         if event_name not in self.event_dict:
             raise ValueError('Unknown event name')
@@ -396,9 +472,13 @@ class IndependentMassSpectrometer():
     def register_event(self, event_name, handler):
         """
         Register event handler
-        :param event_name: the event name
-        :param handler: the event handler
-        :return: None
+
+        Args:
+            event_name: the event name
+            handler: the event handler
+
+        Returns: None
+
         """
         if event_name not in self.event_dict:
             raise ValueError('Unknown event name')
@@ -406,14 +486,24 @@ class IndependentMassSpectrometer():
         e += handler  # register a new event handler for e
 
     def clear_events(self):
-        for key in self.event_dict:  # clear event handlers
+        """
+        Clear event handlers
+
+        Returns: None
+
+        """
+        for key in self.event_dict:
             self.clear_event(key)
 
     def clear_event(self, event_name):
         """
         Clears event handler for a given event name
-        :param event_name: the event name
-        :return: None
+
+        Args:
+            event_name: the event name
+
+        Returns: None
+
         """
         if event_name not in self.event_dict:
             raise ValueError('Unknown event name')
@@ -421,6 +511,12 @@ class IndependentMassSpectrometer():
         e.targets = []
 
     def close(self):
+        """
+        Close this mass spec
+
+        Returns: None
+
+        """
         logger.debug('Unregistering event handlers')
         self.clear_events()
 
@@ -429,10 +525,19 @@ class IndependentMassSpectrometer():
     ###########################################################################
 
     def _increase_time(self, current_level, next_scan_param):
-        # look into the queue, find out what the next scan ms_level is, and
-        # compute the scan duration
-        # only applicable for simulated mass spec, since the real mass spec
-        # can generate its own scan duration.
+        """
+        Look into the queue, find out what the next scan ms_level is, and
+        compute the scan duration.
+        Only applicable for simulated mass spec, since the real mass spec
+        can generate its own scan duration.
+
+        Args:
+            current_level:  the current MS level
+            next_scan_param: the next scan parameter in the queue
+
+        Returns: the scan duration of the current scan
+
+        """
         self.idx += 1
 
         # sample scan duration from dictionary
@@ -465,8 +570,13 @@ class IndependentMassSpectrometer():
     def _get_scan(self, scan_time, params):
         """
         Constructs a scan at a particular timepoint
-        :param scan_time: the timepoint
-        :return: a mass spectrometry scan at that time
+
+        Args:
+            scan_time: the timepoint
+            params: a mass spectrometry scan at that time
+
+        Returns:
+
         """
         frag = None
 

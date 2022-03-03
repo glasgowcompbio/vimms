@@ -27,6 +27,16 @@ class DatabaseCompound():
 
     def __init__(self, name, chemical_formula, monisotopic_molecular_weight,
                  smiles, inchi, inchikey):
+        """
+        Creates a DatabaseCompound object
+        Args:
+            name: the compound name
+            chemical_formula: the formula of that compound
+            monisotopic_molecular_weight: the monoisotopic weight of the compound
+            smiles: SMILES of the compound
+            inchi: InCHI of the compound
+            inchikey: InCHI key of the compound
+        """
         self.name = name
         self.chemical_formula = chemical_formula
         self.monisotopic_molecular_weight = monisotopic_molecular_weight
@@ -41,11 +51,22 @@ class Isotopes():
     """
 
     def __init__(self, formula):
+        """
+        Create an Isotope object
+        Args:
+            formula: the formula for the given isotope
+        """
         self.formula = formula
 
     def get_isotopes(self, total_proportion):
         """
-        Gets the isotopes
+        Gets the isotope total proportion
+
+        Args:
+            total_proportion: the total proportion to compute
+
+        Returns: the computed isotope total proportion
+
         TODO: Add functionality for elements other than Carbon
         """
         peaks = [() for i in
@@ -59,6 +80,12 @@ class Isotopes():
     def _get_isotope_proportions(self, total_proportion):
         """
         Get isotope proportion by sampling from a binomial pmf
+
+        Args:
+            total_proportion: the total proportion to compute
+
+        Returns: the computed isotope total proportion
+
         """
         proportions = []
         while sum(proportions) < total_proportion:
@@ -71,12 +98,28 @@ class Isotopes():
         return normalised_proportions
 
     def _get_isotope_names(self, isotope_number):
+        """
+        Get the isotope name given the number, e.g. 0 is the monoisotope
+        Args:
+            isotope_number: the isotope number
+
+        Returns: the isotope name
+
+        """
         if isotope_number == 0:
             return MONO
         else:
             return str(isotope_number) + C13
 
     def _get_isotope_mz(self, isotope):
+        """
+        Get the isotope m/z value
+        Args:
+            isotope: the isotope name
+
+        Returns: the isotope m/z value
+
+        """
         if isotope == MONO:
             return self.formula._get_mz()
         elif isotope[-3:] == C13:
@@ -93,6 +136,14 @@ class Adducts():
 
     def __init__(self, formula, adduct_proportion_cutoff=0.05,
                  adduct_prior_dict=None):
+        """
+        Create an Adduct class
+
+        Args:
+            formula: the formula of this adduct
+            adduct_proportion_cutoff: proportion cut-off of the adduct
+            adduct_prior_dict: custom adduct dictionary, if any
+        """
         if adduct_prior_dict is None:
             self.adduct_names = {POSITIVE: list(POS_TRANSFORMATIONS.keys())}
             self.adduct_prior = {
@@ -113,6 +164,7 @@ class Adducts():
     def get_adducts(self):
         """
         Get the adducts
+        Returns: adducts in the correct proportion
         """
         adducts = {}
         proportions = self._get_adduct_proportions()
@@ -127,6 +179,9 @@ class Adducts():
     def _get_adduct_proportions(self):
         """
         Get adducts according to a dirichlet distribution
+
+        Returns: adduct proportion after sampling
+
         """
         # TODO: replace this with something proper
         proportions = {}
@@ -142,6 +197,11 @@ class Adducts():
         return proportions
 
     def _get_adduct_names(self):
+        """
+        Get the adduct name
+        Returns: adduct name
+
+        """
         return self.adduct_names
 
 
@@ -154,6 +214,12 @@ class BaseChemical(ABC):
     """
 
     def __init__(self, ms_level, children):
+        """
+        Defines a base chemical object
+        Args:
+            ms_level: the MS level of this chemical
+            children: any children of this chemical
+        """
         self.ms_level = ms_level
         self.children = children
 
@@ -166,6 +232,15 @@ class Chemical(BaseChemical):
 
     def __init__(self, rt, max_intensity, chromatogram, children,
                  base_chemical):
+        """
+        Create a Chemical object
+        Args:
+            rt: the RT value of this chemical
+            max_intensity: the maximum intensity of this chemical
+            chromatogram: the chromatogram of this chemical
+            children: any children of this chemical
+            base_chemical: the base chemical from which this chemical is derived
+        """
         ms_level = 1
         super().__init__(ms_level, children)
 
@@ -176,9 +251,21 @@ class Chemical(BaseChemical):
         self.base_chemical = base_chemical
 
     def get_apex_rt(self):
+        """
+        Get the apex (highest point) RT of the chromatogram of this chemical
+        Returns: the apex RT of the chromatogram
+
+        """
+
         return self.rt + self.chromatogram.get_apex_rt()
 
     def get_original_parent(self):
+        """
+        Get the original base chemical in a recursive manner.
+        This is necessary if the parent chemical also has another parent.
+        Returns: the original base chemical
+
+        """
         return self if self.base_chemical is None else \
             self.base_chemical.get_original_parent()
 
@@ -186,7 +273,9 @@ class Chemical(BaseChemical):
     def get_key(self):
         """
         Turns a chemical object into some sensible keys for comparison
-        :return: keys for comparisons in __eq__ and __hash__
+
+        Returns: keys for comparisons in __eq__ and __hash__
+
         """
         pass
 
@@ -210,6 +299,15 @@ class UnknownChemical(Chemical):
                  base_chemical=None):
         """
         Initialises an UnknownChemical object.
+
+        Args:
+            mz: the m/z value of this chemical. Unlike [vimms.Chemicals.KnownChemical][] here we
+                know the m/z value but do not known the formula that generates this chemical.
+            rt: the RT value of this chemical
+            max_intensity: the maximum intensity of this chemical
+            chromatogram: the chromatogram of this chemical
+            children: any children of this chemical
+            base_chemical: the base chemical from which this chemical is derived
         """
         super().__init__(rt, max_intensity, chromatogram, children, base_chemical)
         self.isotopes = [
@@ -236,7 +334,20 @@ class KnownChemical(Chemical):
                  include_adducts_isotopes=True, total_proportion=0.99,
                  database_accession=None, base_chemical=None):
         """
-        Initialises a known chemical object
+        Initialises a Known chemical object
+
+        Args:
+            formula: the formula of this chemical object.
+            isotopes: the isotope of this chemical object
+            adducts: the adduct of this chemical object
+            rt: the retention time value of this chemical object
+            max_intensity: the maximum intensity value in the chromatogram
+            chromatogram: the chromatogram of the chemical
+            children: any children of the chemical
+            include_adducts_isotopes: whether to include adducts and isotopes of this chemical
+            total_proportion: total proportion of this chemical
+            database_accession: database accession number, if any
+            base_chemical: parent chemica, if any
         """
         super().__init__(rt, max_intensity, chromatogram, children, base_chemical)
         self.formula = formula
@@ -268,6 +379,14 @@ class MSN(BaseChemical):
                  children=None, parent=None):
         """
         Initialises an MSN object
+
+        Args:
+            mz: the m/z value of this fragment peak
+            ms_level: the MS level of this fragment peak
+            prop_ms2_mass: proportion of MS2 mass
+            parent_mass_prop: proportion from the parent MS1 mass
+            children: any children
+            parent: parent MS1 peak
         """
         super().__init__(ms_level, children)
 
@@ -283,10 +402,10 @@ class MSN(BaseChemical):
 
 
 class ChemicalMixtureCreator():
-    '''
+    """
     A class to create a list of known chemical objects using simplified,
     cleaned methods.
-    '''
+    """
 
     def __init__(self, formula_sampler,
                  rt_and_intensity_sampler=UniformRTAndIntensitySampler(),
@@ -294,11 +413,28 @@ class ChemicalMixtureCreator():
                  ms2_sampler=UniformMS2Sampler(),
                  adduct_proportion_cutoff=0.05,
                  adduct_prior_dict=None):
+        """
+        Create a mixture of [vimms.Chemicals.KnownChemical][] objects.
+        Args:
+            formula_sampler: an instance of [vimms.ChemicalSamplers.FormulaSampler][] to sample
+                             chemical formulae.
+            rt_and_intensity_sampler: an instance of
+                                      [vimms.ChemicalSamplers.RTAndIntensitySampler][] to sample
+                                      RT and intensity values.
+            chromatogram_sampler: an instance of
+                                  [vimms.ChemicalSamplers.ChromatogramSampler][] to sample
+                                  chromatograms.
+            ms2_sampler: an instance of
+                         [vimms.ChemicalSamplers.MS2Sampler][] to sample MS2
+                         fragmentation spectra.
+            adduct_proportion_cutoff: proportion of adduct cut-off
+            adduct_prior_dict: custom adduct dictionary
+        """
         self.formula_sampler = formula_sampler
         self.rt_and_intensity_sampler = rt_and_intensity_sampler
         self.chromatogram_sampler = chromatogram_sampler
         self.ms2_sampler = ms2_sampler
-        self.adduct_proportion_cutoff = 0.05
+        self.adduct_proportion_cutoff = adduct_proportion_cutoff
         self.adduct_prior_dict = adduct_prior_dict
 
         # if self.database is not None:
@@ -307,9 +443,17 @@ class ChemicalMixtureCreator():
         #         key = lambda x: Formula(x.chemical_formula).mass)
 
     def sample(self, n_chemicals, ms_levels, include_adducts_isotopes=True):
-        '''
+        """
         Samples chemicals.
-        '''
+
+        Args:
+            n_chemicals: the number of chemicals
+            ms_levels: the highest MS level to generate. Typically this is 2.
+            include_adducts_isotopes: whether to include adduct and isotopes or not.
+
+        Returns: a list of [vimms.Chemicals.KnownChemical][] objects.
+
+        """
 
         formula_list = self.formula_sampler.sample(n_chemicals)
         rt_list = []
@@ -365,26 +509,36 @@ class ChemicalMixtureCreator():
 
 
 class MultipleMixtureCreator():
-    '''
+    """
     A class to create a list of known chemical objects in multiple
     samples (mixtures)
-    '''
+    """
 
     def __init__(self, master_chemical_list, group_list, group_dict,
                  intensity_noise=GaussianPeakNoise(
                      sigma=0.001, log_space=True),
                  overall_missing_probability=0.0):
-        # example
-        # group_list = ['control', 'control', 'case', 'case']
-        # group_dict = {
-        #     'control': {
-        #         'missing_probability': 0.0,
-        #         'changing_probability': 0.0
-        #     }, 'case': {
-        #         'missing_probability': 0.0,
-        #         'changing_probability': 0.0
-        #     }
-        # }
+        """
+        Create a chemical mixture creator.
+        example
+
+        Args:
+            master_chemical_list: the master list of Chemicals to create each sample (mixture)
+            group_list: a list of different groups, e.g.
+                        group_list = ['control', 'control', 'case', 'case']
+            group_dict: a dictionary of parameters for each group, e.g.
+                        group_dict = {
+                            'control': {
+                                'missing_probability': 0.0,
+                                'changing_probability': 0.0
+                            }, 'case': {
+                                'missing_probability': 0.0,
+                                'changing_probability': 0.0
+                            }
+                        }
+            intensity_noise: intensity noise. Should be an instance of [vimms.Noise.NoPeakNoise][].
+            overall_missing_probability: overall missing probability across all mixtures.
+        """
         self.master_chemical_list = master_chemical_list
         self.group_list = group_list
         self.group_dict = group_dict
@@ -399,6 +553,11 @@ class MultipleMixtureCreator():
         self._generate_changes()
 
     def _generate_changes(self):
+        """
+        Computes changes across groups.
+        Returns: None
+
+        """
         self.group_multipliers = {}
         for group in self.group_dict:
             self.group_multipliers[group] = {}
@@ -416,6 +575,12 @@ class MultipleMixtureCreator():
                     self.group_multipliers[group][chemical] = 0.0
 
     def generate_chemical_lists(self):
+        """
+        Generates list of chemicals across mixtures (samples)
+
+        Returns: the list of chemicals across mixtures (samples)
+
+        """
         chemical_lists = []
         for group in self.group_list:
             new_list = []
@@ -436,13 +601,22 @@ class MultipleMixtureCreator():
 
 
 class ChemicalMixtureFromMZML():
-    '''
+    """
     A class to create a list of known chemical objects from an mzML file
     using simplified, cleaned methods.
-    '''
+    """
 
     def __init__(self, mzml_file_name, ms2_sampler=UniformMS2Sampler(),
                  roi_params=None):
+        """
+        Create a ChemicalMixtureFromMZML class.
+        Args:
+            mzml_file_name: the mzML filename to extract [vimms.Chemicals.UnknownChemical][]
+                            objects from.
+            ms2_sampler: the MS2 sampler to use. Should be an instance of
+                         [vimms.ChemicalSamplers.MS2Sampler][].
+            roi_params: parameters for ROI building, as defined in [vimms.Roi.RoiBuilderParams][].
+        """
         self.mzml_file_name = mzml_file_name
         self.ms2_sampler = ms2_sampler
         self.roi_params = roi_params
@@ -454,6 +628,12 @@ class ChemicalMixtureFromMZML():
         assert len(self.good_rois) > 0
 
     def _extract_rois(self):
+        """
+        Extract good ROIs from the mzML file.
+        Good ROI are ROIs that have been filtered according to certain criteria.
+
+        Returns: the list of good ROI objects
+        """
         good = make_roi(str(self.mzml_file_name), self.roi_params)
         logger.debug("Extracted {} good ROIs from {}".format(
             len(good), self.mzml_file_name))
@@ -461,9 +641,14 @@ class ChemicalMixtureFromMZML():
 
     def sample(self, n_chemicals, ms_levels, source_polarity=POSITIVE):
         """
-            Generate a dataset from the mzml file
-            n_chemicals: set to None if you want all the ROIs turned
-            into chemicals
+        Generate a dataset of Chemicals from the mzml file
+        Args:
+            n_chemicals: the number of Chemical objects. Set to None to get all the ROIs.
+            ms_levels: the maximum MS level
+            source_polarity: either POSITIVE or NEGATIVE
+
+        Returns: the list of Chemicals from the mzML file.
+
         """
         if n_chemicals is None:
             rois_to_use = range(len(self.good_rois))
@@ -487,7 +672,7 @@ class ChemicalMixtureFromMZML():
             rt = r.rt_list[0]  # this is in seconds
             max_intensity = max(r.intensity_list)
 
-            #  make a chromatogram object
+            # make a chromatogram object
             chromatogram = EmpiricalChromatogram(np.array(r.rt_list),
                                                  np.array(r.mz_list),
                                                  np.array(r.intensity_list),
@@ -515,9 +700,15 @@ class ChemicalMixtureFromMZML():
 
 
 def get_pooled_sample(dataset_list):
-    '''
+    """
     Takes a list of datasets and creates a pooled dataset from them
-    '''
+
+    Args:
+        dataset_list: a list of datasets, each containing Chemical objects
+
+    Returns: combined list where the datasets have been pooled
+
+    """
     n_datasets = len(dataset_list)
     all_chems = np.array(
         [item for sublist in dataset_list for item in sublist])

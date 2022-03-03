@@ -1,8 +1,11 @@
+"""
+This file describes controllers that build regions-of-interests (ROIs) in real-time
+and use that as additional information to decide which precursor ions to fragment.
+"""
 from copy import deepcopy
 
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller.topN import TopNController
@@ -29,6 +32,30 @@ class RoiController(TopNController):
                  advanced_params=None,
                  exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):
+        """
+        Initialise an ROI-based controller
+        Args:
+            ionisation_mode: ionisation mode, either POSITIVE or NEGATIVE
+            isolation_width: isolation width in Dalton
+            N: the number of highest-score precursor ions to fragment
+            mz_tol: m/z tolerance -- m/z tolerance for dynamic exclusion window
+            rt_tol: RT tolerance -- RT tolerance for dynamic exclusion window
+            min_ms1_intensity: the minimum intensity to fragment a precursor ion
+            roi_params: an instance of [vimms.Roi.RoiBuilderParams][] that describes
+                        how to build ROIs in real time based on incoming scans.
+            smartroi_params: an instance of [vimms.Roi.SmartRoiParams][]. If provided, then
+                             the SmartROI rules (as described in the paper) will be used to select
+                             which ROI to fragment. Otherwise set to None to use standard ROIs.
+            min_roi_length_for_fragmentation: how long a ROI should be before it can be fragmented.
+            ms1_shift: advanced parameter -- best to leave it.
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+            exclusion_method: an instance of [vimms.Exclusion.TopNExclusion][] or its subclasses,
+                              used to describe how to perform dynamic exclusion so that precursors
+                              that have been fragmented are not fragmented again.
+            exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
+        """
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,
                          advanced_params=advanced_params)
@@ -46,6 +73,14 @@ class RoiController(TopNController):
         self.exclusion_t_0 = exclusion_t_0
 
     def schedule_ms1(self, new_tasks):
+        """
+        Schedule a new MS1 scan by creating a new default MS1 [vimms.Common.ScanParameters][].
+        Args:
+            new_tasks: the list of new tasks in the environment
+
+        Returns: None
+
+        """
         ms1_scan_params = self.get_ms1_scan_params()
         self.current_task_id += 1
         self.next_processed_scan_id = self.current_task_id
@@ -54,11 +89,30 @@ class RoiController(TopNController):
         new_tasks.append(ms1_scan_params)
 
     class MS2Scheduler():
+        """
+        A class that performs MS2 scheduling of tasks
+        """
         def __init__(self, parent):
+            """
+            Initialises an MS2 scheduler
+            Args:
+                parent: the parent controller class
+            """
             self.parent = parent
             self.fragmented_count = 0
 
         def schedule_ms2s(self, new_tasks, ms2_tasks, mz, intensity):
+            """
+            Schedule a new MS2 scan by creating a new default MS2 [vimms.Common.ScanParameters][].
+            Args:
+                new_tasks: the list of new tasks in the environment
+                ms2_tasks: the list of MS2 tasks in the environment
+                mz: the precursor m/z to fragment
+                intensity: the precusor intensity to fragment
+
+            Returns: None
+
+            """
             precursor_scan_id = self.parent.scan_to_process.scan_id
             dda_scan_params = self.parent.get_ms2_scan_params(
                 mz, intensity, precursor_scan_id, self.parent.isolation_width,
@@ -114,13 +168,31 @@ class RoiController(TopNController):
     ###########################################################################
 
     def _log_roi_intensities(self):
+        """
+        Scores ROI by their log intensity values
+
+        Returns: a numpy array of log intensity scores
+
+        """
         return np.log(self.roi_builder.current_roi_intensities)
 
     def _min_intensity_filter(self):
+        """
+        Filter ROIs by minimum intensity threshold
+
+        Returns: indicators whether ROIs pass the check
+
+        """
         f = MinIntensityFilter(self.min_ms1_intensity)
         return f.filter(self.roi_builder.current_roi_intensities)
 
     def _time_filter(self):
+        """
+        Filter ROIs by dynamic exclusion
+
+        Returns: indicators whether ROIs pass the check
+
+        """
         if self.exclusion_method == ROI_EXCLUSION_DEW:
             f = DEWFilter(self.rt_tol)
             return f.filter(self.scan_to_process.rt,
@@ -132,30 +204,71 @@ class RoiController(TopNController):
                             self.roi_builder.live_roi)
 
     def _length_filter(self):
+        """
+        Filter ROI based on their length (>= min_roi_length_for_fragmentation)
+
+        Returns: indicators whether ROIs pass the check
+
+        """
         f = LengthFilter(self.min_roi_length_for_fragmentation)
         return f.filter(self.roi_builder.current_roi_length)
 
     def _smartroi_filter(self):
+        """
+        Filter ROI based on the SmartROI rules
+
+        Returns: indicators whether ROIs pass the check
+
+        """
         f = SmartROIFilter()
         return f.filter(self.roi_builder.live_roi)
 
     def _score_filters(self):
-        return self._min_intensity_filter() * self._time_filter() * \
-               self._length_filter()
+        """
+        Combine various filtering criteria
+
+        Returns: the combined scoring criteria
+
+        """
+        return self._min_intensity_filter() * self._time_filter() * self._length_filter()
 
     def _get_dda_scores(self):
+        """
+        Compute DDA scores = log roi intensities * the different scoring criteria
+        Returns:
+
+        """
         return self._log_roi_intensities() * self._score_filters()
 
     def _get_top_N_scores(self, scores):
+        """
+        Select the topN highest scores and set the rest to 0.
+
+        Args:
+            scores: a numpy array of scores
+
+        Returns: same scores, but keeping only the top-N largest values.
+
+        """
         if len(scores) > self.N:  # number of fragmentation events filter
             scores[scores.argsort()[:(len(scores) - self.N)]] = 0
         return scores
 
     def _get_scores(self):
+        """
+        Computes scores used to rank precursor ions to fragment
+
+        Returns: an array of scores. Highest scoring ions should be selected first.
+
+        """
         NotImplementedError()
 
 
 class TopN_SmartRoiController(RoiController):
+    """
+    A ROI-based controller that implements the Top-N selection with SmartROI rules.
+    This is used in the paper 'Rapid Development ...'
+    """
     def __init__(self,
                  ionisation_mode,
                  isolation_width,
@@ -170,6 +283,31 @@ class TopN_SmartRoiController(RoiController):
                  advanced_params=None,
                  exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):
+        """
+        Initialise the Top-N SmartROI controller.
+
+        Args:
+            ionisation_mode: ionisation mode, either POSITIVE or NEGATIVE
+            isolation_width: isolation width in Dalton
+            N: the number of highest-score precursor ions to fragment
+            mz_tol: m/z tolerance -- m/z tolerance for dynamic exclusion window
+            rt_tol: RT tolerance -- RT tolerance for dynamic exclusion window
+            min_ms1_intensity: the minimum intensity to fragment a precursor ion
+            roi_params: an instance of [vimms.Roi.RoiBuilderParams][] that describes
+                        how to build ROIs in real time based on incoming scans.
+            smartroi_params: an instance of [vimms.Roi.SmartRoiParams][]. If provided, then
+                             the SmartROI rules (as described in the paper) will be used to select
+                             which ROI to fragment. Otherwise set to None to use standard ROIs.
+            min_roi_length_for_fragmentation: how long a ROI should be before it can be fragmented.
+            ms1_shift: advanced parameter -- best to leave it.
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+            exclusion_method: an instance of [vimms.Exclusion.TopNExclusion][] or its subclasses,
+                              used to describe how to perform dynamic exclusion so that precursors
+                              that have been fragmented are not fragmented again.
+            exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
+        """
         super().__init__(ionisation_mode, isolation_width,
                          N,
                          mz_tol,
@@ -194,6 +332,9 @@ class TopN_SmartRoiController(RoiController):
 
 
 class TopN_RoiController(RoiController):
+    """
+    A ROI-based controller that implements the Top-N selection.
+    """
     def __init__(self,
                  ionisation_mode,
                  isolation_width,
@@ -207,6 +348,28 @@ class TopN_RoiController(RoiController):
                  advanced_params=None,
                  exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None):
+        """
+        Initialise the Top-N SmartROI controller.
+
+        Args:
+            ionisation_mode: ionisation mode, either POSITIVE or NEGATIVE
+            isolation_width: isolation width in Dalton
+            N: the number of highest-score precursor ions to fragment
+            mz_tol: m/z tolerance -- m/z tolerance for dynamic exclusion window
+            rt_tol: RT tolerance -- RT tolerance for dynamic exclusion window
+            min_ms1_intensity: the minimum intensity to fragment a precursor ion
+            roi_params: an instance of [vimms.Roi.RoiBuilderParams][] that describes
+                        how to build ROIs in real time based on incoming scans.
+            min_roi_length_for_fragmentation: how long a ROI should be before it can be fragmented.
+            ms1_shift: advanced parameter -- best to leave it.
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+            exclusion_method: an instance of [vimms.Exclusion.TopNExclusion][] or its subclasses,
+                              used to describe how to perform dynamic exclusion so that precursors
+                              that have been fragmented are not fragmented again.
+            exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
+        """
         super().__init__(ionisation_mode,
                          isolation_width,
                          N,
@@ -227,6 +390,9 @@ class TopN_RoiController(RoiController):
 
 
 class TopNBoxRoiController(RoiController):
+    """
+    TODO: not sure if this is still in use?
+    """
     def __init__(self,
                  ionisation_mode,
                  isolation_width,
@@ -291,8 +457,7 @@ class TopNBoxRoiController(RoiController):
                         copy_boxes, self.box_min_rt_width,
                         self.box_min_mz_width))
                 # new peaks not in list of boxes
-                new_peaks_score = max(0, (1 - sum(overlaps))) * \
-                                  log_intensities[i]
+                new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]
                 # previously fragmented peaks
                 old_peaks_score1 = sum(
                     overlaps * (log_intensities[i] - prev_intensity) * (
@@ -333,60 +498,61 @@ class TopNBoxRoiController(RoiController):
 # Other Functions
 ###############################################################################
 
+# maybe unused?
+# def get_peak_status(mzs, rt, boxes, scores, model_scores=None, box_mz_tol=10):
+#     if model_scores is not None:
+#         list1 = list(
+#             filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <= x[0].rt_range_in_seconds[1],
+#                    zip(boxes, scores, model_scores)))
+#         model_score_status = []
+#     else:
+#         list1 = list(
+#             filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <= x[0].rt_range_in_seconds[1],
+#                    zip(boxes, scores)))
+#         model_score_status = None
+#     peak_status = []
+#     for mz in mzs:
+#         list2 = list(filter(
+#             lambda x: x[0].mz_range[0] * (1 - box_mz_tol / 1e6) <= mz <= x[0].mz_range[1] * (
+#                     1 + box_mz_tol / 1e6), list1))
+#         if list2 == []:
+#             peak_status.append(-1)
+#             if model_scores is not None:
+#                 model_score_status.append(1)
+#         else:
+#             scores = [x[1] for x in list2]
+#             peak_status.append(min(scores))
+#             if model_scores is not None:
+#                 m_scores = [x[2] for x in list2]
+#                 model_score_status.append(max(m_scores))
+#     return peak_status, model_score_status
 
-def get_peak_status(mzs, rt, boxes, scores, model_scores=None, box_mz_tol=10):
-    if model_scores is not None:
-        list1 = list(filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <=
-                                      x[0].rt_range_in_seconds[1],
-                            zip(boxes, scores, model_scores)))
-        model_score_status = []
-    else:
-        list1 = list(filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <=
-                                      x[0].rt_range_in_seconds[1],
-                            zip(boxes, scores)))
-        model_score_status = None
-    peak_status = []
-    for mz in mzs:
-        list2 = list(
-            filter(lambda x: x[0].mz_range[0] * (1 - box_mz_tol / 1e6) <= mz <=
-                             x[0].mz_range[1] * (1 + box_mz_tol / 1e6), list1))
-        if list2 == []:
-            peak_status.append(-1)
-            if model_scores is not None:
-                model_score_status.append(1)
-        else:
-            scores = [x[1] for x in list2]
-            peak_status.append(min(scores))
-            if model_scores is not None:
-                m_scores = [x[2] for x in list2]
-                model_score_status.append(max(m_scores))
-    return peak_status, model_score_status
 
-
-def get_box_intensity(mzml_file, boxes):
-    intensities = [0 for i in range(len(boxes))]
-    mzs = [None for i in range(len(boxes))]
-    box_ids = range(len(boxes))
-    mz_file = MZMLFile(mzml_file)
-    for scan in mz_file.scans:
-        if scan.ms_level == 2:
-            continue
-        rt = scan.rt_in_seconds
-        zipped_boxes = list(
-            filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <=
-                             x[0].rt_range_in_seconds[1], zip(boxes, box_ids)))
-        if not zipped_boxes:
-            continue
-        for mzint in scan.peaks:
-            mz = mzint[0]
-            sub_boxes = list(
-                filter(lambda x: x[0].mz_range[0] <= mz <= x[0].mz_range[1],
-                       zipped_boxes))
-            if not sub_boxes:
-                continue
-            for box in sub_boxes:
-                intensity = mzint[1]
-                if intensity > intensities[box[1]]:
-                    intensities[box[1]] = intensity
-                    mzs[box[1]] = mz
-    return intensities, mzs
+# maybe unused?
+# def get_box_intensity(mzml_file, boxes):
+#     intensities = [0 for i in range(len(boxes))]
+#     mzs = [None for i in range(len(boxes))]
+#     box_ids = range(len(boxes))
+#     mz_file = MZMLFile(mzml_file)
+#     for scan in mz_file.scans:
+#         if scan.ms_level == 2:
+#             continue
+#         rt = scan.rt_in_seconds
+#         zipped_boxes = list(
+#             filter(lambda x: x[0].rt_range_in_seconds[0] <= rt <= x[0].rt_range_in_seconds[1],
+#                    zip(boxes, box_ids)))
+#         if not zipped_boxes:
+#             continue
+#         for mzint in scan.peaks:
+#             mz = mzint[0]
+#             sub_boxes = list(
+#                 filter(lambda x: x[0].mz_range[0] <= mz <= x[0].mz_range[1],
+#                        zipped_boxes))
+#             if not sub_boxes:
+#                 continue
+#             for box in sub_boxes:
+#                 intensity = mzint[1]
+#                 if intensity > intensities[box[1]]:
+#                     intensities[box[1]] = intensity
+#                     mzs[box[1]] = mz
+#     return intensities, mzs

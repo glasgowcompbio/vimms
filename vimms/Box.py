@@ -1,3 +1,6 @@
+"""
+Note: this module is still under development and might change significantly.
+"""
 import itertools
 import math
 import random
@@ -76,7 +79,7 @@ class Box():
 
 
 class GenericBox(Box):
-    '''Makes no particular assumptions about bounding boxes.'''
+    """Makes no particular assumptions about bounding boxes."""
 
     def __repr__(self):
         return "Generic{}".format(super().__repr__())
@@ -114,11 +117,11 @@ class GenericBox(Box):
         return b.area() / self.area()
 
     def non_overlap_split(self, other_box):
-        '''Finds 1 to 4 boxes describing the polygon of area of this box
+        """Finds 1 to 4 boxes describing the polygon of area of this box
         not overlapped by other_box. If one box is found, crops this box to
         dimensions of that box, and returns None. Otherwise, returns list of
         2 to 4 boxes. Number of boxes found is equal to number of edges
-        overlapping area does NOT share with this box.'''
+        overlapping area does NOT share with this box."""
         if (not self.overlaps_with_box(other_box)):
             return None
         x1, x2, y1, y2 = self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y
@@ -432,7 +435,7 @@ class DriftModel():
 
 
 class IdentityDrift(DriftModel):
-    '''Dummy drift model which does nothing, for testing purposes.'''
+    """Dummy drift model which does nothing, for testing purposes."""
 
     def get_estimator(self, injection_number): return lambda roi, inj_num: (
         0, {})
@@ -441,8 +444,8 @@ class IdentityDrift(DriftModel):
 
 
 class OracleDrift(DriftModel):
-    '''Drift model that cheats by being given a 'true' rt drift fn.
-    for every injection in simulation, for testing purposes.'''
+    """Drift model that cheats by being given a 'true' rt drift fn.
+    for every injection in simulation, for testing purposes."""
 
     def __init__(self, drift_fns):
         self.drift_fns = drift_fns
@@ -557,8 +560,8 @@ class MS2PointMatcher():
 
 
 class GPDrift(DriftModel):
-    '''Drift model that uses a Gaussian Process and known training points to
-    learn a drift function with reference to points in the first injection.'''
+    """Drift model that uses a Gaussian Process and known training points to
+    learn a drift function with reference to points in the first injection."""
 
     def __init__(self, kernel, point_matcher, max_points=None):
         self.kernel = kernel

@@ -21,8 +21,6 @@ BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
 HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
 OUT_DIR = str(Path(DIR_PATH, 'results'))
 
-ROI_SOURCES = [str(Path(BASE_DIR, 'beer_t10_simulator_files'))]
-# MIN_MS1_INTENSITY = 1.75E5
 MIN_MS1_INTENSITY = 1
 
 MZ_RANGE = [(0, 1050)]

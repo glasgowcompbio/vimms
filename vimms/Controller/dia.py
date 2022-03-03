@@ -1,3 +1,9 @@
+"""
+Implements several data-independent acquisition (DIA) strategies, including
+All-ion-fragmentation (AIF), SWATH-MS (Sequential Windowed Acquisition of All Theoretical
+Fragment Ion Mass Spectra), and some others.
+"""
+
 import csv
 import os
 
@@ -16,12 +22,34 @@ from vimms.DIA import DiaWindows
 
 
 class AIF(Controller):
+    """
+    A controller that implements the All-ion-fragmentation (AIF) DIA fragmentation strategy.
+    Should be used in conjunction with MS-DIAL for deconvolution.
+    """
+
     def __init__(self, ms1_source_cid_energy, advanced_params=None):
+        """
+        Initialise an AIF controller
+        Args:
+            ms1_source_cid_energy: source CID energy for MS1 scan
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+        """
         super().__init__(advanced_params=advanced_params)
         self.scan_number = self.initial_scan_id
         self.ms1_source_cid_energy = ms1_source_cid_energy
 
     def write_msdial_experiment_file(self, filename):
+        """
+        Generates a file that can be read by MS-DIAL to perform deconvolution
+
+        Args:
+            filename: path to experiment file in MS-DIAL format
+
+        Returns: None
+
+        """
         heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE',
                  'DecTarget(1:Yes, 0:No)']
         start = self.advanced_params.default_ms1_scan_window[0]
@@ -39,15 +67,21 @@ class AIF(Controller):
             writer.writerow(ms1_row)
             writer.writerow(aif_row)
 
-    # method required by super-class
     def update_state_after_scan(self, last_scan):
         pass
 
     def _process_scan(self, scan):
-        # method called when a scan arrives that requires action
-        # normally means that we should schedule some more
-        # in DIA we don't need to actually look at the peaks
-        # in the scan, just schedule the next block
+        """
+        This method is called when a scan arrives that requires action.
+        Normally means that we should schedule some more, but in DIA we don't need
+        to actually look at the peaks in the scan, so just schedule the next block
+
+        Args:
+            scan: A new [vimms.MassSpec.Scan][] to process.
+
+        Returns: newly generated scans
+
+        """
 
         # For all ions fragmentation, when we receive the last scan of
         # the previous block, we make a new block. Each block is an MS1 scan
@@ -79,9 +113,27 @@ class AIF(Controller):
 
 
 class SWATH(Controller):
+    """
+    A controller that implements SWATH-MS (Sequential Windowed Acquisition of All Theoretical
+    Fragment Ion Mass Spectra) DIA fragmentation strategy.
+    Should be used in conjunction with MS-DIAL for deconvolution.
+    """
+
     def __init__(self, min_mz, max_mz,
                  width, scan_overlap=0,
                  advanced_params=None):
+        """
+        Initialise a SWATH-MS controller
+
+        Args:
+            min_mz: minimum m/z value
+            max_mz: maximum m/z value
+            width: width of each SWATH window
+            scan_overlap: how much can scans overlap across windows
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+        """
         super().__init__(advanced_params=advanced_params)
         self.width = width
         self.scan_overlap = scan_overlap
@@ -92,6 +144,16 @@ class SWATH(Controller):
         self.exp_info = []  # experimental information - isolation windows
 
     def write_msdial_experiment_file(self, filename):
+        """
+        Generates a file that can be read by MS-DIAL to perform deconvolution
+
+        Args:
+            filename: path to experiment file in MS-DIAL format
+
+        Returns: None
+
+        """
+
         heads = ['Experiment', 'MS Type', 'Min m/z', 'Max m/z']
         start_mz, stop_mz = self._get_start_stop()
         ms1_mz_range = self.advanced_params.default_ms1_scan_window
@@ -113,6 +175,12 @@ class SWATH(Controller):
                 writer.writerow(row)
 
     def _get_start_stop(self):
+        """
+        Computes start and stop m/z values
+
+        Returns: a tuple of start m/z values (list) and stop m/z values (list)
+
+        """
         start = self.min_mz
         start_mz = []
         stop_mz = []
@@ -160,11 +228,15 @@ class SWATH(Controller):
 
 
 class DiaController(Controller):
-    # Class for doing tree and nested DIA methods.
-    # Also has a SWATH type controller, but reccommend to use SWATH class
-    # above. Method uses windows methods from DIA.py to create the pattern
-    # of windows needed to run the controllers.
-    # Note: the following method used multiple simultaneous isolation windows
+    """
+    A class for doing tree and nested DIA methods.
+    Also has a SWATH type controller, but reccommend to use SWATH class
+    above. Method uses windows methods from DIA.py to create the pattern
+    of windows needed to run the controllers.
+    Note: the following method used multiple simultaneous isolation windows
+    TODO: this class is old, needs checking to see if it still works.
+    """
+
     def __init__(self, min_mz, max_mz,  # TODO: add scan overlap to DiaWindows
                  window_type, kaufmann_design, num_windows, scan_overlap=0,
                  extra_bins=0, dia_design='kaufmann',

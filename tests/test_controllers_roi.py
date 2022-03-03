@@ -5,7 +5,7 @@ from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RAN
     run_environment, check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, \
     BEER_MAX_BOUND
 from vimms.Box import LocatorGrid, IdentityDrift, AllOverlapGrid
-from vimms.Common import POSITIVE, ROI_EXCLUSION_WEIGHTED_DEW, ROI_TYPE_SMART
+from vimms.Common import POSITIVE, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller import TopN_RoiController, TopN_SmartRoiController, NonOverlapController, \
     IntensityNonOverlapController, FlexibleNonOverlapController
 from vimms.Environment import Environment
@@ -589,8 +589,9 @@ class TestFlexibleNonOverlapController:
 
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
-        controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, N, mz_tol,
-                                                   rt_tol, MIN_MS1_INTENSITY, roi_params, grid)
+        controller = FlexibleNonOverlapController(
+            ionisation_mode, isolation_width, N, mz_tol, rt_tol, MIN_MS1_INTENSITY,
+            roi_params, grid)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
@@ -625,7 +626,7 @@ class TestFlexibleNonOverlapController:
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, N, mz_tol,
-                                                   rt_tol, MIN_MS1_INTENSITY, roi_params, grid)
+                                                  rt_tol, MIN_MS1_INTENSITY, roi_params, grid)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)

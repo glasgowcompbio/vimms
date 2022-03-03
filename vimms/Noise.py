@@ -6,10 +6,14 @@ from vimms.Common import uniform_list
 def trunc_normal(mean, sigma, log_space):
     """
     Ensures that generators never return negative mz or intensity
-    :param mean: mean of gaussian distribution to sample from
-    :param sigma: variance of gaussian distribution to sample from
-    :param log_space: whether to sample in log space
-    :return: the sampled value
+
+    Args:
+        mean: mean of gaussian distribution to sample from
+        sigma: variance of gaussian distribution to sample from
+        log_space: whether to sample in log space
+
+    Returns: the sampled value
+
     """
     s = -1
     if not log_space:
@@ -29,9 +33,13 @@ class NoPeakNoise():
     def get(self, original, ms_level):
         """
         Get the original value back. No noise if applied.
-        :param original: The original value
-        :param ms_level: The ms level
-        :return: the original value
+
+        Args:
+            original: The original value
+            ms_level: The ms level
+
+        Returns: the original value (unused)
+
         """
         return original
 
@@ -44,18 +52,24 @@ class GaussianPeakNoise(NoPeakNoise):
     def __init__(self, sigma, log_space=False):
         """
         Initialises Gaussian peak noise
-        :param sigma: the variance
-        :param log_space: whether to sample in log space
+
+        Args:
+            sigma: the variance
+            log_space: whether to sample in log space
         """
         self.sigma = sigma
         self.log_space = log_space
 
     def get(self, original, ms_level):
         """
-        Gets peak measurement with gaussian noise applied
-        :param original:
-        :param ms_level:
-        :return:
+        Get peak measurement with gaussian noise applied
+
+        Args:
+            original: original value
+            ms_level: ms level
+
+        Returns: peak measurement with gaussian noise applied
+
         """
         return trunc_normal(original, self.sigma, self.log_space)
 
@@ -63,13 +77,19 @@ class GaussianPeakNoise(NoPeakNoise):
 class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
     """
     Adds ms-level specific Gaussian noise to peaks
-    Pass dictionary key: level, value: sigma.
-    ms_levels not in the dict will not have noise added
-    allows noise to be added to oa single level, or
-    to all levels with different sigma
     """
 
     def __init__(self, sigma_level_dict, log_space=False):
+        """
+        Create a gaussian peak noise level specific
+
+        Args:
+            sigma_level_dict: key: level, value: sigma.
+                              ms_levels not in the dict will not have noise added
+                              allows noise to be added to oa single level, or
+                              to all levels with different sigma
+            log_space: whether to log or not
+        """
         self.log_space = log_space
         self.sigma_level_dict = sigma_level_dict
 
@@ -82,8 +102,20 @@ class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
 
 
 class UniformSpikeNoise():
+    """
+    A class to add uniform spike noise to the data
+    """
     def __init__(self, density, max_val, min_val=0, min_mz=None, max_mz=None):
-        self.density = density  # number of spike peaks per mz unit
+        """
+        Create a UniformSpikeNoise class
+        Args:
+            density: number of spike peaks per mz unit
+            max_val: maximum value of spike
+            min_val: minimum value of spike
+            min_mz: maximum m/z
+            max_mz: minimum m/z
+        """
+        self.density = density
         self.max_val = max_val
         self.min_val = min_val
         self.min_mz = min_mz

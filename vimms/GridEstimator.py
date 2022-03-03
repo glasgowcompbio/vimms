@@ -4,8 +4,8 @@ from vimms.Roi import RoiAligner
 
 
 class GridEstimator():
-    '''Wrapper class letting internal grid be updated with rt drift
-    estimates.'''
+    """Wrapper class letting internal grid be updated with rt drift
+    estimates."""
 
     def __init__(self, grid, drift_model, min_rt_width=0.01,
                  min_mz_width=0.01):

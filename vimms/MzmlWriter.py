@@ -1,3 +1,7 @@
+"""
+This file provides a class for writing mzML output from simulation.
+For the actual generating of mzML file, the psims library is used.
+"""
 import os
 
 import numpy as np
@@ -10,21 +14,31 @@ from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, \
 
 
 class MzmlWriter():
-    """A class to write peak data to mzML file"""
+    """
+    A class to write peak data to mzML file, typically called after running simulation.
+    """
 
     def __init__(self, analysis_name, scans):
         """
         Initialises the mzML writer class.
-        :param analysis_name: Name of the analysis.
-        :param scans: A dictionary where key is scan level, value is
-        a list of Scans object for that level.
-        :param precursor_information: A dictionary where key is Precursor
-        object, value is a list of ms2 scans only
+
+        Args:
+            analysis_name: Name of the analysis.
+            scans: dict where key is scan level, value is a list of Scans object for that level.
         """
         self.analysis_name = analysis_name
         self.scans = scans
 
     def write_mzML(self, out_file):
+        """
+        Write mzMl to output file
+
+        Args:
+            out_file: path to mzML file
+
+        Returns: None
+
+        """
         # if directory doesn't exist, create it
         out_dir = os.path.dirname(out_file)
         create_if_not_exist(out_dir)
@@ -53,6 +67,14 @@ class MzmlWriter():
         writer.close()
 
     def _write_info(self, out):
+        """
+        Write various information to output stream
+        Args:
+            out: the output stream from psims
+
+        Returns: None
+
+        """
         # check file contains what kind of spectra
         has_ms1_spectrum = 1 in self.scans
         has_msn_spectrum = 1 in self.scans and len(self.scans) > 1
@@ -80,6 +102,18 @@ class MzmlWriter():
         out.data_processing_list({'id': 'VMS'})
 
     def sort_filter(self, all_scans, min_scan_id):
+        """
+        Filter scans according to certain criteria. Currently it filters by
+        the minimum scan ID, as a workaround to IAPI which produces unwanted scans at
+        low scan IDs.
+
+        Args:
+            all_scans: the list of scans to filter
+            min_scan_id: the minimum scan ID to filter
+
+        Returns: the list of filtered scans
+
+        """
         all_scans = sorted(all_scans, key=lambda x: x.rt)
         all_scans = [x for x in all_scans if x.num_peaks > 0]
         all_scans = list(filter(lambda x: x.scan_id >= min_scan_id, all_scans))
@@ -94,6 +128,16 @@ class MzmlWriter():
         return all_scans
 
     def _write_spectra(self, writer, scans, min_scan_id=INITIAL_SCAN_ID):
+        """
+        Helper method to actually write a collection of spectra
+        Args:
+            writer: the output stream from psims
+            scans: a list of scans
+            min_scan_id: the minimum scan ID to write
+
+        Returns: None
+
+        """
         # NOTE: we only support writing up to ms2 scans for now
         assert len(scans) <= 3
 
@@ -110,6 +154,15 @@ class MzmlWriter():
                 self._write_scan(writer, scan)
 
     def _write_scan(self, out, scan):
+        """
+        Helper method to write a single scan
+        Args:
+            out: the psims output stream
+            scan: the scan to write
+
+        Returns: None
+
+        """
         assert scan.num_peaks > 0
         label = 'MS1 Spectrum' if scan.ms_level == 1 else 'MSn Spectrum'
         precursor_information = None
@@ -175,6 +228,14 @@ class MzmlWriter():
         )
 
     def _get_tic_chromatogram(self, scans):
+        """
+        Helper method to write total ion chromatogram information
+        Args:
+            scans: the list of scans
+
+        Returns: a tuple of time array and intensity arrays for the TIC
+
+        """
         time_array = []
         intensity_array = []
         for ms1_scan in scans[1]:

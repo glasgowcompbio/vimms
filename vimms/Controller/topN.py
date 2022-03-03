@@ -8,7 +8,8 @@ from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
 
 class TopNController(Controller):
     """
-    A Top-N controller. Does an MS1 scan followed by N fragmentation scans of
+    A controller that implements the standard Top-N DDA fragmentation strategy.
+    Does an MS1 scan followed by N fragmentation scans of
     the peaks with the highest intensity that are not excluded
     """
 
@@ -16,6 +17,23 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False):
+        """
+        Initialise the Top-N controller
+
+        Args:
+            ionisation_mode: ionisation mode, either POSITIVE or NEGATIVE
+            N: the number of highest-intensity precursor ions to fragment
+            isolation_width: isolation width in Dalton
+            mz_tol: m/z tolerance -- m/z tolerance for dynamic exclusion window
+            rt_tol: RT tolerance -- RT tolerance for dynamic exclusion window
+            min_ms1_intensity: the minimum intensity to fragment a precursor ion
+            ms1_shift: advanced parameter -- best to leave it.
+            initial_exclusion_list: initial list of exclusion boxes
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+            force_N: whether to always force N fragmentations
+        """
         super().__init__(advanced_params=advanced_params)
         self.ionisation_mode = ionisation_mode
         self.N = N
@@ -132,10 +150,18 @@ class TopNController(Controller):
 
 class ScanItem():
     """
-    Represents a scan item object. Used by the WeightedDEW controller.
+    Represents a scan item object. Used by the WeightedDEW controller to store
+    the pair of m/z and intensity values along with their associated weight
     """
 
     def __init__(self, mz, intensity, weight=1):
+        """
+        Initialise a ScanItem object
+        Args:
+            mz: m/z value
+            intensity: intensity value
+            weight: the weight for this ScanItem
+        """
         self.mz = mz
         self.intensity = intensity
         self.weight = weight
@@ -149,8 +175,9 @@ class ScanItem():
 
 class WeightedDEWController(TopNController):
     """
-    A Top-N controller. Does an MS1 scan followed by N fragmentation scans
-    of the peaks with the highest intensity that are not excluded
+    A variant of the Top-N controller, but it uses a linear weight
+     for dynamic exclusion window rather than a True/False indicator on whether
+     a certain precursor ion is excluded or not. For more details, refer to our paper.
     """
 
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,

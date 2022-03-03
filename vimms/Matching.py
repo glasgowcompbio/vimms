@@ -202,7 +202,7 @@ class MatchingChem():
 
     @staticmethod
     def env2nodes(env, isolation_width):
-        '''Assumes no noise.'''
+        """Assumes no noise."""
         print(f"Num chems in MS: {len(env.mass_spec.chemicals)}")
         print(f"First ten chems in MS: {env.mass_spec.chemicals[:10]}")
         controller = env.controller

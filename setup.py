@@ -6,11 +6,12 @@ with open("README.md", "r") as fh:
 setup(
     dependency_links=[],
     name="vimms",
-    version="2.0.3",
+    version="2.0.4",
     author="Joe Wandy, Vinny Davies, Justin J.J. van der Hooft, "
            "Stefan Weidt, Ronan Daly, Simon Rogers",
     author_email="joe.wandy@glasgow.ac.uk",
-    description="ViMMS is an LC-MS/MS simulator.",
+    description="A framework to develop, test and optimise fragmentation strategies in LC-MS "
+                "metabolomics.",
     long_description="ViMMS is a modular LC-MS/MS simulator framework for "
                      "metabolomics that allows for real-time scan-level "
                      "control of the MS2 acquisition process in-silico.",
@@ -18,17 +19,14 @@ setup(
     url="https://github.com/glasgowcompbio/vimms",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
     packages=find_packages(),
-    install_requires=['numpy', 'scipy', 'pandas', 'seaborn', 'scikit-learn',
-                      'matplotlib', 'pymzml==2.4.7',
-                      'psims', 'events', 'tqdm', 'joblib', 'ipyparallel',
-                      'requests', 'loguru', 'networkx', 'jsonpickle',
-                      'statsmodels', 'mass-spec-utils', 'tabulate', 'pysmiles',
-                      'pipenv-setup', 'flake8', 'pytest',
-                      'intervaltree', 'jupyterlab', 'gpy'],
+    install_requires=['numpy', 'pandas', 'scipy', 'matplotlib', 'seaborn', 'scikit-learn',
+                      'pymzml==2.4.7', 'psims', 'events', 'tqdm', 'joblib', 'ipyparallel',
+                      'requests', 'loguru', 'networkx', 'jsonpickle', 'statsmodels',
+                      'mass-spec-utils', 'tabulate', 'pysmiles', 'intervaltree', 'gpy'],
 
 )

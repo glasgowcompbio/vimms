@@ -87,30 +87,11 @@ class GridController(RoiController):
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
         self.grid = grid  # helps us understand previous RoIs
         self.register_all_roi = register_all_roi
-
         self.scoring_params = scoring_params
-        self.dda_weight = scoring_params['dda_weight']
-        self.overlap_weight = scoring_params['overlap_weight']
-        self.smartroi_weight = scoring_params['smartroi_weight']
-        self.smartroi_score_add = scoring_params['smartroi_score_add']
 
     def update_state_after_scan(self, scan):
         super().update_state_after_scan(scan)
         self.grid.send_training_data(scan)
-
-    def _scale(self, scores):
-        """
-        Scale scores by its maximum value so it goes from 0 to 1
-
-        Args:
-            scores: a numpy array of scores
-
-        Returns: the scaled score array
-
-        """
-        if len(scores) > 0 and max(scores) > 0:
-            scores = scores / max(scores)
-        return scores
 
     def _get_scores(self):
         non_overlaps = self._overlap_scores()
@@ -118,16 +99,9 @@ class GridController(RoiController):
             smartroi_scores = self._smartroi_filter()
             dda_scores = self._log_roi_intensities() * self._min_intensity_filter()
 
-            if self.smartroi_score_add:  # add the scores
-                dda_scores = self._scale(dda_scores)
-                final_scores = (self.dda_weight * dda_scores) + (
-                        self.smartroi_weight * smartroi_scores) + (
-                                       self.overlap_weight * non_overlaps)
-
-            else:
-                # multiply them, this might not work well because a lot of
-                # the smartroi scores are 0s
-                final_scores = dda_scores * smartroi_scores * non_overlaps
+            # multiply them, this might not work well because a lot of
+            # the smartroi scores are 0s
+            final_scores = dda_scores * smartroi_scores * non_overlaps
 
         else:  # normal ROI
             dda_scores = self._get_dda_scores()

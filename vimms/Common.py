@@ -119,11 +119,6 @@ ROI_EXCLUSION_WEIGHTED_DEW = 'exclusion_weighted_dew'
 
 GRID_CONTROLLER_SCORING_PARAMS = {
     'theta1': 1,
-    'dda_weight': 1,
-    'overlap_weight': 1,
-    'smartroi_weight': 1,
-    'smartroi_score_add': True,
-    'theta1': 1,
     'theta2': 0,
     'theta3': 0,
     'theta4': 0

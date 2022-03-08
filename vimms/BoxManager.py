@@ -2,14 +2,14 @@ from collections import deque
 from operator import attrgetter
 
 from vimms.Roi import Roi, RoiAligner
-from vimms.Box import BoxGrid, BoxIntervalTrees, LineSweeper
+from vimms.Box import BoxIntervalTrees, LineSweeper
 from vimms.DriftCorrection import IdentityDrift
 
 class BoxManager():
 
     nosplit_errmsg = (
         "Intensity Non-Overlap can't be used without splitting the boxes! "
-        "Please set the BoxManager's box_splitter to be an instance of BoxSplitter."
+        "Please set the BoxManager's box_splitter to split the boxes."
     )
 
     def __init__(self, box_geometry=None,
@@ -24,8 +24,8 @@ class BoxManager():
         self.injection_count = 0
         
         self.drift_models = [IdentityDrift()] if drift_model is None else [drift_model]
-        self.box_converter = BoxConverterUnique() if box_converter is None else box_converter
-        self.box_splitter = BoxNoSplitter() if box_splitter is None else box_splitter
+        self.box_converter = BoxConverter() if box_converter is None else box_converter
+        self.box_splitter = BoxSplitter(split=False) if box_splitter is None else box_splitter
         self.box_geometry = BoxIntervalTrees() if box_geometry is None else box_geometry
 
     def point_in_box(self, pt):
@@ -44,7 +44,7 @@ class BoxManager():
         return self.box_geometry.non_overlap(box)
 
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
-        if(not isinstance(self.box_splitter, BoxSplitter)): 
+        if(not self.box_splitter.split): 
             raise ValueError(self.nosplit_errmsg)
         return self.box_geometry.intensity_non_overlap(box, current_intensity, scoring_params)
 
@@ -108,39 +108,40 @@ class BoxManager():
         self._update_geometry()
         self._next_model()
         
-class BoxConverterIgnore():
-    def rois2boxes(self, rois):
-        return []
-        
 class BoxConverter():
-    def __init__(self, min_rt_width=0.000001, min_mz_width=0.000001):
+    def __init__(self, ignore=False, unique=True, min_rt_width=0.000001, min_mz_width=0.000001):
+        self.ignore, self.unique = ignore, unique
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
-        
-    def rois2boxes(self, rois):
-        return [r.to_box(self.min_rt_width, self.min_mz_width) for r in rois]
-
-class BoxConverterUnique(BoxConverter):
-    def rois2boxes(self, rois):
+    
+    @staticmethod
+    def _unique_boxes(boxes):
         boxes_by_id = dict()
-        
-        for r in rois:
-            b = r.to_box(self.min_rt_width, self.min_mz_width)
+    
+        for b in boxes:
             if(b.id in boxes_by_id):
                 boxes_by_id[b.id] = max(b, boxes_by_id[b.id], key=lambda b: b.area())
             else:
                 boxes_by_id[b.id] = b
-        
+    
         return [b for _, b in boxes_by_id.items()]
-
-class BoxNoSplitter():
-    def split_boxes(self, boxes):
-        return boxes
+        
+    def rois2boxes(self, rois):
+        if(self.ignore): return []
+        boxes = (r.to_box(self.min_rt_width, self.min_mz_width) for r in rois)    
+        if(self.unique): return self._unique_boxes(boxes)
+        else: return list(boxes)
 
 class BoxSplitter():
+    def __init__(self, split=False):
+        self.split = split
+
     def split_boxes(self, boxes):
-        splitter = LineSweeper()
-        splitter.register_boxes(boxes)
-        return splitter.reduce_all_boxes()
+        if(self.split):
+            splitter = LineSweeper()
+            splitter.register_boxes(boxes)
+            return splitter.reduce_all_boxes()
+        else:
+            return boxes
 
 #TODO: This could probably be implemented as a component later
 '''

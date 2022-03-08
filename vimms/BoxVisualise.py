@@ -5,34 +5,47 @@ import random
 from abc import abstractmethod
 from collections import OrderedDict
 
-from vimms.Common import path_or_mzml
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 from mass_spec_utils.data_import.mzml import MZMLFile
 
+from vimms.Common import path_or_mzml
+
 
 class RGBAColour():
-    def __init__(self, R, G, B,
-                 A=1.0): self.R, self.G, self.B, self.A = R, G, B, A
+    def __init__(self, R, G, B, A=1.0): 
+        self.R, self.G, self.B, self.A = R, G, B, A
 
     def __repr__(self):
         return f"RGBAColour(R={self.R}, G={self.G}, B={self.B}, A={self.A})"
 
-    def __add__(self, other): return RGBAColour(self.R + other.R,
-                                                self.G + other.G,
-                                                self.B + other.B,
-                                                self.A + other.A)
+    def __add__(self, other): 
+        return RGBAColour(
+            self.R + other.R,
+            self.G + other.G,
+            self.B + other.B,
+            self.A + other.A
+        )
 
-    def __mul__(self, scalar): return RGBAColour(self.R * scalar,
-                                                 self.G * scalar,
-                                                 self.B * scalar,
-                                                 self.A * scalar)
+    def __mul__(self, scalar): 
+        return RGBAColour(
+            self.R * scalar,
+            self.G * scalar,
+            self.B * scalar,
+            self.A * scalar
+        )
 
-    def __rmul__(self, scalar): return self.__mul__(self.scalar)
+    def __rmul__(self, scalar): 
+        return self.__mul__(self.scalar)
 
-    def squash(self): return (
-        self.R / 255.0, self.G / 255.0, self.B / 255.0, self.A)
+    def squash(self): 
+        return (
+            self.R / 255.0, 
+            self.G / 255.0, 
+            self.B / 255.0, 
+            self.A
+        )
 
     def correct_bounds(self):
         self.R = max(0, min(255, self.R))
@@ -112,23 +125,28 @@ class InterpolationMap(ColourMap):
     def assign_colours(self, boxes, key, minm=None, maxm=None):
         minm = min(key(b) for b in boxes) if minm is None else minm
         maxm = max(key(b) for b in boxes) if maxm is None else maxm
-        intervals = [minm + i * (maxm - minm) / (len(self.colours) - 1)
-                     for i in range(len(self.colours))]
+        intervals = [
+            minm + i * (maxm - minm) / (len(self.colours) - 1)
+            for i in range(len(self.colours))
+        ]
 
         def get_colour(box):
             if (math.isclose(minm, maxm)):
                 return self.colours[0]
-            elif (key(box) < intervals[1]):
+            elif (key(box) < intervals[0]):
                 return self.colours[0]
             elif (key(box) > intervals[-1]):
                 return self.colours[-1]
             else:
-                i = next(i - 1 for i, threshold in enumerate(intervals) if
-                         threshold >= key(box))
-                weight = (key(box) - intervals[i]) / (
-                    intervals[i + 1] - intervals[i])
+                i = next(
+                    i - 1 for i, threshold in enumerate(intervals) 
+                    if threshold >= key(box)
+                )
+                weight = (key(box) - intervals[i]) / (intervals[i + 1] - intervals[i])
                 return self.colours[i].interpolate(
-                    [self.colours[i + 1]], weights=[1 - weight, weight])
+                    [self.colours[i + 1]], 
+                    weights=[1 - weight, weight]
+                )
 
         return ((b, get_colour(b)) for b in boxes)
 

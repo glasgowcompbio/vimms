@@ -13,8 +13,12 @@ import numpy as np
 from mass_spec_utils.data_import.mzmine import PickedBox
 
 class Point():
+    def round(self, ndigits=8):
+        self.x, self.y = round(self.x, ndigits), round(self.y, ndigits)
+
     def __init__(self, x, y): 
         self.x, self.y = float(x), float(y)
+        self.round()
 
     def __eq__(self, other_point): 
         return (
@@ -75,14 +79,17 @@ class Box():
         self.intensity = intensity
 
         if (self.pt2.x - self.pt1.x < min_xwidth):
-            midpoint = self.pt1.x + ((self.pt2.x - self.pt1.x) / 2)
-            self.pt1.x, self.pt2.x = midpoint - (min_xwidth / 2), midpoint + (
-                    min_xwidth / 2)
+            midpoint = self.pt1.x + (self.pt2.x - self.pt1.x) / 2
+            self.pt1.x = midpoint - min_xwidth / 2 
+            self.pt2.x = midpoint + min_xwidth / 2
 
         if (self.pt2.y - self.pt1.y < min_ywidth):
-            midpoint = self.pt1.y + ((self.pt2.y - self.pt1.y) / 2)
-            self.pt1.y, self.pt2.y = midpoint - (min_ywidth / 2), midpoint + (
-                    min_ywidth / 2)
+            midpoint = self.pt1.y + (self.pt2.y - self.pt1.y) / 2
+            self.pt1.y = midpoint - min_ywidth / 2 
+            self.pt2.y = midpoint + min_ywidth / 2
+            
+        self.pt1.round()
+        self.pt2.round()
 
     def __repr__(self):
         return "Box({}, {})".format(self.pt1, self.pt2)
@@ -120,6 +127,8 @@ class Box():
         self.pt2.x += xshift
         self.pt1.y += yshift
         self.pt2.y += yshift
+        self.pt1.round()
+        self.pt2.round()
 
     def num_overlaps(self):
         return len(self.parents)
@@ -212,22 +221,22 @@ class GenericBox(Box):
         if (other_box.pt1.x > self.pt1.x):
             x1 = other_box.pt1.x
             split_boxes.append(
-                GenericBox(self.pt1.x, x1, y1, y2, parents=self.parents, intensity=self.intensity)
+                type(self)(self.pt1.x, x1, y1, y2, parents=self.parents, intensity=self.intensity)
             )
         if (other_box.pt2.x < self.pt2.x):
             x2 = other_box.pt2.x
             split_boxes.append(
-                GenericBox(x2, self.pt2.x, y1, y2, parents=self.parents, intensity=self.intensity)
+                type(self)(x2, self.pt2.x, y1, y2, parents=self.parents, intensity=self.intensity)
             )
         if (other_box.pt1.y > self.pt1.y):
             y1 = other_box.pt1.y
             split_boxes.append(
-                GenericBox(x1, x2, self.pt1.y, y1, parents=self.parents, intensity=self.intensity)
+                type(self)(x1, x2, self.pt1.y, y1, parents=self.parents, intensity=self.intensity)
             )
         if (other_box.pt2.y < self.pt2.y):
             y2 = other_box.pt2.y
             split_boxes.append(
-                GenericBox(x1, x2, y2, self.pt2.y, parents=self.parents, intensity=self.intensity)
+                type(self)(x1, x2, y2, self.pt2.y, parents=self.parents, intensity=self.intensity)
             )
         return split_boxes
 
@@ -541,16 +550,7 @@ class BoxExact(BoxGeometry):
         box = box.copy()
         box.intensity = 0.0
         
-        #TODO: remove this
-        def box2pt(b): return (b.pt1.x, b.pt2.x, b.pt1.y, b.pt2.y)
-        def boxsort(boxes): return sorted(boxes, key=box2pt)
-        other_boxes = boxsort(other_boxes)
-        
         this_non, _, overlaps = BoxExact.split_all_boxes(box, other_boxes)
-        
-        #TODO: remove this
-        #this_non = boxsort(this_non)
-        #overlaps = boxsort(overlaps)
         
         non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
         refragment = sum(
@@ -748,12 +748,15 @@ class BoxIntervalTrees(BoxExact):
 class LineSweeper(BoxExact):
     # aiming for [1011, 1874, 2297, 2514, 2635, 2721]
     #TODO: we should split the linesweeper from the ExactGeometry subclass
+    EndPoint = namedtuple("EndPoint", ["pos", "is_end", "box"])
+    
     def __init__(self):
         self.all_boxes, self.active, self.was_active = [], [], []
         self.active_intervals = intervaltree.IntervalTree()
         self.previous_loc, self.current_loc = -1, 0
         self.last_accessed = dict()
         self.active_pointer = 0
+        self.removed = set()
         
         self.running_scores = dict()
         
@@ -771,7 +774,9 @@ class LineSweeper(BoxExact):
     def _remove_active(self):
         b = self.active.pop()
         self.was_active.append(b)
-        self.active_intervals.removei(b.pt1.y, b.pt2.y + 1E-12, b)
+        if(not b in self.removed):
+            self.active_intervals.removei(b.pt1.y, b.pt2.y + 1E-12, b)
+            self.removed.add(b)
     
     def set_active_boxes(self, current_loc):
         if(current_loc < self.current_loc):
@@ -835,13 +840,12 @@ class LineSweeper(BoxExact):
     def intensity_non_overlap(self, box):
         raise NotImplementedError("LineSweeper doesn't implement this yet!")
         
-    @staticmethod
-    def _to_endpoint(boxes, coord):
-        EndPoint = namedtuple("EndPoint", ["pos", "is_end", "box"])
+    @classmethod
+    def _to_endpoint(cls, boxes, coord):
         eps = []
         for b in boxes:
-            eps.append(EndPoint(getattr(b.pt1, coord), False, b))
-            eps.append(EndPoint(getattr(b.pt2, coord), True, b))
+            eps.append(cls.EndPoint(getattr(b.pt1, coord), False, b))
+            eps.append(cls.EndPoint(getattr(b.pt2, coord), True, b))
         eps.sort(key=lambda ep: ep[:2]) #TODO: confirm not issue if boxes start/end at same place
         return eps
        
@@ -899,17 +903,17 @@ class LineSweeper(BoxExact):
                         if(y_end): y_active.remove(y_box)
                         else: y_active.append(y_box)
                     
-                for _, __, y_box in y_ends:    
+                for _, __, y_box in y_ends:
                     self.last_accessed[y_box] = x_pos
             
-            for x_pos, x_end, _ in x_group:
+            for x_pos, x_end, x_box in x_group:
                 if(x_end): self._remove_active()
                 else: self._add_active(self.active_pointer + 1, x_pos)
                     
         return new_boxes
     
     def register_boxes(self, boxes):
-        self.all_boxes = sorted(set(self.all_boxes + boxes), key=attrgetter("pt1.x"))
+        self.all_boxes = sorted(itertools.chain(self.all_boxes, boxes), key=attrgetter("pt1.x"))
         
     def clear(self):
         self.__init__()

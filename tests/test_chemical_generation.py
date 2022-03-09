@@ -17,7 +17,7 @@ from vimms.Controller import SimpleMs1Controller, TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import NoPeakNoise
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 from vimms.Utils import write_msp, mgf_to_database
 
 # define some useful constants
@@ -194,7 +194,7 @@ class TestLinkedCreation:
 
 class TestChemicalsFromMZML():
     def test_chemical_mixture_from_mzml(self):
-        roi_params = RoiParams(min_intensity=10, min_length=5)
+        roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
         cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
         d = cm.sample(None, 2)
         assert len(d) == len(cm.good_rois)
@@ -275,7 +275,7 @@ class TestScanTiming():
                                     min_ms1_intensity)
 
         # extract chemicals from mzML
-        roi_params = RoiParams(min_intensity=10, min_length=5)
+        roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
         cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
         chems = cm.sample(None, 2)
 
@@ -301,7 +301,7 @@ class TestScanTiming():
                                     min_ms1_intensity)
 
         # extract chemicals from mzML
-        roi_params = RoiParams(min_intensity=10, min_length=5)
+        roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
         cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
         chems = cm.sample(None, 2)
 

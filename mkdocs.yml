@@ -19,15 +19,21 @@ nav:
   - Creating Chemicals: chemicals.md
   - Running Controllers: controllers.md
   - API Documentation:
-    - Chemical Generation:
+    - Common: api/common.md
+    - Chemical Generation Process:
         - Chemicals: api/chemicals.md
         - Chemical Samplers: api/chemical_samplers.md
         - ROI: api/roi.md
-    - Mass Spectrometry:
+        - Box: api/box.md
+    - Mass Spectrometry Process:
+        - Mass Spec: api/mass_spec.md
         - Column: api/column.md
         - Noise: api/noise.md
-        - Mass Spec: api/mass_spec.md
-    - Environment: api/environment.md
-    - Controllers: api/controllers.md
-    - Feature Extractions: api/feature_extractions.md
-    - MzMLWriter: api/mzml_writer.md
+    - Fragmentation Strategy Simulation Process:
+        - Environment: api/environment.md
+        - Controllers: api/controllers.md
+        - Dynamic Exclusion: api/exclusion.md
+        - Agents: api/agent.md
+    - Others:
+        - Feature Extractions: api/feature_extractions.md
+        - MzMLWriter: api/mzml_writer.md

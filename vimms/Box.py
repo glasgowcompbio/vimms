@@ -1,4 +1,8 @@
+"""
+Note: this module is still under development and might change significantly.
+"""
 import copy
+import itertools
 import math
 import random
 import itertools
@@ -141,7 +145,7 @@ class Box():
 
 
 class GenericBox(Box):
-    '''Makes no particular assumptions about bounding boxes.'''
+    """Makes no particular assumptions about bounding boxes."""
 
     def __repr__(self):
         return "Generic{}".format(super().__repr__())
@@ -209,12 +213,12 @@ class GenericBox(Box):
         return b.area() / self.area()
 
     def non_overlap_split(self, other_box):
-        '''Finds 1 to 4 boxes describing the polygon of area of this box
+        """Finds 1 to 4 boxes describing the polygon of area of this box
         not overlapped by other_box. If one box is found, crops this box to
         dimensions of that box, and returns None. Otherwise, returns list of
         2 to 4 boxes. Number of boxes found is equal to number of edges
-        overlapping area does NOT share with this box.'''
-        if (not self.overlaps_with_box(other_box)): 
+        overlapping area does NOT share with this box."""
+        if (not self.overlaps_with_box(other_box)):
             return None
         x1, x2, y1, y2 = self.pt1.x, self.pt2.x, self.pt1.y, self.pt2.y
         split_boxes = []
@@ -634,6 +638,7 @@ class BoxExact(BoxGeometry):
                 binned.append([])
             binned[b.num_overlaps() - 1].append(b)
         return binned
+        
             
 class BoxGrid(BoxExact): 
     def __init__(self, min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size):

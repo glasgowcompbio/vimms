@@ -1,3 +1,7 @@
+"""
+Contains the base abstract controller class, as well as other objects that are necessary for
+controllers to function.
+"""
 import time
 from collections import defaultdict
 
@@ -20,6 +24,17 @@ from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, \
 
 
 class AdvancedParams():
+    """
+    An object that stores advanced parameters used to control the mass spec
+    e.g. AGC target, collision energy, orbitrap resolution etc.
+
+    When ViMMS is connected to an actual mass spec instrument (Orbitrap Fusion in our case)
+    via IAPI, most of these values are directly passed to the mass spec as they are.
+    Generally you can leave these settings to their default.
+
+    In simulated use, most of these values are not used and therefore they won't affect simulated
+    results.
+    """
     def __init__(self,
                  default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
                  ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
@@ -38,6 +53,28 @@ class AdvancedParams():
                  ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
                  ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
                  ms2_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY):
+        """
+        Create an advanced parameter object
+
+        Args:
+            default_ms1_scan_window: the m/z window to perform MS1 scan
+            ms1_agc_target: automatic gain control target for MS1 scan
+            ms1_max_it: maximum time to acquire ions for MS1 scan
+            ms1_collision_energy: the collision energy used for MS1 scan
+            ms1_orbitrap_resolution: the Orbitrap resolution used for MS1 scan
+            ms1_activation_type: the activation type for MS1 scan, either CID or HCD
+            ms1_mass_analyser: the mass analyser to use for MS1 scan, either IonTrap or Orbitrap
+            ms1_isolation_mode: the isolation mode for MS1 scan, either None, Quadrupole, IonTrap
+            ms1_source_cid_energy: source CID energy
+            ms2_agc_target: automatic gain control target for MS2 scan
+            ms2_max_it: maximum time to acquire ions for MS2 scan
+            ms2_collision_energy: the collision energy used for MS2 scan
+            ms2_orbitrap_resolution: the Orbitrap resolution used for MS2 scan
+            ms2_activation_type: the activation type for MS2 scan, either CID or HCD
+            ms2_mass_analyser: the mass analyser to use for MS2 scan, either IonTrap or Orbitrap
+            ms2_isolation_mode: the isolation mode for MS2 scan, either None, Quadrupole, IonTrap
+            ms2_source_cid_energy: source CID energy
+        """
         self.default_ms1_scan_window = default_ms1_scan_window
 
         self.ms1_agc_target = ms1_agc_target
@@ -60,11 +97,22 @@ class AdvancedParams():
 
 
 class Controller(ABC):
-    def __init__(self, params=None):
-        if params is None:
-            self.params = AdvancedParams()
+    """
+    Abtract base class for controllers.
+    """
+    def __init__(self, advanced_params=None):
+        """
+        Initialise a base Controller class.
+
+        Args:
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+        """
+        if advanced_params is None:
+            self.advanced_params = AdvancedParams()
         else:
-            self.params = params
+            self.advanced_params = advanced_params
 
         self.scans = defaultdict(
             list)  # key: ms level, value: list of scans for that level
@@ -77,32 +125,59 @@ class Controller(ABC):
         self.last_ms1_rt = 0.0
 
     def get_ms1_scan_params(self, metadata=None):
+        """
+        Generate a default scan parameter for MS1 scan. The generated scan parameter object
+        is typically passed to the mass spec (whether real or simulated) that produces
+        the actual MS1 scan.
+        Args:
+            metadata: any additional metadata to include
+
+        Returns: a [vimms.Common.ScanParameters][] object that describes the MS1 scan to generate.
+
+        """
         task = get_default_scan_params(
             polarity=self.environment.mass_spec.ionisation_mode,
-            default_ms1_scan_window=self.params.default_ms1_scan_window,
-            agc_target=self.params.ms1_agc_target,
-            max_it=self.params.ms1_max_it,
-            collision_energy=self.params.ms1_collision_energy,
-            source_cid_energy=self.params.ms1_source_cid_energy,
-            orbitrap_resolution=self.params.ms1_orbitrap_resolution,
-            activation_type=self.params.ms1_activation_type,
-            mass_analyser=self.params.ms1_mass_analyser,
-            isolation_mode=self.params.ms1_isolation_mode,
+            default_ms1_scan_window=self.advanced_params.default_ms1_scan_window,
+            agc_target=self.advanced_params.ms1_agc_target,
+            max_it=self.advanced_params.ms1_max_it,
+            collision_energy=self.advanced_params.ms1_collision_energy,
+            source_cid_energy=self.advanced_params.ms1_source_cid_energy,
+            orbitrap_resolution=self.advanced_params.ms1_orbitrap_resolution,
+            activation_type=self.advanced_params.ms1_activation_type,
+            mass_analyser=self.advanced_params.ms1_mass_analyser,
+            isolation_mode=self.advanced_params.ms1_isolation_mode,
             metadata=metadata)
         return task
 
     def get_ms2_scan_params(self, mz, intensity, precursor_scan_id,
                             isolation_width, mz_tol, rt_tol, metadata=None):
+        """
+        Generate a default scan parameter for MS2 scan. The generated scan parameter object
+        is typically passed to the mass spec (whether real or simulated) that produces
+        the actual MS2 scan.
+
+        Args:
+            mz: the m/z of the precursor ion to fragment
+            intensity: the intensity of the precursor ion to fragment
+            precursor_scan_id: the associated MS1 scan ID that contains this precursor ion
+            isolation_width: isolation width, in Dalton
+            mz_tol: m/z tolerance for dynamic exclusion (TODO: this shouldn't be here)
+            rt_tol: RT tolerance for dynamic exclusion (TODO: this shouldn't be here)
+            metadata: any additional metadata to include
+
+        Returns: a [vimms.Common.ScanParameters][] object that describes the MS2 scan to generate.
+
+        """
         task = get_dda_scan_param(
             mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
-            agc_target=self.params.ms2_agc_target,
-            max_it=self.params.ms2_max_it,
-            collision_energy=self.params.ms2_collision_energy,
-            source_cid_energy=self.params.ms2_source_cid_energy,
-            orbitrap_resolution=self.params.ms2_orbitrap_resolution,
-            activation_type=self.params.ms2_activation_type,
-            mass_analyser=self.params.ms2_mass_analyser,
-            isolation_mode=self.params.ms2_isolation_mode,
+            agc_target=self.advanced_params.ms2_agc_target,
+            max_it=self.advanced_params.ms2_max_it,
+            collision_energy=self.advanced_params.ms2_collision_energy,
+            source_cid_energy=self.advanced_params.ms2_source_cid_energy,
+            orbitrap_resolution=self.advanced_params.ms2_orbitrap_resolution,
+            activation_type=self.advanced_params.ms2_activation_type,
+            mass_analyser=self.advanced_params.ms2_mass_analyser,
+            isolation_mode=self.advanced_params.ms2_isolation_mode,
             polarity=self.environment.mass_spec.ionisation_mode,
             metadata=metadata)
         return task
@@ -111,7 +186,9 @@ class Controller(ABC):
         """
         Gets the initial tasks to load immediately into the mass spec
         (before acquisition starts)
-        :return: an empty list of tasks, unless overridden by subclass
+
+        Returns: an empty list of tasks, unless overridden by subclass
+
         """
         return []
 
@@ -121,14 +198,36 @@ class Controller(ABC):
         starts the whole process. Will default to sending an MS1 scan with
         whatever parameters passed in self.params. Subclasses can override
         this to return different types of scans.
-        :return: the MS1
+
+        Returns: a [vimms.Common.ScanParameters][] object describing the initial scan to make.
+
         """
         return self.get_ms1_scan_params()
 
     def set_environment(self, env):
+        """
+        Set the environment used to run this controller
+
+        Args:
+            env: an [vimms.Environment.Environment] object or its subclasses.
+
+        Returns: None
+
+        """
         self.environment = env
 
     def handle_scan(self, scan, current_size, pending_size):
+        """
+        Basic codes to handle an incoming scan, which is generally the same for all controllers.
+
+        Args:
+            scan: A new [vimms.MassSpec.Scan][] to process.
+            current_size: current size of task buffer
+            pending_size: pending size of task buffer
+
+        Returns: a list of new [vimms.Common.ScanParameters][] describing what to do next.
+
+        """
         logger.debug('tasks to be sent = %d' % (current_size))
         logger.debug('tasks sent but not received = %d' % (pending_size))
 
@@ -172,13 +271,33 @@ class Controller(ABC):
 
     @abstractmethod
     def update_state_after_scan(self, last_scan):
+        """Update internal state after a scan has been processed.
+
+        Arguments:
+            last_scan ([vimms.MassSpec.Scan][]): the last-processed object.
+        """
         pass
 
     @abstractmethod
     def _process_scan(self, scan):
+        """Process incoming scan
+
+        Arguments:
+            scan: A new [vimms.MassSpec.Scan][] to process.
+        """
         pass
 
     def dump_scans(self, output_method):
+        """
+        Dump all scans to the output format.
+        Useful for debugging.
+
+        Args:
+            output_method: a function that accepts scan information as a CSV string from pandas
+
+        Returns: None
+
+        """
         all_scans = self.scans[1] + self.scans[2]
         all_scans.sort(key=lambda x: x.scan_id)  # sort by scan_id
         out_list = []
@@ -200,9 +319,18 @@ class Controller(ABC):
         output_method(df.to_csv(index=False, line_terminator='\n'))
 
     def _check_scan(self, params):
+        """
+        Checks that the conditions that are checked in
+        vimms-fusion MS class pass here. This is done to ensure that the values are
+        all in a consistent state.
 
-        # checks that the conditions that are checked in
-        # vimms-fusion MS class pass here
+        Args:
+            params: a [vimms.Common.ScanParameters][] object to check.
+
+        Returns:
+
+        """
+
         collision_energy = params.get(ScanParameters.COLLISION_ENERGY)
         orbitrap_resolution = params.get(ScanParameters.ORBITRAP_RESOLUTION)
         activation_type = params.get(ScanParameters.ACTIVATION_TYPE)
@@ -227,4 +355,10 @@ class Controller(ABC):
         assert last_mass is not None
 
     def after_injection_cleanup(self):
+        """
+        Clean-up method at the end of each injection.
+
+        Returns: None
+
+        """
         pass

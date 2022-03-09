@@ -11,7 +11,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 
 
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
-    '''Evaluates a single simulated injection against the chemicals present in that injection'''
+    """Evaluates a single simulated injection against the chemicals present in that injection"""
     true_chems = env.mass_spec.chemicals if base_chemicals is None else base_chemicals
     fragmented = {}  # map chem to highest observed intensity
     for event in env.mass_spec.fragmentation_events:
@@ -60,8 +60,8 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
 
 def evaluate_multiple_simulated_env(env_list, min_intensity=0.0,
                                     group_list=None):
-    '''Evaluates_multiple simulated injections against a base set of chemicals that
-    were used to derive the datasets'''
+    """Evaluates_multiple simulated injections against a base set of chemicals that
+    were used to derive the datasets"""
     all_chems = [chem for env in env_list for chem in env.mass_spec.chemicals]
     observed_chems = set(chem.get_original_parent() for chem in all_chems)
     base_chemicals = list(observed_chems)

@@ -16,11 +16,16 @@ class Environment():
         """
         Initialises a synchronous environment to run the mass spec and
         controller
-        :param mass_spec: An instance of Mass Spec object
-        :param controller: An instance of Controller object
-        :param min_time: start time
-        :param max_time: end time
-        :param progress_bar: True if a progress bar is to be shown
+
+        Args:
+            mass_spec: An instance of [vimms.MassSpec.IndependentMassSpectrometer] object
+            controller: An instance of [vimms.Controller.base.Controller] object
+            min_time: start time for simulation
+            max_time: end time for simulation
+            progress_bar: True if a progress bar is to be shown, False otherwise
+            out_dir: output directory to write mzML to
+            out_file: output mzML file
+            dump_debug: whether to dump debug information or not
         """
         self.mass_spec = mass_spec
         self.controller = controller
@@ -41,7 +46,9 @@ class Environment():
     def run(self):
         """
         Runs the mass spec and controller
-        :return: None
+
+        Returns: None
+
         """
         # set some initial values for each run
         self._set_initial_values()
@@ -84,6 +91,16 @@ class Environment():
             self.write_debug_info(self.out_dir, self.out_file, self.debug_info)
 
     def _one_step(self, params=None):
+        """
+        Simulates one step of the mass spectrometry process, and also
+        calling the controller on the result.
+
+        Args:
+            params: parameters to the mass spec
+
+        Returns: a newly generated scan
+
+        """
         # controller._process_scan() is called here immediately when
         # a scan is produced within a step
         scan = self.mass_spec.step(params=params)
@@ -96,6 +113,11 @@ class Environment():
         return scan
 
     def handle_acquisition_open(self):
+        """
+        Handle acquisition open event
+        Returns: None
+
+        """
         logger.debug('Acquisition open')
         # send the initial custom scan to start the custom scan
         # generation process
@@ -103,17 +125,36 @@ class Environment():
         self._one_step(params=params)
 
     def handle_acquisition_closing(self):
+        """
+        Handle acquisition close event
+
+        Returns: None
+
+        """
         logger.debug('Acquisition closing')
         self.controller.after_injection_cleanup()
 
     def handle_state_changed(self, state):
+        """
+        Handle event for any state change on the mass spec
+
+        Args:
+            state: a new state, could be any value
+
+        Returns: None
+
+        """
         logger.debug('State changed!')
 
     def _update_progress_bar(self, scan):
         """
         Updates progress bar based on elapsed time
-        :param scan: the newly generated scan
-        :return: None
+
+        Args:
+            scan: the newly generated scan
+
+        Returns: None
+
         """
         if self.bar is not None and scan.scan_duration is not None:
             msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
@@ -122,6 +163,12 @@ class Environment():
             self.bar.set_description(msg)
 
     def close_progress_bar(self):
+        """
+        Close the progress bar, typically when acquisition has finished
+
+        Returns: None
+
+        """
         if self.bar is not None:
             try:
                 self.bar.close()
@@ -134,8 +181,12 @@ class Environment():
         """
         Adds a newly generated scan. In this case, immediately we process it
         in the controller without saving the scan.
-        :param scan: A newly generated scan
-        :return: None
+
+        Args:
+            scan: A newly generated scan
+
+        Returns: None
+
         """
         logger.debug('Time %f Received %s' % (scan.rt, scan))
 
@@ -157,6 +208,16 @@ class Environment():
         self.mass_spec.task_manager.add_current(tasks)
 
     def _get_out_file(self, out_dir, out_file):
+        """
+        Generates the output mzML filename based on out_dir and out_file
+
+        Args:
+            out_dir: the output directory
+            out_file: the output filename
+
+        Returns: the combined out_dir and out_file
+
+        """
         if out_file is None:  # if no filename provided, just quits
             return None
         else:
@@ -169,9 +230,13 @@ class Environment():
     def write_mzML(self, out_dir, out_file):
         """
         Writes mzML to output file
-        :param out_dir: output directory
-        :param out_file: output filename
-        :return: None
+
+        Args:
+            out_dir: output directory
+            out_file: output filename
+
+        Returns: None
+
         """
         mzml_filename = self._get_out_file(out_dir, out_file)
         logger.debug('Writing mzML file to %s' % mzml_filename)
@@ -183,9 +248,14 @@ class Environment():
     def write_debug_info(self, out_dir, out_file, debug_info):
         """
         Writes debugging information to output file
-        :param out_dir: output directory
-        :param out_file: output filename
-        :return: None
+
+        Args:
+            out_dir: output directory
+            out_file: output filename
+            debug_info: any debug info
+
+        Returns: None
+
         """
         filename = self._get_out_file(out_dir, out_file + '.p')
         logger.debug('Writing debug info to %s' % filename)
@@ -196,7 +266,9 @@ class Environment():
         """
         Sets initial environment, mass spec start time, default
         scan parameters and other values
-        :return: None
+
+        Returns: None
+
         """
         self.controller.set_environment(self)
         self.mass_spec.set_environment(self)
@@ -208,9 +280,26 @@ class Environment():
             self.controller.get_initial_tasks())
 
     def get_initial_scan_params(self):
+        """
+        Get the initial scan parameters before acquisition is even started.
+        Useful when we have controllers with pre-scheduled tasks.
+
+        Returns: the list of initial scan parameters from the controller
+
+        """
         return self.controller.get_initial_scan_params()
 
     def save(self, outname):
+        """
+        Save certain information from this environment.
+        Currently only save scans, but we could save more.
+
+        Args:
+            outname: output file to save
+
+        Returns: None
+
+        """
         data_to_save = {
             'scans': self.controller.scans,
             # etc
@@ -218,6 +307,14 @@ class Environment():
         save_obj(data_to_save, outname)
 
     def plot_scan(self, scan):
+        """
+        Plot a scan
+        Args:
+            scan: a [vimms.MassSpec.Scan][] object.
+
+        Returns: None
+
+        """
         plt.figure()
         for i in range(scan.num_peaks):
             x1 = scan.mzs[i]

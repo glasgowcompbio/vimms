@@ -1,3 +1,6 @@
+"""
+This file implements various methods to extract features from different sources.
+"""
 import os
 import xml.etree.ElementTree
 import zipfile
@@ -6,11 +9,21 @@ from loguru import logger
 
 from vimms.Chemicals import DatabaseCompound, ChemicalMixtureFromMZML
 from vimms.Common import DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, save_obj
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 
 
 # flake8: noqa: C901
 def extract_hmdb_metabolite(in_file, delete=True):
+    """
+    Extract chemicals from HMDB database
+
+    Args:
+        in_file: a zipped HMDB database downloaded from https://hmdb.ca/downloads.
+        delete: whether to delete `in_file` once it has been processed
+
+    Returns: a list of [vimms.Chemicals.DatabaseCompound][] objects.
+
+    """
     logger.debug('Extracting HMDB metabolites from %s' % in_file)
 
     # if out_file is zipped then extract the xml file inside
@@ -68,16 +81,18 @@ def extract_roi(file_names, out_dir, pattern, mzml_path,
                 param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):
     """
     Extract ROI for all mzML files listed in file_names, and turn them
-    into Chemical objecs
-    :param file_names: a list of mzML file names
-    :param out_dir: output directory to store pickled chemicals. If None,
-    then the current directory is used
-    :param pattern: pattern for output file
-    :param mzml_path: input directory containing all the mzML files in
-    file_names.
-    :param ps: a peak sampler object
-    :param param_dict: dictionary of parameters
-    :return: a list of extracted Chemicals, one for each mzML file
+    into Chemical objects.
+
+    Args:
+        file_names: a list of mzML file names
+        out_dir: output directory to store pickled chemicals. If None,
+                 then the current directory is used
+        pattern: pattern for output file
+        mzml_path: input directory containing all the mzML files in file_names.
+        param_dict: dictionary of parameters
+
+    Returns: a list of extracted [vimms.Chemicals.Chemical][], one for each mzML file
+
     """
     # extract ROI for all mzML files in file_names
     datasets = []
@@ -89,7 +104,7 @@ def extract_roi(file_names, out_dir, pattern, mzml_path,
         else:
             mzml_file = file_names[i]
 
-        rp = RoiParams(**param_dict)
+        rp = RoiBuilderParams(**param_dict)
         cm = ChemicalMixtureFromMZML(mzml_file, roi_params=rp)
         dataset = cm.sample(None, 2)
         datasets.append(dataset)

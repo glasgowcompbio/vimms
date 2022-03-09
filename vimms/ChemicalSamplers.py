@@ -14,7 +14,7 @@ from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, \
 from vimms.Common import Formula, DummyFormula, uniform_list, \
     DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW, \
     POSITIVE, NEGATIVE, PROTON_MASS, DEFAULT_SCAN_TIME_DICT
-from vimms.Roi import make_roi, RoiParams
+from vimms.Roi import make_roi, RoiBuilderParams
 
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
 MAX_MZ = DEFAULT_MS1_SCAN_WINDOW[1]
@@ -31,6 +31,12 @@ class FormulaSampler(ABC):
     """
 
     def __init__(self, min_mz=MIN_MZ, max_mz=MAX_MZ):
+        """
+        Create a Formula sampler
+        Args:
+            min_mz: the minimum m/z value of formulae to sample from
+            max_mz: the maximum m/z value of formulae to sample from
+        """
         self.min_mz = min_mz
         self.max_mz = max_mz
 
@@ -47,20 +53,25 @@ class DatabaseFormulaSampler(FormulaSampler):
     def __init__(self, database, min_mz=MIN_MZ, max_mz=MAX_MZ):
         """
         Initiliases database formula sampler
-        :param database: a list of Formula objects containing chemical
-        formulae from e.g. HMDB
+
+        Args:
+            database: a list of Formula objects containing chemical
+                      formulae from e.g. HMDB
+            min_mz: the minimum m/z value of formulae to sample from
+            max_mz: the maximum m/z value of formulae to sample from
         """
+        super().__init__(min_mz=min_mz, max_mz=max_mz)
         self.database = database
-        self.min_mz = min_mz
-        self.max_mz = max_mz
 
     def sample(self, n_formulas):
         """
         Samples n_formulas from the specified database
-        :param n_formulas: the number of formula to draw
-        :param min_mz: minimum m/z of formula
-        :param max_mz: maximum m/z of formula
-        :return: a list of Formula objects
+
+        Args:
+            n_formulas: the number of formula to draw
+
+        Returns: a list of Formula objects
+
         """
         # filter database formulae to be within mz_range
         offset = 20  # to ensure that we have room for at least M+H
@@ -91,10 +102,12 @@ class UniformMZFormulaSampler(FormulaSampler):
     def sample(self, n_formulas):
         """
         Samples n_formulas uniformly between min_mz and max_mz
-        :param n_formulas: the number of formula to draw
-        :param min_mz: minimum m/z of formula
-        :param max_mz: maximum m/z of formula
-        :return: a list of Formula objects
+
+        Args:
+            n_formulas: the number of formula to draw
+
+        Returns: a list of Formula objects
+
         """
         mz_list = np.random.rand(n_formulas) * (
                 self.max_mz - self.min_mz) + self.min_mz
@@ -108,19 +121,26 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
 
     def __init__(self, database, min_mz=MIN_MZ, max_mz=MAX_MZ):
         """
-        Initiliases database formula sampler
-        :param database: a list of Formula objects containing chemical
-        formulae from e.g. HMDB
+        Initiliases a Pick-Everything formula sampler
+
+        Args:
+            database: a list of Formula objects containing chemical
+                      formulae from e.g. HMDB
+            min_mz: the minimum m/z value of formulae to sample from
+            max_mz: the maximum m/z value of formulae to sample from
         """
+        super().__init__(min_mz=min_mz, max_mz=max_mz)
         self.database = database
-        self.min_mz = min_mz
-        self.max_mz = max_mz
 
     def sample(self, n_formulas):
         """
         Just return everything from the database
-        :param n_formulas: ignored?
-        :return: all formulae from the database
+
+        Args:
+            n_formulas: ignored?
+
+        Returns: all formulae from the database
+
         """
         formula_list = [(Formula(x.chemical_formula), x.name) for x in
                         self.database]
@@ -136,10 +156,21 @@ class EvenMZFormulaSampler(FormulaSampler):
     """
 
     def __init__(self):
+        """
+        Create an even m/z formula sampler
+        """
         self.n_sampled = 0
         self.step = 100
 
     def sample(self, n_formulas):
+        """
+        Sample up to n_formulas from this sampler
+        Args:
+            n_formulas: the number of formula to return
+
+        Returns: the list of formulae having evenly spaced m/z values
+
+        """
         mz_list = []
         for i in range(n_formulas):
             new_mz = (self.n_sampled + 1) * self.step
@@ -156,13 +187,25 @@ class MZMLFormulaSampler(FormulaSampler):
 
     def __init__(self, mzml_file_name, min_mz=MIN_MZ, max_mz=MAX_MZ,
                  source_polarity=POSITIVE):
-        self.min_mz = min_mz
-        self.max_mz = max_mz
+        """
+        Create an mzML formula sampler
+        Args:
+            mzml_file_name: the source mzML file
+            min_mz: the minimum m/z to consider
+            max_mz: the maximum m/z to consider
+            source_polarity: either POSITIVE or NEGATIVE
+        """
+        super().__init__(min_mz=min_mz, max_mz=max_mz)
         self.mzml_file_name = mzml_file_name
         self.source_polarity = source_polarity
         self._get_distributions()
 
     def _get_distributions(self):
+        """
+        Compute the distribution of m/z values by placing them into bins
+        Returns: None
+
+        """
         mzml_file_object = MZMLFile(str(self.mzml_file_name))
         mz_bins = {}
         for scan in mzml_file_object.scans:
@@ -188,6 +231,14 @@ class MZMLFormulaSampler(FormulaSampler):
         self.mz_probs = [v / total_intensity for v in mz_bins.values()]
 
     def sample(self, n_formulas):
+        """
+        Sample up to n_formulas from the m/z values in the mzML file
+        Args:
+            n_formulas: the number of formula to sample
+
+        Returns: a list of Formula objects
+
+        """
         mz_list = []
         for i in range(n_formulas):
             mz_bin_idx = np.random.choice(len(self.mz_bins), p=self.mz_probs)
@@ -224,10 +275,12 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
                  max_log_intensity=np.log(1e7)):
         """
         Initialises uniform RT and intensity sampler
-        :param min_rt: minimum RT
-        :param max_rt: maximum RT
-        :param min_log_intensity: minimum log intensity
-        :param max_log_intensity: maximum log intensity
+
+        Args:
+            min_rt: minimum RT
+            max_rt: maximum RT
+            min_log_intensity: minimum log intensity
+            max_log_intensity: maximum log intensity
         """
         self.min_rt = min_rt
         self.max_rt = max_rt
@@ -238,8 +291,12 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
         """
         Samples RT and log intensity uniformly between (min_rt, max_rt) and
         (min_log_intensity, max_log_intensity)
-        :param formula: the formula to condition on (can be ignored)
-        :return: a tuple of (RT, intensity)
+
+        Args:
+            formula: the formula to condition on (can be ignored)
+
+        Returns: a tuple of (RT, intensity)
+
         """
         rt = np.random.rand() * (self.max_rt - self.min_rt) + self.min_rt
         diff = self.max_log_intensity - self.min_log_intensity
@@ -248,9 +305,24 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
 
 
 class MZMLRTandIntensitySampler(RTAndIntensitySampler):
+    """
+    A sampler to sample RT and intensity values from an existing mzML file.
+    Useful to mimic the characteristics of actual experimental data.
+    """
     def __init__(self, mzml_file_name, n_intensity_bins=10, min_rt=0,
                  max_rt=1600, min_log_intensity=np.log(1e4),
                  max_log_intensity=np.log(1e7), roi_params=None):
+        """
+        Create an instance of MZMLRTandIntensitySampler.
+        Args:
+            mzml_file_name: the source mzML filename
+            n_intensity_bins: number of bins for intensities
+            min_rt: the minimum RT to consider
+            max_rt: the maximum RT to consider
+            min_log_intensity: the minimum intensity (in log) to consider
+            max_log_intensity: the maximum intensity (in log) to consider
+            roi_params: parameters for ROI building, as defined in [vimms.Roi.RoiBuilderParams][].
+        """
         self.min_rt = min_rt
         self.max_rt = max_rt
         self.min_log_intensity = min_log_intensity
@@ -259,10 +331,16 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         self.roi_params = roi_params
         self.n_intensity_bins = n_intensity_bins
         if self.roi_params is None:
-            self.roi_params = RoiParams()
+            self.roi_params = RoiBuilderParams()
         self._get_distributions()
 
     def _get_distributions(self):
+        """
+        Compute distributions of RT and intensity values from the mzML file.
+
+        Returns:None
+
+        """
         mzml_file_object = MZMLFile(str(self.mzml_file_name))
         rt_bins = {}
         # mz_bins = {}
@@ -300,6 +378,14 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         self.intensity_probs = [h for h in hist]
 
     def sample(self, formula):
+        """
+        Sample RT and intensity value from this sampler
+        Args:
+            formula: the chemical formula, unused for now.
+
+        Returns: a tuple of (RT, intensity) values.
+
+        """
         rt_bin_idx = np.random.choice(len(self.rt_bins), p=self.rt_probs)
         rt_bin = self.rt_bins[rt_bin_idx]
         rt = np.random.rand() * (rt_bin[1] - rt_bin[0]) + rt_bin[0]
@@ -333,16 +419,25 @@ class GaussianChromatogramSampler(ChromatogramSampler):
     """
 
     def __init__(self, sigma=10):
+        """
+        Create a Gaussian-shaped chromatogram sampler
+        Args:
+            sigma: parameter for the Gaussian distribution to sample from
+        """
         assert sigma > 0
         self.sigma = sigma
 
     def sample(self, formula, rt, intensity):
         """
         Sample a Gaussian-shaped chromatogram
-        :param formula: the formula to condition on (can be ignored)
-        :param rt: RT to condition on (can be ignored)
-        :param intensity: intensity to condition on (can be ignored)
-        :return:
+
+        Args:
+            formula: the formula to condition on (can be ignored)
+            rt: RT to condition on (can be ignored)
+            intensity: intensity to condition on (can be ignored)
+
+        Returns: a [vimms.Chromatograms.FunctionalChromatogram] object.
+
         """
         return FunctionalChromatogram('normal', [0, self.sigma])
 
@@ -353,25 +448,61 @@ class ConstantChromatogramSampler(ChromatogramSampler):
     """
 
     def sample(self, formula, rt, intensity):
+        """
+        Sample a constant chromatogram (present everywhere)
+        Args:
+            formula: formula, unused
+            rt: RT, unused
+            intensity: intensity, unused
+
+        Returns: a [vimms.Chromatograms.ConstantChromatogram] object.
+
+        """
         return ConstantChromatogram()
 
 
 class MZMLChromatogramSampler(ChromatogramSampler):
+    """
+    A sampler to return chromatograms extracted from an existing mzML file.
+    Useful to mimic the characteristics of actual experimental data.
+    """
     def __init__(self, mzml_file_name, roi_params=None):
+        """
+        Create an MZMLChromatogramSampler object.
+        Args:
+            mzml_file_name: the input mzML file.
+            roi_params: parameters for ROI building, as defined in [vimms.Roi.RoiBuilderParams][].
+        """
         self.mzml_file_name = mzml_file_name
         self.roi_params = roi_params
         if self.roi_params is None:
-            self.roi_params = RoiParams()
+            self.roi_params = RoiBuilderParams()
 
         self.good_rois = self._extract_rois()
 
     def _extract_rois(self):
+        """
+        Extract regions-of-interests from the mzML file
+
+        Returns: the list of good ROIs that have been filtered according to certain criteria.
+
+        """
         good = make_roi(str(self.mzml_file_name), self.roi_params)
         logger.debug("Extracted {} good ROIs from {}".format(
             len(good), self.mzml_file_name))
         return good
 
     def sample(self, formula, rt, intensity):
+        """
+        Sample an empirical chromatogram extracted from the mzML file
+        Args:
+            formula: formula, unused
+            rt: RT, unused
+            intensity: intensity, unused
+
+        Returns: a [vimms.Chromatograms.EmpiricalChromatogram] object.
+
+        """
         roi_idx = np.random.choice(len(self.good_rois))
         r = self.good_rois[roi_idx]
         chromatogram = EmpiricalChromatogram(np.array(r.rt_list),
@@ -406,13 +537,15 @@ class UniformMS2Sampler(MS2Sampler):
                  min_proportion=0.1, max_proportion=0.8):
         """
         Initialises uniform MS2 sampler
-        :param poiss_peak_mean: the mean of the Poisson distribution used
-        to draw the number of peaks
-        :param min_mz: minimum m/z
-        :param min_proportion: minimum proportion from the parent MS1
-        peak intensities
-        :param max_proportion: maximum proportion from the parent MS1
-        peak intensities
+
+        Args:
+            poiss_peak_mean: the mean of the Poisson distribution used
+                             to draw the number of peaks
+            min_mz: minimum m/z value
+            min_proportion: minimum proportion from the parent MS1
+                            peak intensities
+            max_proportion: maximum proportion from the parent MS1
+                            peak intensities
         """
         self.poiss_peak_mean = poiss_peak_mean
         self.min_mz = min_mz
@@ -426,8 +559,12 @@ class UniformMS2Sampler(MS2Sampler):
         the exact mass of the formula. The intensity is also randomly sampled
         between between min_proportion and max_proportion of the parent
         formula intensity
-        :param formula: the parent formula
-        :return: a tuple of (mz_list, intensity_list, parent_proportion)
+
+        Args:
+            chemical: the chemical to compute max m/z value from
+
+        Returns: a tuple of (mz_list, intensity_list, parent_proportion)
+
         """
         n_peaks = np.random.poisson(self.poiss_peak_mean)
         max_mz = chemical.mass
@@ -448,9 +585,22 @@ class FixedMS2Sampler(MS2Sampler):
     """
 
     def __init__(self, n_frags=2):
+        """
+        Create a fixed MS2 sampler
+        Args:
+            n_frags: the number of fragment peaks to generate
+        """
         self.n_frags = n_frags
 
     def sample(self, chemical):
+        """
+        Sample MS2 spectra using chemical as the parent
+        Args:
+            chemical: the parent chemical
+
+        Returns: a tuple of (mz_list, intensity_list, parent_proportion)
+
+        """
         initial_mz = chemical.mass
         mz_list = []
         intensity_list = []
@@ -465,12 +615,24 @@ class FixedMS2Sampler(MS2Sampler):
 
 class CRPMS2Sampler(MS2Sampler):
     """
-    A sampler that generates MS2 peaks following the CRP.
+    A sampler that generates MS2 peaks following the Chinese Restaurant Process (CRP),
+    i.e. an MS2 peak that has been selected in one spectra has a higher likelihood to appear
+    again elsewhere.
     """
 
     def __init__(self, n_draws=1000, min_mz=MIN_MZ_MS2, min_proportion=0.1,
                  max_proportion=0.8, alpha=1,
                  base='uniform'):
+        """
+        Create a CRP-based MS2 sampler.
+        Args:
+            n_draws: the number of draws from the CRP process
+            min_mz: the minimum m/z value to consider
+            min_proportion: the minimum proportion to consider
+            max_proportion: the maximum proportion to consider
+            alpha: CRP parameter
+            base: base distribution for the CRP process
+        """
         self.n_draws = n_draws
         self.min_mz = min_mz
         self.min_proportion = min_proportion
@@ -481,6 +643,15 @@ class CRPMS2Sampler(MS2Sampler):
         assert self.base == 'uniform'
 
     def sample(self, chemical):
+        """
+        Sample MS2 spectra using chemical as the parent
+        Args:
+            chemical: the parent chemical
+
+        Returns: a tuple of (mz_list, intensity_list, parent_proportion)
+
+        """
+
         max_mz = chemical.mass
         unique_vals = [self._base_sample(max_mz)]
         counts = [1]
@@ -509,9 +680,22 @@ class CRPMS2Sampler(MS2Sampler):
 
 
 class MGFMS2Sampler(MS2Sampler):
+    """
+    A sampler that generates MS2 spectra from real ones defined in some MGF file.
+    """
     def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8,
                  max_peaks=0, replace=False,
                  id_field="SPECTRUMID"):
+        """
+        Create an MGFMS2Sampler object.
+        Args:
+            mgf_file: input MGF file.
+            min_proportion: the minimum proportion to consider
+            max_proportion: the maximum proportion to consider
+            max_peaks: the maximum number of peaks
+            replace: whether to sample with replacement or not
+            id_field: the ID field in the MGF file
+        """
         self.mgf_file = mgf_file
         self.min_proportion = min_proportion
         self.max_proportion = max_proportion
@@ -537,6 +721,15 @@ class MGFMS2Sampler(MS2Sampler):
                                                         self.mgf_file))
 
     def sample(self, chemical):
+        """
+        Sample MS2 spectra using chemical as the parent
+        Args:
+            chemical: the parent chemical
+
+        Returns: a tuple of (mz_list, intensity_list, parent_proportion)
+
+        """
+
         formula_mz = chemical.mass
         sub_spec = list(filter(lambda x: x[0] < formula_mz, self.spectra_list))
         if len(sub_spec) == 0:
@@ -565,14 +758,27 @@ class MGFMS2Sampler(MS2Sampler):
 
 
 class ExactMatchMS2Sampler(MGFMS2Sampler):
-    # to be completed. Where we have particular formulas and we
-    # have a particular spectrum for each exact formula...
+    """
+    Exact match MS2 sampler allows us to have particular formulas and we
+    have a particular spectrum for each exact formula...
+
+    TODO: not sure if this class is actually completed and fully tested.
+    """
     def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8,
                  id_field="SPECTRUMID"):
         super().__init__(mgf_file, min_proportion=min_proportion,
                          max_proportion=max_proportion, id_field=id_field)
 
     def sample(self, chemical):
+        """
+        Sample MS2 spectra using chemical as the parent
+        Args:
+            chemical: the parent chemical
+
+        Returns: a tuple of (mz_list, intensity_list, parent_proportion)
+
+        """
+
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)
         parent_proportion = np.random.rand() * (
@@ -581,9 +787,22 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
 
 
 class MZMLMS2Sampler(MS2Sampler):
+    """
+    A sampler that sample MS2 spectra from an actual mzML file.
+    """
     def __init__(self, mzml_file, min_n_peaks=1, min_total_intensity=1e3,
                  min_proportion=0.1, max_proportion=0.8,
                  with_replacement=False):
+        """
+        Create an MZMLMS2Sampler object
+        Args:
+            mzml_file: the source mzML file
+            min_n_peaks: the minimum number of peaks to consider for each frag. spectra
+            min_total_intensity: the minimum total intensity
+            min_proportion: the minimum proportion to consider
+            max_proportion: the maximum proportion to consider
+            with_replacement: whether to sample with replacement or not
+        """
         self.mzml_file_name = mzml_file
         self.mzml_object = MZMLFile(str(mzml_file))
         self.min_n_peaks = min_n_peaks
@@ -598,6 +817,12 @@ class MZMLMS2Sampler(MS2Sampler):
         self._filter_scans()
 
     def _filter_scans(self):
+        """
+        Filters MS2 scans according to certain criteria
+
+        Returns: None
+
+        """
         ms2_scans = list(filter(
             lambda x: x.ms_level == 2 and len(x.peaks) >= self.min_n_peaks and sum(
                 [i for mz, i in x.peaks]) >= self.min_total_intensity, self.mzml_object.scans))
@@ -608,6 +833,15 @@ class MZMLMS2Sampler(MS2Sampler):
         self.ms2_scans = ms2_scans
 
     def sample(self, chemical):
+        """
+        Sample MS2 spectra using chemical as the parent
+        Args:
+            chemical: the parent chemical
+
+        Returns: a tuple of (mz_list, intensity_list, parent_proportion)
+
+        """
+
         assert len(
             self.ms2_scans) > 0, "MS2 sampler ran out of scans. " \
                                  "Consider an alternative, or " \
@@ -649,15 +883,28 @@ class DefaultScanTimeSampler(ScanTimeSampler):
     def __init__(self, scan_time_dict=None):
         """
         Initialises a default scan time sampler object.
-        :param scan_time_dict: a dictionary of scan times for each MS-level.
-        It should look like this: {1: 0.4, 2: 0.2}. If not specified, then the default
-        value is used. Note that this default is obtained from our Orbitrap instrument and
-        would certainly differ from yours!
+
+        Args:
+            scan_time_dict: A dictionary of scan times for each MS-level.
+                            It should look like this: {1: 0.4, 2: 0.2}.
+                            If not specified, then the default value is used.
+                            Note that this default is obtained from our Orbitrap instrument and
+                            would certainly differ from yours!
         """
+
         self.scan_time_dict = scan_time_dict if scan_time_dict is not None \
             else DEFAULT_SCAN_TIME_DICT
 
     def sample(self, current_level, next_level):
+        """
+        Sample a scan duration given the MS levels of current and next scans.
+        Args:
+            current_level: the MS level of the current scan
+            next_level: the MS level of the next scan
+
+        Returns: a sampled scan duration value
+
+        """
         return self.scan_time_dict[current_level]
 
 
@@ -669,9 +916,11 @@ class MzMLScanTimeSampler(ScanTimeSampler):
     def __init__(self, mzml_file, use_mean=True):
         """
         Initialises a MZML scan time sampler object.
-        :param mzml_file: the source MZML file
-        :param use_mean: whether to store the scan times as distributions of values to sample
-        from, or as a single mean value
+
+        Args:
+            mzml_file: the source MZML file
+            use_mean: whether to store the scan times as distributions of values to sample
+                      from, or as a single mean value
         """
 
         self.mzml_file = str(mzml_file)
@@ -691,6 +940,16 @@ class MzMLScanTimeSampler(ScanTimeSampler):
             self.time_dict[(1, 1)] = [default]
 
     def sample(self, current_level, next_level):
+        """
+        Sample a scan duration given the MS levels of current and next scans.
+        Args:
+            current_level: the MS level of the current scan
+            next_level: the MS level of the next scan
+
+        Returns: a sampled scan duration value
+
+        """
+
         if self.use_mean:
             # return only the average time for current_level
             return self.mean_time_dict[current_level]
@@ -704,14 +963,17 @@ class MzMLScanTimeSampler(ScanTimeSampler):
     def _extract_timing(self, seed_file):
         """
         Extracts timing information from a seed file
-        :param seed_file: the seed file in mzML format
-        If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and
-        MS2 timing will be extracted.
-        If it's only a fullscan file (containing MS1 scans) then only MS1
-        timing will be extracted.
-        :return: a dictionary of time information. Key should be the ms-level,
-        1 or 2, and
-        value is the average time of scans at that level
+
+        Args:
+            seed_file: The seed file in mzML format.
+                       If it's a DDA file (containing MS1 and MS2 scans) then both MS1 and
+                       MS2 timing will be extracted.
+                       If it's only a fullscan file (containing MS1 scans) then only MS1
+                       timing will be extracted.
+
+        Returns: a dictionary of time information. Key should be the ms-level,
+                 1 or 2, and value is the average time of scans at that level
+
         """
         logger.debug('Extracting timing dictionary from seed file')
         seed_mzml = MZMLFile(seed_file)
@@ -726,6 +988,14 @@ class MzMLScanTimeSampler(ScanTimeSampler):
         return time_dict
 
     def _is_frag_file(self, time_dict):
+        """
+        Checks that the time dictionary comes from a fragmentation file or not.
+        Args:
+            time_dict: a time dictionary
+
+        Returns: True if it comes from a fragmentation file, False otherwise.
+
+        """
         is_frag_file = False
         if (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0 and \
                 (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
@@ -736,7 +1006,14 @@ class MzMLScanTimeSampler(ScanTimeSampler):
 
     def _extract_mean_time(self, time_dict, is_frag_file):
         """
-        Construct timing dict in the right format for later use
+        Construct mean timing dict in the right format for later use
+
+        Args:
+            time_dict: a timing dictionary
+            is_frag_file: whether it's a fragmentation file or not
+
+        Returns: the mean time dictionary
+
         """
         mean_time_dict = {}
         if is_frag_file:

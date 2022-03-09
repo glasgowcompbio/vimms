@@ -1,3 +1,7 @@
+"""
+This file provides the implementation of various miscellaneous controllers, some are
+pretty experimental.
+"""
 import copy
 import itertools
 import math
@@ -18,14 +22,14 @@ class FixedScansController(Controller):
     tasks in queue
     """
 
-    def __init__(self, schedule=None, params=None):
+    def __init__(self, schedule=None, advanced_params=None):
         """
         Creates a FixedScansController that accepts a list of schedule of
         scan parameters
         :param schedule: a list of ScanParameter objects
-        :param params: mass spec advanced parameters, if any
+        :param advanced_params: mass spec advanced parameters, if any
         """
-        super().__init__(params=params)
+        super().__init__(advanced_params=advanced_params)
         self.tasks = None
         self.initial_task = None
         if schedule is not None and len(schedule) > 0:
@@ -76,10 +80,26 @@ class FixedScansController(Controller):
 
 
 class MS2PlannerController(FixedScansController):
+    """
+    A controller that interfaces with MS2Planner, as described in:
+
+    Zuo, Zeyuan, et al. "MS2Planner: improved fragmentation spectra coverage in
+    untargeted mass spectrometry by iterative optimized data acquisition."
+    Bioinformatics 37.Supplement_1 (2021): i231-i236.
+    """
 
     @staticmethod
     def mzmine2ms2planner(inpath, outpath):
-        '''Transform mzmine2 box file to ms2planner default format.'''
+        """
+        Transform mzmine2 box file to ms2planner default format.
+
+        Args:
+            inpath:
+            outpath:
+
+        Returns: None
+
+        """
 
         records = []
         with open(inpath, "r") as f:
@@ -123,12 +143,20 @@ class MS2PlannerController(FixedScansController):
 
     @staticmethod
     def minimise_distance(target, *args):
-        '''Solve argmin(a1, a2 ... an)(a1x1 + ... + anxn - t) for
+        """
+        Solve argmin(a1, a2 ... an)(a1x1 + ... + anxn - t) for
         non-negative integer a1...an and non-negative reals x1...xn, t
         using backtracking search. i.e. Schedule tasks of different fixed
         lengths s.t. the last task ends as close to the target time
         as possible.
-        '''
+
+        Args:
+            target:
+            *args:
+
+        Returns: the best coefficients
+
+        """
         best_coefficients = (float("inf"), [])
         stack = [MS2PlannerController.minimise_single(args[0], target)] if len(
             args) > 0 else []
@@ -173,8 +201,17 @@ class MS2PlannerController(FixedScansController):
 
     @staticmethod
     def sched_dict2params(schedule, scan_duration_dict):
-        '''Scan_duration_dict matches the format of MS scan_duration_dict
-        with _fixed_ scan lengths.'''
+        """
+        Scan_duration_dict matches the format of MS scan_duration_dict
+        with _fixed_ scan lengths.
+
+        Args:
+            schedule:
+            scan_duration_dict:
+
+        Returns: new schedule
+
+        """
         time, new_sched = 0, []
         srted = sorted(schedule, key=lambda s: s["rt_start"])
         print("Schedule times: {}".format([s["rt_start"] for s in srted]))
@@ -270,6 +307,10 @@ class MS2PlannerController(FixedScansController):
 
 
 class MatchingController(FixedScansController):
+    """
+    A pre-scheduled controller that performs maximum matching to obtain the largest
+    coverage
+    """
     @staticmethod
     def from_matching(matching, isolation_width, params=None):
         return [MatchingController(schedule=schedule, params=params) for
@@ -278,9 +319,21 @@ class MatchingController(FixedScansController):
 
 
 class MultiIsolationController(Controller):
+    """
+    A controller used to test multiple isolations in a single MS2 scan.
+    """
     def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH,
-                 params=None):
-        super().__init__(params=params)
+                 advanced_params=None):
+        """
+        Initialise a multi-isolation controller
+        Args:
+            N: the number of precursor ions to fragment
+            isolation_width: isolation width, in Dalton
+            advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
+                             advanced parameters to control the mass spec. If left to None,
+                             default values will be used.
+        """
+        super().__init__(advanced_params=advanced_params)
         assert N > 1
         self.N = N
         self.isolation_width = isolation_width

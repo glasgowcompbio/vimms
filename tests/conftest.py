@@ -12,7 +12,7 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
 from vimms.Chemicals import ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, \
     ADDUCT_DICT_POS_MH, ScanParameters
-from vimms.Roi import RoiParams
+from vimms.Roi import RoiBuilderParams
 
 # define some useful constants
 
@@ -21,8 +21,6 @@ BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
 HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
 OUT_DIR = str(Path(DIR_PATH, 'results'))
 
-ROI_SOURCES = [str(Path(BASE_DIR, 'beer_t10_simulator_files'))]
-# MIN_MS1_INTENSITY = 1.75E5
 MIN_MS1_INTENSITY = 1
 
 MZ_RANGE = [(0, 1050)]
@@ -176,7 +174,7 @@ def even_chems():
 def chems_from_mzml():
     np.random.seed(0)
     rand.seed(0)
-    roi_params = RoiParams(min_intensity=10, min_length=5)
+    roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
     cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
     return cm.sample(None, 2)
 

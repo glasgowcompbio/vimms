@@ -54,7 +54,7 @@ def top_n_evaluation(param_dict):
     topn = TopNController(param_dict['ionisation_mode'], param_dict['N'],
                           param_dict['isolation_width'],
                           param_dict['mz_tol'], param_dict['rt_tol'],
-                          param_dict['min_ms1_intensity'], params=params)
+                          param_dict['min_ms1_intensity'], advanced_params=params)
     chemical_coverage = run_env(mass_spec, topn, param_dict['min_rt'],
                                 param_dict['max_rt'],
                                 param_dict['save_file_name'])
@@ -82,7 +82,7 @@ def top_n_evaluation(param_dict):
 #                                        param_dict[
 #                                            'min_roi_length_for_fragmentation'],
 #                                        param_dict['reset_length_seconds'],
-#                                        param_dict['iif'], length_units="scans",
+#                                        param_dict['iif'],
 #                                        drop_perc=param_dict['dp'] / 100,
 #                                        ms1_shift=0, params=params)
 #     chemical_coverage = run_env(mass_spec, smartroi, param_dict['min_rt'],
@@ -118,7 +118,7 @@ def smart_roi_evaluation(param_dict):
                                             'intensity_increase_factor'],
                                         drop_perc=param_dict['drop_perc'],
                                         ms1_shift=param_dict['ms1_shift'],
-                                        params=params)
+                                        advanced_params=params)
     run_env(mass_spec, smart_roi, param_dict['min_rt'], param_dict['max_rt'],
             param_dict['save_file_name'])
     coverage = run_coverage_evaluation(param_dict['box_file'],
@@ -139,7 +139,7 @@ def weighted_dew_evaluation(param_dict):
                                          exclusion_t_0=param_dict[
                                              'exclusion_t_0'],
                                          log_intensity=param_dict[
-                                             'log_intensity'], params=params)
+                                             'log_intensity'], advanced_params=params)
     run_env(mass_spec, weighted_dew, param_dict['min_rt'], param_dict['max_rt'],
             param_dict['save_file_name'])
     coverage = run_coverage_evaluation(param_dict['box_file'],

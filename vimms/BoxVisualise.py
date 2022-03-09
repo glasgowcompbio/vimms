@@ -100,8 +100,8 @@ class ColourMap():
 
 
 class FixedMap(ColourMap):
-    '''Allows specifying a mapping from an enumeration of some property of
-    interest to some list of colours.'''
+    """Allows specifying a mapping from an enumeration of some property of
+    interest to some list of colours."""
 
     def __init__(self, mapping):
         self.mapping = mapping
@@ -116,8 +116,8 @@ class FixedMap(ColourMap):
 
 
 class InterpolationMap(ColourMap):
-    '''Allows assigning colours by interpolating between pairs of n colours
-    specified across a value range of some property of interest.'''
+    """Allows assigning colours by interpolating between pairs of n colours
+    specified across a value range of some property of interest."""
 
     def __init__(self, colours):
         self.colours = list(colours)

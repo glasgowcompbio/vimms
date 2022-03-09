@@ -2,20 +2,31 @@ import bisect
 import itertools
 import math
 import random
+import csv
 from abc import abstractmethod
 from collections import OrderedDict
 
+from PIL import ImageColor
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Common import path_or_mzml
+from vimms.Box import GenericBox
 
 
 class RGBAColour():
     def __init__(self, R, G, B, A=1.0): 
         self.R, self.G, self.B, self.A = R, G, B, A
+        
+    @classmethod
+    def from_hexcode(cls, hexcode, A=1.0):
+        R, G, B = ImageColor.getcolor(hexcode, "RGB")
+        return RGBAColour(R, G, B, A)
+        
+    def to_hexcode(self):
+        return f"#{self.R:02x}{self.G:02x}{self.B:02x}"
 
     def __repr__(self):
         return f"RGBAColour(R={self.R}, G={self.G}, B={self.B}, A={self.A})"
@@ -61,7 +72,7 @@ class RGBAColour():
         new_c = sum((c * w for c, w in zip(colours, weights)), start)
         new_c.correct_bounds()
         return new_c
-
+        
 
 class ColourMap():
     PURE_RED = RGBAColour(255, 0, 0)
@@ -378,6 +389,9 @@ class PlotBox():
             plot_boxes.append(ps_boxes)
 
         return plot_boxes
+        
+    def serialise_info(self):
+        return [self.min_rt, self.max_rt, self.min_mz, self.max_mz, self.intensity]
 
     def box_in_bounds(self, min_rt=None, max_rt=None, min_mz=None,
                       max_mz=None):
@@ -423,3 +437,44 @@ class PlotBox():
         ax.set_xlim(xbounds)
         ax.set_ylim(ybounds)
         ax.set(xlabel="RT (Seconds)", ylabel="m/z")
+
+
+def boxes2csv(fname, boxes, colours=None):
+    with open(fname, "w") as f:
+        w = csv.writer(f)
+        headers = ["rtLo", "rtHi", "mzLo", "mzHi", "intensity"]
+        if(colours is None): 
+            colours = itertools.repeat(None)
+        else:
+            headers.extend(["color", "opacity"])
+        w.writerow(headers)
+        
+        for b, c in zip(boxes, colours):
+            ls = b.serialise_info()
+            if(not c is None):
+                ls.extend([c.to_hexcode(), c.A])
+            w.writerow(ls)
+
+    
+def csv2boxes(fname):
+    with open(fname, "r") as f:
+        r = csv.DictReader(f)
+        
+        boxes, colours = [], []
+        for row in r:
+            boxes.append(
+                GenericBox(
+                    row["rtLo"],
+                    row["rtHi"],
+                    row["mzLo"],
+                    row["mzHi"]
+                )
+            )
+            
+            if("color" in row):
+                A = float(row.get("opacity", 1.0))
+                colours.append(
+                    RGBAColour.from_hexcode(row["color"], A=A)
+                )
+                
+    return boxes, colours

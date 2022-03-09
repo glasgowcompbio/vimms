@@ -107,6 +107,9 @@ class Box():
 
     def __hash__(self):
         return (self.pt1, self.pt2).__hash__()
+        
+    def serialise_info(self):
+        return [self.min_rt, self.max_rt, self.min_mz, self.max_mz, self.intensity]
 
     def area(self):
         return (

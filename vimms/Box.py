@@ -112,10 +112,7 @@ class Box():
         return [self.min_rt, self.max_rt, self.min_mz, self.max_mz, self.intensity]
 
     def area(self):
-        return (
-            (self.pt2.x - self.pt1.x)
-            * (self.pt2.y - self.pt1.y)
-        )
+        return (self.pt2.x - self.pt1.x) * (self.pt2.y - self.pt1.y)
 
     def copy(self, xshift=0, yshift=0):
         return type(self)(
@@ -192,9 +189,17 @@ class GenericBox(Box):
                 and self.pt2.x >= other_box.pt2.x
                 and self.pt2.y >= other_box.pt2.y
         )
+        
+    def overlap_raw(self, other_box):
+        if(not self.overlaps_with_box(other_box)): 
+            return 0.0
+        return (
+            (min(self.pt2.x, other_box.pt2.x) - max(self.pt1.x, other_box.pt1.x))
+            * (min(self.pt2.y, other_box.pt2.y) - max(self.pt1.y, other_box.pt1.y))
+        )
 
     def overlap_2(self, other_box):
-        if (not self.overlaps_with_box(other_box)): 
+        if(not self.overlaps_with_box(other_box)): 
             return 0.0
         b = type(self)(
                 max(self.pt1.x, other_box.pt1.x), 
@@ -205,7 +210,7 @@ class GenericBox(Box):
         return b.area() / (self.area() + other_box.area() - b.area())
 
     def overlap_3(self, other_box):
-        if (not self.overlaps_with_box(other_box)): 
+        if(not self.overlaps_with_box(other_box)): 
             return 0.0
         b = type(self)(
                 max(self.pt1.x, other_box.pt1.x), 
@@ -388,8 +393,156 @@ class LocatorGrid(Grid):
             for s in row:
                 s.add(box)
                 
-    #TODO: probably can clear without reallocating array, because that's slow
+    def clear(self):
+        for i, row in enumerate(self.boxes):
+            for j, _ in enumerate(row):
+                self.boxes[i, j] = set()
 
+class LineSweeper():
+    EndPoint = namedtuple("EndPoint", ["pos", "is_end", "box"])
+    
+    def __init__(self):
+        self.all_boxes, self.active, self.was_active = [], [], []
+        self.active_intervals = intervaltree.IntervalTree()
+        self.previous_loc, self.current_loc = -1, 0
+        self.last_accessed = dict()
+        self.active_pointer = 0
+        self.removed = set()
+
+    def get_all_boxes(self):
+        return self.all_boxes
+        
+    def _add_active(self, new_ptr, current_loc):
+        for b in itertools.islice(self.all_boxes, self.active_pointer, new_ptr):
+            self.active.append(b)
+            self.active_intervals.addi(b.pt1.y, b.pt2.y + 1E-12, b)
+            self.last_accessed[b] = current_loc
+        self.active.sort(key=attrgetter("pt2.x"), reverse=True)
+        self.active_pointer = new_ptr
+    
+    def _remove_active(self):
+        b = self.active.pop()
+        self.was_active.append(b)
+        if(not b in self.removed):
+            self.active_intervals.removei(b.pt1.y, b.pt2.y + 1E-12, b)
+            self.removed.add(b)
+    
+    def set_active_boxes(self, current_loc):
+        if(current_loc < self.current_loc):
+            self.active_pointer = 0
+            self.active = []
+            self.active_intervals = intervaltree.IntervalTree()
+            self.previous_loc = -1
+            self.current_loc = 0
+            self.removed = set()
+            
+        new_ptr = self.active_pointer
+        while(new_ptr < len(self.all_boxes) and self.all_boxes[new_ptr].pt1.x <= current_loc):
+            new_ptr += 1
+        self._add_active(new_ptr, current_loc)
+        
+        self.was_active = []
+        while(self.active != [] and self.active[-1].pt2.x <= current_loc):
+            self._remove_active()
+        self.previous_loc = self.current_loc
+        self.current_loc = current_loc
+        
+    def point_in_box(self, pt):
+        return self.active_interval.overlaps_point(pt.y)
+        
+    def point_in_which_boxes(self, pt):
+        return [inv.data for inv in self.active_intervals.at(pt.y)]
+        
+    def interval_overlaps_which_boxes(self, inv):
+        return [inv.data for inv in self.active_intervals.overlap(inv.pt1.y, inv.pt2.y)]
+        
+    def interval_covers_which_boxes(self, inv):
+        return [inv.data for inv in self.active_intervals.envelop(inv.pt1.y, inv.pt2.y)]
+    
+    @classmethod
+    def _to_endpoint(cls, boxes, coord):
+        eps = []
+        for b in boxes:
+            eps.append(cls.EndPoint(getattr(b.pt1, coord), False, b))
+            eps.append(cls.EndPoint(getattr(b.pt2, coord), True, b))
+        eps.sort(key=lambda ep: ep[:2])
+        return eps
+       
+    @staticmethod
+    def _group_endpoints(endpts):
+        return (
+            list(v) for k, v in itertools.groupby(endpts, key=attrgetter("pos"))
+        )
+        
+    @staticmethod
+    def _unify_intervals(endpts):
+        begin, count = -1, 0
+        for pos, end, _ in endpts:
+            if(end):
+                count -= 1
+                if(count == 0): yield (begin, pos)
+            else:
+                if(count == 0): begin = pos
+                count += 1
+   
+    def reduce_all_boxes(self):
+        new_id, new_boxes = 0, []
+        prev_intervals = intervaltree.IntervalTree()
+        
+        x_ends = self._to_endpoint(self.all_boxes, "x")
+        for x_group in self._group_endpoints(x_ends):
+            for x_pos, x_end, x_box in x_group:
+                if(x_end): self._remove_active()
+                else: self._add_active(self.active_pointer + 1, x_pos)
+        
+            x_pos, _, __ = x_group[0]
+            to_query = self._to_endpoint((x.box for x in x_group), "y")
+            
+            invs = self._unify_intervals(to_query)
+            for begin, end in invs:
+                for inv in prev_intervals.overlap(begin, end - 1E-12):
+                    prev_x_pos, parents = inv.data
+                    new_boxes.append(
+                        GenericBox(
+                            prev_x_pos,
+                            x_pos,
+                            max(begin, inv.begin),
+                            min(end, inv.end),
+                            parents = parents,
+                            intensity = max(b.intensity for b in parents),
+                            id = new_id
+                        )
+                    )
+                    new_id += 1
+                    prev_intervals.chop(begin, end)
+            
+                overlapped = self.interval_overlaps_which_boxes(
+                    Interval(x_pos, x_pos, begin + 1E-12, end - 1E-12)
+                )
+                y_ends = self._to_endpoint(overlapped, "y")
+                
+                prev_y_pos, y_active = -1, []
+                for y_group in self._group_endpoints(y_ends):
+                    y_pos, _, __ = y_group[0]
+                          
+                    if(prev_y_pos >= end): break
+                    if(y_active != [] and y_pos > begin):
+                        prev_intervals.addi(
+                            max(begin, prev_y_pos),
+                            min(end, y_pos), 
+                            (x_pos, copy.copy(y_active))
+                        )
+                            
+                    for y_pos, y_end, y_box in y_group:
+                        if(y_end): y_active.remove(y_box)
+                        else: y_active.append(y_box)
+                    
+                    prev_y_pos = y_pos
+                
+        return new_boxes
+        
+    def register_boxes(self, boxes):
+        self.all_boxes = sorted(itertools.chain(self.all_boxes, boxes), key=attrgetter("pt1.x"))
 
 class BoxGeometry(metaclass=ABCMeta):
     '''
@@ -419,8 +572,6 @@ class BoxGeometry(metaclass=ABCMeta):
     @abstractmethod
     def interval_covers_which_boxes(self, inv):
         pass
-        
-    #TODO: another method to find intensity of boxes with max/sum option, provided some points
         
     @abstractmethod
     def non_overlap(self, box): 
@@ -482,8 +633,6 @@ class BoxApproximatorArray(BoxApproximator):
         
         
 class BoxExact(BoxGeometry):
-    #TODO: we can move the manual intersection checks out of non-overlap, etc (look for instances of overlaps_with_box to remove)
-
     @abstractmethod
     def _get_overlapping_boxes(self, box):
         pass
@@ -491,22 +640,20 @@ class BoxExact(BoxGeometry):
     @staticmethod
     def non_overlap_boxes(box, other_boxes):
         new_boxes = [box]
-        # filter boxes down via grid with large boxes for this loop + boxes
-        # could be potentially sorted by size (O(n) insert time in worst-case)?
         for b in other_boxes:
-            if (box.overlaps_with_box(
-                    b)):  # quickly exits any box not overlapping new box
+            if(box.overlaps_with_box(b)): #quickly exits any box not overlapping new box
                 updated_boxes = []
                 for b2 in new_boxes:
-                    if (not b.contains_box(
-                            b2)):  # if your box is contained within a
-                        # previous box area is 0 and box is not carried over
+                    #if your box is contained within a
+                    #previous box area is 0 and box is not carried over
+                    if(not b.contains_box(b2)):  
                         split_boxes = b2.non_overlap_split(b)
-                        if (split_boxes is not None):
+                        if(split_boxes is not None):
                             updated_boxes.extend(split_boxes)
                         else:
                             updated_boxes.append(b2)
-                if (not updated_boxes): return []
+                if(not updated_boxes):
+                    return []
                 new_boxes = updated_boxes
         return new_boxes
 
@@ -515,35 +662,6 @@ class BoxExact(BoxGeometry):
         boxes = BoxExact.non_overlap_boxes(box, other_boxes)
         if(boxes == []): return 0.0
         else: return sum(b.area() for b in boxes) / box.area()
-    
-    @staticmethod
-    def split_all_boxes(box, other_boxes):
-        this_non, other_non, overlaps = [box], [], []
-        for other in other_boxes:
-            if (box.overlaps_with_box(other)):
-                updated_this, others = [], [other]
-                for i, this in enumerate(this_non):
-                    if (others == []):
-                        updated_this.extend(this_non[i:])
-                        break
-                    updated_others, split = [], False
-                    for o in others:
-                        this_bs, other_bs, both_b = this.split_all(o)
-                        if (both_b is not None):
-                            overlaps.append(both_b)
-                            split = True
-                            updated_this.extend(this_bs)
-                            updated_others.extend(other_bs)
-                        else:
-                            updated_others.append(o)
-                    if(not split):
-                        updated_this.append(this)
-                    others = updated_others
-                other_non.extend(others)
-                this_non = updated_this
-            else:
-                other_non.append(other)
-        return this_non, other_non, overlaps
         
     def non_overlap(self, box):
         return float(self.splitting_non_overlap(box, self._get_overlapping_boxes(box)))
@@ -554,17 +672,18 @@ class BoxExact(BoxGeometry):
                                         current_intensity, 
                                         scoring_params
                                        ):
-        box = box.copy()
-        box.intensity = 0.0
-        
-        this_non, _, overlaps = BoxExact.split_all_boxes(box, other_boxes)
-        
-        non_overlap = current_intensity ** (sum(b.area() for b in this_non) / box.area())
+        """Will give nonsense results if other_boxes overlap each other."""
+        areas = [box.overlap_raw(b) for b in other_boxes]
+        non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
+        non_overlap = current_intensity ** non_overlapped
         refragment = sum(
-            max(0.0, current_intensity - b.intensity) ** (b.area() / box.area()) 
-            for b in overlaps
+            max(0.0, current_intensity - b.intensity) ** (area / box.area())
+            for b, area in zip(other_boxes, areas)
         )
-        return non_overlap + scoring_params["theta1"] * refragment
+        return (
+            non_overlap 
+            + scoring_params["theta1"] * refragment
+        )
         
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         return BoxExact.splitting_intensity_non_overlap(
@@ -575,72 +694,73 @@ class BoxExact(BoxGeometry):
         )
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
-        box = box.copy()
-        box.intensity = 0.0
         other_boxes = self.get_overlapping_boxes(box)
-        this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
-        non_overlap = np.log(current_intensity **
-                             (sum(b.area() for b in this_non) / box.area()))
-        refragment = scoring_params['theta1'] * sum(
-            max(0.0, np.log(current_intensity) - np.log(max(1.0, b.intensity))
-                * b.area() / box.area()) for b in overlaps)
-        refragment2 = scoring_params['theta2'] * sum(
-            np.log(current_intensity) - np.log(max(1.0, b.intensity)) *
-            (b.area() / box.area()) for b in overlaps)
-        new_peak = []
-        for b in overlaps:
-            if b.intensity == 0.0:
-                new_peak.append(
-                    np.log(current_intensity) * (b.area() / box.area()))
-        new_peak_score = scoring_params['theta3'] * sum(new_peak)
-        return non_overlap + refragment + refragment2 + new_peak_score
+        areas = [box.overlap_raw(b) for b in other_boxes]
+        non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
+        norm_areas = [ar / box.area() for ar in areas]
+        #NB: this seems wrong, but i tried to preserve it as it was - vinny?
+        intensity_diff = [
+            np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
+            for na in norm_areas
+        ]
+        
+        non_overlap = np.log(current_intensity) * non_overlapped
+        refragment = sum(
+            max(0.0, int_diff) for int_diff in intensity_differences
+        )
+        refragment2 = sum(intensity_differences)
+        
+        new_peak_score = sum(
+            np.log(current_intensity) * na 
+            for b, na in zip(other_boxes, norm_areas)
+            if math.isclose(0.0, b.intensity)
+        )
+        
+        return (
+            non_overlap 
+            + scoring_params["theta1"] * refragment 
+            + scoring_params["theta2"] * refragment2 
+            + scoring_params["theta3"] * new_peak_score
+        )
 
     def case_control_non_overlap(self, box, current_intensity, scoring_params):
-        box = box.copy()
-        box.intensity = 0.0
         other_boxes = self.get_overlapping_boxes(box)
-        this_non, _, overlaps = self.split_all_boxes(box, other_boxes)
-        non_overlap = np.log(current_intensity **
-                             (sum(b.area() for b in this_non) / box.area()))
-        refragment = scoring_params['theta1'] * sum(
-            max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity))
-                * b.area() / box.area()) for b in overlaps)
-        refragment2 = scoring_params['theta2'] * sum(
-            np.log(current_intensity) - max(0.0, np.log(b.intensity)) *
-            (b.area() / box.area()) for b in overlaps)
-        new_peak = []
-        for b in overlaps:
-            if b.intensity == 0.0:
-                new_peak.append(
-                    np.log(current_intensity) * (b.area() / box.area()))
-        new_peak_score = scoring_params['theta3'] * sum(new_peak)
-        if box.pvalue is None:
-            return non_overlap + refragment + refragment2 + new_peak_score
-        else:
-            model_score = scoring_params['theta4'] * (1 - box.pvalue) * sum(
-                max(0.0, np.log(current_intensity) -
-                    max(0.0, np.log(
-                        b.intensity)) * b.area() / box.area())
-                for b in overlaps)
-            return non_overlap + refragment + refragment2 + \
-                   new_peak_score + model_score
-
-    def boxes_by_overlaps(self, boxes=None):
-        binned = []
-        boxes = (
-            self.all_boxes() 
-            if boxes is None 
-            else reduce(
-                lambda bs, b: [bx for t in self.split_all_boxes(b, bs) for bx in t],
-                boxes, 
-                []
-            )
+        areas = [box.overlap_raw(b) for b in other_boxes]
+        non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
+        norm_areas = [ar / box.area() for ar in areas]
+        #NB: this seems wrong, but i tried to preserve it as it was - vinny?
+        intensity_diff = [
+            np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
+            for na in norm_areas
+        ]
+        
+        non_overlap = np.log(current_intensity) * non_overlapped
+        refragment = sum(
+            max(0.0, int_diff) for int_diff in intensity_differences
         )
-        for b in boxes:
-            while (len(binned) < b.num_overlaps()):
-                binned.append([])
-            binned[b.num_overlaps() - 1].append(b)
-        return binned
+        refragment2 = sum(intensity_differences)
+        
+        new_peak_score = sum(
+            np.log(current_intensity) * na 
+            for b, na in zip(other_boxes, norm_areas)
+            if math.isclose(0.0, b.intensity)
+        )
+        
+        if box.pvalue is None:
+            model_score = 0.0
+        else:
+            model_score = sum(
+                max(0.0, np.log(current_intensity) - max(0.0, np.log(b.intensity)) * na)
+                for b, na in zip(other_boxes, norm_areas)
+            ) * (1 - box.pvalue)
+                   
+        return (
+            non_overlap 
+            + scoring_params["theta1"] * refragment 
+            + scoring_params["theta2"] * refragment2 
+            + scoring_params["theta3"] * new_peak_score
+            + scoring_params["theta4"] * model_score
+        )
         
             
 class BoxGrid(BoxExact): 
@@ -678,7 +798,6 @@ class BoxGrid(BoxExact):
         return set(
             b for b in self.grid.get_boxes(box) if box.overlaps_with_box(b)
         )
-        #return self.grid.get_boxes(box)
         
     def register_boxes(self, boxes):
         for b in boxes:
@@ -753,69 +872,28 @@ class BoxIntervalTrees(BoxExact):
         self.__init__()
 
         
-class LineSweeper(BoxExact):
-    # aiming for [1011, 1874, 2297, 2514, 2635, 2721]
-    #TODO: we should split the linesweeper from the ExactGeometry subclass
-    EndPoint = namedtuple("EndPoint", ["pos", "is_end", "box"])
-    
+class BoxLineSweeper(BoxExact):
     def __init__(self):
-        self.all_boxes, self.active, self.was_active = [], [], []
-        self.active_intervals = intervaltree.IntervalTree()
-        self.previous_loc, self.current_loc = -1, 0
-        self.last_accessed = dict()
-        self.active_pointer = 0
-        self.removed = set()
-        
+        self.lswp = LineSweeper()
         self.running_scores = dict()
         
     def get_all_boxes(self):
-        return self.all_boxes
-        
-    def _add_active(self, new_ptr, current_loc):
-        for b in itertools.islice(self.all_boxes, self.active_pointer, new_ptr):
-            self.active.append(b)
-            self.active_intervals.addi(b.pt1.y, b.pt2.y + 1E-12, b)
-            self.last_accessed[b] = current_loc
-        self.active.sort(key=attrgetter("pt2.x"), reverse=True)
-        self.active_pointer = new_ptr
-    
-    def _remove_active(self):
-        b = self.active.pop()
-        self.was_active.append(b)
-        if(not b in self.removed):
-            self.active_intervals.removei(b.pt1.y, b.pt2.y + 1E-12, b)
-            self.removed.add(b)
+        return self.lswp.get_all_boxes()
     
     def set_active_boxes(self, current_loc):
-        if(current_loc < self.current_loc):
-            self.active_pointer = 0
-            self.active = []
-            self.active_intervals = intervaltree.IntervalTree()
-            self.previous_loc = -1
-            self.current_loc = 0
-            
-        new_ptr = self.active_pointer
-        while(new_ptr < len(self.all_boxes) and self.all_boxes[new_ptr].pt1.x <= current_loc):
-            new_ptr += 1
-        self._add_active(new_ptr, current_loc)
-        
-        self.was_active = []
-        while(self.active != [] and self.active[-1].pt2.x <= current_loc):
-            self._remove_active()
-        self.previous_loc = self.current_loc
-        self.current_loc = current_loc
+        self.lswp.set_active_boxes(current_loc)
         
     def point_in_box(self, pt):
-        return self.active_interval.overlaps_point(pt.y)
+        return self.lswp.point_in_box(pt)
         
     def point_in_which_boxes(self, pt):
-        return [inv.data for inv in self.active_intervals.at(pt.y)]
+        return self.lswp.point_in_which_boxes(pt)
         
     def interval_overlaps_which_boxes(self, inv):
-        return [inv.data for inv in self.active_intervals.overlap(inv.pt1.y, inv.pt2.y)]
+        return self.lswp.interval_overlaps_which_boxes(inv)
         
     def interval_covers_which_boxes(self, inv):
-        return [inv.data for inv in self.active_intervals.envelop(inv.pt1.y, inv.pt2.y)]
+        return self.lswp.interval_covers_which_boxes(inv)
         
     def _get_overlapping_boxes(self, box):
         raise NotImplementedError("Not used in this class: this line shouldn't be reached.")
@@ -823,117 +901,38 @@ class LineSweeper(BoxExact):
     def non_overlap(self, box):
         '''NB: This won't work if the boxes are capable of moving between time updates.'''
         sliced = box.copy()
-        sliced.pt1.x = self.previous_loc
+        sliced.pt1.x = self.lswp.previous_loc
         
         other_boxes = (
-            self.interval_overlaps_which_boxes(
+            self.lswp.interval_overlaps_which_boxes(
                 Interval(
-                    self.current_loc,
-                    self.current_loc,
+                    self.lswp.current_loc,
+                    self.lswp.current_loc,
                     sliced.pt1.y,
                     sliced.pt2.y
                 )
             ) 
-            + self.was_active
+            + self.lswp.was_active
         ) #TODO: If the manual intersection check is removed from this non-overlap, then filter to intersecting boxes
-        sliced_uncovered = sum(b.area() for b in BoxGrid.non_overlap_boxes(sliced, other_boxes))
+        sliced_uncovered = sum(b.area() for b in BoxExact.non_overlap_boxes(sliced, other_boxes))
         
         running_uncovered, running_total = self.running_scores.get(sliced.id, (0, 0))
         running_uncovered += sliced_uncovered
         running_total += sliced.area()
         self.running_scores[sliced.id] = (running_uncovered, running_total)
         
-        return float(running_uncovered / running_total)
+        return running_uncovered / running_total
         
     def intensity_non_overlap(self, box):
-        raise NotImplementedError("LineSweeper doesn't implement this yet!")
-        
-    @classmethod
-    def _to_endpoint(cls, boxes, coord):
-        eps = []
-        for b in boxes:
-            eps.append(cls.EndPoint(getattr(b.pt1, coord), False, b))
-            eps.append(cls.EndPoint(getattr(b.pt2, coord), True, b))
-        eps.sort(key=lambda ep: ep[:2]) #TODO: confirm not issue if boxes start/end at same place
-        return eps
-       
-    @staticmethod
-    def _group_endpoints(endpts):
-        return (
-            list(v) for k, v in itertools.groupby(endpts, key=attrgetter("pos"))
-        )
-        
-    @staticmethod
-    def _unify_intervals(endpts):
-        begin, count = -1, 0
-        for pos, end, _ in endpts:
-            if(end):
-                count -= 1
-                if(count == 0): yield (begin, pos)
-            else:
-                if(count == 0): begin = pos
-                count += 1
-        
-    def reduce_all_boxes(self):
-        new_id, new_boxes = 0, []
-        x_ends = self._to_endpoint(self.all_boxes, "x")
-        
-        for x_group in self._group_endpoints(x_ends):
-            to_query = self._to_endpoint((x.box for x in x_group), "y")
-            invs = self._unify_intervals(to_query)
-            
-            x_pos = x_group[0][0]
-            for begin, end in invs:
-                overlapped = self.interval_overlaps_which_boxes(
-                    Interval(x_pos, x_pos, begin, end)
-                )
-                y_ends = self._to_endpoint(overlapped, "y")
-                
-                prev_y_pos, y_active = 0, []
-                for y_group in self._group_endpoints(y_ends):
-                    y_pos = y_group[0][0]
-                    if(y_active != []):
-                        new_boxes.append(
-                            GenericBox(
-                                self.last_accessed[y_box],
-                                x_pos, 
-                                prev_y_pos, 
-                                y_pos,
-                                parents = copy.copy(y_active),
-                                intensity = max(b.intensity for b in y_active),
-                                id = new_id
-                            )
-                        )
-                        new_id += 1
-                    prev_y_pos = y_pos
-                
-                    for y_pos, y_end, y_box in y_group:
-                        if(y_end): y_active.remove(y_box)
-                        else: y_active.append(y_box)
-                    
-                for _, __, y_box in y_ends:
-                    self.last_accessed[y_box] = x_pos
-            
-            for x_pos, x_end, x_box in x_group:
-                if(x_end): self._remove_active()
-                else: self._add_active(self.active_pointer + 1, x_pos)
-                    
-        return new_boxes
+        raise NotImplementedError("BoxLineSweeper doesn't implement this yet!")
     
     def register_boxes(self, boxes):
-        self.all_boxes = sorted(itertools.chain(self.all_boxes, boxes), key=attrgetter("pt1.x"))
+        self.lswp.register_boxes(boxes)
         
     def clear(self):
         self.__init__()
     
     #TODO:
-    #for controller, we need to know which boxes are active, and which have (temporarily) ceased activity
-    #using these, we can calculate e.g. non-overlap score using a small box slice, and keep a running count of all the scores of the slices so we can combine them
-    #we still calculate slices for RoIs which are "inactive" but not "discarded", but they get a score weight of zero
-    #we also need to search the mz via a similar sorted stack procedure (or interval tree)
-    #for hard exclusion we just care if our points fall in any box, so can mark with boolean
-    #for (intensity-)non-overlap, for each slice we need to return all boxes that intersect it on both dimensions
-    
     #for evaluation
     #for point matching, find which precursors lie in which boxes, then check if fragmentation scans are still in box and have any as parent 
     #for window matching, find which precursors lie in which boxes, find which boxes are overlapped by which intervals, and use largest precursor (or sum of precursors?) in that box

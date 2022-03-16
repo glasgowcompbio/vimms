@@ -39,14 +39,20 @@ class BoxManager():
     
     def interval_covers_which_boxes(self, inv):
         return self.box_geometry.interval_covers_which_boxes(inv)
+        
+    def _query_roi(self, roi):
+        drift_fn = self.get_estimator()
+        return self.box_converter.queryroi2box(roi, drift_fn)
 
     def non_overlap(self, box):
-        return self.box_geometry.non_overlap(box)
+        return self.box_geometry.non_overlap(self._query_roi(box))
 
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         if(not self.box_splitter.split): 
             raise ValueError(self.nosplit_errmsg)
-        return self.box_geometry.intensity_non_overlap(box, current_intensity, scoring_params)
+        return self.box_geometry.intensity_non_overlap(
+            self._query_roi(box), current_intensity, scoring_params
+        )
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
         errmsg = (
@@ -54,7 +60,9 @@ class BoxManager():
             "if the BoxManager isn't set up properly!"
         )
         raise NotImplementedError(errmsg)
-        return self.box_geometry.flexible_non_overlap(box, current_intensity, scoring_params)
+        return self.box_geometry.flexible_non_overlap(
+            self._query_roi(box), current_intensity, scoring_params
+        )
 
     def case_control_non_overlap(self, box, current_intensity, scoring_params):
         errmsg = (
@@ -62,7 +70,9 @@ class BoxManager():
             "if the BoxManager isn't set up properly!"
         )
         raise NotImplementedError(errmsg)
-        return self.box_geometry.case_control_non_overlap(box, current_intensity, scoring_params)
+        return self.box_geometry.case_control_non_overlap(
+            self._query_roi(box), current_intensity, scoring_params
+        )
         
     def register_roi(self, roi):
         self.pending_ms2s.append(roi)
@@ -109,7 +119,7 @@ class BoxManager():
         self._next_model()
         
 class BoxConverter():
-    def __init__(self, ignore=False, unique=True, min_rt_width=0.000001, min_mz_width=0.000001):
+    def __init__(self, ignore=False, unique=True, min_rt_width=1E-07, min_mz_width=1E-07):
         self.ignore, self.unique = ignore, unique
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
     
@@ -124,6 +134,13 @@ class BoxConverter():
                 boxes_by_id[b.id] = b
     
         return [b for _, b in boxes_by_id.items()]
+        
+    def queryroi2box(self, roi, drift_fn):
+        return roi.to_box(
+            self.min_rt_width, 
+            self.min_mz_width,
+            rt_shift = (-drift_fn(roi)[0])
+        )
         
     def rois2boxes(self, rois):
         if(self.ignore): return []

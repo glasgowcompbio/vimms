@@ -156,7 +156,7 @@ class BoxSplitter():
         if(self.split):
             splitter = LineSweeper()
             splitter.register_boxes(boxes)
-            return splitter.reduce_all_boxes()
+            return splitter.split_all_boxes()
         else:
             return boxes
 

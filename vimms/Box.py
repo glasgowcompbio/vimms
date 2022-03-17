@@ -405,7 +405,6 @@ class LineSweeper():
         self.all_boxes, self.active, self.was_active = [], [], []
         self.active_intervals = intervaltree.IntervalTree()
         self.previous_loc, self.current_loc = -1, 0
-        self.last_accessed = dict()
         self.active_pointer = 0
         self.removed = set()
 
@@ -416,7 +415,6 @@ class LineSweeper():
         for b in itertools.islice(self.all_boxes, self.active_pointer, new_ptr):
             self.active.append(b)
             self.active_intervals.addi(b.pt1.y, b.pt2.y + 1E-12, b)
-            self.last_accessed[b] = current_loc
         self.active.sort(key=attrgetter("pt2.x"), reverse=True)
         self.active_pointer = new_ptr
     
@@ -485,7 +483,7 @@ class LineSweeper():
                 if(count == 0): begin = pos
                 count += 1
    
-    def reduce_all_boxes(self):
+    def split_all_boxes(self):
         new_id, new_boxes = 0, []
         prev_intervals = intervaltree.IntervalTree()
         

@@ -39,22 +39,27 @@ def run_msdial(msdial_console_app, mode, params_file, input_dir,
 
 
 def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
-                     msp_folder=None,
+                     msp_folder=None, remove_substring=None,
                      subdir=False, save_project=False):
     """
     Copies each mzML file in the specified mzml_folder to be processed by
-    MSDIAL separately.
-    The results will be placed into mzml_folder
-    :param msdial_console_app: path to MSDIAL console app
-    :param mode: either MSDIAL_DDA_MODE or MSDIAL_DIA_MODE
-    :param params_file: path to MSDIAL params file
-    :param mzml_folder: input directory, each mzML file in this folder will
-    be processed separately by MSDIAL
-    :param subdir: if True, then the input should be a directory containing
-    subdirectories of mzML files to be processed together.
-    :param save_project: if True, then save the MSDIAL project file (can be
-    loaded to GUI later on)
-    :return: None. The results will be placed in mzml_folder
+    MSDIAL separately. The results will be placed into mzml_folder.
+
+    Args:
+        msdial_console_app: path to MSDIAL console app
+        mode: either MSDIAL_DDA_MODE or MSDIAL_DIA_MODE
+        params_file: path to MSDIAL params file
+        mzml_folder: input directory, each mzML file in this folder will
+                     be processed separately by MSDIAL
+        msp_folder: if True, then the input should be a directory containing
+                    subdirectories of mzML files to be processed together.
+        remove_substring: remove the specified substring
+        subdir: whether the mzML folder consists subdirectories or not
+        save_project: if True, then save the MSDIAL project file (can be
+                      loaded to GUI later on)
+
+    Returns: None. The results will be placed in mzml_folder
+
     """
 
     # Process a folder containing mzML files.
@@ -75,8 +80,8 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
                 # that folder
                 new_params_file = params_file
                 if msp_folder is not None:
-                    msp_path = get_path_in_folder(mzml_file, '{}.msp',
-                                                  msp_folder)
+                    msp_path = get_path_in_folder(mzml_file, '{}.msp', msp_folder,
+                                                  remove_substring=remove_substring)
                     # logger.debug('Using {}'.format(msp_path))
 
                     # if the msp file actually exists
@@ -96,7 +101,7 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
                         Path(new_params_file).write_text(params_txt)
 
                 run_msdial(msdial_console_app, mode, new_params_file,
-                           temp_path, output_dir=mzml_folder)
+                           temp_path, output_dir=mzml_folder, save_project=save_project)
 
     # Process a folder containing sub-folders of mzML files.
     # Each subfolder contains mzML files that will be processed together.
@@ -110,7 +115,8 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
             # that folder
             if msp_folder is not None:
                 basename = os.path.basename(subdir)
-                msp_path = get_path_in_folder(basename, '{}.msp', msp_folder)
+                msp_path = get_path_in_folder(basename, '{}.msp', msp_folder,
+                                              remove_substring=remove_substring)
                 # logger.debug('Using {}'.format(msp_path))
 
                 # if the msp file actually exists
@@ -131,10 +137,10 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
 
             run_msdial(msdial_console_app, mode, new_params_file, subdir,
                        output_dir=subdir,
-                       save_project=True)
+                       save_project=save_project)
 
 
-def get_path_in_folder(fname, ext_pattern, target_folder):
+def get_path_in_folder(fname, ext_pattern, target_folder, remove_substring=None):
     """
     Get the front part of fname without extension, add extension specified by
     ext_pattern (if specified), then constructs a new path inside target_folder
@@ -144,6 +150,8 @@ def get_path_in_folder(fname, ext_pattern, target_folder):
     :return: a new path as specified above
     """
     basename = os.path.basename(fname)
+    if remove_substring is not None: # strip certain substring from basename
+        basename = basename.replace(remove_substring, '')
     if ext_pattern is not None:  # append front part with the extension to
         # get a new basename
         front_no_ext = os.path.splitext(basename)[0]

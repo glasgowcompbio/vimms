@@ -132,7 +132,6 @@ class TopNExController(GridController):
         return exclude
 
     def after_injection_cleanup(self):
-        super().after_injection_cleanup()
         for ex in self.exclusion.exclusion_list:
             self.grid.register_box(
                 GenericBox(
@@ -142,6 +141,7 @@ class TopNExController(GridController):
                     ex.to_mz
                 )
             )
+        super().after_injection_cleanup()
         
 
 class HardRoIExcludeController(GridController):

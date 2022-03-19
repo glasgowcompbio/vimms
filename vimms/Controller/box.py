@@ -120,9 +120,24 @@ class GridController(RoiController):
         self.grid.update_after_injection()
 
 
+class IntensityGridController(GridController):
+    def _get_scores(self):
+        if(self.roi_builder.live_roi != []):
+            rt = max(r.max_rt for r in self.roi_builder.live_roi)
+            self.grid.set_active_boxes(rt)
+            
+        if self.roi_builder.roi_type == ROI_TYPE_SMART:
+            overlap_scores = self._overlap_scores()
+            smartroi_scores = self._smartroi_filter()
+            dda_scores = overlap_scores * smartroi_scores
+        else:
+            dda_scores = self._overlap_scores()
+            
+        return self._get_top_N_scores(dda_scores * self._score_filters())
+
+
 class TopNExController(GridController):
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
         exclude = np.array([
             not self.grid.point_in_box(
                 Point(r[-1][0], r[-1][1])
@@ -146,7 +161,6 @@ class TopNExController(GridController):
 
 class HardRoIExcludeController(GridController):
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
         exclude = np.array([
             not self.grid.point_in_box(
                 Point(r[-1][0], r[-1][1])
@@ -156,25 +170,37 @@ class HardRoIExcludeController(GridController):
         return exclude
 
 
+class IntensityRoIExcludeController(IntensityGridController):
+    def _overlap_scores(self):
+        new_intensities = []
+        for r in self.roi_builder.live_roi:
+            r_rt, rt_mz, r_intensity = r[-1]
+            boxes = self.grid.point_in_which_boxes(Point(r_rt, rt_mz))
+            if(len(boxes) == 0):
+                new_intensities.append(r_intensity)
+            else:
+                new_intensities.append(r_intensity - max(b.intensity for b in boxes))
+        return new_intensities
+        
+
 class NonOverlapController(GridController):
     """
     A controller that implements the `non-overlapping` idea to determine how regions-of-interests
     should be fragmented across injections.
     """
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
-        non_overlaps = np.array([
+        weights = np.array([
             self.grid.non_overlap(r) for r in self.roi_builder.live_roi
         ])
-        return non_overlaps
+        return weights
 
 
-class IntensityNonOverlapController(GridController):
+class IntensityNonOverlapController(IntensityGridController):
     """
     A variant of the non-overlap controller but it takes into account intensity changes.
     """
     def _overlap_scores(self):
-        scores = np.log([
+        new_intensities = np.log([
             self.grid.intensity_non_overlap(
                 r,
                 self.roi_builder.current_roi_intensities[i],
@@ -182,21 +208,7 @@ class IntensityNonOverlapController(GridController):
             ) 
             for i, r in enumerate(self.roi_builder.live_roi)
         ])
-        return scores
-
-    def _get_scores(self):
-        if(self.roi_builder.live_roi != []):
-            rt = max(r.max_rt for r in self.roi_builder.live_roi)
-            self.grid.set_active_boxes(rt)
-            
-        if self.roi_builder.roi_type == ROI_TYPE_SMART:
-            overlap_scores = self._overlap_scores()
-            smartroi_scores = self._smartroi_filter()
-            dda_scores = overlap_scores * smartroi_scores
-        else:
-            dda_scores = self._overlap_scores()
-            
-        return self._get_top_N_scores(dda_scores * self._score_filters())
+        return new_intensities
         
 
 class FlexibleNonOverlapController(GridController):
@@ -242,7 +254,6 @@ class FlexibleNonOverlapController(GridController):
             print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
         scores = [
             self.grid.flexible_non_overlap(
                 r,
@@ -297,7 +308,6 @@ class CaseControlNonOverlapController(GridController):
             print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
     def _get_scores(self):
-        fn = self.grid.get_estimator()
         scores = [
             self.grid.case_control_non_overlap(
                 r, 

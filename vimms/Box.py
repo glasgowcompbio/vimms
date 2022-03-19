@@ -184,10 +184,10 @@ class GenericBox(Box):
 
     def contains_box(self, other_box):
         return (
-                self.pt1.x <= other_box.pt1.x
-                and self.pt1.y <= other_box.pt1.y
-                and self.pt2.x >= other_box.pt2.x
-                and self.pt2.y >= other_box.pt2.y
+            self.pt1.x <= other_box.pt1.x
+            and self.pt1.y <= other_box.pt1.y
+            and self.pt2.x >= other_box.pt2.x
+            and self.pt2.y >= other_box.pt2.y
         )
         
     def overlap_raw(self, other_box):

@@ -36,7 +36,7 @@ class Point():
 
     def __repr__(self): 
         return "Point({}, {})".format(self.x, self.y)
-    
+
 
 class Interval():
     errmsg = "Interval has to be flat on one of the dimensions!"
@@ -136,6 +136,12 @@ class Box():
 
     def num_overlaps(self):
         return len(self.parents)
+        
+    @classmethod
+    def from_pickedbox(cls, pbox):
+        min_rt, max_rt = pbox.rt_range_in_seconds
+        min_mz, max_mz = pbox.mz_range
+        return cls(min_rt, max_rt, min_mz, max_mz)
 
     def to_pickedbox(self, peak_id):
         rts = [self.pt1.x, self.pt2.x]

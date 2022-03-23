@@ -126,7 +126,7 @@ class IntensityGridController(GridController):
             rt = max(r.max_rt for r in self.roi_builder.live_roi)
             self.grid.set_active_boxes(rt)
             
-        overlap_scores = np.log(self._overlap_scores())
+        overlap_scores = self._overlap_scores()
         if self.roi_builder.roi_type == ROI_TYPE_SMART:
             smartroi_scores = self._smartroi_filter()
             return self._get_top_N_scores(

@@ -91,7 +91,8 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
 
                         # substitute '{msp_file}' in params text with the
                         # actual msp path
-                        params_txt = params_txt.format(msp_file=msp_path)
+                        params_dir = os.path.abspath(os.path.dirname(params_file))
+                        params_txt = params_txt.format(msp_file=msp_path, params_dir=params_dir)
                         # logger.debug(params_txt)
 
                         # construct new path to params_file inside temp_path,
@@ -126,7 +127,8 @@ def run_msdial_batch(msdial_console_app, mode, params_file, mzml_folder,
 
                     # substitute '{msp_file}' in params text with the actual
                     # msp path
-                    params_txt = params_txt.format(msp_file=msp_path)
+                    params_dir = os.path.abspath(os.path.dirname(params_file))
+                    params_txt = params_txt.format(msp_file=msp_path, params_dir=params_dir)
                     # logger.debug(params_txt)
 
                     # construct new path to params_file inside temp_path,

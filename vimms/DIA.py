@@ -200,37 +200,30 @@ class DiaWindows():
         if window_type == "even":
             internal_bin_walls = [ms1_range[0][0]]
             for window_index in range(0, num_windows):
-                internal_bin_walls.append(ms1_range[0][0] + ((
-                                                                     window_index + 1) / num_windows) * ms1_range_difference)
-            internal_bin_walls[0] = internal_bin_walls[
-                                        0] - range_slack * ms1_range_difference
-            internal_bin_walls[-1] = internal_bin_walls[
-                                         -1] + range_slack * ms1_range_difference
+                internal_bin_walls.append(
+                    ms1_range[0][0] + ((window_index + 1) / num_windows) * ms1_range_difference)
+            internal_bin_walls[0] = internal_bin_walls[0] - range_slack * ms1_range_difference
+            internal_bin_walls[-1] = internal_bin_walls[-1] + range_slack * ms1_range_difference
             internal_bin_walls_extra = None
             if extra_bins > 0:
                 internal_bin_walls_extra = [ms1_range[0][0]]
                 for window_index in range(0, num_windows * (2 ** extra_bins)):
-                    internal_bin_walls_extra.append(ms1_range[0][0] + (
-                            (window_index + 1) / (num_windows * (
-                            2 ** extra_bins))) * ms1_range_difference)
+                    internal_bin_walls_extra.append(ms1_range[0][0] + ((window_index + 1) / (
+                                num_windows * (2 ** extra_bins))) * ms1_range_difference)
                 internal_bin_walls_extra[0] = internal_bin_walls_extra[
                                                   0] - range_slack * ms1_range_difference
                 internal_bin_walls_extra[-1] = internal_bin_walls_extra[
                                                    -1] + range_slack * ms1_range_difference
         elif window_type == "percentile":
-            internal_bin_walls = np.percentile(ms1_mzs,
-                                               np.arange(0,
-                                                         100 + 100 / num_windows,
-                                                         100 / num_windows)).tolist()
-            internal_bin_walls[0] = internal_bin_walls[
-                                        0] - range_slack * ms1_range_difference
-            internal_bin_walls[-1] = internal_bin_walls[
-                                         -1] + range_slack * ms1_range_difference
+            internal_bin_walls = np.percentile(ms1_mzs, np.arange(0, 100 + 100 / num_windows,
+                                                                  100 / num_windows)).tolist()
+            internal_bin_walls[0] = internal_bin_walls[0] - range_slack * ms1_range_difference
+            internal_bin_walls[-1] = internal_bin_walls[-1] + range_slack * ms1_range_difference
             internal_bin_walls_extra = None
             if extra_bins > 0:
-                internal_bin_walls_extra = np.percentile(
-                    ms1_mzs, np.arange(0, 100 + 100 / (num_windows * (2 ** extra_bins)),
-                                       100 / (num_windows * (2 ** extra_bins)))).tolist()
+                internal_bin_walls_extra = np.percentile(ms1_mzs, np.arange(0, 100 + 100 / (
+                            num_windows * (2 ** extra_bins)), 100 / (num_windows * (
+                            2 ** extra_bins)))).tolist()
                 internal_bin_walls_extra[0] = internal_bin_walls_extra[
                                                   0] - range_slack * ms1_range_difference
                 internal_bin_walls_extra[-1] = internal_bin_walls_extra[
@@ -242,9 +235,8 @@ class DiaWindows():
         if dia_design == "basic":
             self.locations = []
             for window_index in range(0, num_windows):
-                self.locations.append([[(internal_bin_walls[window_index],
-                                         internal_bin_walls[
-                                             window_index + 1])]])
+                self.locations.append(
+                    [[(internal_bin_walls[window_index], internal_bin_walls[window_index + 1])]])
         elif dia_design == "kaufmann":
             self.locations = KaufmannWindows(internal_bin_walls,
                                              internal_bin_walls_extra,

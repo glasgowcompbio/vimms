@@ -234,25 +234,13 @@ class DiaController(Controller):
     above. Method uses windows methods from DIA.py to create the pattern
     of windows needed to run the controllers.
     Note: the following method used multiple simultaneous isolation windows
-    TODO: this class is old, needs checking to see if it still works.
     """
 
     def __init__(self, min_mz, max_mz,  # TODO: add scan overlap to DiaWindows
                  window_type, kaufmann_design, num_windows, scan_overlap=0,
                  extra_bins=0, dia_design='kaufmann',
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ):
-        super().__init__()
+                 advanced_params=None):
+        super().__init__(advanced_params=advanced_params)
         self.dia_design = dia_design
         self.window_type = window_type
         self.kaufmann_design = kaufmann_design
@@ -261,20 +249,8 @@ class DiaController(Controller):
         self.scan_overlap = scan_overlap
         self.min_mz = min_mz  # scan from this mz
         self.max_mz = max_mz  # scan to this mz
-        self.ms1_agc_target = ms1_agc_target
-        self.ms1_max_it = ms1_max_it
-        self.ms1_collision_energy = ms1_collision_energy
-        self.ms1_orbitrap_resolution = ms1_orbitrap_resolution
-        self.ms2_agc_target = ms2_agc_target
-        self.ms2_max_it = ms2_max_it
-        self.ms2_collision_energy = ms2_collision_energy
-        self.ms2_orbitrap_resolution = ms2_orbitrap_resolution
-        self.ms2_isolation_mode = ms2_isolation_mode
-        self.ms2_activation_type = ms2_activation_type
-        self.ms2_mass_analyser = ms2_mass_analyser
 
         self.scan_number = self.initial_scan_id
-        self.exp_info = []  # experimental information - isolation windows
 
     def update_state_after_scan(self, last_scan):
         pass
@@ -304,17 +280,10 @@ class DiaController(Controller):
                         mz.append(sum(sub_loc) / 2)
                         isolation_width.append(sub_loc[1] - sub_loc[0])
                         intensity.append(0)
-                    dda_scan_params = get_dda_scan_param(
-                        mz, intensity, precursor_scan_id, isolation_width,
-                        mz_tol, rt_tol,
-                        agc_target=self.ms2_agc_target,
-                        max_it=self.ms2_max_it,
-                        collision_energy=self.ms2_collision_energy,
-                        orbitrap_resolution=self.ms2_orbitrap_resolution,
-                        activation_type=self.ms2_activation_type,
-                        mass_analyser=self.ms2_mass_analyser,
-                        isolation_mode=self.ms2_isolation_mode,
-                        polarity=self.environment.mass_spec.ionisation_mode)
+                    dda_scan_params = self.get_ms2_scan_params(mz, intensity,
+                                                               precursor_scan_id,
+                                                               isolation_width,
+                                                               mz_tol, rt_tol)
 
                     # push this dda scan to the mass spec queue
                     new_tasks.append(dda_scan_params)
@@ -322,13 +291,7 @@ class DiaController(Controller):
                 locations = []
 
             # make the MS1 scan
-            task = get_default_scan_params(
-                polarity=self.environment.mass_spec.ionisation_mode,
-                agc_target=self.ms1_agc_target,
-                max_it=self.ms1_max_it,
-                collision_energy=self.ms1_collision_energy,
-                orbitrap_resolution=self.ms1_orbitrap_resolution)
-
+            task = self.get_ms1_scan_params()
             new_tasks.append(task)
 
             self.scan_number += len(locations) + 1

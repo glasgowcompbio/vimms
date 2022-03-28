@@ -705,14 +705,14 @@ class BoxExact(BoxGeometry):
         #NB: this seems wrong, but i tried to preserve it as it was - vinny?
         intensity_diff = [
             np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
-            for na in norm_areas
+            for b, area in zip(other_boxes, areas)
         ]
         
         non_overlap = np.log(current_intensity) * non_overlapped
         refragment = sum(
-            max(0.0, int_diff) for int_diff in intensity_differences
+            max(0.0, int_diff) for int_diff in intensity_diff
         )
-        refragment2 = sum(intensity_differences)
+        refragment2 = sum(intensity_diff)
         
         new_peak_score = sum(
             np.log(current_intensity) * na 
@@ -735,14 +735,14 @@ class BoxExact(BoxGeometry):
         #NB: this seems wrong, but i tried to preserve it as it was - vinny?
         intensity_diff = [
             np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
-            for na in norm_areas
+            for b, area in zip(other_boxes, areas)
         ]
         
         non_overlap = np.log(current_intensity) * non_overlapped
         refragment = sum(
-            max(0.0, int_diff) for int_diff in intensity_differences
+            max(0.0, int_diff) for int_diff in intensity_diff
         )
-        refragment2 = sum(intensity_differences)
+        refragment2 = sum(intensity_diff)
         
         new_peak_score = sum(
             np.log(current_intensity) * na 

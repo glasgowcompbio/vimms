@@ -8,10 +8,13 @@ from copy import deepcopy
 
 import numpy as np
 
-from vimms.Common import ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS, \
+from vimms.Common import (
+    ROI_EXCLUSION_DEW, GRID_CONTROLLER_SCORING_PARAMS,
     ROI_TYPE_SMART
+)
 from vimms.Controller.roi import RoiController
 from vimms.Roi import RoiBuilder
+from vimms.Box import Point, GenericBox
 
 
 class GridController(RoiController):
@@ -32,8 +35,6 @@ class GridController(RoiController):
                  smartroi_params=None,
                  min_roi_length_for_fragmentation=0,
                  ms1_shift=0,
-                 min_rt_width=0.01,
-                 min_mz_width=0.00001,
                  advanced_params=None,
                  register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
@@ -57,8 +58,6 @@ class GridController(RoiController):
                              which ROI to fragment. Otherwise set to None to use standard ROIs.
             min_roi_length_for_fragmentation: how long a ROI should be before it can be fragmented.
             ms1_shift: advanced parameter -- best to leave it.
-            min_rt_width: minimum RT width when converting a ROI to a box
-            min_mz_width: minimum RT width when converting a ROI to a box
             advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
                              advanced parameters to control the mass spec. If left to None,
                              default values will be used.
@@ -83,8 +82,7 @@ class GridController(RoiController):
                          exclusion_method=exclusion_method,
                          exclusion_t_0=exclusion_t_0)
 
-        self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params, grid=grid)
-        self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
+        self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params)
         self.grid = grid  # helps us understand previous RoIs
         self.register_all_roi = register_all_roi
         self.scoring_params = scoring_params
@@ -92,8 +90,16 @@ class GridController(RoiController):
     def update_state_after_scan(self, scan):
         super().update_state_after_scan(scan)
         self.grid.send_training_data(scan)
+        
+    def _set_fragmented(self, i, roi_id, rt, intensity):
+        super()._set_fragmented(i, roi_id, rt, intensity)
+        self.grid.register_roi(self.roi_builder.live_roi[i])
 
     def _get_scores(self):
+        if(self.roi_builder.live_roi != []):
+            rt = max(r.max_rt for r in self.roi_builder.live_roi)
+            self.grid.set_active_boxes(rt)
+    
         non_overlaps = self._overlap_scores()
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
             smartroi_scores = self._smartroi_filter()
@@ -114,35 +120,98 @@ class GridController(RoiController):
         self.grid.update_after_injection()
 
 
+class IntensityGridController(GridController):
+    def _get_scores(self):
+        if(self.roi_builder.live_roi != []):
+            rt = max(r.max_rt for r in self.roi_builder.live_roi)
+            self.grid.set_active_boxes(rt)
+            
+        overlap_scores = self._overlap_scores()
+        if self.roi_builder.roi_type == ROI_TYPE_SMART:
+            smartroi_scores = self._smartroi_filter()
+            return self._get_top_N_scores(
+                overlap_scores * smartroi_scores * self._min_intensity_filter()
+            )
+        else:
+            return self._get_top_N_scores(
+                overlap_scores * self._score_filters()
+            )
+
+
+class TopNExController(GridController):
+    def _overlap_scores(self):
+        exclude = np.array([
+            not self.grid.point_in_box(
+                Point(r[-1][0], r[-1][1])
+            )
+            for r in self.roi_builder.live_roi
+        ])
+        return exclude
+
+    def after_injection_cleanup(self):
+        for ex in self.exclusion.exclusion_list:
+            self.grid.register_box(
+                GenericBox(
+                    ex.from_rt,
+                    ex.to_rt,
+                    ex.from_mz,
+                    ex.to_mz
+                )
+            )
+        super().after_injection_cleanup()
+        
+
+class HardRoIExcludeController(GridController):
+    def _overlap_scores(self):
+        exclude = np.array([
+            not self.grid.point_in_box(
+                Point(r[-1][0], r[-1][1])
+            )
+            for r in self.roi_builder.live_roi
+        ])
+        return exclude
+
+
+class IntensityRoIExcludeController(IntensityGridController):
+    def _overlap_scores(self):
+        new_intensities = []
+        for r in self.roi_builder.live_roi:
+            r_rt, rt_mz, r_intensity = r[-1]
+            boxes = self.grid.point_in_which_boxes(Point(r_rt, rt_mz))
+            if(len(boxes) == 0):
+                new_intensities.append(r_intensity)
+            else:
+                new_intensities.append(r_intensity - max(b.intensity for b in boxes))
+        return new_intensities
+        
+
 class NonOverlapController(GridController):
     """
     A controller that implements the `non-overlapping` idea to determine how regions-of-interests
     should be fragmented across injections.
     """
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
-        non_overlaps = np.array(
-            [self.grid.non_overlap(
-                r.to_box(self.min_rt_width, self.min_mz_width,
-                         rt_shift=(-fn(r)[0]))) for
-                r in self.roi_builder.live_roi])
-        return non_overlaps
+        weights = np.array([
+            self.grid.non_overlap(r) for r in self.roi_builder.live_roi
+        ])
+        return weights
 
 
-class IntensityNonOverlapController(GridController):
+class IntensityNonOverlapController(IntensityGridController):
     """
     A variant of the non-overlap controller but it takes into account intensity changes.
     """
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
-        scores = np.log([self.grid.intensity_non_overlap(
-            r.to_box(self.min_rt_width, self.min_mz_width,
-                     rt_shift=(-fn(r)[0])),
-            self.roi_builder.current_roi_intensities[i],
-            self.scoring_params) for i, r in
-            enumerate(self.roi_builder.live_roi)])
-        return scores
-
+        new_intensities = np.log([
+            self.grid.intensity_non_overlap(
+                r,
+                self.roi_builder.current_roi_intensities[i],
+                self.scoring_params
+            ) 
+            for i, r in enumerate(self.roi_builder.live_roi)
+        ])
+        return new_intensities
+        
 
 class FlexibleNonOverlapController(GridController):
     """
@@ -160,8 +229,6 @@ class FlexibleNonOverlapController(GridController):
                  smartroi_params=None,
                  min_roi_length_for_fragmentation=1,
                  ms1_shift=0,
-                 min_rt_width=0.01,
-                 min_mz_width=0.00001,
                  advanced_params=None,
                  register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
@@ -179,8 +246,6 @@ class FlexibleNonOverlapController(GridController):
             smartroi_params=smartroi_params,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
             ms1_shift=ms1_shift,
-            min_rt_width=min_rt_width,
-            min_mz_width=min_mz_width,
             advanced_params=advanced_params,
             register_all_roi=register_all_roi,
             scoring_params=scoring_params,
@@ -191,13 +256,14 @@ class FlexibleNonOverlapController(GridController):
             print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
     def _overlap_scores(self):
-        fn = self.grid.get_estimator()
-        scores = [self.grid.flexible_non_overlap(
-            r.to_box(self.min_rt_width, self.min_mz_width,
-                     rt_shift=(-fn(r)[0])),
-            self.roi_builder.current_roi_intensities[i],
-            self.scoring_params) for i, r in
-            enumerate(self.roi_builder.live_roi)]
+        scores = [
+            self.grid.flexible_non_overlap(
+                r,
+                self.roi_builder.current_roi_intensities[i],
+                self.scoring_params
+            ) 
+            for i, r in enumerate(self.roi_builder.live_roi)
+        ]
         return scores
 
 
@@ -217,8 +283,6 @@ class CaseControlNonOverlapController(GridController):
                  smartroi_params=None,
                  min_roi_length_for_fragmentation=1,
                  ms1_shift=0,
-                 min_rt_width=0.01,
-                 min_mz_width=0.00001,
                  advanced_params=None,
                  register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
@@ -236,8 +300,6 @@ class CaseControlNonOverlapController(GridController):
             smartroi_params=smartroi_params,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
             ms1_shift=ms1_shift,
-            min_rt_width=min_rt_width,
-            min_mz_width=min_mz_width,
             advanced_params=advanced_params,
             register_all_roi=register_all_roi,
             scoring_params=scoring_params,
@@ -248,11 +310,14 @@ class CaseControlNonOverlapController(GridController):
             print('Warning: register_all_roi should be set to True id theta3 is not 0')
 
     def _get_scores(self):
-        fn = self.grid.get_estimator()
-        scores = [self.grid.case_control_non_overlap(
-            r.to_box(self.min_rt_width, self.min_mz_width,
-                     rt_shift=(-fn(r)[0])), self.current_roi_intensities[i],
-            self.scoring_params) for i, r in enumerate(self.live_roi)]
+        scores = [
+            self.grid.case_control_non_overlap(
+                r, 
+                self.current_roi_intensities[i],
+                self.scoring_params
+            ) 
+            for i, r in enumerate(self.live_roi)
+        ]
         return self._get_top_N_scores(scores * self._score_filters())
 
 
@@ -272,8 +337,6 @@ class TopNBoxRoiController2(GridController):
                  smartroi_params=None,
                  min_roi_length_for_fragmentation=1,
                  ms1_shift=0,
-                 min_rt_width=0.01,
-                 min_mz_width=0.00001,
                  advanced_params=None,
                  boxes_params=None,
                  boxes=None,
@@ -300,8 +363,6 @@ class TopNBoxRoiController2(GridController):
             smartroi_params=smartroi_params,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
             ms1_shift=ms1_shift,
-            min_rt_width=min_rt_width,
-            min_mz_width=min_mz_width,
             advanced_params=advanced_params)
 
     def _get_scores(self):

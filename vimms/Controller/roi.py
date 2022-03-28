@@ -9,9 +9,11 @@ from loguru import logger
 
 from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller.topN import TopNController
-from vimms.Exclusion import MinIntensityFilter, LengthFilter, SmartROIFilter, \
-    WeightedDEWExclusion, DEWFilter, \
+from vimms.Exclusion import (
+    MinIntensityFilter, LengthFilter, SmartROIFilter,
+    WeightedDEWExclusion, DEWFilter,
     WeightedDEWFilter
+)
 from vimms.Roi import RoiBuilder
 
 
@@ -121,6 +123,9 @@ class RoiController(TopNController):
             ms2_tasks.append(dda_scan_params)
             self.parent.current_task_id += 1
             self.fragmented_count += 1
+            
+    def _set_fragmented(self, i, roi_id, rt, intensity):
+        self.roi_builder.set_fragmented(self.current_task_id, i, roi_id, rt, intensity)
 
     def _process_scan(self, scan):
         if self.scan_to_process is not None:
@@ -140,8 +145,7 @@ class RoiController(TopNController):
 
                 mz, intensity, roi_id = self.roi_builder.get_mz_intensity(i)
                 ms2s.schedule_ms2s(new_tasks, ms2_tasks, mz, intensity)
-                self.roi_builder.set_fragmented(self.current_task_id, i,
-                                                roi_id, rt, intensity)
+                self._set_fragmented(i, roi_id, rt, intensity)
 
                 if ms2s.fragmented_count == self.N - self.ms1_shift:
                     self.schedule_ms1(new_tasks)

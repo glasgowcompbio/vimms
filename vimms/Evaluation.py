@@ -1,6 +1,6 @@
 import csv
 import itertools
-from collections import Counter
+from collections import Counter, OrderedDict
 from functools import reduce
 
 import numpy as np
@@ -8,6 +8,12 @@ import statsmodels.api as sm
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
     map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
+
+from vimms.Common import path_or_mzml
+from vimms.Box import (
+    Point, Interval, GenericBox, 
+    BoxLineSweeper
+)
 
 
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
@@ -345,3 +351,150 @@ def get_precursor_intensities(boxes2scans, boxes, method):
     precursor_intensities = np.array(precursor_intensities)
     scores = np.array(scores)
     return precursor_intensities, scores
+    
+def _new_window(rt, mz, isolation_width):
+    width = isolation_width / 2
+    return Interval(
+        rt,
+        rt,
+        mz - width,
+        mz + width
+    )
+    
+def _new_peak_info():
+    return {
+        "current_intensities" : [],
+        "max_intensity" : 0.0,
+        "times_fragmented" : 0,
+        "fragmentation_intensity" : 0.0
+    }
+
+def peak_info_map(mzmls, boxes, isolation_width=None):
+    geom = BoxLineSweeper()
+    box_map = {GenericBox.from_pickedbox(b) : b for b in boxes}
+    geom.register_boxes(list(box_map.keys()))
+    
+    lookups = []
+    for mzml in mzmls:
+        mzml = path_or_mzml(mzml)
+        lookup = OrderedDict([
+            (GenericBox.from_pickedbox(b), _new_peak_info()) for b in boxes
+        ])
+        for s in mzml.scans:
+            geom.set_active_boxes(s.rt_in_seconds)
+            if(s.ms_level == 1):
+                for b in lookup.keys():
+                    lookup[b]["current_intensities"] = []
+                
+                for mz, intensity in s.peaks:
+                    related_boxes = geom.point_in_which_boxes(
+                        Point(s.rt_in_seconds, mz)
+                    )
+                    
+                    for b in related_boxes:
+                        lookup[b]["current_intensities"].append((mz, intensity))
+                        lookup[b]["max_intensity"] = max(intensity, lookup[b]["max_intensity"])
+            else:
+                mz = s.precursor_mz
+                if(isolation_width is None):
+                    related_boxes = geom.point_in_which_boxes(
+                        Point(s.rt_in_seconds, mz)
+                    )
+
+                    for b in related_boxes:
+                        candidates = [
+                            cint for cmz, cint in lookup[b]["current_intensities"]
+                            if cmz >= mz - 1E-10 and cmz <= mz + 1E-10
+                        ]
+                        lookup[b]["times_fragmented"] += 1
+                        lookup[b]["fragmentation_intensity"] = max(
+                            max(candidates + [0.0]),
+                            lookup[b]["fragmentation_intensity"]
+                        )
+                else:
+                    related_boxes = geom.interval_covers_which_boxes(
+                        _new_window(s.rt_in_seconds, mz, isolation_width)
+                    )
+
+                    for b in related_boxes:
+                        lookup[b]["times_fragmented"] += 1
+                        lookup[b]["fragmentation_intensity"] = max(
+                            max([it for _, it in lookup[b]["current_intensities"]] + [0.0]),
+                            lookup[b]["fragmentation_intensity"]
+                        )
+        lookups.append(lookup)
+                        
+    return [
+            {box_map[b] : results for b, results in lookup.items()}
+            for lookup in lookups
+    ]
+    
+def _lookups_to_array(lookups, attr):
+    return np.array([
+        [inner[attr] for _, inner in d.items()]
+        for d in lookups
+    ])
+
+def evaluation_report(lookups, min_intensity=0.0):
+    raw_intensities = _lookups_to_array(lookups, "fragmentation_intensity")
+    coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
+    coverage = np.array(coverage_intensities, dtype=np.bool)
+    max_possible_intensities = _lookups_to_array(lookups, "max_intensity")
+    
+    chemicals_fragmented = [
+        [ch for ch, inner in d.items() if inner["times_fragmented"] > 0] 
+        for d in lookups
+    ]
+    times_fragmented = np.sum(_lookups_to_array(lookups, "times_fragmented"), axis=0)
+    times_fragmented_summary = Counter(times_fragmented)
+    times_covered = np.sum(coverage, axis=0)
+    times_covered_summary = Counter(times_covered)
+    
+    cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
+    cumulative_raw_intensities = list(itertools.accumulate(raw_intensities, np.fmax))
+    cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
+    
+    num_chems = max_possible_intensities.shape[1]
+    coverage_prop = np.sum(coverage, axis=1) / num_chems
+    cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
+    
+    max_coverage_intensities = reduce(np.fmax, max_possible_intensities)
+    which_non_zero = max_coverage_intensities > 0.0
+    coverage_intensity_prop = [
+        np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero]) 
+        for c_i in coverage_intensities
+    ]
+    cumulative_raw_intensities_prop = [
+        np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero])
+        for c_i in cumulative_raw_intensities
+    ]
+    cumulative_coverage_intensities_prop = [
+        np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero])
+        for c_i in cumulative_coverage_intensities
+    ]
+
+    return {
+        "coverage" : coverage,
+        "raw_intensity" : raw_intensities,
+        "intensity" : coverage_intensities,
+        "max_possible_intensity" : max_possible_intensities,
+        
+        "chemicals_fragmented" : chemicals_fragmented,
+        "times_fragmented" : times_fragmented,
+        "times_fragmented_summary" : times_fragmented_summary,
+        "times_covered" : times_covered,
+        "times_covered_summary" : times_covered_summary,
+        
+        "cumulative_coverage" : cumulative_coverage,
+        "cumulative_raw_intensity" : cumulative_raw_intensities,
+        "cumulative_intensity" : cumulative_coverage_intensities,
+        
+        "coverage_prop" : list(coverage_prop),
+        "intensity_prop" : coverage_intensity_prop,
+        "cumulative_raw_intensity_prop" : cumulative_raw_intensities_prop,
+        "cumulative_coverage_prop" : list(cumulative_coverage_prop),
+        "cumulative_coverage_intensity_prop" : cumulative_coverage_intensities_prop
+    }
+
+def evaluate_real(mzmls, boxes, isolation_width=None, min_intensity=0.0):
+    return evaluation_report(peak_info_map(mzmls, boxes, isolation_width=isolation_width), min_intensity=min_intensity)

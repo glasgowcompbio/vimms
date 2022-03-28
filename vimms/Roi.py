@@ -4,9 +4,11 @@ real-time ROI tracking in various controller. Additionally, ROIs can also be
 loaded from an mzML file and converted into Chemical objects for simulation
 input.
 """
+import copy
 import bisect
 import sys
 from collections import Counter, defaultdict
+from statistics import mean
 
 import numpy as np
 import pandas as pd
@@ -14,17 +16,23 @@ import pylab as plt
 import pymzml
 import statsmodels.api as sm
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
-    map_boxes_to_scans
+from mass_spec_utils.data_import.mzmine import (
+    load_picked_boxes, map_boxes_to_scans
+)
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import ROI_TYPE_NORMAL, ROI_TYPE_SMART
-from vimms.Evaluation import load_peakonly_boxes, load_xcms_boxes, \
+from vimms.Common import (
+    ROI_TYPE_NORMAL, ROI_TYPE_SMART, 
+    path_or_mzml
+)
+from vimms.Evaluation import (
+    load_peakonly_boxes, load_xcms_boxes, 
     get_precursor_intensities
+)
 from vimms.MassSpec import Scan
 
 
@@ -63,6 +71,10 @@ class Roi():
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
         self.is_fragmented = False
         self.can_fragment = True
+        
+        self.min_rt, self.max_rt = min(self.rt_list), max(self.rt_list)
+        self.min_mz, self.max_mz = min(self.mz_list), max(self.mz_list)
+        self.min_intensity, self.max_intensity = min(self.intensity_list), max(self.intensity_list)
 
     def fragmented(self):
         """
@@ -81,13 +93,13 @@ class Roi():
         """
         Returns the maximum intensity value of this ROI
         """
-        return max(self.intensity_list)
+        return self.max_intensity
 
     def get_min_intensity(self):
         """
         Returns the minimum intensity value of this ROI
         """
-        return min(self.intensity_list)
+        return self.min_intensity
 
     def get_autocorrelation(self, lag=1):
         """
@@ -119,6 +131,9 @@ class Roi():
         self.mz_sum += mz
         self.n += 1
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+        self.min_rt, self.max_rt = min(self.min_rt, rt), max(self.max_rt, rt)
+        self.min_mz, self.max_mz = min(self.min_mz, mz), max(self.max_mz, mz)
+        self.min_intensity, self.max_intensity = min(self.min_intensity, intensity), max(self.max_intensity, intensity)
 
     def add_fragmentation_event(self, scan, precursor_intensity):
         """
@@ -159,15 +174,19 @@ class Roi():
         Returns: a [vimms.Box.GenericBox][] object.
 
         """
-        return GenericBox(min(self.rt_list) + rt_shift,
-                          max(self.rt_list) + rt_shift,
-                          min(self.mz_list) + mz_shift,
-                          max(self.mz_list) + mz_shift,
-                          min_xwidth=min_rt_width, min_ywidth=min_mz_width,
-                          intensity=self.max_fragmentation_intensity)
+        return GenericBox(
+                    self.min_rt + rt_shift, 
+                    self.max_rt + rt_shift, 
+                    self.min_mz + mz_shift,
+                    self.max_mz + mz_shift,
+                    min_xwidth=min_rt_width, 
+                    min_ywidth=min_mz_width, 
+                    intensity=self.max_fragmentation_intensity, 
+                    id=self.id,
+                    roi=self
+              )
 
-    def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0,
-                          mz_shift=0):
+    def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         """
         TODO: ask Ross or Vinny to add comment
 
@@ -181,6 +200,7 @@ class Roi():
         Returns: ???
 
         """
+
         roi_box = self.to_box(min_rt_width, min_mz_width, rt_shift, mz_shift)
         # print(roi_box)
         overlaps = [roi_box.overlap_2(box) for box in boxes]
@@ -478,8 +498,8 @@ class RoiBuilder():
     A class to construct ROIs. This can be used in real-time to track ROIs
     in a controller, or for extracting ROIs from an mzML file.
     """
-
-    def __init__(self, roi_params, smartroi_params=None, grid=None):
+    
+    def __init__(self, roi_params, smartroi_params=None):
         """
         Initialises an ROI Builder object.
 
@@ -509,9 +529,6 @@ class RoiBuilder():
         # fragmentation to Roi dictionaries
         self.frag_roi_dicts = []  # scan_id, roi_id, precursor_intensity
         self.roi_id_counter = 0
-
-        # Grid stuff
-        self.grid = grid
 
         # count how many times an ROI is not grown
         self.skipped_roi_count = defaultdict(int)
@@ -743,11 +760,10 @@ class RoiBuilder():
             {'scan_id': current_task_id, 'roi_id': roi_id,
              'precursor_intensity': intensity})
 
-        # grid stuff
-        if self.grid is not None:
-            self.grid.register_roi(self.live_roi[i])
+        #need to track for intensity non-overlap
         self.live_roi[i].max_fragmentation_intensity = max(
-            self.live_roi[i].max_fragmentation_intensity, intensity)
+            self.live_roi[i].max_fragmentation_intensity, intensity
+        )
 
     def add_scan_to_roi(self, scan):
         """
@@ -810,9 +826,10 @@ class RoiAligner():
                  mz_column_pos=1,
                  rt_column_pos=2,
                  intensity_column_pos=3,
-                 min_rt_width=0.01,
-                 min_mz_width=0.01,
+                 min_rt_width=0.000001,
+                 min_mz_width=0.000001,
                  n_categories=1):
+                 
         """
         TODO: ask Ross or Vinny to add comment
 
@@ -827,25 +844,21 @@ class RoiAligner():
             min_mz_width:
             n_categories:
         """
-        self.peaksets = []
-        self.mz_tolerance_absolute = mz_tolerance_absolute
-        self.mz_tolerance_ppm = mz_tolerance_ppm
-        self.rt_tolerance = rt_tolerance
-        self.mz_weight = 75
-        self.rt_weight = 25
-        self.files_loaded = []
-        self.mz_column_pos = mz_column_pos
-        self.rt_column_pos = rt_column_pos
-        self.intensity_column_pos = intensity_column_pos
-        self.sample_names = []
-        self.sample_types = []
-        self.min_rt_width = min_rt_width
-        self.min_mz_width = min_mz_width
-        self.peaksets2boxes = {}
-        self.peaksets2fragintensities = {}
-        self.addition_method = None
+
+        self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance = (
+            mz_tolerance_absolute, mz_tolerance_ppm, rt_tolerance
+        )
+        self.mz_column_pos, self.rt_column_pos, self.intensity_column_pos = (
+            mz_column_pos, rt_column_pos, intensity_column_pos
+        )
+        self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
+
         self.n_categories = n_categories
-        self.list_of_boxes = []
+        self.peaksets, self.files_loaded, self.list_of_boxes = [], [], []
+        self.sample_names, self.sample_types = [], []
+        self.mz_weight, self.rt_weight = 75, 25
+        self.peaksets2boxes, self.peaksets2fragintensities = {}, {}
+        self.addition_method = None
 
     def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None,
                    mz_shifts=None):
@@ -864,11 +877,10 @@ class RoiAligner():
         """
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
-        these_peaks = []
-        frag_intensities = []
-        temp_boxes = []
+        
+        these_peaks, frag_intensities, temp_boxes = [], [], []
         for i, roi in enumerate(rois):
-            source_id = sample_name + '_' + str(i)
+            source_id = f"{sample_name}_{i}"
             peak_mz = roi.get_mean_mz()
             peak_rt = roi.estimate_apex()
             peak_intensity = roi.get_max_intensity()
@@ -884,9 +896,21 @@ class RoiAligner():
         # do alignment, adding the peaks and boxes, and recalculating max
         # frag intensity
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
+        
+    @staticmethod
+    def load_boxes(peak_file, picking_method):
+        if picking_method == "mzmine":
+            boxes = load_picked_boxes(peak_file)
+        elif picking_method == "peakonly":
+            boxes = load_peakonly_boxes(peak_file)  # not tested
+        elif picking_method == "xcms":
+            boxes = load_xcms_boxes(peak_file)  # not tested
+        else:
+            raise NotImplementedError(f"Picking method \"{picking_method}\" not recognised!")
+        return boxes
 
     def add_picked_peaks(self, mzml_file, peak_file, sample_name,
-                         picking_method='mzmine', sample_type=None,
+                         picking_method="mzmine", sample_type=None,
                          half_isolation_window=0, allow_last_overlap=False,
                          rt_shifts=None, mz_shifts=None):
         """
@@ -908,37 +932,31 @@ class RoiAligner():
         """
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
-        these_peaks = []
-        frag_intensities = []
-        # load boxes
-        if picking_method == 'mzmine':
-            temp_boxes = load_picked_boxes(peak_file)
-        elif picking_method == 'peakonly':
-            temp_boxes = load_peakonly_boxes(peak_file)  # not tested
-        elif picking_method == 'xcms':
-            temp_boxes = load_xcms_boxes(peak_file)  # not tested
-        else:
-            sys.exit('Method not supported')
+        
+        these_peaks, frag_intensities = [], []
+        temp_boxes = self.load_boxes(peak_file, picking_method)
         temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
         self.list_of_boxes.append(temp_boxes)
-        # Searching in boxes
-        mzml = MZMLFile(mzml_file)
+        
+        mzml = path_or_mzml(mzml_file)
         scans2boxes, boxes2scans = map_boxes_to_scans(
-            mzml, temp_boxes, half_isolation_window=half_isolation_window,
-            allow_last_overlap=allow_last_overlap)
-        precursor_intensities, scores = get_precursor_intensities(boxes2scans,
-                                                                  temp_boxes,
-                                                                  'max')
+                                        mzml, 
+                                        temp_boxes, 
+                                        half_isolation_window=half_isolation_window,
+                                        allow_last_overlap=allow_last_overlap
+                                    )
+        precursor_intensities, scores = (
+            get_precursor_intensities(boxes2scans, temp_boxes, "max")
+        )
+        
         for i, box in enumerate(temp_boxes):
-            source_id = sample_name + '_' + str(i)
+            source_id = f"{sample_name}_{i}"
             peak_mz = box.mz
             peak_rt = box.rt_in_seconds
             these_peaks.append(
                 Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
             frag_intensities.append(precursor_intensities[i])
 
-        # do alignment, adding the peaks and boxes, and recalculating
-        # max frag intensity
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
 
     def _align(self, these_peaks, temp_boxes, frag_intensities, short_name):
@@ -954,59 +972,32 @@ class RoiAligner():
         Returns: ???
 
         """
-        if len(self.peaksets) == 0:
-            # first file
-            for i, peak in enumerate(these_peaks):
-                self.peaksets.append(PeakSet(peak))
-                self.peaksets2boxes[self.peaksets[-1]] = [temp_boxes[i]]
-                self.peaksets2fragintensities[self.peaksets[-1]] = [
-                    frag_intensities[i]]
-        else:
-            for peakset in self.peaksets:
-                candidates = list(
-                    filter(lambda x: peakset.is_in_box(x[0],
-                                                       self.mz_tolerance_absolute,  # noqa
-                                                       self.mz_tolerance_ppm,
-                                                       self.rt_tolerance),
-                           zip(these_peaks, temp_boxes, frag_intensities)))
-
-                if len(candidates) == 0:
-                    continue
-                else:
-                    candidates_peaks, candidates_boxes, \
-                    candidates_intensities = zip(*candidates)
-
-                    best_peak = None
-                    best_box = None
-                    best_frag_intensity = None
-                    best_score = 0
-                    for i, peak in enumerate(candidates_peaks):
-                        score = peakset.compute_weight(
-                            peak,
-                            self.mz_tolerance_absolute,
-                            self.mz_tolerance_ppm,
-                            self.rt_tolerance,
-                            self.mz_weight,
-                            self.rt_weight
-                        )
-                        if score > best_score:
-                            best_score = score
-                            best_peak = peak
-                            best_box = candidates_boxes[i]
-                            best_frag_intensity = candidates_intensities[i]
-                    peakset.add_peak(best_peak)
-                    self.peaksets2boxes[peakset].append(best_box)
-                    self.peaksets2fragintensities[peakset].append(
-                        best_frag_intensity)
-                    pos = these_peaks.index(best_peak)
-                    del these_peaks[pos]
-                    del temp_boxes[pos]
-                    del frag_intensities[pos]
-            for i, peak in enumerate(these_peaks):  # remaining ones
-                self.peaksets.append(PeakSet(peak))
-                self.peaksets2boxes[self.peaksets[-1]] = [temp_boxes[i]]
-                self.peaksets2fragintensities[self.peaksets[-1]] = [
-                    frag_intensities[i]]
+        seen_ps, unassigned = set(), []
+        for peak, box, intensity in zip(these_peaks, temp_boxes, frag_intensities):
+            candidates = [
+                ps for ps in self.peaksets 
+                if not ps in seen_ps and ps.is_in_box(peak, 
+                                                      self.mz_tolerance_absolute, 
+                                                      self.mz_tolerance_ppm, 
+                                                      self.rt_tolerance
+                                                     )
+            ]
+            if(len(candidates) > 0):
+                scores = [ps.compute_weight(peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance, self.mz_weight, self.rt_weight) for ps in candidates]
+                best_ps, _ = max(((ps, s) for ps, s in zip(candidates, scores)), key=lambda t: t[1])
+                best_ps.add_peak(peak)
+                self.peaksets2boxes[best_ps].append(box)
+                self.peaksets2fragintensities[best_ps].append(intensity)
+                seen_ps.add(best_ps)
+            else:
+                unassigned.append((peak, box, intensity))
+        
+        for peak, box, intensity in unassigned:
+            new_ps = PeakSet(peak)
+            self.peaksets.append(new_ps)
+            self.peaksets2boxes[new_ps] = [box]
+            self.peaksets2fragintensities[new_ps] = [intensity]
+            
         self.files_loaded.append(short_name)
 
     def to_matrix(self):
@@ -1014,15 +1005,15 @@ class RoiAligner():
         Converts aligned peaksets to nicely formatted intensity matrix
         (rows: peaksets, columns: files)
         """
-        n_peaksets = len(self.peaksets)
-        n_files = len(self.files_loaded)
-        intensity_matrix = np.zeros((n_peaksets, n_files), np.double)
-        for i, peakset in enumerate(self.peaksets):
-            for j, filename in enumerate(self.files_loaded):
-                intensity_matrix[i, j] = peakset.get_intensity(filename)
-        return intensity_matrix
+        return np.array(
+            [
+                [peakset.get_intensity(filename) for fname in self.files_loaded] 
+                for ps in self.peaksets
+            ], 
+            dtype=np.double
+        )
 
-    def get_boxes(self, method='mean'):
+    def get_boxes(self, method="mean"):
         """
         Converts peaksets to generic boxes
 
@@ -1032,27 +1023,24 @@ class RoiAligner():
         Returns: a list of [vimms.Box.GenericBox][] objects.
 
         """
+        if method == "max": f1, f2 = min, max
+        else: f1 = f2 = mean
+        
         boxes = []
         for ps in self.peaksets:
             box_list = self.peaksets2boxes[ps]
-            pt1x = np.array([box.pt1.x for box in box_list])
-            pt2x = np.array([box.pt2.x for box in box_list])
-            pt1y = np.array([box.pt1.y for box in box_list])
-            pt2y = np.array([box.pt2.y for box in box_list])
+            x1 = f1(b.pt1.x for b in box_list)
+            x2 = f2(b.pt2.x for b in box_list)
+            y1 = f1(b.pt1.y for b in box_list)
+            y2 = f2(b.pt2.y for b in box_list)
             intensity = max(self.peaksets2fragintensities[ps])
-            if method == 'max':
-                x1 = min(pt1x)
-                x2 = max(pt2x)
-                y1 = min(pt1y)
-                y2 = max(pt2y)
-            else:
-                x1 = np.mean(pt1x)
-                x2 = np.mean(pt2x)
-                y1 = np.mean(pt1y)
-                y2 = np.mean(pt2y)
-            boxes.append(GenericBox(x1, x2, y1, y2, intensity=intensity,
-                                    min_xwidth=self.min_rt_width,
-                                    min_ywidth=self.min_mz_width))
+            boxes.append(
+                GenericBox(x1, x2, y1, y2, 
+                           intensity=intensity, 
+                           min_xwidth=self.min_rt_width,
+                           min_ywidth=self.min_mz_width
+                )
+            )
         return boxes
 
     def get_max_frag_intensities(self):
@@ -1343,20 +1331,20 @@ def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
     """
     if rt_shifts is None and mz_shifts is None:
         return picked_boxes
-    new_boxes = picked_boxes
-    if rt_shifts is not None:
-        for i, box in enumerate(new_boxes):
-            box.rt += float(rt_shifts[i]) / 60.0
-            box.rt_in_minutes += float(rt_shifts[i]) / 60.0
-            box.rt_in_seconds += float(rt_shifts[i])
-            box.rt_range = [box.rt_range[0] + rt_shifts[i] / 60.0,
-                            box.rt_range[1] + rt_shifts[i] / 60.0]
-            box.rt_range_in_seconds = [
-                box.rt_range_in_seconds[0] + rt_shifts[i],
-                box.rt_range_in_seconds[1] + rt_shifts[i]]
-    if mz_shifts is not None:
-        for i, box in enumerate(new_boxes):
-            box.mz += mz_shifts[i]
-            box.mz_range = [box.mz_range[0] + mz_shifts[i],
-                            box.mz_range[1] + mz_shifts[i]]
-    return new_boxes
+        
+    new_boxes = copy.deepcopy(picked_boxes)
+    for box, sec_shift, mz_shift in zip(new_boxes, rt_shifts, min_shifts):
+        if rt_shifts is not None:
+            sec_shift = float(sec_shift)
+            min_shift = sec_shift / 60.0
+        
+            box.rt += min_shift
+            box.rt_in_minutes += min_shift
+            box.rt_in_seconds += sec_shift
+            box.rt_range = [r + min_shift for r in box.rt_range]
+            box.rt_range_in_seconds = [r + sec_shift for r in box.rt_range_in_seconds]
+            
+        if mz_shifts is not None:
+            mz_shift = float(mz_shift)
+            box.mz += mz_shift
+            box.mz_range = [r + mz_shift for r in box.mz_range]

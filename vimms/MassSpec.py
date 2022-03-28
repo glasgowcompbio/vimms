@@ -5,8 +5,10 @@ import scipy
 from events import Events
 from loguru import logger
 
-from vimms.Common import adduct_transformation, DEFAULT_SCAN_TIME_DICT, \
+from vimms.Common import (
+    adduct_transformation, DEFAULT_SCAN_TIME_DICT,
     INITIAL_SCAN_ID, ScanParameters
+)
 from vimms.Noise import NoPeakNoise
 
 
@@ -83,6 +85,17 @@ class Scan():
         self.scan_params = scan_params
         self.parent = parent
         self.fragevent = fragevent
+        
+    @classmethod
+    def from_mzmlscan(self, scan):
+        mzs, intensities = zip(*scan.peaks)
+        return Scan(
+            scan_id = scan.scan_no,
+            mzs = np.array(mzs),
+            intensities = np.array(intensities),
+            ms_level = scan.ms_level,
+            rt = scan.rt_in_seconds
+        )
 
     def __repr__(self):
         return 'Scan %d num_peaks=%d rt=%.2f ms_level=%d' % (

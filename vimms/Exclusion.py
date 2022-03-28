@@ -110,6 +110,9 @@ class BoxHolder():
         """
         self.boxes_mz = IntervalTree()
         self.boxes_rt = IntervalTree()
+        
+    def __iter__(self):
+        return (inv.data for inv in self.boxes_rt.items())
 
     def add_box(self, box):
         """

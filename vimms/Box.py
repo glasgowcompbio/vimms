@@ -705,7 +705,7 @@ class BoxExact(BoxGeometry):
         #NB: this seems wrong, but i tried to preserve it as it was - vinny?
         intensity_diff = [
             np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
-            for b, area in zip(other_boxes, areas)
+            for b, na in zip(other_boxes, norm_areas)
         ]
         
         non_overlap = np.log(current_intensity) * non_overlapped
@@ -735,7 +735,7 @@ class BoxExact(BoxGeometry):
         #NB: this seems wrong, but i tried to preserve it as it was - vinny?
         intensity_diff = [
             np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
-            for b, area in zip(other_boxes, areas)
+            for b, na in zip(other_boxes, norm_areas)
         ]
         
         non_overlap = np.log(current_intensity) * non_overlapped

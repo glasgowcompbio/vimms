@@ -1,6 +1,7 @@
 name: vimms
 channels:
 - conda-forge
+- defaults
 dependencies:
   - numpy
   - pandas

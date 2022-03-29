@@ -1,10 +1,7 @@
 {
-    "description": "<p>This is a maintenance version which includes a major code clean-up and code restructuring. This release should be preferred over the older ones as the code quality here is significantly better.</p>\n<p>Huge thanks to @MKoesters and @jspaezp for their valuable feedback as part of the review process for JOSS.</p>\n<p>Changes:</p>\n<ul>\n<li>Improved API documentation at <a href=\"https://vimms.readthedocs.io\">https://vimms.readthedocs.io</a>.</li>\n<li>Improved README and Contributing guidelines.</li>\n<li>Improved class hierarchy, including proper uses of abstract classes.</li>\n<li>Added coverage report to CI</li>\n<li>Make project significantly more PEP8-compliant.</li>\n<li>Fixed broken example and demo notebooks.</li>\n<li>Moved old, unused or experimental files into their own <code>old_unused_experimental</code> branch.</li>\n<li>Restructuring of box controllers (WIP).</li>\n<li>Better evaluation methods (WIP).</li>\n<li>Starting work on DDA vs DIA comparison (WIP)</li>\n</ul>",
-    "license": "other-open",
+    "description": "A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics",
+    "license": "MIT",
     "title": "ViMMS 2.0: A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics",
-    "version": "V2.0.5",
-    "upload_type": "software",
-    "publication_date": "2022-03-29",
     "creators": [
         {
             "name": "Joe Wandy",
@@ -34,19 +31,6 @@
             "name": "Rónán Daly",
             "affiliation": "Glasgow Polyomics, University of Glasgow",
             "orcid": "0000-0002-1275-6820"
-        }
-    ],
-    "access_right": "open",
-    "related_identifiers": [
-        {
-            "scheme": "url",
-            "identifier": "https://github.com/glasgowcompbio/vimms/tree/V2.0.5",
-            "relation": "isSupplementTo"
-        },
-        {
-            "scheme": "doi",
-            "identifier": "10.5281/zenodo.6394524",
-            "relation": "isVersionOf"
         }
     ]
 }

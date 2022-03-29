@@ -11,16 +11,17 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 
 from vimms.Agent import TopNDEWAgent
-from vimms.Box import AllOverlapGrid, IdentityDrift, LocatorGrid
-from vimms.Box_Visualise import PlotPoints
+from vimms.Box import BoxGrid
+from vimms.BoxManager import BoxManager, BoxSplitter
+from vimms.BoxVisualise import PlotPoints
 from vimms.Common import save_obj, load_obj
 from vimms.Controller import AgentBasedController, TopN_SmartRoiController, TopNController, \
     WeightedDEWController, AIF, SWATH, AdvancedParams
 from vimms.Controller.box import IntensityNonOverlapController, NonOverlapController
 from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
-from vimms.GridEstimator import GridEstimator
 from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Noise import GaussianPeakNoiseLevelSpecific
 from vimms.Roi import RoiAligner
 
 
@@ -108,6 +109,8 @@ def run_simulated_exp(result_folder, experiment_name, controller_names, sample_l
     mz_box_size = experiment_params['mz_box_size']
     scan_duration_dict = experiment_params['scan_duration_dict']
     spike_noise = experiment_params['spike_noise']
+    mz_noise = experiment_params['mz_noise']
+    intensity_noise = experiment_params['intensity_noise']
 
     topN_params = experiment_params['topN_params']
     smartroi_params = experiment_params['smartroi_params']
@@ -130,12 +133,19 @@ def run_simulated_exp(result_folder, experiment_name, controller_names, sample_l
     agent = TopNDEWAgent(**IE_topN_params)
 
     def make_grid():
-        return GridEstimator(LocatorGrid(0, max_measure_rt, rt_box_size, 0, 1500, mz_box_size),
-                             IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(min_measure_rt, max_measure_rt, rt_box_size,
+                                 0, 1500, mz_box_size)
+        )
+        return grid
 
     def make_intensity_grid():
-        return GridEstimator(AllOverlapGrid(0, max_measure_rt, rt_box_size, 0, 1500, mz_box_size),
-                             IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(min_measure_rt, max_measure_rt, rt_box_size,
+                                 0, 1500, mz_box_size),
+            box_splitter=BoxSplitter(split=True)
+        )
+        return grid
 
     for controller_name in controller_names:
 
@@ -220,14 +230,20 @@ def run_simulated_exp(result_folder, experiment_name, controller_names, sample_l
 
             controller = controllers[controller_name]
             run_controller(min_measure_rt, max_measure_rt, ionisation_mode, chems, controller,
-                           output_folder, mzML_name, env_out, pbar, spike_noise,
+                           output_folder, mzML_name, env_out, pbar,
+                           spike_noise, mz_noise, intensity_noise,
                            scan_duration_dict)
 
 
 def run_controller(min_rt, max_rt, ionisation_mode, chems, controller,
-                   out_dir, out_file, env_out, pbar, spike_noise, scan_duration_dict):
+                   out_dir, out_file, env_out, pbar,
+                   spike_noise, mz_noise, intensity_noise,
+                   scan_duration_dict):
+
     mass_spec = IndependentMassSpectrometer(ionisation_mode, chems,
                                             spike_noise=spike_noise,
+                                            mz_noise=mz_noise,
+                                            intensity_noise=intensity_noise,
                                             scan_duration=scan_duration_dict)
     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar)
     env.run()

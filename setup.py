@@ -6,8 +6,8 @@ with open("README.md", "r") as fh:
 setup(
     dependency_links=[],
     name="vimms",
-    version="2.0.4",
-    author="Joe Wandy, Vinny Davies, Justin J.J. van der Hooft, "
+    version="2.1.0",
+    author="Joe Wandy, Vinny Davies, Ross McBride, Justin J.J. van der Hooft, "
            "Stefan Weidt, Ronan Daly, Simon Rogers",
     author_email="joe.wandy@glasgow.ac.uk",
     description="A framework to develop, test and optimise fragmentation strategies in LC-MS "

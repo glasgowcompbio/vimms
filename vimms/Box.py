@@ -698,7 +698,7 @@ class BoxExact(BoxGeometry):
         )
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
-        other_boxes = self.get_overlapping_boxes(box)
+        other_boxes = self._get_overlapping_boxes(box)
         areas = [box.overlap_raw(b) for b in other_boxes]
         non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
         norm_areas = [ar / box.area() for ar in areas]
@@ -728,7 +728,7 @@ class BoxExact(BoxGeometry):
         )
 
     def case_control_non_overlap(self, box, current_intensity, scoring_params):
-        other_boxes = self.get_overlapping_boxes(box)
+        other_boxes = self._get_overlapping_boxes(box)
         areas = [box.overlap_raw(b) for b in other_boxes]
         non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
         norm_areas = [ar / box.area() for ar in areas]

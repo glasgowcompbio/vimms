@@ -8,7 +8,7 @@ from vimms.DriftCorrection import IdentityDrift
 class BoxManager():
 
     nosplit_errmsg = (
-        "Intensity Non-Overlap can't be used without splitting the boxes! "
+        "{} Non-Overlap can't be used without splitting the boxes! "
         "Please set the BoxManager's box_splitter to split the boxes."
     )
 
@@ -49,17 +49,14 @@ class BoxManager():
 
     def intensity_non_overlap(self, box, current_intensity, scoring_params):
         if(not self.box_splitter.split): 
-            raise ValueError(self.nosplit_errmsg)
+            raise ValueError(self.nosplit_errmsg.format("Intensity"))
         return self.box_geometry.intensity_non_overlap(
             self._query_roi(box), current_intensity, scoring_params
         )
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
-        errmsg = (
-            "Some better exception should be (sometimes) thrown here "
-            "if the BoxManager isn't set up properly!"
-        )
-        raise NotImplementedError(errmsg)
+        if(not self.box_splitter.split): 
+            raise ValueError(self.nosplit_errmsg.format("Flexible"))
         return self.box_geometry.flexible_non_overlap(
             self._query_roi(box), current_intensity, scoring_params
         )

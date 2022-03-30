@@ -1,17 +1,21 @@
 import numpy as np
 from loguru import logger
 
-from tests.conftest import N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE, \
-    run_environment, check_non_empty_MS2, check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, \
-    BEER_MAX_BOUND
-from vimms.Box import LocatorGrid, IdentityDrift, AllOverlapGrid
 from vimms.Common import POSITIVE, ROI_EXCLUSION_WEIGHTED_DEW
-from vimms.Controller import TopN_RoiController, TopN_SmartRoiController, NonOverlapController, \
-    IntensityNonOverlapController, FlexibleNonOverlapController
-from vimms.Environment import Environment
-from vimms.GridEstimator import GridEstimator
 from vimms.MassSpec import IndependentMassSpectrometer, Scan
+from vimms.Environment import Environment
 from vimms.Roi import RoiBuilder, RoiBuilderParams, SmartRoiParams
+from vimms.Box import BoxGrid
+from vimms.BoxManager import BoxSplitter, BoxManager
+from vimms.Controller import (
+    TopN_RoiController, TopN_SmartRoiController, 
+    NonOverlapController, IntensityNonOverlapController, FlexibleNonOverlapController
+)
+from tests.conftest import (
+    N_CHEMS, MIN_MS1_INTENSITY, get_rt_bounds, CENTRE_RANGE,
+    run_environment, check_non_empty_MS2, check_mzML, OUT_DIR, 
+    BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND
+)
 
 
 def delete_point(scans, mz, rt):
@@ -294,8 +298,9 @@ class TestNonOverlapController:
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset)
 
-        grid = GridEstimator(LocatorGrid(min_bound, max_bound, rt_box_size, 0, 3000, mz_box_size),
-                             IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(min_bound, max_bound, rt_box_size, 0, 3000, mz_box_size)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = NonOverlapController(ionisation_mode, isolation_width, N, mz_tol, rt_tol,
@@ -329,9 +334,9 @@ class TestNonOverlapController:
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
 
-        grid = GridEstimator(
-            LocatorGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
-            IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = NonOverlapController(ionisation_mode, isolation_width, N, mz_tol, rt_tol,
@@ -363,9 +368,9 @@ class TestNonOverlapController:
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
 
-        grid = GridEstimator(
-            LocatorGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
-            IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         smartroi_params = SmartRoiParams()
@@ -400,9 +405,9 @@ class TestNonOverlapController:
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
 
-        grid = GridEstimator(
-            LocatorGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size),
-            IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = NonOverlapController(ionisation_mode, isolation_width, N, mz_tol, rt_tol,
@@ -439,8 +444,10 @@ class TestIntensityNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset)
-        grid = GridEstimator(AllOverlapGrid(min_bound, max_bound, rt_box_size, 0, 3000,
-                                            mz_box_size), IdentityDrift())
+        grid = BoxManager(
+            box_geometry=BoxGrid(min_bound, max_bound, rt_box_size, 0, 3000, mz_box_size),
+            box_splitter=BoxSplitter(split=True)
+        )
 
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
@@ -474,9 +481,11 @@ class TestIntensityNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000,
-                                            mz_box_size), IdentityDrift())
-
+        bg = BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        grid = BoxManager(
+            box_geometry=bg,
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = IntensityNonOverlapController(ionisation_mode, isolation_width, N, mz_tol,
@@ -508,9 +517,11 @@ class TestIntensityNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size,
-                                            0, 3000, mz_box_size), IdentityDrift())
-
+        bg = BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        grid = BoxManager(
+            box_geometry=bg,
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         smartroi_params = SmartRoiParams()
@@ -545,9 +556,11 @@ class TestIntensityNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0,
-                                            3000, mz_box_size), IdentityDrift())
-
+        bg = BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        grid = BoxManager(
+            box_geometry=bg,
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = IntensityNonOverlapController(ionisation_mode, isolation_width, N, mz_tol,
@@ -584,9 +597,10 @@ class TestFlexibleNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset)
-        grid = GridEstimator(AllOverlapGrid(min_bound, max_bound, rt_box_size, 0, 3000,
-                                            mz_box_size), IdentityDrift())
-
+        grid = BoxManager(
+            box_geometry=BoxGrid(min_bound, max_bound, rt_box_size, 0, 3000, mz_box_size),
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = FlexibleNonOverlapController(
@@ -620,9 +634,11 @@ class TestFlexibleNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size,
-                                            0, 3000, mz_box_size), IdentityDrift())
-
+        bg = BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        grid = BoxManager(
+            box_geometry=bg,
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, N, mz_tol,
@@ -654,9 +670,11 @@ class TestFlexibleNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0,
-                                            3000, mz_box_size), IdentityDrift())
-
+        bg = BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        grid = BoxManager(
+            box_geometry=bg,
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         smartroi_params = SmartRoiParams()
@@ -691,9 +709,11 @@ class TestFlexibleNonOverlapController:
 
         # create a simulated mass spec with noise and ROI controller
         mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS)
-        grid = GridEstimator(AllOverlapGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0,
-                                            3000, mz_box_size), IdentityDrift())
-
+        bg = BoxGrid(BEER_MIN_BOUND, BEER_MAX_BOUND, rt_box_size, 0, 3000, mz_box_size)
+        grid = BoxManager(
+            box_geometry=bg,
+            box_splitter=BoxSplitter(split=True)
+        )
         roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
                                       min_roi_intensity=min_roi_intensity)
         controller = FlexibleNonOverlapController(ionisation_mode, isolation_width, N, mz_tol,

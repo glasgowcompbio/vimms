@@ -1,0 +1,36 @@
+{
+    "description": "A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics",
+    "license": "MIT",
+    "title": "ViMMS 2.0: A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics",
+    "creators": [
+        {
+            "name": "Joe Wandy",
+            "affiliation": "Glasgow Polyomics, University of Glasgow",
+            "orcid": "0000-0002-3068-4664"
+        },
+        {
+            "name": "Vinny Davies",
+            "affiliation": "School of Mathematics and Statistics, University of Glasgow",
+            "orcid": "0000-0003-1896-8936"
+        },
+        {
+            "name": "Ross McBride",
+            "affiliation": "School of Computing Science, University of Glasgow",
+            "orcid": "0000-0002-0032-9506"
+        },
+        {
+            "name": "Stefan Weidt",
+            "affiliation": "Glasgow Polyomics, University of Glasgow"
+        },
+        {
+            "name": "Simon Rogers",
+            "affiliation": "School of Computing Science, University of Glasgow",
+            "orcid": "0000-0003-3578-4477"
+        },
+        {
+            "name": "Rónán Daly",
+            "affiliation": "Glasgow Polyomics, University of Glasgow",
+            "orcid": "0000-0002-1275-6820"
+        }
+    ]
+}

@@ -1,5 +1,7 @@
+import random
 from abc import abstractmethod
 
+import numpy as np
 import GPy
 
 from mass_spec_utils.library_matching.spectral_scoring_functions import cosine_similarity

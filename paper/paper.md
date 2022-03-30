@@ -61,7 +61,7 @@ typically measurements of the intact ions) are isolated for fragmentation in a s
 a spectral fingerprint for each isolated ion that is often used for structural identification.
 
 Typically the raw LC-MS/MS measurements are processed in a data pre-processing pipeline to produce a list of
-chromatographic MS1 peaks characterised by their m/z, RT and intensity values. During identification, molecular
+chromatographic MS1 peaks characterised by their mass-to-charge (m/z), RT and intensity values. During identification, molecular
 annotations are assigned to MS1 peaks through matching with internal standard compounds (having known m/z and RT values)
 or by searching spectral databases with the MS2 spectra associated with MS1 peaks. An important factor that determines
 how many molecules can be annotated with spectral databases using fragmentation data is the quality of the MS2 spectra
@@ -117,7 +117,7 @@ or by construction from existing data (mzML files) via the extraction of RoI tra
 plug in modular classes that specify parameters of chemicals, such as the distribution of their m/z values, RT,
 intensities, chromatographic shapes and associated MS2 spectra (\autoref{diagram}A).
 
-Chemicals can be generated in a single-sample or multi-sample settings. When generating multi-sample data, ViMMS allows
+Chemicals can be generated in single-sample or multi-sample settings. When generating multi-sample data, ViMMS allows
 users to specify how chemicals vary across samples. Given a list of base chemicals (chemicals that are shared) across
 samples, users can indicate in what proportion of extracts chemicals should appear (dropout rate) or how
 chemical intensities should vary across a case-control experiment.
@@ -214,7 +214,7 @@ implementations comparatively.
 ViMMS 2.0 is distributed as a Python package that can be easily installed using pip. We require Python 3.0 or higher to
 run the framework. It depends on common packages such as numpy, scipy and pandas. Automated unit tests are available in
 Python, as well as continuous integration that build and run those unit tests in our code repository. Our codebase is
-stored in Github and we welcome contributions from researchers with interest in developing novel fragmentation
+stored in GitHub and we welcome contributions from researchers with interest in developing novel fragmentation
 strategies in both data-dependent and data-independent acquisitions.
 
 # Conclusion

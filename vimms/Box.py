@@ -698,21 +698,21 @@ class BoxExact(BoxGeometry):
         )
 
     def flexible_non_overlap(self, box, current_intensity, scoring_params):
-        other_boxes = self.get_overlapping_boxes(box)
+        other_boxes = self._get_overlapping_boxes(box)
         areas = [box.overlap_raw(b) for b in other_boxes]
         non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
         norm_areas = [ar / box.area() for ar in areas]
         #NB: this seems wrong, but i tried to preserve it as it was - vinny?
         intensity_diff = [
             np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
-            for na in norm_areas
+            for b, na in zip(other_boxes, norm_areas)
         ]
         
         non_overlap = np.log(current_intensity) * non_overlapped
         refragment = sum(
-            max(0.0, int_diff) for int_diff in intensity_differences
+            max(0.0, int_diff) for int_diff in intensity_diff
         )
-        refragment2 = sum(intensity_differences)
+        refragment2 = sum(intensity_diff)
         
         new_peak_score = sum(
             np.log(current_intensity) * na 
@@ -728,21 +728,21 @@ class BoxExact(BoxGeometry):
         )
 
     def case_control_non_overlap(self, box, current_intensity, scoring_params):
-        other_boxes = self.get_overlapping_boxes(box)
+        other_boxes = self._get_overlapping_boxes(box)
         areas = [box.overlap_raw(b) for b in other_boxes]
         non_overlapped = max(0.0, 1.0 - sum(areas) / box.area())
         norm_areas = [ar / box.area() for ar in areas]
         #NB: this seems wrong, but i tried to preserve it as it was - vinny?
         intensity_diff = [
             np.log(current_intensity) - np.log(max(1.0, b.intensity)) * na
-            for na in norm_areas
+            for b, na in zip(other_boxes, norm_areas)
         ]
         
         non_overlap = np.log(current_intensity) * non_overlapped
         refragment = sum(
-            max(0.0, int_diff) for int_diff in intensity_differences
+            max(0.0, int_diff) for int_diff in intensity_diff
         )
-        refragment2 = sum(intensity_differences)
+        refragment2 = sum(intensity_diff)
         
         new_peak_score = sum(
             np.log(current_intensity) * na 

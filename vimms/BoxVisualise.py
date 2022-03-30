@@ -100,7 +100,11 @@ class ColourMap():
                     (box.pt1.x, box.pt1.y),
                     box.pt2.x - box.pt1.x,
                     box.pt2.y - box.pt1.y,
-                    linewidth=1, ec="black", fc=colour.squash()))
+                    linewidth=1, 
+                    ec="black", 
+                    fc=colour.squash()
+                )
+            )
 
     def get_plot(self, boxes, key):
         fig, ax = plt.subplots(1)
@@ -181,8 +185,8 @@ class AutoColourMap(ColourMap):
         if (self.reuse_colours):
             for b in boxes:
                 for top in b.parents:
-                    top_level[top].add(
-                        b)  # note same set references in pairs and top_level
+                    # note same set references in pairs and top_level
+                    top_level[top].add(b)
 
             components, indices = [], [-1 for _ in pairs]
             for i, (parent, children) in enumerate(top_level.items()):

@@ -14,14 +14,13 @@ from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
 from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.BoxVisualise import PlotPoints
-from vimms.Common import save_obj, load_obj
+from vimms.Common import load_obj
 from vimms.Controller import AgentBasedController, TopN_SmartRoiController, TopNController, \
     WeightedDEWController, AIF, SWATH, AdvancedParams
 from vimms.Controller.box import IntensityNonOverlapController, NonOverlapController
 from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Noise import GaussianPeakNoiseLevelSpecific
 from vimms.Roi import RoiAligner
 
 
@@ -225,30 +224,26 @@ def run_simulated_exp(result_folder, experiment_name, controller_names, sample_l
             logger.warning('%s %s' % (sample_list[i], controller_name))
             output_folder = os.path.join(result_folder, controller_name, experiment_name)
             mzML_name = '%s_%s.mzML' % (experiment_name, sample_list[i])
-            env_out_name = '%s_%s.env.p' % (experiment_name, sample_list[i])
-            env_out = os.path.join(output_folder, env_out_name)
 
             controller = controllers[controller_name]
             run_controller(min_measure_rt, max_measure_rt, ionisation_mode, chems, controller,
-                           output_folder, mzML_name, env_out, pbar,
+                           output_folder, mzML_name, pbar,
                            spike_noise, mz_noise, intensity_noise,
                            scan_duration_dict)
 
 
 def run_controller(min_rt, max_rt, ionisation_mode, chems, controller,
-                   out_dir, out_file, env_out, pbar,
+                   out_dir, out_file, pbar,
                    spike_noise, mz_noise, intensity_noise,
                    scan_duration_dict):
-
     mass_spec = IndependentMassSpectrometer(ionisation_mode, chems,
                                             spike_noise=spike_noise,
                                             mz_noise=mz_noise,
                                             intensity_noise=intensity_noise,
                                             scan_duration=scan_duration_dict)
-    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar)
+    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar,
+                      out_dir=out_dir, out_file=out_file, save_eval=True)
     env.run()
-    env.write_mzML(out_dir, out_file)
-    save_obj(env, env_out)
 
 
 def mzml_to_boxname(mzml):

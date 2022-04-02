@@ -14,7 +14,7 @@ from vimms.MzmlWriter import MzmlWriter
 class Environment():
     def __init__(self, mass_spec, controller, min_time, max_time,
                  progress_bar=True, out_dir=None, out_file=None,
-                 save_eval=False):
+                 save_eval=False, check_exists=False):
         """
         Initialises a synchronous environment to run the mass spec and
         controller
@@ -40,6 +40,7 @@ class Environment():
         self.bar = tqdm(total=self.max_time - self.min_time,
                         initial=0) if self.progress_bar else None
         self.save_eval = save_eval
+        self.check_exists = check_exists
 
     def run(self):
         """
@@ -48,6 +49,11 @@ class Environment():
         Returns: None
 
         """
+        mzml_filename = self._get_out_file(self.out_dir, self.out_file)
+        if self.check_exists and mzml_filename is not None and mzml_filename.is_file():
+            logger.warning('Already exists %s' % mzml_filename)
+            return
+
         # set some initial values for each run
         self._set_initial_values()
 

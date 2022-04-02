@@ -242,7 +242,7 @@ def run_controller(min_rt, max_rt, ionisation_mode, chems, controller,
                                             intensity_noise=intensity_noise,
                                             scan_duration=scan_duration_dict)
     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar,
-                      out_dir=out_dir, out_file=out_file, save_eval=True)
+                      out_dir=out_dir, out_file=out_file, save_eval=True, check_exists=True)
     env.run()
 
 

@@ -71,21 +71,22 @@ class OraclePointMatcher():
     def send_training_data(self, model, scan, roi, inj_num):
         if (self.mode == OraclePointMatcher.MODE_FRAGPAIRS):
             if (not scan.fragevent is None):
-                
-                parent_chem = (
-                    scan.fragevent.chem 
-                    if scan.fragevent.chem.base_chemical is None 
-                    else scan.fragevent.chem.base_chemical
-                )
-                
-                if (parent_chem in self.chem_to_idx):
-                    i = self.chem_to_idx[parent_chem]
-                    if (inj_num == 0):
-                        self.available[i] = True
-                    elif (self.available[i] and self.not_sent[i]):
-                        model.send_training_pair(self.chem_rts_by_injection[inj_num][i],
-                                                 self.chem_rts_by_injection[0][i])
-                        self.not_sent[i] = False
+
+                for fe in scan.fragevent:
+                    parent_chem = (
+                        fe.chem
+                        if fe.chem.base_chemical is None
+                        else fe.chem.base_chemical
+                    )
+
+                    if (parent_chem in self.chem_to_idx):
+                        i = self.chem_to_idx[parent_chem]
+                        if (inj_num == 0):
+                            self.available[i] = True
+                        elif (self.available[i] and self.not_sent[i]):
+                            model.send_training_pair(self.chem_rts_by_injection[inj_num][i],
+                                                     self.chem_rts_by_injection[0][i])
+                            self.not_sent[i] = False
         
         else:
             if (self.mode == OraclePointMatcher.MODE_RTENABLED):

@@ -638,6 +638,7 @@ class IndependentMassSpectrometer():
         if ms_level == 1 and ms1_source_collision_energy > 0:
             use_ms_level = 2
 
+        frag_events = []
         for i in idx:
             chemical = self.chemicals[i]
             # mzs is a list of (mz, intensity) for the different
@@ -677,8 +678,11 @@ class IndependentMassSpectrometer():
                                      ScanParameters.PRECURSOR_MZ),
                                  isolation_window=isolation_windows,
                                  scan_params=params)
-                self.fragmentation_events.append(frag)
+                frag_events.append(frag)
+        self.fragmentation_events.extend(frag_events)
 
+        # FIXME: this here means spike noise is not a chemical and cannot be fragmented
+        # (even though it appears in the scan). Is this the best thing to do?
         if self.spike_noise is not None:
             spike_mzs, spike_intensities = self.spike_noise.sample(
                 min_measurement_mz, max_measurement_mz)
@@ -688,9 +692,12 @@ class IndependentMassSpectrometer():
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
+        if len(frag_events) == 0: # for compatibility with old codes
+            frag_events = None
+
         sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time,
                   scan_duration=None, scan_params=params,
-                  fragevent=frag)
+                  fragevent=frag_events)
 
         # Note: at this point, the scan duration is not set yet because
         # we don't know what the next scan is going to be

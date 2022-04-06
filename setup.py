@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     dependency_links=[],
     name="vimms",
-    version="2.0.5",
+    version="2.0.6",
     author="Joe Wandy, Vinny Davies, Ross McBride, Justin J.J. van der Hooft, "
            "Stefan Weidt, Ronan Daly, Simon Rogers",
     author_email="joe.wandy@glasgow.ac.uk",

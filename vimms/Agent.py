@@ -1,12 +1,10 @@
 # Agent.py
 import collections
 from abc import ABC, abstractmethod
-from random import randrange
 
 import numpy as np
 from loguru import logger
 
-from vimms.Common import ScanParameters
 from vimms.Exclusion import TopNExclusion
 
 
@@ -16,6 +14,7 @@ class AbstractAgent(ABC):
     Agents has a scope outside the controller,
     and it can be handy way to enable a controller that has a global state across runs.
     """
+
     def __init__(self):
         self.task_list = []
 
@@ -187,134 +186,3 @@ class TopNDEWAgent(AbstractAgent):
         rt = scan_to_process.rt
         assert mzs.shape == intensities.shape
         return mzs, rt, intensities
-
-
-class ReinforceAgent(TopNDEWAgent):
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                 min_ms1_intensity, pi, min_mz, max_mz):
-        """
-        Experimental agent that uses reinforcement learning to schedule the next tasks.
-        This should probably be removed as it doesn't work well.
-        """
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                         min_ms1_intensity)
-        self.pi = pi
-        self.min_mz = min_mz
-        self.max_mz = max_mz
-        self.seen_chems = {}
-
-    def act(self, scan_to_process):
-        # sample one action
-        mzs, rt, intensities = self._get_mzs_rt_intensities(scan_to_process)
-        state = self._get_state(mzs, rt, intensities)
-        action = self.pi.act(state, scan_to_process.scan_id)
-
-        # assume 10 states
-        if 0 <= action < 5:
-            self.N = (action + 1) * 5  # N = {5, 10, 15, 20, 25}
-            self.seen_actions.update(['N=%d' % self.N])
-        elif 5 <= action < 10:
-            self.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
-            self.seen_actions.update(['DEW=%.1f' % self.rt_tol])
-
-        # self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
-        # self.seen_actions.update(['N=%d' % self.N])
-
-    def reset(self):
-        super().reset()
-        self.seen_chems = {}
-
-    def _get_state(self, mzs, rt, intensities):
-        included_intensities = []
-        for mz, intensity in zip(mzs, intensities):
-            is_exc, weight = self.exclusion.is_excluded(mz, rt)
-            if not is_exc:
-                included_intensities.append(intensity)
-        included_intensities = np.array(included_intensities)
-
-        above_threshold = included_intensities > self.min_ms1_intensity
-        below_threshold = included_intensities <= self.min_ms1_intensity
-        num_above = np.sum(above_threshold)
-        num_below = np.sum(below_threshold)
-        sum_above = np.log(sum(included_intensities[above_threshold]))
-        sum_below = np.log(sum(included_intensities[below_threshold]))
-        min_above = np.log(min(included_intensities[above_threshold]))
-        max_below = np.log(max(included_intensities[below_threshold]))
-
-        features = np.zeros(20)
-        features[0] = num_above
-        features[1] = num_below
-        features[2] = sum_above
-        features[3] = sum_below
-        features[4] = min_above
-        features[5] = max_below
-
-        sorted_intensities = sorted(included_intensities, reverse=True)
-        features[6:20] = np.log(sorted_intensities[0:14])
-
-        for i in range(len(features)):
-            if np.isnan(features[i]):
-                features[i] = 0
-        return features
-
-    def update(self, last_scan, controller):
-        super().update(last_scan, controller)
-
-        if last_scan.ms_level >= 2:
-            # update pi
-            event = last_scan.fragevent
-            if event is not None:  # fragmenting chems
-                frag_intensity = event.parents_intensity[0]
-                chem = event.chem
-                if chem in self.seen_chems:
-                    self.seen_chems[chem] += 1
-                else:
-                    self.seen_chems[chem] = 1
-
-                reward = 0
-                if frag_intensity is not None:
-                    if frag_intensity > self.min_ms1_intensity:
-                        reward = frag_intensity * 1.0 / self.seen_chems[chem]
-                        reward = np.log(reward)
-                parent_scan_id = event.precursor_mz[0].precursor_scan_id
-                assert controller.last_ms1_scan.scan_id == parent_scan_id
-
-            else:  # fragmenting noise
-                precursor = \
-                    last_scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0]
-                intensity = precursor.precursor_intensity
-                reward = 0
-                if intensity > self.min_ms1_intensity:
-                    reward = -np.log(intensity)
-                parent_scan_id = controller.last_ms1_scan.scan_id
-
-            if parent_scan_id not in self.pi.scan_id_rewards:
-                self.pi.scan_id_rewards[parent_scan_id] = reward
-            else:
-                self.pi.scan_id_rewards[parent_scan_id] += reward
-
-
-class RandomAgent(TopNDEWAgent):
-    def __init__(self, ionisation_mode, N, isolation_window, mz_tol, rt_tol,
-                 min_ms1_intensity):
-        super().__init__(ionisation_mode, N, isolation_window, mz_tol, rt_tol,
-                         min_ms1_intensity)
-        self.num_states = 10
-
-    def act(self, scan_to_process):
-        # sample one action randomly
-        action = randrange(0, self.num_states)
-
-        # assume 10 states
-        if 0 <= action < 5:
-            self.N = (action + 1) * 5  # N = {5, 10, 15, 20, 25}
-            self.seen_actions.update(['N=%d' % self.N])
-        elif 5 <= action < 10:
-            self.rt_tol = (action - 5 + 1) * 5  # rt_tol = {5, 10, 15, 20, 25}
-            self.seen_actions.update(['DEW=%d' % self.rt_tol])
-
-        # self.N = (action + 1) * 2  # N = {2, 4, 6, ..., 20}
-        # self.seen_actions.update(['N=%d' % self.N])
-
-    def update(self, last_scan, controller):
-        super().update(last_scan, controller)

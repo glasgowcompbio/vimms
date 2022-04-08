@@ -24,7 +24,7 @@ from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiAligner
 
 
-def run_experiment(result_folder, sample_list, controller_names, experiment_params):
+def run_experiment(result_folder, sample_list, controller_names, experiment_params, parallel=True):
     """
     Go through all the chemicals in result_folder, and run various controllers
     on it. Will try to run it in parallel using ipcluster, if it fails then do it serially.
@@ -47,23 +47,25 @@ def run_experiment(result_folder, sample_list, controller_names, experiment_para
         }
         params_list.append(parameters)
 
-    # Try to run the controllers in parallel. If fails, then run it serially
-    logger.warning('Running controllers in parallel, please wait ...')
-    run_serial = False
-    try:
-        rc = ipp.Client()
-        dview = rc[:]  # use all engines
-        with dview.sync_imports():
-            pass
-        dview.map_sync(run_once, params_list)
-    except OSError:  # cluster has not been started
-        run_serial = True
-    except ipp.error.TimeoutError:  # takes too long to run
-        run_serial = True
+    run_serial = True
+    if parallel: # Try to run the controllers in parallel. If fails, then run it serially
+        logger.warning('Running controllers in parallel, please wait ...')
+        run_serial = False
+        try:
+            rc = ipp.Client()
+            dview = rc[:]  # use all engines
+            with dview.sync_imports():
+                pass
+            dview.map_sync(run_once, params_list)
+        except OSError:  # cluster has not been started
+            run_serial = True
+            logger.warning('Failed: IPycluster not found')
+        except ipp.error.TimeoutError:  # takes too long to run
+            run_serial = True
+            logger.warning('Failed: IPycluster time-out')
 
-    if run_serial:  # if any exception from above, try to run it serially
-        logger.warning(
-            'IPython cluster not found, running controllers in serial mode')
+    if run_serial:  # if parallel is disabled, or any exception from above, run it serially
+        logger.warning('Running controllers in serial mode, please wait ...')
         for parameters in params_list:
             run_once(parameters)
 

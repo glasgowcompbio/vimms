@@ -820,7 +820,7 @@ class RoiAligner():
     A class that aligns multiple ROIs in different samples
     """
 
-    def __init__(self, mz_tolerance_absolute=0.01,
+    def __init__(self, mz_tolerance_absolute=1E-8,
                  mz_tolerance_ppm=10,
                  rt_tolerance=0.5,
                  mz_column_pos=1,
@@ -983,8 +983,21 @@ class RoiAligner():
                                                      )
             ]
             if(len(candidates) > 0):
-                scores = [ps.compute_weight(peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance, self.mz_weight, self.rt_weight) for ps in candidates]
-                best_ps, _ = max(((ps, s) for ps, s in zip(candidates, scores)), key=lambda t: t[1])
+                scores = [
+                    ps.compute_weight(
+                        peak, 
+                        self.mz_tolerance_absolute, 
+                        self.mz_tolerance_ppm, 
+                        self.rt_tolerance, 
+                        self.mz_weight, 
+                        self.rt_weight
+                    ) 
+                    for ps in candidates
+                ]
+                best_ps, _ = max(
+                    ((ps, s) for ps, s in zip(candidates, scores)), 
+                    key=lambda t: t[1]
+                )
                 best_ps.add_peak(peak)
                 self.peaksets2boxes[best_ps].append(box)
                 self.peaksets2fragintensities[best_ps].append(intensity)

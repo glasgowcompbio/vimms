@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pylab as plt
@@ -5,6 +6,7 @@ from loguru import logger
 from tqdm.auto import tqdm
 
 from vimms.Common import save_obj
+from vimms.Evaluation import EvaluationData
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
 
@@ -12,7 +14,7 @@ from vimms.MzmlWriter import MzmlWriter
 class Environment():
     def __init__(self, mass_spec, controller, min_time, max_time,
                  progress_bar=True, out_dir=None, out_file=None,
-                 dump_debug=False):
+                 save_eval=False, check_exists=False):
         """
         Initialises a synchronous environment to run the mass spec and
         controller
@@ -25,7 +27,7 @@ class Environment():
             progress_bar: True if a progress bar is to be shown, False otherwise
             out_dir: output directory to write mzML to
             out_file: output mzML file
-            dump_debug: whether to dump debug information or not
+            save_eval: whether to save evaluation information
         """
         self.mass_spec = mass_spec
         self.controller = controller
@@ -37,11 +39,8 @@ class Environment():
         self.pending_tasks = []
         self.bar = tqdm(total=self.max_time - self.min_time,
                         initial=0) if self.progress_bar else None
-
-        # can be used to store any info required to debug a controller
-        # can optionally be dumped when writing an mzML file
-        self.dump_debug = dump_debug
-        self.debug_info = {}
+        self.save_eval = save_eval
+        self.check_exists = check_exists
 
     def run(self):
         """
@@ -50,6 +49,11 @@ class Environment():
         Returns: None
 
         """
+        mzml_filename = self._get_out_file(self.out_dir, self.out_file)
+        if self.check_exists and mzml_filename is not None and mzml_filename.is_file():
+            logger.warning('Already exists %s' % mzml_filename)
+            return
+
         # set some initial values for each run
         self._set_initial_values()
 
@@ -87,8 +91,8 @@ class Environment():
             self.mass_spec.close()
             self.close_progress_bar()
         self.write_mzML(self.out_dir, self.out_file)
-        if self.dump_debug:
-            self.write_debug_info(self.out_dir, self.out_file, self.debug_info)
+        if self.save_eval:
+            self.write_eval_data(self.out_dir, self.out_file)
 
     def _one_step(self, params=None):
         """
@@ -245,22 +249,23 @@ class Environment():
             writer.write_mzML(mzml_filename)
             logger.debug('mzML file successfully written!')
 
-    def write_debug_info(self, out_dir, out_file, debug_info):
+    def write_eval_data(self, out_dir, out_file):
         """
-        Writes debugging information to output file
+        Writes evaluation data to a pickle file in way that works in methods in Evaluation.py
 
         Args:
             out_dir: output directory
             out_file: output filename
-            debug_info: any debug info
 
         Returns: None
 
         """
-        filename = self._get_out_file(out_dir, out_file + '.p')
-        logger.debug('Writing debug info to %s' % filename)
-        save_obj(debug_info, filename)
-        logger.debug('debug info successfully written!')
+        mzml_filename = self._get_out_file(out_dir, out_file)
+        if mzml_filename is not None:
+            eval_filename = os.path.splitext(mzml_filename)[0] + '.p' # replace .mzML with .p
+            logger.debug('Writing evaluation data to %s' % eval_filename)
+            eval_data = EvaluationData(self)
+            save_obj(eval_data, eval_filename)
 
     def _set_initial_values(self):
         """

@@ -15,11 +15,41 @@ from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
     map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import path_or_mzml
 from vimms.Box import (
-    Point, Interval, GenericBox, 
+    Point, Interval, GenericBox,
     BoxLineSweeper
 )
+from vimms.Common import path_or_mzml
+
+
+class EvaluationData():
+    """
+    A container class that wraps the Environment class, storing only relevant data for evaluation.
+    This is useful for pickling/unpickling for evaluation as it will be much smaller.
+    """
+    def __init__(self, env):
+        """
+        Create an EvaluationData container
+        Args:
+            env: An instance of [vimms.Environment.Environment] object
+        """
+        # for compatibility with evaluate_simulated_env
+        self.mass_spec = self.DummyMassSpec(env.mass_spec)
+        self.controller = self.DummyController(env.controller)
+
+        # for convenience
+        self.chemicals = self.mass_spec.chemicals
+        self.fragmentation_events = self.mass_spec.fragmentation_events
+        self.scans = self.controller.scans
+
+    class DummyMassSpec():
+        def __init__(self, mass_spec):
+            self.chemicals = mass_spec.chemicals
+            self.fragmentation_events = mass_spec.fragmentation_events
+
+    class DummyController():
+        def __init__(self, controller):
+            self.scans = controller.scans
 
 
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
@@ -36,7 +66,7 @@ def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
     coverage = np.array(
         [fragmented.get(chem, -1) >= min_intensity for chem in true_chems])
     raw_intensities = np.array([fragmented.get(chem, 0)
-                               for chem in true_chems])
+                                for chem in true_chems])
     coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
 
     max_coverage = len(true_chems)

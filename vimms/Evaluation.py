@@ -442,11 +442,11 @@ class Evaluator(metaclass=ABCMeta):
         pass
 
     def evaluation_report(self, min_intensity=0.0):
-        appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] >= min_intensity, axis=1)
+        chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] >= min_intensity, axis=1)
     
-        times_fragmented = self.chem_info[appears, self.TIMES_FRAGMENTED, :].T
-        max_possible_intensities = self.chem_info[appears, self.MAX_INTENSITY, :].T
-        raw_intensities = self.chem_info[appears, self.MAX_FRAG_INTENSITY, :].T
+        times_fragmented = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
+        max_possible_intensities = self.chem_info[chem_appears, self.MAX_INTENSITY, :].T
+        raw_intensities = self.chem_info[chem_appears, self.MAX_FRAG_INTENSITY, :].T
         
         coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
         coverage = np.array(coverage_intensities, dtype=np.bool)

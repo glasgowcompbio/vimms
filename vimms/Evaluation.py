@@ -52,136 +52,6 @@ class EvaluationData():
             self.scans = controller.scans
 
 
-def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
-    """Evaluates a single simulated injection against the chemicals present in that injection"""
-    true_chems = env.mass_spec.chemicals if base_chemicals is None else base_chemicals
-    fragmented = {}  # map chem to highest observed intensity
-    for event in env.mass_spec.fragmentation_events:
-        if (event.ms_level > 1):
-            chem = event.chem.get_original_parent()
-            fragmented[chem] = max(event.parents_intensity[0],
-                                   fragmented.get(chem, 0))
-    num_frags = sum(
-        1 for event in env.mass_spec.fragmentation_events if event.ms_level > 1)
-    coverage = np.array(
-        [fragmented.get(chem, -1) >= min_intensity for chem in true_chems])
-    raw_intensities = np.array([fragmented.get(chem, 0)
-                                for chem in true_chems])
-    coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
-
-    max_coverage = len(true_chems)
-    coverage_prop = np.sum(coverage) / max_coverage
-    chemicals_fragmented = np.array(true_chems)[coverage.nonzero()]
-
-    if base_chemicals is None:
-        max_possible_intensities = np.array(
-            [chem.max_intensity for chem in true_chems])
-    else:
-        true_intensities = {chem.get_original_parent(): chem.max_intensity for
-                            chem in env.mass_spec.chemicals}
-        max_possible_intensities = np.array(
-            [true_intensities.get(chem, 0.0) for chem in true_chems])
-
-    which_non_zero = max_possible_intensities > 0.0
-    coverage_intensity_prop = np.mean(
-        np.array(coverage_intensities[which_non_zero]) /
-        np.array(max_possible_intensities)[which_non_zero])
-
-    return {
-        'num_frags': num_frags,
-        'fragmented': fragmented,
-        'coverage': coverage,
-        'raw_intensity': raw_intensities,
-        'intensity': coverage_intensities,
-        'coverage_proportion': coverage_prop,
-        'intensity_proportion': coverage_intensity_prop,
-        'chemicals_fragmented': chemicals_fragmented,
-        'max_possible_intensities': max_possible_intensities
-    }
-
-
-def evaluate_multiple_simulated_env(env_list, min_intensity=0.0,
-                                    group_list=None):
-    """Evaluates_multiple simulated injections against a base set of chemicals that
-    were used to derive the datasets"""
-    all_chems = [chem for env in env_list for chem in env.mass_spec.chemicals]
-    observed_chems = set(chem.get_original_parent() for chem in all_chems)
-    base_chemicals = list(observed_chems)
-
-    results = [evaluate_simulated_env(env, min_intensity=min_intensity,
-                                      base_chemicals=base_chemicals) for env in
-               env_list]
-
-    num_frags = [r["num_frags"] for r in results]
-    fragmented = [r["fragmented"] for r in results]
-    max_possible_intensities = [r["max_possible_intensities"] for r in results]
-
-    coverage = [r["coverage"] for r in results]
-    max_coverage = sum(chem in observed_chems for chem in base_chemicals)
-    coverage_prop = [np.sum(cov) / max_coverage for cov in coverage]
-    cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
-    cumulative_coverage_prop = [np.sum(cov) / max_coverage for cov in
-                                cumulative_coverage]
-
-    raw_intensities = [r["raw_intensity"] for r in results]
-    cumulative_raw_intensities = list(
-        itertools.accumulate(raw_intensities, np.fmax))
-
-    coverage_intensities = [r["intensity"] for r in results]
-    max_coverage_intensity = reduce(np.fmax, max_possible_intensities)
-    coverage_intensities_prop = [np.mean(c_i / max_coverage_intensity) for c_i
-                                 in coverage_intensities]
-    cumulative_coverage_intensities = list(
-        itertools.accumulate(coverage_intensities, np.fmax))
-    which_non_zero = max_coverage_intensity > 0.0
-    cumulative_coverage_intensities_prop = [
-        np.mean(c_i[which_non_zero] / max_coverage_intensity[which_non_zero])
-        for
-        c_i in
-        cumulative_coverage_intensities]
-    cumulative_raw_intensities_prop = [
-        np.mean(c_i[which_non_zero] / max_coverage_intensity[which_non_zero])
-        for c_i in
-        cumulative_raw_intensities]
-
-    chemicals_fragmented = [r["chemicals_fragmented"] for r in results]
-    times_fragmented = np.sum([r["coverage"] for r in results], axis=0)
-    times_fragmented_summary = Counter(times_fragmented)
-
-    if group_list is not None:
-        datasets = [env.mass_spec.chemicals for env in env_list]
-        true_pvalues = calculate_chemical_p_values(datasets, group_list,
-                                                   base_chemicals)
-    else:
-        true_pvalues = None
-
-    return {
-        'num_frags': num_frags,
-        'fragmented': fragmented,
-        'coverage': coverage,
-        'raw_intensity': raw_intensities,
-        'intensity': coverage_intensities,
-
-        'coverage_proportion': coverage_prop,
-        'intensity_proportion': coverage_intensities_prop,
-
-        'chemicals_fragmented': chemicals_fragmented,
-        'times_fragmented': times_fragmented,
-        'times_fragmented_summary': times_fragmented_summary,
-
-        'cumulative_coverage': cumulative_coverage,
-        'cumulative_raw_intensity': cumulative_raw_intensities,
-        'cumulative_raw_intensity_proportion': cumulative_raw_intensities_prop,
-        'cumulative_intensity': cumulative_coverage_intensities,
-        'cumulative_coverage_proportion': cumulative_coverage_prop,
-        'cumulative_intensity_proportion': cumulative_coverage_intensities_prop,
-
-        'max_possible_intensities': max_possible_intensities,
-
-        'true_pvalues': true_pvalues
-    }
-
-
 def calculate_chemical_p_values(datasets, group_list, base_chemicals):
     # only accepts case control currently
     p_values = []
@@ -462,25 +332,22 @@ class Evaluator(metaclass=ABCMeta):
             mz - width,
             mz + width
         )
-    
-    @abstractmethod
-    def add_info(self, fullscan_name, mzmls, isolation_width=None):
-        pass
 
     @abstractmethod
-    def extra_info(self):
+    def extra_info(self, report):
         pass
 
     def evaluation_report(self, min_intensity=0.0):
         chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] >= min_intensity, axis=1)
     
-        times_fragmented = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
+        frag_counts = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
         max_possible_intensities = self.chem_info[chem_appears, self.MAX_INTENSITY, :].T
         raw_intensities = self.chem_info[chem_appears, self.MAX_FRAG_INTENSITY, :].T
         
         coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
         coverage = np.array(coverage_intensities, dtype=np.bool)
         
+        times_fragmented = np.sum(frag_counts, axis=0)
         times_fragmented_summary = Counter(times_fragmented.ravel())
         times_covered = np.sum(coverage, axis=0)
         times_covered_summary = Counter(times_covered.ravel())
@@ -523,22 +390,81 @@ class Evaluator(metaclass=ABCMeta):
             "cumulative_raw_intensity" : cumulative_raw_intensities,
             "cumulative_intensity" : cumulative_coverage_intensities,
             
-            "coverage_prop" : list(coverage_prop),
-            "intensity_prop" : coverage_intensity_prop,
-            "cumulative_raw_intensity_prop" : cumulative_raw_intensities_prop,
-            "cumulative_coverage_prop" : list(cumulative_coverage_prop),
-            "cumulative_coverage_intensity_prop" : cumulative_coverage_intensities_prop
+            "coverage_proportion" : list(coverage_prop),
+            "intensity_proportion" : coverage_intensity_prop,
+            "cumulative_raw_intensity_proportion" : cumulative_raw_intensities_prop,
+            "cumulative_coverage_proportion" : list(cumulative_coverage_prop),
+            "cumulative_intensity_proportion" : cumulative_coverage_intensities_prop
         }
             
         self.extra_info(report)
         return report
+        
+
+class SyntheticEvaluator(Evaluator):
+
+    def __init__(self, chems=[]):
+        super().__init__(chems=chems)
+        self.envs = []
+
+    @classmethod
+    def from_envs(cls, envs):
+        envs = list(envs)
+    
+        observed_chems = set(
+            chem.get_original_parent() for env in envs for chem in env.mass_spec.chemicals
+        )
+        
+        eva = cls(list(observed_chems))
+        chem2idx = {ch : i for i, ch in enumerate(eva.chems)}
+        
+        for env in envs:
+            eva.envs.append(env)
+            new_info = np.zeros((len(eva.chems), 3, 1))
+            
+            for chem in env.mass_spec.chemicals:
+                chem_idx = chem2idx[chem.get_original_parent()]
+                new_info[chem_idx, cls.MAX_INTENSITY] = chem.max_intensity
+                
+            for event in env.mass_spec.fragmentation_events:
+                if (event.ms_level > 1):
+                    chem_idx = chem2idx[event.chem.get_original_parent()]
+                    new_info[chem_idx, cls.TIMES_FRAGMENTED] += 1
+                    new_info[chem_idx, cls.MAX_FRAG_INTENSITY] = max(
+                        event.parents_intensity[0],
+                        new_info[chem_idx, cls.MAX_FRAG_INTENSITY]
+                    )
+                
+            eva.chem_info = np.concatenate((eva.chem_info, new_info), axis=2)
+            
+        return eva
+    
+    def extra_info(self, report):
+        num_frags = [
+            sum(event.ms_level > 1 for event in env.mass_spec.fragmentation_events)
+            for env in self.envs
+        ]
+        report["num_frags"] = num_frags
+
+
+#TODO: these are only here for backwards compatibility - can delete?
+def evaluate_multiple_simulated_env(envs, min_intensity=0.0, group_list=None):
+    """Evaluates_multiple simulated injections against a base set of chemicals that
+    were used to derive the datasets"""
+    eva = SyntheticEvaluator.from_envs(envs)
+    return eva.evaluation_report(min_intensity=min_intensity)
+
+    
+def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
+    """Evaluates a single simulated injection against the chemicals present in that injection"""
+    return evaluate_multiple_simulated_env([env], min_intensity=min_intensity)
 
     
 class RealEvaluator(Evaluator):
     def __init__(self, chems=[]):
         super().__init__(chems=chems)
         self.fullscan_names = []
-        self.mzmls = [] #need to track for number of total fragmentations
+        self.mzmls = []
 
     @classmethod
     def from_aligned(cls, aligned_file):

@@ -17,7 +17,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Box import (
     Point, Interval, GenericBox,
-    BoxLineSweeper
+    BoxGrid
 )
 from vimms.Common import path_or_mzml
 
@@ -99,7 +99,7 @@ def pick_aligned_peaks(input_files,
     
     try:
         num_boxes = count_boxes(output_path)
-        print(f"Wrote {num_boxes} aligned boxes to file")
+        print(f"{num_boxes} aligned boxes contained in file")
     except FileNotFoundError:
         raise FileNotFoundError("The box file doesn't seem to exist - did MZMine silently fail?")
         
@@ -302,7 +302,7 @@ class RealEvaluator(Evaluator):
         return eva
         
     def add_info(self, fullscan_name, mzmls, isolation_width=None):
-        geom = BoxLineSweeper()
+        geom = BoxGrid()
         if("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]
@@ -315,7 +315,6 @@ class RealEvaluator(Evaluator):
             new_info = np.zeros((len(chems), 3, 1))
             
             for s in sorted(mzml.scans, key=attrgetter("rt_in_seconds")):
-                geom.set_active_boxes(s.rt_in_seconds)
                 if(s.ms_level == 1):
                     current_intensities = [[] for _ in self.chems]
                     

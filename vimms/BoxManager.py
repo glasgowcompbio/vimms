@@ -2,7 +2,7 @@ from collections import deque
 from operator import attrgetter
 
 from vimms.Roi import Roi, RoiAligner
-from vimms.Box import BoxIntervalTrees, LineSweeper
+from vimms.Box import BoxGrid, LineSweeper
 from vimms.DriftCorrection import IdentityDrift
 
 class BoxManager():
@@ -26,7 +26,7 @@ class BoxManager():
         self.drift_models = [IdentityDrift()] if drift_model is None else [drift_model]
         self.box_converter = BoxConverter() if box_converter is None else box_converter
         self.box_splitter = BoxSplitter(split=False) if box_splitter is None else box_splitter
-        self.box_geometry = BoxIntervalTrees() if box_geometry is None else box_geometry
+        self.box_geometry = BoxGrid() if box_geometry is None else box_geometry
 
     def point_in_box(self, pt):
         return self.box_geometry.point_in_box(pt)

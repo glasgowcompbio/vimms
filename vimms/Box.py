@@ -10,7 +10,7 @@ from abc import abstractmethod, ABCMeta
 from collections import defaultdict, namedtuple
 from decimal import Decimal
 from functools import reduce
-from operator import attrgetter
+from operator import or_, attrgetter
 
 import intervaltree
 import numpy as np
@@ -384,14 +384,13 @@ class LocatorGrid(Grid):
     def get_boxes(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         boxes = set()
-        for row in self.boxes[rt_box_range[0]:rt_box_range[1],
-                   mz_box_range[0]:mz_box_range[1]]:
+        for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
             for s in row:
                 boxes |= s
         return boxes
 
     def get_all_boxes(self):
-        return reduce(lambda s1, s2: s1 | s2, (s for row in self.boxes for s in row))
+        return reduce(or_, (s for row in self.boxes for s in row), set())
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
@@ -768,7 +767,14 @@ class BoxExact(BoxGeometry):
         
             
 class BoxGrid(BoxExact): 
-    def __init__(self, min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size):
+    def __init__(self, 
+                 min_rt=0, 
+                 max_rt=1440, 
+                 rt_box_size=50, 
+                 min_mz=0, 
+                 max_mz=2000, 
+                 mz_box_size=1):
+        
         self.grid = LocatorGrid(min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size)
         
     def get_all_boxes(self):
@@ -777,7 +783,7 @@ class BoxGrid(BoxExact):
     def point_in_box(self, pt):
         box = GenericBox(pt.x, pt.x, pt.y, pt.y)
         return any(
-            box.contains_point(pt) for b in self.grid.get_boxes(box)
+            b.contains_point(pt) for b in self.grid.get_boxes(box)
         )
         
     def point_in_which_boxes(self, pt):
@@ -804,6 +810,32 @@ class BoxGrid(BoxExact):
         )
         
     def register_boxes(self, boxes):
+        boxes = list(boxes)
+        min_rt, max_rt = self.grid.min_rt, self.grid.max_rt
+        min_mz, max_mz = self.grid.min_mz, self.grid.max_mz
+        rt_box_size, mz_box_size = self.grid.rt_box_size, self.grid.mz_box_size
+        
+        resize = any(
+            min_rt > b.pt1.x
+            or max_rt < b.pt2.x
+            or min_mz > b.pt1.y
+            or max_mz < b.pt2.y
+            for b in boxes
+        )
+        
+        if(resize):
+            new_grid = LocatorGrid(
+                min(min_rt, min(b.pt1.x for b in boxes) - rt_box_size), 
+                max(max_rt, max(b.pt2.x for b in boxes) + rt_box_size), 
+                rt_box_size,
+                min(min_mz, min(b.pt1.y for b in boxes) - mz_box_size), 
+                max(max_mz, max(b.pt2.y for b in boxes) + mz_box_size), 
+                mz_box_size
+            )
+            for b in self.grid.get_all_boxes():
+                new_grid.register_box(b)
+            self.grid = new_grid
+        
         for b in boxes:
             self.grid.register_box(b)
         

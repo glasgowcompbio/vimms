@@ -3,6 +3,7 @@ import csv
 import xml
 import re
 import itertools
+import bisect
 import subprocess
 from functools import reduce
 from operator import attrgetter
@@ -11,15 +12,16 @@ from abc import abstractmethod, ABCMeta
 
 import numpy as np
 import statsmodels.api as sm
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
-    map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import (
+    load_picked_boxes, map_boxes_to_scans, PickedBox
+)
 
+from vimms.Common import path_or_mzml
 from vimms.Box import (
     Point, Interval, GenericBox,
-    BoxGrid
+    LineSweeper
 )
-from vimms.Common import path_or_mzml
 
 
 class EvaluationData():
@@ -302,65 +304,74 @@ class RealEvaluator(Evaluator):
         return eva
         
     def add_info(self, fullscan_name, mzmls, isolation_width=None):
-        geom = BoxGrid()
         if("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]
         box2idx = {box : i for i, box in enumerate(chems)}
-        geom.register_boxes(ch for ch in chems if not ch is None)
         
-        for mzml in mzmls:
-            mzml = path_or_mzml(mzml)
-            self.mzmls.append(mzml)
-            new_info = np.zeros((len(chems), 3, 1))
-            
+        mzmls = [path_or_mzml(mzml) for mzml in mzmls]
+        self.mzmls.extend(mzmls)
+        
+        lswp = LineSweeper()
+        lswp.register_boxes(ch for ch in chems if not ch is None)
+        
+        current_intensities = [[] for _ in self.chems]
+        new_info = np.zeros((len(chems), 3, len(mzmls)))
+        for mzml_idx, mzml in enumerate(mzmls):
             for s in sorted(mzml.scans, key=attrgetter("rt_in_seconds")):
+                lswp.set_active_boxes(s.rt_in_seconds)
                 if(s.ms_level == 1):
+                
                     current_intensities = [[] for _ in self.chems]
+                    mzs, intensities = zip(*s.peaks)
                     
-                    for mz, intensity in s.peaks:
-                        related_boxes = geom.point_in_which_boxes(
-                            Point(s.rt_in_seconds, mz)
-                        )
+                    for b in lswp.get_active_boxes():
+                        ch_idx = box2idx[b]
+                        p_idx = bisect.bisect_left(mzs, b.pt1.y)
                         
-                        for b in related_boxes:
-                            idx = box2idx[b]
-                            current_intensities[idx].append((mz, intensity))
-                            new_info[idx, self.MAX_INTENSITY] = max(
-                                intensity,
-                                new_info[idx, self.MAX_INTENSITY]
+                        max_intensity = 0
+                        for i in range(p_idx, len(mzs)):
+                            if(mzs[i] > b.pt2.y): break
+                            current_intensities[ch_idx].append((mzs[i], intensities[i]))
+                            max_intensity = max(max_intensity, intensities[i])
+                        
+                        new_info[ch_idx, self.MAX_INTENSITY, mzml_idx] = max(
+                                new_info[ch_idx, self.MAX_INTENSITY, mzml_idx],
+                                max_intensity
                             )
+                
                 else:
                     mz = s.precursor_mz
                     if(isolation_width is None):
-                        related_boxes = geom.point_in_which_boxes(
+                        related_boxes = lswp.point_in_which_boxes(
                             Point(s.rt_in_seconds, mz)
                         )
 
                         for b in related_boxes:
-                            idx = box2idx[b]
+                            ch_idx = box2idx[b]
                             candidates = [
-                                cint for cmz, cint in current_intensities[idx]
+                                cint for cmz, cint in current_intensities[ch_idx]
                                 if cmz >= mz - 1E-10 and cmz <= mz + 1E-10
                             ]
-                            new_info[idx, self.TIMES_FRAGMENTED] += 1
-                            new_info[idx, self.MAX_FRAG_INTENSITY] = max(
-                                max(candidates + [0.0]),
-                                new_info[idx, self.MAX_FRAG_INTENSITY]
+                            new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                            new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
+                                max(candidates + [0.0])
                             )
                     else:
-                        related_boxes = geom.interval_covers_which_boxes(
+                        related_boxes = lswp.interval_covers_which_boxes(
                             self._new_window(s.rt_in_seconds, mz, isolation_width)
                         )
 
                         for b in related_boxes:
-                            idx = box2idx[b]
-                            new_info[idx, self.TIMES_FRAGMENTED] += 1
-                            new_info[idx, self.MAX_FRAG_INTENSITY] = max(
-                                max([it for _, it in current_intensities[idx]] + [0.0]),
-                                new_info[idx, self.MAX_FRAG_INTENSITY]
+                            ch_idx = box2idx[b]
+                            new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                            new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
+                                max([it for _, it in current_intensities[ch_idx]] + [0.0])
                             )
-            self.chem_info = np.concatenate((self.chem_info, new_info), axis=2)
+        
+        self.chem_info = np.concatenate((self.chem_info, new_info), axis=2)
 
     def extra_info(self, report):
         num_frags = []

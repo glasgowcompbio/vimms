@@ -291,10 +291,14 @@ class Grid(metaclass=ABCMeta):
         self.rt_box_size, self.mz_box_size = rt_box_size, mz_box_size
         self.box_area = float(Decimal(rt_box_size) * Decimal(mz_box_size))
 
-        self.rtboxes = range(0, int((self.max_rt - self.min_rt) /
-                                    rt_box_size) + 1)
-        self.mzboxes = range(0, int((self.max_mz - self.min_mz) /
-                                    mz_box_size) + 1)
+        self.rtboxes = range(
+            0, 
+            int((self.max_rt - self.min_rt) / rt_box_size) + 2
+        )
+        self.mzboxes = range(
+            0, 
+            int((self.max_mz - self.min_mz) / mz_box_size) + 2
+        )
         self.boxes = self.init_boxes(self.rtboxes, self.mzboxes)
 
     def get_box_ranges(self, box):
@@ -416,6 +420,9 @@ class LineSweeper():
     def get_all_boxes(self):
         return self.all_boxes
         
+    def get_active_boxes(self):
+        return self.active
+        
     def _add_active(self, new_ptr, current_loc):
         for b in itertools.islice(self.all_boxes, self.active_pointer, new_ptr):
             self.active.append(b)
@@ -445,7 +452,7 @@ class LineSweeper():
         self._add_active(new_ptr, current_loc)
         
         self.was_active = []
-        while(self.active != [] and self.active[-1].pt2.x <= current_loc):
+        while(self.active != [] and self.active[-1].pt2.x < current_loc):
             self._remove_active()
         self.previous_loc = self.current_loc
         self.current_loc = current_loc

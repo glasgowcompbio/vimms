@@ -560,12 +560,12 @@ def evaluate_multi_peak_roi_aligner(frequentist_roi_aligner, source_files,
     return {
         'coverage': coverage,
         'intensity': coverage_intensities,
-        'cumulative_coverage_intensities': cumulative_coverage_intensities,
+        'cumulative_intensity': cumulative_coverage_intensities,
         'cumulative_coverage': cumulative_coverage,
-        'cumulative_coverage_prop': cumulative_coverage_prop,
-        'cumulative_coverage_intensities_prop': cumulative_coverage_intensities_prop,
+        'cumulative_coverage_proportion': cumulative_coverage_prop,
+        'cumulative_intensity_proportion': cumulative_coverage_intensities_prop,
         'coverage_times_fragmented': coverage_times_fragmented,
-        'max_possible_intensities': max_possible_intensities,
+        'max_possible_intensity': max_possible_intensities,
         'pvalues': pvalues
     }
 

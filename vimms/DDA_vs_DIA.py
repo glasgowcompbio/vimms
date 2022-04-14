@@ -14,7 +14,7 @@ from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
 from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.BoxVisualise import PlotPoints
-from vimms.Common import load_obj
+from vimms.Common import load_obj, create_if_not_exist
 from vimms.Controller import AgentBasedController, TopN_SmartRoiController, TopNController, \
     WeightedDEWController, AIF, SWATH, AdvancedParams
 from vimms.Controller.box import IntensityNonOverlapController, NonOverlapController
@@ -363,6 +363,7 @@ def plot_results(controller_names, eval_res, suptitle=None, outfile=None):
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
     if outfile is not None:
+        create_if_not_exist(os.path.dirname(outfile))
         plt.savefig(outfile, facecolor='white', transparent=False)
 
 
@@ -393,6 +394,7 @@ def boxplot_results(df, suptitle=None, outfile=None):
     plt.tight_layout()
 
     if outfile is not None:
+        create_if_not_exist(os.path.dirname(outfile))
         plt.savefig(outfile, facecolor='white', transparent=False)
 
 

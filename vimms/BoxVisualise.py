@@ -394,8 +394,15 @@ class PlotBox():
 
         return plot_boxes
         
-    def serialise_info(self):
-        return [self.min_rt, self.max_rt, self.min_mz, self.max_mz, self.intensity]
+    def serialise_info(self, minutes=False):
+        timescale = 60 if minutes else 1
+        return [
+            self.min_rt / timescale, 
+            self.max_rt / timescale, 
+            self.min_mz, 
+            self.max_mz, 
+            self.intensity
+        ]
 
     def box_in_bounds(self, min_rt=None, max_rt=None, min_mz=None,
                       max_mz=None):
@@ -454,7 +461,7 @@ def boxes2csv(fname, boxes, colours=None):
         w.writerow(headers)
         
         for b, c in zip(boxes, colours):
-            ls = b.serialise_info()
+            ls = b.serialise_info(minutes=True)
             if(not c is None):
                 ls.extend([c.to_hexcode(), c.A])
             w.writerow(ls)
@@ -468,8 +475,8 @@ def csv2boxes(fname):
         for row in r:
             boxes.append(
                 GenericBox(
-                    row["rtLo"],
-                    row["rtHi"],
+                    float(row["rtLo"]) * 60,
+                    float(row["rtHi"]) * 60,
                     row["mzLo"],
                     row["mzHi"]
                 )

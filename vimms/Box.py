@@ -108,8 +108,15 @@ class Box():
     def __hash__(self):
         return (self.pt1, self.pt2).__hash__()
         
-    def serialise_info(self):
-        return [self.min_rt, self.max_rt, self.min_mz, self.max_mz, self.intensity]
+    def serialise_info(self, minutes=False):
+        timescale = 60 if minutes else 1
+        return [
+            self.min_rt / timescale, 
+            self.max_rt / timescale, 
+            self.min_mz, 
+            self.max_mz, 
+            self.intensity
+        ]
 
     def area(self):
         return (self.pt2.x - self.pt1.x) * (self.pt2.y - self.pt1.y)

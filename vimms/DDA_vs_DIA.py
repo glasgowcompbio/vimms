@@ -409,18 +409,22 @@ def to_eval_res_df(eval_res_list, controller_names, sample_values, sample_label,
 
 
 def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
-                       cumulative=False):
+                       cumulative=False, palette=None):
 
     sns.set_context(context='poster', font_scale=1, rc=None)
     figsize = (20, 10)
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
     if plot_type == 'boxplot':
-        sns.boxplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0])
-        sns.boxplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1])
+        sns.boxplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0],
+                    palette=palette)
+        sns.boxplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1],
+                    palette=palette)
     elif plot_type == 'lineplot':
-        sns.lineplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0])
-        sns.lineplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1])
+        sns.lineplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0],
+                     palette=palette, err_style="bars", ci='sd')
+        sns.lineplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1],
+                     palette=palette, err_style="bars", ci='sd')
     else:
         raise ValueError('Invalid plot_type, must be boxplot or lineplot')
 
@@ -434,6 +438,8 @@ def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
 
+    axes[0].set_ylim([-0.10, 1.1])
+    axes[1].set_ylim([-0.10, 1.1])
     axes[1].get_legend().remove()
     plt.tight_layout()
 

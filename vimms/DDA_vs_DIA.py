@@ -384,10 +384,15 @@ def print_results(controller_names, eval_res):
         print()
 
 
-def to_eval_res_df(eval_res_list, controller_names, sample_values, sample_label, cumulative=False):
+def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
+                   sample_values, sample_label, cumulative=False):
+    assert len(group_values) == len(eval_res_list)
+
     data = []
     for i in range(len(eval_res_list)):
+        group_value = group_values[i]
         eval_res = eval_res_list[i]
+
         for controller_name in controller_names:
             results = eval_res[controller_name]
             if cumulative:
@@ -397,13 +402,14 @@ def to_eval_res_df(eval_res_list, controller_names, sample_values, sample_label,
                 coverages = results['coverage_proportion']
                 intensity_proportions = results["intensity_proportion"]
 
+            assert len(coverages) == len(sample_values)
             for j in range(len(coverages)):
                 cov = coverages[j]
                 intensity = intensity_proportions[j]
-                sample_val = sample_values[j]
-                row = [i, controller_name, sample_val, cov, intensity]
+                sample_value = sample_values[j]
+                row = [group_value, sample_value, controller_name, cov, intensity]
                 data.append(row)
-    df = pd.DataFrame(data, columns=['replicate', 'controller', sample_label, 'coverage_prop',
+    df = pd.DataFrame(data, columns=[group_label, sample_label, 'controller', 'coverage_prop',
                                      'intensity_prop'])
     return df
 

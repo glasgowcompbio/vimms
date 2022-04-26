@@ -444,8 +444,8 @@ def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
 
-    axes[0].set_ylim([-0.10, 1.1])
-    axes[1].set_ylim([-0.10, 1.1])
+    # axes[0].set_ylim([-0.10, 1.1])
+    # axes[1].set_ylim([-0.10, 1.1])
     axes[1].get_legend().remove()
     plt.tight_layout()
 

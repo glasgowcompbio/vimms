@@ -14,7 +14,7 @@ from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
 from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.BoxVisualise import PlotPoints
-from vimms.Common import load_obj
+from vimms.Common import load_obj, create_if_not_exist
 from vimms.Controller import AgentBasedController, TopN_SmartRoiController, TopNController, \
     WeightedDEWController, AIF, SWATH, AdvancedParams
 from vimms.Controller.box import IntensityNonOverlapController, NonOverlapController
@@ -48,7 +48,7 @@ def run_experiment(result_folder, sample_list, controller_names, experiment_para
         params_list.append(parameters)
 
     run_serial = True
-    if parallel: # Try to run the controllers in parallel. If fails, then run it serially
+    if parallel:  # Try to run the controllers in parallel. If fails, then run it serially
         logger.warning('Running controllers in parallel, please wait ...')
         run_serial = False
         try:
@@ -333,36 +333,44 @@ def results_to_df(all_results):
     return df
 
 
-def plot_results(controller_names, eval_res, suptitle=None, outfile=None):
+def plot_results(controller_names, eval_res, suptitle=None, outfile=None, cumulative=True):
     sns.set_context('poster')
     fig, (ax1, ax2) = plt.subplots(1, 2)
     for exp_name in controller_names:
         results = eval_res[exp_name]
-        try:
-            coverages = results["cumulative_coverage_prop"]
-        except KeyError:
+        if cumulative:
             coverages = results['cumulative_coverage_proportion']
-
-        try:
-            intensity_proportions = results["cumulative_coverage_intensities_prop"]
-        except KeyError:
             intensity_proportions = results["cumulative_intensity_proportion"]
+        else:
+            coverages = results['coverage_proportion']
+            intensity_proportions = results["intensity_proportion"]
 
         xis = list(range(1, len(coverages) + 1))
 
-        ax1.set(xlabel="Num. Runs", ylabel="Cumulative Coverage Proportion",
-                title="Multi-Sample Cumulative Coverage")
+        if cumulative:
+            ax1.set(xlabel="Num. Runs", ylabel="Cumulative Coverage Proportion",
+                    title="Multi-Sample Cumulative Coverage")
+        else:
+            ax1.set(xlabel="Num. Runs", ylabel="Coverage Proportion",
+                    title="Multi-Sample Coverage")
+
         ax1.plot(xis, coverages, label=exp_name)
         ax1.legend(loc='lower right', bbox_to_anchor=(1, 0.05))
 
-        ax2.set(xlabel="Num. Runs", ylabel="Cumulative Intensity Proportion",
-                title="Multi-Sample Cumulative Intensity Proportion")
+        if cumulative:
+            ax2.set(xlabel="Num. Runs", ylabel="Cumulative Intensity Proportion",
+                    title="Multi-Sample Cumulative Intensity Proportion")
+        else:
+            ax2.set(xlabel="Num. Runs", ylabel="Intensity Proportion",
+                    title="Multi-Sample Intensity Proportion")
+
         ax2.plot(xis, intensity_proportions, label=exp_name)
         ax2.legend(loc='lower right', bbox_to_anchor=(1, 0.05))
     fig.set_size_inches(18.5, 10.5)
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
     if outfile is not None:
+        create_if_not_exist(os.path.dirname(outfile))
         plt.savefig(outfile, facecolor='white', transparent=False)
 
 
@@ -376,23 +384,73 @@ def print_results(controller_names, eval_res):
         print()
 
 
-def boxplot_results(df, suptitle=None, outfile=None):
+def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
+                   sample_values, sample_label, cumulative=False):
+    assert len(group_values) == len(eval_res_list)
+
+    data = []
+    for i in range(len(eval_res_list)):
+        group_value = group_values[i]
+        eval_res = eval_res_list[i]
+
+        for controller_name in controller_names:
+            results = eval_res[controller_name]
+            if cumulative:
+                coverages = results['cumulative_coverage_proportion']
+                intensity_proportions = results["cumulative_intensity_proportion"]
+            else:
+                coverages = results['coverage_proportion']
+                intensity_proportions = results["intensity_proportion"]
+
+            assert len(coverages) == len(sample_values)
+            for j in range(len(coverages)):
+                cov = coverages[j]
+                intensity = intensity_proportions[j]
+                sample_value = sample_values[j]
+                row = [group_value, sample_value, controller_name, cov, intensity]
+                data.append(row)
+    df = pd.DataFrame(data, columns=[group_label, sample_label, 'controller', 'coverage_prop',
+                                     'intensity_prop'])
+    return df
+
+
+def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
+                       cumulative=False, palette=None):
+
     sns.set_context(context='poster', font_scale=1, rc=None)
+    figsize = (20, 10)
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
 
-    figsize = (20, 20)
-    fig, axes = plt.subplots(2, 1, figsize=figsize)
+    if plot_type == 'boxplot':
+        sns.boxplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0],
+                    palette=palette)
+        sns.boxplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1],
+                    palette=palette)
+    elif plot_type == 'lineplot':
+        sns.lineplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0],
+                     palette=palette, err_style="bars", ci='sd')
+        sns.lineplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1],
+                     palette=palette, err_style="bars", ci='sd')
+    else:
+        raise ValueError('Invalid plot_type, must be boxplot or lineplot')
 
-    sns.boxplot(x='sample_num', y='coverage_prop', hue='controller', data=df, ax=axes[0])
-    axes[0].set_title('Multi-sample Cumulative Coverage')
-
-    sns.boxplot(x='sample_num', y='intensity_prop', hue='controller', data=df, ax=axes[1])
-    axes[1].set_title('Multi-sample Cumulative Intensity Proportion')
+    if cumulative:
+        axes[0].set_title('Cumulative Coverage')
+        axes[1].set_title('Cumulative Intensity Proportion')
+    else:
+        axes[0].set_title('Coverage')
+        axes[1].set_title('Intensity Proportion')
 
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
+
+    # axes[0].set_ylim([-0.10, 1.1])
+    # axes[1].set_ylim([-0.10, 1.1])
+    axes[1].get_legend().remove()
     plt.tight_layout()
 
     if outfile is not None:
+        create_if_not_exist(os.path.dirname(outfile))
         plt.savefig(outfile, facecolor='white', transparent=False)
 
 

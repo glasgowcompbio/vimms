@@ -144,6 +144,9 @@ class Box():
     def num_overlaps(self):
         return len(self.parents)
         
+    def to_box(self, min_rt_width=0.0, min_mz_width=0.0):
+        return self.copy()
+        
     @classmethod
     def from_pickedbox(cls, pbox):
         min_rt, max_rt = pbox.rt_range_in_seconds
@@ -201,6 +204,16 @@ class GenericBox(Box):
             and self.pt1.y <= other_box.pt1.y
             and self.pt2.x >= other_box.pt2.x
             and self.pt2.y >= other_box.pt2.y
+        )
+        
+    def combine_max(self, other_box):
+        return GenericBox(
+            min(self.pt1.x, other_box.pt1.x),
+            max(self.pt2.x, other_box.pt2.x),
+            min(self.pt1.y, other_box.pt1.y),
+            max(self.pt2.y, other_box.pt2.y),
+            parents=(self.parents + other_box.parents),
+            intensity=max(self.intensity, other_box.intensity),
         )
         
     def overlap_raw(self, other_box):

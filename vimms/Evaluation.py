@@ -148,6 +148,7 @@ class Evaluator(metaclass=ABCMeta):
         times_covered_summary = Counter(times_covered.ravel())
         
         cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
+        sum_cumulative_coverage = [np.sum(ccov) for ccov in cumulative_coverage]
         cumulative_raw_intensities = list(itertools.accumulate(raw_intensities, np.fmax))
         cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
         
@@ -182,6 +183,7 @@ class Evaluator(metaclass=ABCMeta):
             "times_covered_summary" : times_covered_summary,
             
             "cumulative_coverage" : cumulative_coverage,
+            "sum_cumulative_coverage" : sum_cumulative_coverage,
             "cumulative_raw_intensity" : cumulative_raw_intensities,
             "cumulative_intensity" : cumulative_coverage_intensities,
             
@@ -195,6 +197,19 @@ class Evaluator(metaclass=ABCMeta):
         self.extra_info(report)
         return report
         
+    def summarise(self, min_intensity=0.0):
+        report = self.evaluation_report(min_intensity=min_intensity)
+        fields = {
+            "Number of fragmentations" : "num_frags",
+            "Cumulative coverage" : "sum_cumulative_coverage",
+            "Cumulative coverage proportion" : "cumulative_coverage_proportion",
+            "Cumulative intensity proportion" : "cumulative_intensity_proportion",
+            "Times covered" : "times_covered_summary",
+            "Times fragmented" : "times_fragmented_summary",
+        }
+        
+        for name, key in fields.items():
+            print(f"{name}: {report[key]}")
 
 class SyntheticEvaluator(Evaluator):
 
@@ -247,7 +262,7 @@ def evaluate_multiple_simulated_env(envs, min_intensity=0.0, group_list=None):
     """Evaluates_multiple simulated injections against a base set of chemicals that
     were used to derive the datasets"""
     eva = SyntheticEvaluator.from_envs(envs)
-    return eva.evaluation_report(min_intensity=min_intensity)
+    return eva
 
     
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
@@ -386,6 +401,29 @@ class RealEvaluator(Evaluator):
         self.chem_info[:] = 0
         self.mzmls = []
         
+    def partition_chems(self, min_intensity=0.0, aggregate=None):
+        partition = {
+            "fragmented": [],
+            "unfragmented": []
+        }
+        fragmentations = self.evaluation_report(min_intensity=min_intensity)["times_fragmented"]
+        
+        for row, hits in zip(self.chems, fragmentations):
+            
+            if(aggregate.lower() == "max"):
+                b0 = row[0]
+                for b in row[1:]:
+                    b0 = b0.combine_max(b)
+                processed = [b0]
+            else:
+                processed = row
+                
+            if(hits > 0):
+                partition["fragmented"].append(processed)
+            else:
+                partition["unfragmented"].append(processed)
+                
+        return partition
         
 def evaluate_real(aligned_file,
                   mzml_map,
@@ -409,14 +447,14 @@ def evaluate_real(aligned_file,
         min_intensity: Fragmentation events with precursor below this threshold
                        do not count as hits.
 
-    Returns: A dictionary mapping names to evaluation statistics.
+    Returns: A RealEvaluator object containing evaluation results.
     """
 
     eva = RealEvaluator.from_aligned(aligned_file)
     for fullscan_path, mzmls in mzml_map.items():
         fullscan_name = os.path.basename(fullscan_path)
         eva.add_info(fullscan_name, mzmls, isolation_width=isolation_width)
-    return eva.evaluation_report(min_intensity=min_intensity)
+    return eva
 
 
 def calculate_chemical_p_values(datasets, group_list, base_chemicals):

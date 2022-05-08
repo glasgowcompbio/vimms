@@ -318,7 +318,7 @@ class RealEvaluator(Evaluator):
         eva.fullscan_names = list(indices.keys())
         return eva
         
-    def add_info(self, fullscan_name, mzmls, isolation_width=None):
+    def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):
         if("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]
@@ -366,7 +366,7 @@ class RealEvaluator(Evaluator):
                             ch_idx = box2idx[b]
                             candidates = [
                                 cint for cmz, cint in current_intensities[ch_idx]
-                                if cmz >= mz - 1E-10 and cmz <= mz + 1E-10
+                                if 1e6 * np.abs(cmz - mz) / mz <= max_error
                             ]
                             new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
                             new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
@@ -406,11 +406,11 @@ class RealEvaluator(Evaluator):
             "fragmented": [],
             "unfragmented": []
         }
-        fragmentations = self.evaluation_report(min_intensity=min_intensity)["times_fragmented"]
+        covered = self.evaluation_report(min_intensity=min_intensity)["cumulative_coverage"][-1]
         
-        for row, hits in zip(self.chems, fragmentations):
+        for row, hits in zip(self.chems, covered):
             
-            if(aggregate.lower() == "max"):
+            if(not aggregate is None and aggregate.lower() == "max"):
                 b0 = row[0]
                 for b in row[1:]:
                     b0 = b0.combine_max(b)

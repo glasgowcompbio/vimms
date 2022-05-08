@@ -888,7 +888,7 @@ class BoxViewer():
         self.mzmls = []
         self.plot_points = []
         
-    def describe(self):
+    def summarise(self):
         self._check_length()
         print(f"BoxViewer of {len(self.mzmls)} runs")
         print(
@@ -926,19 +926,10 @@ class BoxViewer():
             new_boxes.append(PlotBox.from_grid(geom))
         self.boxes.append(new_boxes)
         self.headers.append("geom boxes")
-
-    def mpl_show_box(self, 
-                     box_index, 
-                     boxset_index=0,
-                     rt_buffer=None, 
-                     mz_buffer=None,
-                     abs_scaling=None,
-                     suptitle=None):
         
-        self._check_length()
+    def _set_plot_bounds(self, box_index, boxset_index=0, rt_buffer=None, mz_buffer=None):
         xbounds = [float("inf"), float("-inf")]
         ybounds = [float("inf"), float("-inf")]
-        fig, axes = plt.subplots(len(self.mzmls), len(self.boxes))
 
         for i, _ in enumerate(self.mzmls):
             chosen_box = self.boxes[boxset_index][i][box_index]
@@ -954,18 +945,99 @@ class BoxViewer():
                 max(ybounds[1], new_ybounds[1])
             ]
         
+        return xbounds, ybounds
+        
+    def summarise_box(self, box_index, boxset_index=0, rt_buffer=None, mz_buffer=None):
+        self._check_length()
+        xbounds, ybounds = self._set_plot_bounds(
+            box_index, 
+            boxset_index=boxset_index, 
+            rt_buffer=rt_buffer, 
+            mz_buffer=mz_buffer
+        )
+        
+        for i, mzml in enumerate(self.mzmls):
+            pts = self.plot_points[i]
+            
+            active_ms1, active_ms2 = pts.get_points_in_bounds(
+                    min_rt=xbounds[0], 
+                    max_rt=xbounds[1],
+                    min_mz=ybounds[0], 
+                    max_mz=ybounds[1]
+            )
+            
+            print(os.path.basename(mzml.file_name))
+            print(
+                "MS1 Points:\n" + "\n".join(
+                    f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
+                    for rt, mz, intensity in pts.ms1_points[active_ms1]
+                )
+            )
+            
+            print(
+                "MS2 Points:\n" + "\n".join(
+                    f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
+                    for rt, mz, intensity in pts.ms2s[active_ms2]
+                )
+            )
+            
+            for h, boxset in zip(self.headers, self.boxes):
+                print(h)
+                for b in boxset[i]:
+                    in_bounds = b.box_in_bounds(
+                        min_rt=xbounds[0], 
+                        max_rt=xbounds[1],
+                        min_mz=ybounds[0], 
+                        max_mz=ybounds[1]
+                    )
+                    
+                    if(in_bounds):
+                        print(b)
+                    
+            print()
+            print()
+
+    def mpl_show_box(self, 
+                     box_index, 
+                     boxset_index=0,
+                     rt_buffer=None, 
+                     mz_buffer=None,
+                     ms_level=1,
+                     abs_scaling=None,
+                     suptitle=None):
+        
+        self._check_length()
+        fig, axes = plt.subplots(len(self.mzmls), len(self.boxes))
+        xbounds, ybounds = self._set_plot_bounds(
+            box_index, 
+            boxset_index=boxset_index, 
+            rt_buffer=rt_buffer, 
+            mz_buffer=mz_buffer
+        )
+        
         for i, _ in enumerate(self.mzmls):
             pts = self.plot_points[i]
             
             for j, boxset in enumerate(self.boxes):
-                pts.mpl_add_ms1s(
-                    axes[i][j], 
-                    min_rt=xbounds[0], 
-                    max_rt=xbounds[1],
-                    min_mz=ybounds[0], 
-                    max_mz=ybounds[1],
-                    abs_scaling=abs_scaling
-                )
+                
+                if(ms_level == 1):
+                    pts.mpl_add_ms1s(
+                        axes[i][j], 
+                        min_rt=xbounds[0], 
+                        max_rt=xbounds[1],
+                        min_mz=ybounds[0], 
+                        max_mz=ybounds[1],
+                        abs_scaling=abs_scaling
+                    )
+                elif(ms_level == 2):
+                    pts.mpl_add_ms2s(
+                        axes[i][j], 
+                        min_rt=xbounds[0], 
+                        max_rt=xbounds[1],
+                        min_mz=ybounds[0], 
+                        max_mz=ybounds[1],
+                        abs_scaling=abs_scaling
+                    )
                 
                 for b in boxset[i]:
                     in_bounds = b.box_in_bounds(

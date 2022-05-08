@@ -322,7 +322,10 @@ class RealEvaluator(Evaluator):
         if("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]
-        box2idx = {box : i for i, box in enumerate(chems)}
+        
+        box2idxes = defaultdict(list)
+        for i, b in enumerate(chems):
+            box2idxes[b].append(i)
         
         mzmls = [path_or_mzml(mzml) for mzml in mzmls]
         self.mzmls.extend(mzmls)
@@ -341,19 +344,18 @@ class RealEvaluator(Evaluator):
                     mzs, intensities = zip(*s.peaks)
                     
                     for b in lswp.get_active_boxes():
-                        ch_idx = box2idx[b]
                         p_idx = bisect.bisect_left(mzs, b.pt1.y)
-                        
-                        max_intensity = 0
-                        for i in range(p_idx, len(mzs)):
-                            if(mzs[i] > b.pt2.y): break
-                            current_intensities[ch_idx].append((mzs[i], intensities[i]))
-                            max_intensity = max(max_intensity, intensities[i])
-                        
-                        new_info[ch_idx, self.MAX_INTENSITY, mzml_idx] = max(
-                                new_info[ch_idx, self.MAX_INTENSITY, mzml_idx],
-                                max_intensity
-                            )
+                        for ch_idx in box2idxes[b]:
+                            max_intensity = 0
+                            for i in range(p_idx, len(mzs)):
+                                if(mzs[i] > b.pt2.y): break
+                                current_intensities[ch_idx].append((mzs[i], intensities[i]))
+                                max_intensity = max(max_intensity, intensities[i])
+                            
+                            new_info[ch_idx, self.MAX_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_INTENSITY, mzml_idx],
+                                    max_intensity
+                                )
                 
                 else:
                     mz = s.precursor_mz
@@ -363,28 +365,28 @@ class RealEvaluator(Evaluator):
                         )
 
                         for b in related_boxes:
-                            ch_idx = box2idx[b]
-                            candidates = [
-                                cint for cmz, cint in current_intensities[ch_idx]
-                                if 1e6 * np.abs(cmz - mz) / mz <= max_error
-                            ]
-                            new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
-                            new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
-                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
-                                max(candidates + [0.0])
-                            )
+                            for ch_idx in box2idxes[b]:
+                                candidates = [
+                                    cint for cmz, cint in current_intensities[ch_idx]
+                                    if 1e6 * np.abs(cmz - mz) / mz <= max_error
+                                ]
+                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
+                                    max(candidates + [0.0])
+                                )
                     else:
                         related_boxes = lswp.interval_covers_which_boxes(
                             self._new_window(s.rt_in_seconds, mz, isolation_width)
                         )
 
                         for b in related_boxes:
-                            ch_idx = box2idx[b]
-                            new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
-                            new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
-                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
-                                max([it for _, it in current_intensities[ch_idx]] + [0.0])
-                            )
+                            for ch_idx in box2idxes[b]:
+                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
+                                    max([it for _, it in current_intensities[ch_idx]] + [0.0])
+                                )
         
         self.chem_info = np.concatenate((self.chem_info, new_info), axis=2)
 

@@ -116,9 +116,16 @@ class BoxManager():
         self._next_model()
         
 class BoxConverter():
-    def __init__(self, ignore=False, unique=True, min_rt_width=1E-07, min_mz_width=1E-07):
+    def __init__(self, 
+                 ignore=False, 
+                 unique=True, 
+                 min_rt_width=1E-07, 
+                 min_mz_width=1E-07,
+                 fixed_rt_dist=None,
+                 fixed_mz_dist=None):
         self.ignore, self.unique = ignore, unique
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
+        self.fixed_rt_dist, self.fixed_mz_dist = fixed_rt_dist, fixed_mz_dist
     
     @staticmethod
     def _unique_boxes(boxes):
@@ -136,12 +143,22 @@ class BoxConverter():
         return roi.to_box(
             self.min_rt_width, 
             self.min_mz_width,
+            fixed_rt_dist=self.fixed_rt_dist,
+            fixed_mz_dist=self.fixed_mz_dist,
             rt_shift = (-drift_fn(roi)[0])
         )
         
     def rois2boxes(self, rois):
         if(self.ignore): return []
-        boxes = (r.to_box(self.min_rt_width, self.min_mz_width) for r in rois)    
+        boxes = (
+            r.to_box(
+                self.min_rt_width, 
+                self.min_mz_width,
+                fixed_rt_dist=self.fixed_rt_dist,
+                fixed_mz_dist=self.fixed_mz_dist,
+            ) 
+            for r in rois
+        )    
         if(self.unique): return self._unique_boxes(boxes)
         else: return list(boxes)
 

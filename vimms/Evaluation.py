@@ -301,7 +301,8 @@ class RealEvaluator(Evaluator):
                 row = []
                 split = ln.split(",")
                 for fname, inner in indices.items():
-                    if(split[inner["status"]] == "DETECTED"):
+                    if(split[inner["status"]].upper() == "DETECTED" 
+                       or split[inner["status"]].upper() == "ESIMATED"):
                         row.append(
                             GenericBox(
                                 float(split[inner["RT start"]]) * 60,

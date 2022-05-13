@@ -326,7 +326,7 @@ class PlotPoints():
                     markers[i] = "x"
         self.markers = markers
         
-    def colour_by_intensity(self, intensities, abs_scaling):
+    def colour_by_intensity(self, intensities, colour_minm, abs_scaling):
         cmap = InterpolationMap([
             RGBAColour(238, 238, 238), 
             ColourMap.YELLOW, 
@@ -334,15 +334,16 @@ class PlotPoints():
             ColourMap.PURE_BLUE
         ])
         
-        if (abs_scaling):
-            minm = math.log(np.min(self.ms1_points[:, 2]))
+        if(abs_scaling):
+            if(not colour_minm is None): minm = colour_minm
+            else: minm = math.log(np.min(self.ms1_points[:, 2]))
             maxm = math.log(np.max(self.ms1_points[:, 2]))
             colours = np.array(list(
                 cmap.assign_colours(intensities, lambda x: math.log(x), minm=minm, maxm=maxm)
             ))
         else:
             colours = np.array(list(
-                cmap.assign_colours(intensities, lambda x: math.log(x))
+                cmap.assign_colours(intensities, lambda x: math.log(x), minm=colour_minm)
             ))
         
         return colours
@@ -350,7 +351,7 @@ class PlotPoints():
     def mpl_add_ms1s(self, ax, 
                     min_rt=None, max_rt=None, 
                     min_mz=None, max_mz=None,
-                    min_intensity=0.0,
+                    draw_minm=0.0, colour_minm=None,
                     abs_scaling=False):
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         self.mark_precursors()
@@ -358,12 +359,12 @@ class PlotPoints():
         active_ms1 = self.ms1_points[self.active_ms1, :]
         sort_idx = np.argsort(active_ms1[:, 2])
         srted = active_ms1[sort_idx]
-        filter_idx = srted[:, 2] >= min_intensity
+        filter_idx = srted[:, 2] >= draw_minm
         rts, mzs, intensities = srted[filter_idx].T
         markers = np.array(self.markers)[self.active_ms1][sort_idx][filter_idx]
         markers = ["o" if m == "0" else m for m in markers]
         
-        colours = self.colour_by_intensity(intensities, abs_scaling=abs_scaling)
+        colours = self.colour_by_intensity(intensities, colour_minm, abs_scaling)
         for marker in ["o", "x"]:
             idxes = [i for i, m in enumerate(markers) if m == marker]
             ax.scatter(
@@ -375,17 +376,19 @@ class PlotPoints():
     def mpl_add_ms2s(self, ax, 
                     min_rt=None, max_rt=None, 
                     min_mz=None, max_mz=None, 
+                    colour_minm=None,
                     abs_scaling=False):
+
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         active_ms2 = self.ms2s[self.active_ms2, :]
         rts, mzs, intensities = active_ms2[np.argsort(active_ms2[:, 2])].T
-        colours = self.colour_by_intensity(intensities, abs_scaling=abs_scaling)
+        colours = self.colour_by_intensity(intensities, colour_minm, abs_scaling)
         ax.scatter(rts, mzs, color=[colour.squash() for _, colour in colours], marker="x")
 
     def plotly_ms1s(self, 
                     min_rt=None, max_rt=None, 
                     min_mz=None, max_mz=None, 
-                    min_intensity=0.0,
+                    draw_minm=0.0, colour_minm=None,
                     show_precursors=False,
                     abs_scaling=False):
                     
@@ -395,7 +398,7 @@ class PlotPoints():
         active_ms1 = self.ms1_points[self.active_ms1, :]
         sort_idx = np.argsort(active_ms1[:, 2])
         srted = active_ms1[sort_idx]
-        filter_idx = srted[:, 2] >= min_intensity
+        filter_idx = srted[:, 2] >= draw_minm
         rts, mzs, intensities = active_ms1[filter_idx].T
         
         lit = [math.log(it) for it in intensities]
@@ -407,9 +410,16 @@ class PlotPoints():
         ]
         
         if(show_precursors):
-            markers = np.array(self.markers)[self.ms1_points[:, 2] >= min_intensity][sort_idx]
+            markers = np.array(self.markers)[self.ms1_points[:, 2] >= draw_minm][sort_idx]
         else:
             markers = "0"
+            
+        if(not colour_minm is None):
+            cmin = colour_minm
+        elif(not abs_scaling is None):
+            cmin = min(np.log(self.ms2_points[:, 2]))
+        else:
+            cmin = None
         
         return go.Scattergl(
                 x=rts, 
@@ -419,14 +429,19 @@ class PlotPoints():
                     symbol=markers,
                     color=lit,
                     colorscale=[c.to_plotly()[0] for c in colourscale],
-                    cmin=min(np.log(active[:, 2])) if abs_scaling else None,
-                    cmax=max(np.log(active[:, 2])) if abs_scaling else None
+                    cmin=cmin,
+                    cmax=max(np.log(self.ms1_points[:, 2])) if abs_scaling else max(lit)
                 ),
                 hovertemplate=self.hovertemplate,
                 customdata=intensities
         )
 
-    def plotly_ms2s(self, min_rt=None, max_rt=None, min_mz=None, max_mz=None, abs_scaling=False):   
+    def plotly_ms2s(self, 
+                    min_rt=None, max_rt=None, 
+                    min_mz=None, max_mz=None,
+                    colour_minm=None,
+                    abs_scaling=False):
+                    
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         active_ms2 = self.ms2s[self.active_ms2, :]
         rts, mzs, intensities = active_ms2[np.argsort(active_ms2[:, 2])].T
@@ -438,6 +453,13 @@ class PlotPoints():
             ColourMap.PURE_BLUE
         ]
         
+        if(not colour_minm is None):
+            cmin = colour_minm
+        elif(not abs_scaling is None):
+            cmin = min(np.log(self.ms2_points[:, 2]))
+        else:
+            cmin = None
+        
         return go.Scattergl(
                 x=rts, 
                 y=mzs,
@@ -446,8 +468,8 @@ class PlotPoints():
                     symbol="x",
                     color=lit,
                     colorscale=[c.to_plotly()[0] for c in colourscale],
-                    cmin=min(lit),
-                    cmax=max(lit)
+                    cmin=cmin,
+                    cmax=max(np.log(self.ms1_points[:, 2])) if abs_scaling else max(lit)
                 ),
                 hovertemplate=self.hovertemplate,
                 customdata=intensities
@@ -584,14 +606,23 @@ class PlotBox():
                      mzml, 
                      abs_scaling=False, 
                      other_boxes=[],
+                     draw_minm=0.0,
+                     colour_minm=None,
                      rt_buffer=None, 
                      mz_buffer=None):
         xbounds, ybounds = self.get_plot_bounds(rt_buffer=rt_buffer,
                                                 mz_buffer=mz_buffer)
         pts = PlotPoints.from_mzml(mzml)
-        pts.mpl_add_ms1s(ax, min_rt=xbounds[0], max_rt=xbounds[1],
-                      min_mz=ybounds[0], max_mz=ybounds[1],
-                      abs_scaling=abs_scaling)
+        pts.mpl_add_ms1s(
+            ax, 
+            min_rt=xbounds[0], 
+            max_rt=xbounds[1],
+            min_mz=ybounds[0], 
+            max_mz=ybounds[1],
+            draw_minm=draw_minm,
+            colour_minm=colour_minm,
+            abs_scaling=abs_scaling
+        )
         self.mpl_add_to_plot(ax)
         for b in other_boxes:
             if (b.box_in_bounds(min_rt=xbounds[0], max_rt=xbounds[1],
@@ -655,11 +686,11 @@ def mpl_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
     plt.show()
 
 
-def mpl_mzml(mzml, min_intensity=0.0, show_precursors=False):
+def mpl_mzml(mzml, draw_minm=0.0, colour_minm=None, show_precursors=False):
     fig, ax = plt.subplots(1, 1)
     
     pp = PlotPoints.from_mzml(mzml)
-    pp.mpl_add_ms1s(ax)
+    pp.mpl_add_ms1s(ax, draw_minm=draw_minm, colour_minm=colour_minm)
     ax.set( 
         xlabel="RT (Seconds)", 
         ylabel="m/z"
@@ -668,12 +699,12 @@ def mpl_mzml(mzml, min_intensity=0.0, show_precursors=False):
     plt.plot()
     
 
-def mpl_fragmentation_events(exp_name, mzmls):
+def mpl_fragmentation_events(exp_name, mzmls, colour_minm=None):
     fig, axes = plt.subplots(len(mzmls), 1)
     
     for i, (mzml, ax) in enumerate(zip(mzmls, axes)):
         pp = PlotPoints.from_mzml(mzml)
-        pp.mpl_add_ms2s(ax)
+        pp.mpl_add_ms2s(ax, colour_minm=colour_minm)
         ax.set(
             title=f"{exp_name} Run {i + 1} Fragmentation Events", 
             ylabel="m/z"
@@ -714,7 +745,7 @@ def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=Non
     
     intensity_template = "<br>".join([
         "Iteration: %{x}",
-        "Proportion: %{y} / 1.0"
+        "Intensity Proportion: %{y} / 1.0"
     ]) 
 
     results = [eva.evaluation_report(min_intensity=min_intensity) for eva in evals]
@@ -767,12 +798,18 @@ def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=Non
     fig.show()
 
 
-def plotly_mzml(mzml, min_intensity=0.0, show_precursors=False):
+def plotly_mzml(mzml, draw_minm=0.0, colour_minm=None, show_precursors=False):
     fig = go.Figure()
     
     mzml = path_or_mzml(mzml)
     pp = PlotPoints.from_mzml(mzml)
-    fig.add_trace(pp.plotly_ms1s(min_intensity=min_intensity, show_precursors=show_precursors))
+    fig.add_trace(
+        pp.plotly_ms1s(
+            draw_minm=draw_minm, 
+            colour_minm=colour_minm, 
+            show_precursors=show_precursors
+        )
+    )
     
     fig.update_layout(
         template="plotly_white",
@@ -810,13 +847,13 @@ def plotly_timing_hist(processing_times, title, binsize=None):
     fig.show()
 
  
-def plotly_fragmentation_events(exp_name, mzmls):
+def plotly_fragmentation_events(exp_name, mzmls, colour_minm=None):
     fig = make_subplots(rows=len(mzmls), cols=1, shared_xaxes="all", shared_yaxes="all")
     
     for i, mzml in enumerate(mzmls):
         mzml = path_or_mzml(mzml)
         pp = PlotPoints.from_mzml(mzml)
-        data = pp.plotly_ms2s()
+        data = pp.plotly_ms2s(colour_minm=colour_minm)
         data.name = os.path.basename(mzml.file_name)
         fig.add_trace(data, row=i+1, col=1)
         fig.update_yaxes(title_text="mz", row=i+1, col=1)
@@ -1003,6 +1040,7 @@ class BoxViewer():
                      rt_buffer=None, 
                      mz_buffer=None,
                      ms_level=1,
+                     colour_minm=None,
                      abs_scaling=None,
                      suptitle=None):
         
@@ -1027,6 +1065,7 @@ class BoxViewer():
                         max_rt=xbounds[1],
                         min_mz=ybounds[0], 
                         max_mz=ybounds[1],
+                        colour_minm=colour_minm,
                         abs_scaling=abs_scaling
                     )
                 elif(ms_level == 2):
@@ -1036,6 +1075,7 @@ class BoxViewer():
                         max_rt=xbounds[1],
                         min_mz=ybounds[0], 
                         max_mz=ybounds[1],
+                        colour_minm=colour_minm,
                         abs_scaling=abs_scaling
                     )
                 

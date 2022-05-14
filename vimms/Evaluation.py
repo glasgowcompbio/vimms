@@ -172,6 +172,7 @@ class Evaluator(metaclass=ABCMeta):
         ]
 
         report = {
+            "num_runs" : self.chem_info.shape[2],
             "coverage" : coverage,
             "raw_intensity" : raw_intensities,
             "intensity" : coverage_intensities,

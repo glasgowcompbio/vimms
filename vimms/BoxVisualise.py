@@ -133,12 +133,10 @@ class FixedMap(ColourMap):
         self.mapping = mapping
 
     def assign_colours(self, boxes, key):
-        return ((b, self.mapping[min(key(b), len(self.mapping) - 1)]) for b in
-                boxes)
+        return ((b, self.mapping[min(key(b), len(self.mapping) - 1)]) for b in boxes)
 
     def unique_colours(self, boxes):
-        return ((b, self.mapping[min(i, len(self.mapping) - 1)]) for i, b in
-                enumerate(boxes))
+        return ((b, self.mapping[min(i, len(self.mapping) - 1)]) for i, b in enumerate(boxes))
 
 
 class InterpolationMap(ColourMap):
@@ -244,9 +242,10 @@ class PlotPoints():
     """
 
     def __init__(self, ms1_points, ms2s=None, markers={}):
-        self.ms1_points, self.ms2s = ms1_points, ms2s
-        self.active_ms1 = np.ones((ms1_points.shape[0]))
-        self.active_ms2 = np.ones((ms2s.shape[0]))
+        self.ms1_points = np.array(ms1_points)
+        self.ms2s = np.array(ms2s) if not ms2s is None else np.zeros((0, 3))
+        self.active_ms1 = np.ones((len(self.ms1_points)), dtype=np.bool)
+        self.active_ms2 = np.ones((len(self.ms2s)), dtype=np.bool)
         self.markers = markers
 
     @classmethod
@@ -288,14 +287,16 @@ class PlotPoints():
             min_rt=min_rt,
             max_rt=max_rt, 
             min_mz=min_mz,
-            max_mz=max_mz) if len(self.ms1_points) > 0 else np.array([[]])
+            max_mz=max_mz
+        ) if len(self.ms1_points) > 0 else np.ones((0), dtype=np.bool)
         
         active_ms2 = self.bound_points(
             self.ms2s, 
             min_rt=min_rt, 
             max_rt=max_rt,
             min_mz=min_mz, 
-            max_mz=max_mz) if len(self.ms2s) > 0 else np.array([[]])
+            max_mz=max_mz
+        ) if len(self.ms2s) > 0 else np.ones((0), dtype=np.bool)
         
         return active_ms1, active_ms2
 
@@ -327,6 +328,7 @@ class PlotPoints():
         self.markers = markers
         
     def colour_by_intensity(self, intensities, colour_minm, abs_scaling):
+        if(len(intensities) == 0): return np.array([])
         cmap = InterpolationMap([
             RGBAColour(238, 238, 238), 
             ColourMap.YELLOW, 
@@ -354,6 +356,7 @@ class PlotPoints():
                     draw_minm=0.0, colour_minm=None,
                     abs_scaling=False):
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        if(np.sum(self.active_ms1) == 0): return
         self.mark_precursors()
         
         active_ms1 = self.ms1_points[self.active_ms1, :]
@@ -380,6 +383,7 @@ class PlotPoints():
                     abs_scaling=False):
 
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        if(np.sum(self.active_ms2) == 0): return
         active_ms2 = self.ms2s[self.active_ms2, :]
         rts, mzs, intensities = active_ms2[np.argsort(active_ms2[:, 2])].T
         colours = self.colour_by_intensity(intensities, colour_minm, abs_scaling)
@@ -393,6 +397,7 @@ class PlotPoints():
                     abs_scaling=False):
                     
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        if(np.sum(self.active_ms1) == 0): return
         self.mark_precursors()
         
         active_ms1 = self.ms1_points[self.active_ms1, :]
@@ -443,6 +448,7 @@ class PlotPoints():
                     abs_scaling=False):
                     
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
+        if(np.sum(self.active_ms2) == 0): return
         active_ms2 = self.ms2s[self.active_ms2, :]
         rts, mzs, intensities = active_ms2[np.argsort(active_ms2[:, 2])].T
         lit = [math.log(it) for it in intensities]
@@ -736,6 +742,9 @@ def mpl_fragmented_boxes(exp_name, eva, mode="max", min_intensity=0.0):
 
 def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
     num_chems = len(evals[0].chems)
+    results = [eva.evaluation_report(min_intensity=min_intensity) for eva in evals]
+    repeat = max(r["num_runs"] for r in results)
+    colours = itertools.cycle(DEFAULT_PLOTLY_COLORS)
 
     coverage_template = "<br>".join([
         "Iteration: %{x}",
@@ -747,8 +756,6 @@ def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=Non
         "Iteration: %{x}",
         "Intensity Proportion: %{y} / 1.0"
     ]) 
-
-    results = [eva.evaluation_report(min_intensity=min_intensity) for eva in evals]
     
     fig = make_subplots(
         rows=1, 
@@ -759,7 +766,7 @@ def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=Non
         )
     )
     
-    for exp_name, r, c in zip(experiment_names, results, DEFAULT_PLOTLY_COLORS):
+    for exp_name, r, c in zip(experiment_names, results, colours):
         coverages = go.Scattergl(
             x=[i+1 for i, _ in enumerate(r["cumulative_coverage_proportion"])],
             y=r["cumulative_coverage_proportion"],
@@ -786,8 +793,8 @@ def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=Non
         )
         fig.add_trace(intensities, row=1, col=2)
         
-    fig.update_xaxes(title_text="Num. Runs", range=[0, 7], row=1, col=1)
-    fig.update_xaxes(title_text="Num. Runs", range=[0, 7], row=1, col=2)
+    fig.update_xaxes(title_text="Num. Runs", range=[0, repeat + 1], row=1, col=1)
+    fig.update_xaxes(title_text="Num. Runs", range=[0, repeat + 1], row=1, col=2)
     fig.update_yaxes(title_text="Cumulative Coverage Proportion", range=[0.0, 1.1], row=1, col=1)
     fig.update_yaxes(title_text="Cumulative Intensity Proportion", range=[0.0, 1.1], row=1, col=2)
     
@@ -1003,7 +1010,11 @@ class BoxViewer():
                     max_mz=ybounds[1]
             )
             
+        if(not mzml is None):
             print(os.path.basename(mzml.file_name))
+        else:
+            print("No mzml")
+        
             print(
                 "MS1 Points:\n" + "\n".join(
                     f"rt: {rt}, m/z: {mz}, intensity: {intensity}"

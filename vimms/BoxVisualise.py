@@ -661,9 +661,18 @@ class EnvPlotPickler():
             pass
         
         
-def mpl_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
+def mpl_results_plot(experiment_names, 
+                     evals, 
+                     min_intensity=0.0, 
+                     colours=None, 
+                     markers=None, 
+                     suptitle=None):
+                     
     fig, (ax1, ax2) = plt.subplots(1, 2)
-    for exp_name, eva in zip(experiment_names, evals):
+    if(colours is None): colours = itertools.repeat(None)
+    if(markers is None): markers = itertools.repeat(None)
+    
+    for exp_name, eva, c, m in zip(experiment_names, evals, colours, markers):
         results = eva.evaluation_report(min_intensity=min_intensity)
         coverages = results["cumulative_coverage_proportion"]
         intensity_proportions = results["cumulative_intensity_proportion"]
@@ -674,7 +683,7 @@ def mpl_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
             ylabel="Cumulative Coverage Proportion", 
             title="Multi-Sample Cumulative Coverage"
         )
-        ax1.plot(xs, coverages, label=exp_name)
+        ax1.plot(xs, coverages, label=exp_name, color=c, marker=m)
         ax1.legend()
 
         ax2.set(
@@ -682,7 +691,7 @@ def mpl_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
             ylabel="Cumulative Intensity Proportion", 
             title="Multi-Sample Cumulative Intensity Proportion"
         )
-        ax2.plot(xs, intensity_proportions, label=exp_name)
+        ax2.plot(xs, intensity_proportions, label=exp_name, color=c, marker=m)
         ax2.legend()
     
     fig.set_size_inches(18.5, 10.5)

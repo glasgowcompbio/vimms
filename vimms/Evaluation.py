@@ -276,6 +276,7 @@ class RealEvaluator(Evaluator):
         super().__init__(chems=chems)
         self.fullscan_names = []
         self.mzmls = []
+        self.geoms = []
 
     @classmethod
     def from_aligned(cls, aligned_file):
@@ -318,6 +319,7 @@ class RealEvaluator(Evaluator):
                 
         eva = cls(chems)
         eva.fullscan_names = list(indices.keys())
+        eva.geoms = [None for _ in eva.fullscan_names]
         return eva
         
     def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):
@@ -332,20 +334,23 @@ class RealEvaluator(Evaluator):
         mzmls = [path_or_mzml(mzml) for mzml in mzmls]
         self.mzmls.extend(mzmls)
         
-        lswp = LineSweeper()
-        lswp.register_boxes(ch for ch in chems if not ch is None)
+        geom = self.geoms[fs_idx]
+        if(geom is None):
+            geom = LineSweeper()
+            geom.register_boxes(ch for ch in chems if not ch is None)
+            self.geoms[fs_idx] = geom
         
         current_intensities = [[] for _ in self.chems]
         new_info = np.zeros((len(chems), 3, len(mzmls)))
         for mzml_idx, mzml in enumerate(mzmls):
             for s in sorted(mzml.scans, key=attrgetter("rt_in_seconds")):
-                lswp.set_active_boxes(s.rt_in_seconds)
+                geom.set_active_boxes(s.rt_in_seconds)
                 if(s.ms_level == 1):
                 
                     current_intensities = [[] for _ in self.chems]
                     mzs, intensities = zip(*s.peaks)
                     
-                    for b in lswp.get_active_boxes():
+                    for b in geom.get_active_boxes():
                         p_idx = bisect.bisect_left(mzs, b.pt1.y)
                         for ch_idx in box2idxes[b]:
                             max_intensity = 0
@@ -362,7 +367,7 @@ class RealEvaluator(Evaluator):
                 else:
                     mz = s.precursor_mz
                     if(isolation_width is None):
-                        related_boxes = lswp.point_in_which_boxes(
+                        related_boxes = geom.point_in_which_boxes(
                             Point(s.rt_in_seconds, mz)
                         )
 
@@ -378,7 +383,7 @@ class RealEvaluator(Evaluator):
                                     max(candidates + [0.0])
                                 )
                     else:
-                        related_boxes = lswp.interval_covers_which_boxes(
+                        related_boxes = geom.interval_covers_which_boxes(
                             self._new_window(s.rt_in_seconds, mz, isolation_width)
                         )
 
@@ -430,18 +435,18 @@ class RealEvaluator(Evaluator):
         return partition
         
 def evaluate_real(aligned_file,
-                  mzml_map,
+                  mzml_pairs,
                   isolation_width=None, 
                   min_intensity=0.0):
     """
     Produce combined evaluation report on real data stored in .mzmls.
     Args:
         aligned_file: Filepath of an MZMine peak-picking output file.
-        mzml_map: Dictionary mapping filepaths of fullscans which have been
-                  peak-picked, to lists of .mzmls which should be evaluated 
-                  using their parent fullscan's picked peaks. 
-                  .mzmls can be specified as either a filepath or an MZMLFile 
-                  object.
+        mzml_pairs: List of pairs mapping filepaths of fullscans which have been
+                    peak-picked, to .mzmls which should be evaluated using their 
+                    parent fullscan's picked peaks. 
+                    .mzmls can be specified as either a filepath or an MZMLFile 
+                    object.
         isolation_width: isolation width to use for evaluating whether a
                          fragmentation event is a hit.
                          None if the fragmentation event has to lie exactly
@@ -455,9 +460,9 @@ def evaluate_real(aligned_file,
     """
 
     eva = RealEvaluator.from_aligned(aligned_file)
-    for fullscan_path, mzmls in mzml_map.items():
+    for fullscan_path, mzml in mzml_pairs:
         fullscan_name = os.path.basename(fullscan_path)
-        eva.add_info(fullscan_name, mzmls, isolation_width=isolation_width)
+        eva.add_info(fullscan_name, [mzml], isolation_width=isolation_width)
     return eva
 
 

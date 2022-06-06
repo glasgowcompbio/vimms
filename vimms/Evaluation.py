@@ -331,8 +331,8 @@ class RealEvaluator(Evaluator):
         for i, b in enumerate(chems):
             box2idxes[b].append(i)
         
-        mzmls = [path_or_mzml(mzml) for mzml in mzmls]
         self.mzmls.extend(mzmls)
+        mzmls = [path_or_mzml(mzml) for mzml in mzmls]
         
         geom = self.geoms[fs_idx]
         if(geom is None):
@@ -436,8 +436,7 @@ class RealEvaluator(Evaluator):
         
 def evaluate_real(aligned_file,
                   mzml_pairs,
-                  isolation_width=None, 
-                  min_intensity=0.0):
+                  isolation_width=None):
     """
     Produce combined evaluation report on real data stored in .mzmls.
     Args:
@@ -453,8 +452,6 @@ def evaluate_real(aligned_file,
                          within the box.
                          Otherwise, checks if an interval of the specified
                          length entirely covers the box on the m/z dimension.
-        min_intensity: Fragmentation events with precursor below this threshold
-                       do not count as hits.
 
     Returns: A RealEvaluator object containing evaluation results.
     """

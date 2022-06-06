@@ -138,7 +138,7 @@ class IntensityGridController(GridController):
             )
 
 
-class TopNExController(GridController):
+class TopNEXController(GridController):
     def _overlap_scores(self):
         exclude = np.array([
             not self.grid.point_in_box(

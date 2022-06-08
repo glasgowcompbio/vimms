@@ -152,7 +152,7 @@ class Evaluator(metaclass=ABCMeta):
         cumulative_raw_intensities = list(itertools.accumulate(raw_intensities, np.fmax))
         cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
         
-        num_chems = max_possible_intensities.shape[1]
+        num_chems = np.sum(chem_appears)
         coverage_prop = np.sum(coverage, axis=1) / num_chems
         cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
         

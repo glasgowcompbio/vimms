@@ -110,11 +110,11 @@ class ExperimentCase:
             
             env = Environment(
                 mass_spec, 
-                controller, 
-                min_rt, 
-                max_rt, 
-                progress_bar=pbar, 
-                out_dir=out_dir, 
+                controller,
+                min_rt,
+                max_rt,
+                progress_bar=pbar,
+                out_dir=out_dir,
                 out_file=out_file
             )    
             
@@ -128,6 +128,10 @@ class ExperimentCase:
             mzml_names.append(
                 (fs, os.path.join(out_dir, out_file))
             )
+            
+            del env
+            del mass_spec
+            del dataset
             
         return {self.name : mzml_names}
     
@@ -143,6 +147,7 @@ class Experiment:
         self.evaluators = {}
     
     def add_cases(self, cases):
+        cases = list(cases)
         self.cases.extend(cases)
         self.case_names.extend(
             case.name for case in cases
@@ -162,7 +167,7 @@ class Experiment:
 
     @staticmethod
     def _run_case(case, chems, out_dir, pbar, min_rt, max_rt, ionisation_mode, scan_duration_dict):
-        case.run_controller(
+        return case.run_controller(
             chems,
             out_dir,
             pbar, 
@@ -194,6 +199,7 @@ class Experiment:
                        num_workers=None):
         
         print("Creating Chemicals...")
+        self.out_dir = out_dir
         chems = self.create_chems(out_dir, ionisation_mode, num_workers)
         print()
         print("Running Experiment...")
@@ -253,6 +259,7 @@ class Experiment:
             aligned_dirs = [self.out_dir] * len(self.cases)
         else:
             try:
+                if(type(aligned_dirs) == type("")): raise TypeError
                 aligned_dirs = list(aligned_dirs)
             except TypeError:
                 aligned_dirs = [aligned_dirs] * len(self.cases)
@@ -267,15 +274,18 @@ class Experiment:
                 aligned_names.append(unique_fs[key])
         else:
             try:
+                if(type(aligned_names) == type("")): raise TypeError
                 aligned_names = list(aligned_names)
             except TypeError:
                 aligned_names = [aligned_names] * len(self.cases)
         
         try:
+            if(type(mzmine_templates) == type("")): raise TypeError
             mzmine_templates = list(mzmine_templates)
         except TypeError:
             mzmine_templates = [mzmine_templates] * len(self.cases)
         
+        aligned_paths = []
         forced = {os.path.join(dr, name) : False for dr, name in zip(aligned_dirs, aligned_names)}
         zipped = zip(
             aligned_dirs,
@@ -285,7 +295,7 @@ class Experiment:
         )
         for dr, name, template, case in zipped:
             if(not template is None and not mzmine_exe is None):
-                pick_aligned_peaks(
+                path = pick_aligned_peaks(
                     input_files = case.fullscan_paths,
                     output_dir = dr,
                     output_name = name,
@@ -295,8 +305,9 @@ class Experiment:
                 )
                 
                 forced[os.path.join(dr, name)] = True
+                aligned_paths.append(path)
                 
-        return [os.path.join(dr, name) for dr, name in zip(aligned_dirs, aligned_names)]
+        return aligned_paths
     
     def evaluate(self, 
                  num_workers=None,
@@ -307,13 +318,14 @@ class Experiment:
                  mzmine_exe=None,
                  force_peak_picking=False):
         
-        aligned_names = self._pick_aligned_peaks(self, 
+        aligned_names = self._pick_aligned_peaks(
             aligned_dirs=aligned_dirs, 
             aligned_names=aligned_names,
             mzmine_templates=mzmine_templates,
             mzmine_exe=mzmine_exe,
             force=force_peak_picking
         )
+        print()
         
         if(isolation_widths is None):
             isolation_widths = [None for _ in self.cases]
@@ -340,7 +352,7 @@ class Experiment:
             except TypeError:
                 min_intensities = [min_intensities] * len(self.evaluators)
                 
-        for name, evaluator, min_it in zip(self.case_names, self.evaluators, min_it):
+        for name, evaluator, min_it in zip(self.case_names, self.evaluators, min_intensities):
             print(name)
             evaluator.summarise(min_intensity=min_it)
             print()

@@ -2,6 +2,7 @@ import os
 import itertools
 from collections import deque, OrderedDict
 import multiprocessing
+import json
 
 from vimms.Common import POSITIVE, save_obj, load_obj
 from vimms.Roi import RoiBuilderParams
@@ -222,7 +223,7 @@ class Experiment:
             self.case_mzmls = {}
             for mapping in case_mzmls: 
                 self.case_mzmls.update(mapping)
-            self.write_keyfile()
+            self.write_json()
         
         finally:
             for _, ppath in chems.items():
@@ -232,18 +233,70 @@ class Experiment:
                     pass
     
     @staticmethod
-    def load_from_mzmls(case_mzmls):
-        exp = Experiment()
-        exp.case_names = list(case_mzmls.keys())
-        exp.case_mzmls = case_mzmls
+    def amend_mzml_paths(mzml_pairs, fullscan_dir=None, out_dir=None):
+        new_pairs = []
+        for fs, mzml in mzml_pairs:
+            if(not fullscan_dir is None):
+                fs = os.path.join(fullscan_dir, os.path.basename(fs))
+                
+            if(not out_dir is None):
+                mzml = os.path.join(out_dir, os.path.basename(mzml))
+                
+            new_pairs.append((fs, mzml))
+        return new_pairs
+    
+    @classmethod
+    def load_from_mzmls(cls,
+                        case_mzmls, 
+                        out_dir, 
+                        fullscan_dir=None, 
+                        amend_result_path=False,
+                        case_names=None):
+                        
+        exp = cls()
+        exp.out_dir = out_dir
+        if(case_names is None):
+            exp.case_names = list(case_mzmls.keys())
+        else:
+            exp.case_names = case_names
+        exp.case_mzmls = {
+            case_name : cls.amend_mzml_paths(case_mzmls[case_name], 
+                                             fullscan_dir = fullscan_dir,
+                                             out_dir = out_dir if amend_result_path else None
+                                            ) 
+            for case_name in case_names
+        }
         return exp
         
-    def write_keyfile(self):
-        pass
+    def write_json(self, file_dir=None, file_name=None):
+        if(file_dir is None):
+            file_dir = self.out_dir
+
+        if(file_name is None):
+            file_name = "keyfile.json"
+            
+        with open(os.path.join(file_dir, file_name), "w") as f:
+            json.dump(self.case_mzmls, f)
         
-    @staticmethod
-    def load_from_keyfile():
-        pass
+    @classmethod
+    def load_from_json(cls, 
+                       file_dir, 
+                       file_name, 
+                       out_dir,
+                       fullscan_dir=None,
+                       amend_result_path=False, 
+                       case_names=None):
+                       
+        with open(os.path.join(file_dir, file_name), "r") as f:
+            case_mzmls = json.load(f)
+            
+        return cls.load_from_mzmls(
+            case_mzmls,
+            out_dir,
+            fullscan_dir=fullscan_dir,
+            amend_result_path=amend_result_path,
+            case_names=case_names
+        )
     
     #need to be able to rank outputs
     #then for grid search just make each param combination a case
@@ -253,22 +306,27 @@ class Experiment:
                             aligned_names=None,
                             mzmine_templates=None,
                             mzmine_exe=None,
-                            force=False):       
+                            force=False):
+                            
+        fullscan_paths = [
+            [fs for fs, _ in self.case_mzmls[case_name]] 
+            for case_name in self.case_names
+        ]
     
         if(aligned_dirs is None):
-            aligned_dirs = [self.out_dir] * len(self.cases)
+            aligned_dirs = [self.out_dir] * len(self.case_names)
         else:
             try:
                 if(type(aligned_dirs) == type("")): raise TypeError
                 aligned_dirs = list(aligned_dirs)
             except TypeError:
-                aligned_dirs = [aligned_dirs] * len(self.cases)
+                aligned_dirs = [self.out_dir] * len(self.case_names)
             
         if(aligned_names is None):
             unique_fs = {}
             aligned_names = []
-            for case in self.cases:
-                key = tuple(sorted(case.fullscan_paths))
+            for fses in fullscan_paths:
+                key = tuple(sorted(fses))
                 if(not key in unique_fs):
                     unique_fs[key] = f"peaks_{len(unique_fs)}"
                 aligned_names.append(unique_fs[key])
@@ -277,13 +335,13 @@ class Experiment:
                 if(type(aligned_names) == type("")): raise TypeError
                 aligned_names = list(aligned_names)
             except TypeError:
-                aligned_names = [aligned_names] * len(self.cases)
+                aligned_names = [aligned_names] * len(self.case_names)
         
         try:
             if(type(mzmine_templates) == type("")): raise TypeError
             mzmine_templates = list(mzmine_templates)
         except TypeError:
-            mzmine_templates = [mzmine_templates] * len(self.cases)
+            mzmine_templates = [mzmine_templates] * len(self.case_names)
         
         aligned_paths = []
         forced = {os.path.join(dr, name) : False for dr, name in zip(aligned_dirs, aligned_names)}
@@ -291,12 +349,12 @@ class Experiment:
             aligned_dirs,
             aligned_names,
             mzmine_templates,
-            self.cases
+            fullscan_paths
         )
-        for dr, name, template, case in zipped:
+        for dr, name, template, fses in zipped:
             if(not template is None and not mzmine_exe is None):
                 path = pick_aligned_peaks(
-                    input_files = case.fullscan_paths,
+                    input_files = fses,
                     output_dir = dr,
                     output_name = name,
                     mzmine_template = template,
@@ -314,6 +372,7 @@ class Experiment:
                  isolation_widths=None,
                  aligned_dirs=None, 
                  aligned_names=None,
+                 max_repeat=None,
                  mzmine_templates=None,
                  mzmine_exe=None,
                  force_peak_picking=False):
@@ -328,19 +387,21 @@ class Experiment:
         print()
         
         if(isolation_widths is None):
-            isolation_widths = [None for _ in self.cases]
+            isolation_widths = [None for _ in self.case_names]
         else:
             try:
                 isolation_widths = list(isolation_widths)
             except:
-                isolation_widths = [isolation_widths] * len(self.cases)
-    
+                isolation_widths = [isolation_widths] * len(self.case_names)
+                
+        max_repeat = len(self.case_names) if max_repeat is None else max_repeat
+        zipped = zip(
+            aligned_names,
+            [self.case_mzmls[name][:max_repeat] for name in self.case_names],
+            isolation_widths,
+        )
+
         with multiprocessing.Pool(num_workers) as pool:
-            zipped = zip(
-                aligned_names,
-                [self.case_mzmls[name] for name in self.case_names],
-                isolation_widths
-            )
             self.evaluators = pool.starmap(evaluate_real, zipped)
             
     def summarise(self, min_intensities=None):

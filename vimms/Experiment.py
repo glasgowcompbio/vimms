@@ -62,12 +62,14 @@ class ExperimentCase:
                  fullscan_paths,
                  params,
                  name=None, 
-                 grid=None):
+                 grid=None,
+                 pickle_env=False):
              
         self.name = name if not name is None else controller_type
         self.fullscan_paths = fullscan_paths
         self.datasets = []
         self.injection_num = 0
+        self.pickle_env = pickle_env
         c = controller_type.replace(" ", "_").lower()
         
         try:
@@ -121,10 +123,11 @@ class ExperimentCase:
             
             print(f"Outcome being written to: \"{out_file}\"")
             env.run()
-            save_obj(
-                EnvPlotPickler(env), 
-                os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
-            )
+            if(self.pickle_env):
+                save_obj(
+                    EnvPlotPickler(env), 
+                    os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
+                )
             
             mzml_names.append(
                 (fs, os.path.join(out_dir, out_file))
@@ -175,7 +178,7 @@ class Experiment:
             min_rt, 
             max_rt, 
             ionisation_mode,
-            scan_duration_dict
+            scan_duration_dict,
         )
         
     def create_chems(self, out_dir, ionisation_mode, num_workers):
@@ -403,8 +406,12 @@ class Experiment:
 
         with multiprocessing.Pool(num_workers) as pool:
             self.evaluators = pool.starmap(evaluate_real, zipped)
+    
+    @staticmethod
+    def _summarise_helper(eva, min_intensity):
+        return eva.summarise(min_intensity=min_intensity)
             
-    def summarise(self, min_intensities=None):
+    def summarise(self, num_workers=None, min_intensities=None):
         if(min_intensities is None):
             min_intensities = itertools.repeat(0.0)
         else:
@@ -412,8 +419,14 @@ class Experiment:
                 min_intensities = list(min_intensities)
             except TypeError:
                 min_intensities = [min_intensities] * len(self.evaluators)
-                
-        for name, evaluator, min_it in zip(self.case_names, self.evaluators, min_intensities):
+        
+        with multiprocessing.Pool(num_workers) as pool:
+            summary_strings = pool.starmap(
+                self._summarise_helper, 
+                zip(self.evaluators, min_intensities)
+            )
+        
+        for name, sstring in zip(self.case_names, summary_strings):
             print(name)
-            evaluator.summarise(min_intensity=min_it)
+            print(sstring)
             print()

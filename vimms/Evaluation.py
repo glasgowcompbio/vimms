@@ -1,6 +1,7 @@
 import os
 import csv
 import xml
+import math
 import re
 import itertools
 import bisect
@@ -117,7 +118,6 @@ class Evaluator(metaclass=ABCMeta):
     def __init__(self, chems=[]):
         self.chems = chems
         self.chem_info = np.zeros((len(chems), 3, 0), dtype=float)
-        self.memoised_report = None
 
     @staticmethod
     def _new_window(rt, mz, isolation_width):
@@ -134,9 +134,6 @@ class Evaluator(metaclass=ABCMeta):
         pass
 
     def evaluation_report(self, min_intensity=0.0):
-        if(not self.memoised_report is None):
-            return self.memoised_report
-            
         chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] >= min_intensity, axis=1)
     
         frag_counts = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
@@ -200,7 +197,6 @@ class Evaluator(metaclass=ABCMeta):
         }
             
         self.extra_info(report)
-        self.memoised_report = report
         return report
         
     def summarise(self, min_intensity=0.0):
@@ -214,8 +210,7 @@ class Evaluator(metaclass=ABCMeta):
             "Times fragmented" : "times_fragmented_summary",
         }
         
-        for name, key in fields.items():
-            print(f"{name}: {report[key]}")
+        return "\n".join(f"{name}: {report[key]}" for name, key in fields.items())
 
 class SyntheticEvaluator(Evaluator):
 
@@ -328,7 +323,6 @@ class RealEvaluator(Evaluator):
         return eva
         
     def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):
-        self.memoised_report = None
         if("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]

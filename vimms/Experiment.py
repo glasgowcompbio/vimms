@@ -138,6 +138,21 @@ class ExperimentCase:
             del dataset
             
         return {self.name : mzml_names}
+        
+    def valid_controller(self):
+        """
+           Checks if controller throws an assertion error during exception
+           which should mean its initialisation is invalid due to 
+           e.g. parameters.
+           
+           Returns: Boolean indicating whether an error was thrown.
+        """
+        
+        try:
+            self.controller(**self.params)
+            return True
+        except AssertionError:
+            return False
     
 class Experiment:
     def __init__(self):
@@ -267,7 +282,7 @@ class Experiment:
                                              fullscan_dir = fullscan_dir,
                                              out_dir = out_dir if amend_result_path else None
                                             ) 
-            for case_name in case_names
+            for case_name in exp.case_names
         }
         return exp
         
@@ -300,9 +315,6 @@ class Experiment:
             amend_result_path=amend_result_path,
             case_names=case_names
         )
-    
-    #need to be able to rank outputs
-    #then for grid search just make each param combination a case
     
     def _pick_aligned_peaks(self,
                             aligned_dirs=None, 
@@ -408,10 +420,27 @@ class Experiment:
             self.evaluators = pool.starmap(evaluate_real, zipped)
     
     @staticmethod
+    def _score_eva(eva, min_it, rank_key):
+        return eva.evaluation_report(min_intensity=min_it)[rank_key][-1]
+    
+    def rank_cases(self, min_intensities, rank_key="sum_cumulative_coverage", num_workers=None):
+        with multiprocessing.Pool(num_workers) as pool:
+            scores = pool.starmap(
+                self._score_eva, 
+                zip(self.evaluators, min_intensities, itertools.repeat(rank_key))
+            )
+        
+        return sorted(
+            [i for i, _ in enumerate(self.evaluators)],
+            key=lambda i: scores[i],
+            reverse=True
+        )
+    
+    @staticmethod
     def _summarise_helper(eva, min_intensity):
         return eva.summarise(min_intensity=min_intensity)
             
-    def summarise(self, num_workers=None, min_intensities=None):
+    def summarise(self, num_workers=None, min_intensities=None, rank_key=None):
         if(min_intensities is None):
             min_intensities = itertools.repeat(0.0)
         else:
@@ -425,8 +454,70 @@ class Experiment:
                 self._summarise_helper, 
                 zip(self.evaluators, min_intensities)
             )
+            
+        if(rank_key is None):
+            idxes = range(len(self.case_names))
+        else:
+            idxes = self.rank_cases(min_intensities, rank_key=rank_key, num_workers=num_workers)
         
-        for name, sstring in zip(self.case_names, summary_strings):
+        for i in idxes:
+            name, sstring = self.case_names[i], summary_strings[i]
             print(name)
             print(sstring)
             print()
+
+    @classmethod
+    def run_grid_search(cls,
+                        controller_type,
+                        datasets,
+                        shared_params,
+                        search_params,
+                        out_dir,
+                        pbar=False,
+                        min_rt=0,
+                        max_rt=1440,
+                        ionisation_mode=POSITIVE,
+                        scan_duration_dict=None,
+                        num_workers=None):
+                        
+        pairs = [
+            [(k, v) for v in v_ls] for k, v_ls in search_params.items()
+        ]
+        
+        params_ls = [
+            {**shared_params, **dict(search_item)} for search_item in itertools.product(*pairs)
+        ]
+        
+        print(f"GRID SEARCH OF {len(params_ls)} CASES")
+        
+        cases = [
+            ExperimentCase(
+                controller_type,
+                datasets,
+                params,
+                name=f"combination_{i}"
+            )
+            for i, params in enumerate(params_ls)
+        ]
+        
+        exp = cls()
+        exp.add_cases(
+            case for case in cases if case.valid_controller()
+        )
+        
+        exp.run_experiment(
+            out_dir,
+            min_rt=min_rt,
+            max_rt=max_rt,
+            ionisation_mode=ionisation_mode,
+            scan_duration_dict=scan_duration_dict,
+            num_workers=num_workers
+        )
+        
+        param_links = {
+            f"combination_{i}" : params
+            for i, params in enumerate(params_ls)
+        }
+        save_obj(param_links, os.path.join(out_dir, "param_links.pkl"))
+        
+        return exp

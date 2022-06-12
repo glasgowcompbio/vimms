@@ -1019,40 +1019,40 @@ class BoxViewer():
                     max_mz=ybounds[1]
             )
             
-        if(not mzml is None):
-            print(os.path.basename(mzml.file_name))
-        else:
-            print("No mzml")
-        
-            print(
-                "MS1 Points:\n" + "\n".join(
-                    f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
-                    for rt, mz, intensity in pts.ms1_points[active_ms1]
-                )
-            )
+            if(not mzml is None):
+                print(os.path.basename(mzml.file_name))
+            else:
+                print("No mzml")
             
-            print(
-                "MS2 Points:\n" + "\n".join(
-                    f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
-                    for rt, mz, intensity in pts.ms2s[active_ms2]
-                )
-            )
-            
-            for h, boxset in zip(self.headers, self.boxes):
-                print(h)
-                for b in boxset[i]:
-                    in_bounds = b.box_in_bounds(
-                        min_rt=xbounds[0], 
-                        max_rt=xbounds[1],
-                        min_mz=ybounds[0], 
-                        max_mz=ybounds[1]
+                print(
+                    "MS1 Points:\n" + "\n".join(
+                        f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
+                        for rt, mz, intensity in pts.ms1_points[active_ms1]
                     )
-                    
-                    if(in_bounds):
-                        print(b)
-                    
-            print()
-            print()
+                )
+                
+                print(
+                    "MS2 Points:\n" + "\n".join(
+                        f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
+                        for rt, mz, intensity in pts.ms2s[active_ms2]
+                    )
+                )
+                
+                for h, boxset in zip(self.headers, self.boxes):
+                    print(h)
+                    for b in boxset[i]:
+                        in_bounds = b.box_in_bounds(
+                            min_rt=xbounds[0], 
+                            max_rt=xbounds[1],
+                            min_mz=ybounds[0], 
+                            max_mz=ybounds[1]
+                        )
+                        
+                        if(in_bounds):
+                            print(b)
+                        
+                print()
+                print()
 
     def mpl_show_box(self, 
                      box_index, 

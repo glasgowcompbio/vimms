@@ -401,20 +401,16 @@ class SmartRoi(Roi):
                 self.fragmented_index] > self.params.reset_length_seconds:
                 self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
-            elif self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.params.dew:
-                # standard DEW has expired
-                # find the min intensity since the frag
-                # check current intensity -- if it is 5* when we fragmented,
-                # we can go again
-                min_since_frag = min(
-                    self.intensity_list[self.fragmented_index:])
-                if self.intensity_list[
-                    -1] > min_since_frag * self.params.intensity_increase_factor:
+            elif self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.params.dew:
+                # standard DEW has expired so apply smartroi rules
+                frag = self.intensity_list[self.fragmented_index]
+                max_since_frag = max(self.intensity_list[self.fragmented_index:])
+                
+                if self.intensity_list[-1] > self.params.intensity_increase_factor * frag:
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
-                elif self.intensity_list[-1] < self.params.drop_perc * \
-                        self.intensity_list[self.fragmented_index]:
+                
+                elif self.intensity_list[-1] < self.params.drop_perc * max_since_frag:
                     # signal has dropped, but ROI still exists.
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)

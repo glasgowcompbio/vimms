@@ -480,13 +480,18 @@ class Experiment:
                         scan_duration_dict=None,
                         num_workers=None):
                         
-        pairs = [
-            [(k, v) for v in v_ls] for k, v_ls in search_params.items()
-        ]
+        pairs = {
+            name: [[(k, v) for v in v_ls] for k, v_ls in params.items()]
+            for name, params in search_params.items()
+        }
         
-        params_ls = [
-            {**shared_params, **dict(search_item)} for search_item in itertools.product(*pairs)
-        ]
+        params_ls = {
+            name: [
+                {**shared_params, **dict(search_item)} 
+                for search_item in itertools.product(*params)
+            ]
+            for name, params in pairs.items()
+        }
         
         print(f"GRID SEARCH OF {len(params_ls)} CASES")
         
@@ -495,9 +500,10 @@ class Experiment:
                 controller_type,
                 datasets,
                 params,
-                name=f"combination_{i}"
+                name=f"{name}_{i}"
             )
-            for i, params in enumerate(params_ls)
+            for name, group in params_ls.items()
+            for i, params in enumerate(group)
         ]
         
         exp = cls()

@@ -485,7 +485,7 @@ class Experiment:
             for name, params in search_params.items()
         }
         
-        params_ls = {
+        params_map = {
             name: [
                 {**shared_params, **dict(search_item)} 
                 for search_item in itertools.product(*params)
@@ -493,7 +493,7 @@ class Experiment:
             for name, params in pairs.items()
         }
         
-        print(f"GRID SEARCH OF {len(params_ls)} CASES")
+        print(f"GRID SEARCH OF {sum(len(v) for _, v in params_map.items())} CASES")
         
         cases = [
             ExperimentCase(
@@ -502,7 +502,7 @@ class Experiment:
                 params,
                 name=f"{name}_{i}"
             )
-            for name, group in params_ls.items()
+            for name, group in params_map.items()
             for i, params in enumerate(group)
         ]
         
@@ -521,8 +521,9 @@ class Experiment:
         )
         
         param_links = {
-            f"combination_{i}" : params
-            for i, params in enumerate(params_ls)
+            f"{name}_{i}" : params
+            for name, group in params_map.items()
+            for i, params in enumerate(group)
         }
         save_obj(param_links, os.path.join(out_dir, "param_links.pkl"))
         

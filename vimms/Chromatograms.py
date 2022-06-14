@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import scipy.stats
+import bisect
 
 from vimms.Common import MAX_POSSIBLE_RT
 
@@ -93,13 +94,19 @@ class EmpiricalChromatogram(Chromatogram):
         return [rt_below, rt_above]
 
     def _get_rt_neighbours_which(self, query_rt):
-        # find the max index of self.rts smaller than query_rt
-        pos = np.where(self.rts <= query_rt)[0]
-        which_rt_below = pos[-1]
 
-        # take the min index of self.rts larger than query_rt
-        pos = np.where(self.rts > query_rt)[0]
-        which_rt_above = pos[0]
+        # slow! O(n)
+        # # find the max index of self.rts smaller than query_rt
+        # pos = np.where(self.rts <= query_rt)[0]
+        # which_rt_below = pos[-1]
+        #
+        # # take the min index of self.rts larger than query_rt
+        # pos = np.where(self.rts > query_rt)[0]
+        # which_rt_above = pos[0]
+
+        # much faster, O(log n)
+        which_rt_above = bisect.bisect(self.rts, query_rt)
+        which_rt_below = which_rt_above - 1
         return [which_rt_below, which_rt_above]
 
     def _get_distance(self, query_rt):

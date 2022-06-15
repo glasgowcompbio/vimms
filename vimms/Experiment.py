@@ -495,6 +495,13 @@ class Experiment:
         
         print(f"GRID SEARCH OF {sum(len(v) for _, v in params_map.items())} CASES")
         
+        param_links = {
+            f"{name}_{i}" : params
+            for name, group in params_map.items()
+            for i, params in enumerate(group)
+        }
+        save_obj(param_links, os.path.join(out_dir, "param_links.pkl"))
+        
         cases = [
             ExperimentCase(
                 controller_type,
@@ -519,12 +526,5 @@ class Experiment:
             scan_duration_dict=scan_duration_dict,
             num_workers=num_workers
         )
-        
-        param_links = {
-            f"{name}_{i}" : params
-            for name, group in params_map.items()
-            for i, params in enumerate(group)
-        }
-        save_obj(param_links, os.path.join(out_dir, "param_links.pkl"))
         
         return exp

@@ -128,6 +128,15 @@ GRID_CONTROLLER_SCORING_PARAMS = {
 ROI_TYPE_NORMAL = 'roi'
 ROI_TYPE_SMART = 'smart'
 
+CONTROLLER_FULLSCAN = 'fullscan'
+CONTROLLER_TOPN = 'topN'
+CONTROLLER_TOPN_EXCLUSION = 'topN_exclusion'
+CONTROLLER_SWATH = 'SWATH'
+CONTROLLER_AIF = 'AIF'
+CONTROLLER_NON_OVERLAP = 'non_overlap'
+CONTROLLER_INTENSITY_NON_OVERLAP = 'intensity_non_overlap'
+CONTROLLER_INTENSITY_ROI_EXCLUSION = 'intensity_roi_exclusion'
+CONTROLLER_HARD_ROI_EXCLUSION = 'hard_roi_exclusion'
 
 ###############################################################################
 # Common classes

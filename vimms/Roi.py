@@ -161,24 +161,54 @@ class Roi():
                                       np.array(self.intensity_list))
         return chrom
 
-    def to_box(self, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
+    @staticmethod
+    def _set_fixed_bounds_for_box(dist, minm, maxm):
+        if(not dist is None):
+            mid = (minm + maxm) / 2
+            new_minm = mid - dist
+            new_maxm = mid + dist
+        else:
+            new_minm, new_maxm = minm, maxm
+        return new_minm, new_maxm
+
+    def to_box(self, 
+               min_rt_width, 
+               min_mz_width,
+               fixed_rt_dist=None,
+               fixed_mz_dist=None,
+               rt_shift=0, 
+               mz_shift=0):
         """
         Returns a generic box representation of this ROI
 
         Args:
             min_rt_width: minimum RT width of the box
             min_mz_width: minimum m/z width of the box
+            fixed_rt_dist: if not set to None, overrides the default rt-width (in seconds)
+            of the box, setting it to twice the parameter value. If set to None uses the 
+            maximum rt-range of points belonging to this RoI as the box's rt-width
+            fixed_mz_width: if not set to None, overrides the default mz-width (in ppm) of 
+            the box, setting it twice the parameter value. If set to None uses the 
+            maximum mz-range of points belonging to this RoI as the box's rt-width
             rt_shift: shift in retention time, if any
             mz_shift: shift in m/z, if any
 
         Returns: a [vimms.Box.GenericBox][] object.
 
         """
+        min_rt, max_rt = self._set_fixed_bounds_for_box(fixed_rt_dist, self.min_rt, self.max_rt)
+        dalton_dist = (
+            self.get_mean_mz() * fixed_mz_dist / 1E6
+            if not fixed_mz_dist is None
+            else None
+        )
+        min_mz, max_mz = self._set_fixed_bounds_for_box(dalton_dist, self.min_mz, self.max_mz)  
+        
         return GenericBox(
-                    self.min_rt + rt_shift, 
-                    self.max_rt + rt_shift, 
-                    self.min_mz + mz_shift,
-                    self.max_mz + mz_shift,
+                    min_rt + rt_shift, 
+                    max_rt + rt_shift, 
+                    min_mz + mz_shift,
+                    max_mz + mz_shift,
                     min_xwidth=min_rt_width, 
                     min_ywidth=min_mz_width, 
                     intensity=self.max_fragmentation_intensity, 
@@ -371,20 +401,16 @@ class SmartRoi(Roi):
                 self.fragmented_index] > self.params.reset_length_seconds:
                 self.status = SmartRoi.CAN_FRAGMENT
                 self.set_can_fragment(True)
-            elif self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.params.dew:
-                # standard DEW has expired
-                # find the min intensity since the frag
-                # check current intensity -- if it is 5* when we fragmented,
-                # we can go again
-                min_since_frag = min(
-                    self.intensity_list[self.fragmented_index:])
-                if self.intensity_list[
-                    -1] > min_since_frag * self.params.intensity_increase_factor:
+            elif self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.params.dew:
+                # standard DEW has expired so apply smartroi rules
+                frag = self.intensity_list[self.fragmented_index]
+                max_since_frag = max(self.intensity_list[self.fragmented_index:])
+                
+                if self.intensity_list[-1] > self.params.intensity_increase_factor * frag:
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
-                elif self.intensity_list[-1] < self.params.drop_perc * \
-                        self.intensity_list[self.fragmented_index]:
+                
+                elif self.intensity_list[-1] < self.params.drop_perc * max_since_frag:
                     # signal has dropped, but ROI still exists.
                     self.status = SmartRoi.CAN_FRAGMENT
                     self.set_can_fragment(True)
@@ -659,7 +685,7 @@ class RoiBuilder():
                       mz ROI into
             mz_tol: m/z tolerance. This is the window above and below the
                     mean_mz of the RoI.
-                    E.g. if mz_tol = 1 Da, then it looks plus and minus 1Da
+                    E.g. if mz_tol = 10 ppm, then it looks plus and minus 10 ppm
 
         Returns: the ROI that has been matched, or None if not found.
 
@@ -669,23 +695,32 @@ class RoiBuilder():
         pos = bisect.bisect_right(roi_list, mz)
 
         if pos == len(roi_list):
-            dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
-                pos - 1].get_mean_mz()) / mz.get_mean_mz()
+            dist_left = 1e6 * (
+                mz.get_mean_mz() - roi_list[pos - 1].get_mean_mz()
+            ) / mz.get_mean_mz()
+            
             if dist_left < mz_tol:
                 return roi_list[pos - 1]
             else:
                 return None
+        
         elif pos == 0:
-            dist_right = 1e6 * (roi_list[pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+            dist_right = 1e6 * (
+                roi_list[pos].get_mean_mz() - mz.get_mean_mz()
+            ) / mz.get_mean_mz()
+            
             if dist_right < mz_tol:
                 return roi_list[pos]
             else:
                 return None
+                
         else:
-            dist_left = 1e6 * (mz.get_mean_mz() - roi_list[
-                pos - 1].get_mean_mz()) / mz.get_mean_mz()
-            dist_right = 1e6 * (roi_list[
-                                    pos].get_mean_mz() - mz.get_mean_mz()) / mz.get_mean_mz()
+            dist_left = 1e6 * (
+                mz.get_mean_mz() - roi_list[pos - 1].get_mean_mz()
+            ) / mz.get_mean_mz()
+            dist_right = 1e6 * (
+                roi_list[pos].get_mean_mz() - mz.get_mean_mz()
+            ) / mz.get_mean_mz()
 
             if dist_left < mz_tol < dist_right:
                 return roi_list[pos - 1]

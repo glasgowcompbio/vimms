@@ -10,7 +10,7 @@ from abc import abstractmethod, ABCMeta
 from collections import defaultdict, namedtuple
 from decimal import Decimal
 from functools import reduce
-from operator import attrgetter
+from operator import or_, attrgetter
 
 import intervaltree
 import numpy as np
@@ -108,8 +108,15 @@ class Box():
     def __hash__(self):
         return (self.pt1, self.pt2).__hash__()
         
-    def serialise_info(self):
-        return [self.min_rt, self.max_rt, self.min_mz, self.max_mz, self.intensity]
+    def serialise_info(self, minutes=False):
+        timescale = 60 if minutes else 1
+        return [
+            self.min_rt / timescale, 
+            self.max_rt / timescale, 
+            self.min_mz, 
+            self.max_mz, 
+            self.intensity
+        ]
 
     def area(self):
         return (self.pt2.x - self.pt1.x) * (self.pt2.y - self.pt1.y)
@@ -136,6 +143,9 @@ class Box():
 
     def num_overlaps(self):
         return len(self.parents)
+        
+    def to_box(self, min_rt_width=0.0, min_mz_width=0.0):
+        return self.copy()
         
     @classmethod
     def from_pickedbox(cls, pbox):
@@ -194,6 +204,16 @@ class GenericBox(Box):
             and self.pt1.y <= other_box.pt1.y
             and self.pt2.x >= other_box.pt2.x
             and self.pt2.y >= other_box.pt2.y
+        )
+        
+    def combine_max(self, other_box):
+        return GenericBox(
+            min(self.pt1.x, other_box.pt1.x),
+            max(self.pt2.x, other_box.pt2.x),
+            min(self.pt1.y, other_box.pt1.y),
+            max(self.pt2.y, other_box.pt2.y),
+            parents=(self.parents + other_box.parents),
+            intensity=max(self.intensity, other_box.intensity),
         )
         
     def overlap_raw(self, other_box):
@@ -291,10 +311,14 @@ class Grid(metaclass=ABCMeta):
         self.rt_box_size, self.mz_box_size = rt_box_size, mz_box_size
         self.box_area = float(Decimal(rt_box_size) * Decimal(mz_box_size))
 
-        self.rtboxes = range(0, int((self.max_rt - self.min_rt) /
-                                    rt_box_size) + 1)
-        self.mzboxes = range(0, int((self.max_mz - self.min_mz) /
-                                    mz_box_size) + 1)
+        self.rtboxes = range(
+            0, 
+            int((self.max_rt - self.min_rt) / rt_box_size) + 2
+        )
+        self.mzboxes = range(
+            0, 
+            int((self.max_mz - self.min_mz) / mz_box_size) + 2
+        )
         self.boxes = self.init_boxes(self.rtboxes, self.mzboxes)
 
     def get_box_ranges(self, box):
@@ -384,14 +408,13 @@ class LocatorGrid(Grid):
     def get_boxes(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         boxes = set()
-        for row in self.boxes[rt_box_range[0]:rt_box_range[1],
-                   mz_box_range[0]:mz_box_range[1]]:
+        for row in self.boxes[rt_box_range[0]:rt_box_range[1], mz_box_range[0]:mz_box_range[1]]:
             for s in row:
                 boxes |= s
         return boxes
 
     def get_all_boxes(self):
-        return reduce(lambda s1, s2: s1 | s2, (s for row in self.boxes for s in row))
+        return reduce(or_, (s for row in self.boxes for s in row), set())
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
@@ -416,6 +439,9 @@ class LineSweeper():
 
     def get_all_boxes(self):
         return self.all_boxes
+        
+    def get_active_boxes(self):
+        return self.active
         
     def _add_active(self, new_ptr, current_loc):
         for b in itertools.islice(self.all_boxes, self.active_pointer, new_ptr):
@@ -446,7 +472,7 @@ class LineSweeper():
         self._add_active(new_ptr, current_loc)
         
         self.was_active = []
-        while(self.active != [] and self.active[-1].pt2.x <= current_loc):
+        while(self.active != [] and self.active[-1].pt2.x < current_loc):
             self._remove_active()
         self.previous_loc = self.current_loc
         self.current_loc = current_loc
@@ -768,7 +794,14 @@ class BoxExact(BoxGeometry):
         
             
 class BoxGrid(BoxExact): 
-    def __init__(self, min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size):
+    def __init__(self, 
+                 min_rt=0, 
+                 max_rt=1440, 
+                 rt_box_size=50, 
+                 min_mz=0, 
+                 max_mz=2000, 
+                 mz_box_size=1):
+        
         self.grid = LocatorGrid(min_rt, max_rt, rt_box_size, min_mz, max_mz, mz_box_size)
         
     def get_all_boxes(self):
@@ -777,7 +810,7 @@ class BoxGrid(BoxExact):
     def point_in_box(self, pt):
         box = GenericBox(pt.x, pt.x, pt.y, pt.y)
         return any(
-            box.contains_point(pt) for b in self.grid.get_boxes(box)
+            b.contains_point(pt) for b in self.grid.get_boxes(box)
         )
         
     def point_in_which_boxes(self, pt):
@@ -804,6 +837,32 @@ class BoxGrid(BoxExact):
         )
         
     def register_boxes(self, boxes):
+        boxes = list(boxes)
+        min_rt, max_rt = self.grid.min_rt, self.grid.max_rt
+        min_mz, max_mz = self.grid.min_mz, self.grid.max_mz
+        rt_box_size, mz_box_size = self.grid.rt_box_size, self.grid.mz_box_size
+        
+        resize = any(
+            min_rt > b.pt1.x
+            or max_rt < b.pt2.x
+            or min_mz > b.pt1.y
+            or max_mz < b.pt2.y
+            for b in boxes
+        )
+        
+        if(resize):
+            new_grid = LocatorGrid(
+                min(min_rt, min(b.pt1.x for b in boxes) - rt_box_size), 
+                max(max_rt, max(b.pt2.x for b in boxes) + rt_box_size), 
+                rt_box_size,
+                min(min_mz, min(b.pt1.y for b in boxes) - mz_box_size), 
+                max(max_mz, max(b.pt2.y for b in boxes) + mz_box_size), 
+                mz_box_size
+            )
+            for b in self.grid.get_all_boxes():
+                new_grid.register_box(b)
+            self.grid = new_grid
+        
         for b in boxes:
             self.grid.register_box(b)
         

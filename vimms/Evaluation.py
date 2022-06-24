@@ -1,8 +1,10 @@
 import os
 import csv
 import xml
+import math
 import re
 import itertools
+import bisect
 import subprocess
 from functools import reduce
 from operator import attrgetter
@@ -11,15 +13,16 @@ from abc import abstractmethod, ABCMeta
 
 import numpy as np
 import statsmodels.api as sm
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
-    map_boxes_to_scans, PickedBox
 from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import (
+    load_picked_boxes, map_boxes_to_scans, PickedBox
+)
 
+from vimms.Common import path_or_mzml
 from vimms.Box import (
     Point, Interval, GenericBox,
-    BoxLineSweeper
+    LineSweeper
 )
-from vimms.Common import path_or_mzml
 
 
 class EvaluationData():
@@ -99,7 +102,7 @@ def pick_aligned_peaks(input_files,
     
     try:
         num_boxes = count_boxes(output_path)
-        print(f"Wrote {num_boxes} aligned boxes to file")
+        print(f"{num_boxes} aligned boxes contained in file")
     except FileNotFoundError:
         raise FileNotFoundError("The box file doesn't seem to exist - did MZMine silently fail?")
         
@@ -146,10 +149,11 @@ class Evaluator(metaclass=ABCMeta):
         times_covered_summary = Counter(times_covered.ravel())
         
         cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
+        sum_cumulative_coverage = [np.sum(ccov) for ccov in cumulative_coverage]
         cumulative_raw_intensities = list(itertools.accumulate(raw_intensities, np.fmax))
         cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
         
-        num_chems = max_possible_intensities.shape[1]
+        num_chems = np.sum(chem_appears)
         coverage_prop = np.sum(coverage, axis=1) / num_chems
         cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
         
@@ -169,6 +173,7 @@ class Evaluator(metaclass=ABCMeta):
         ]
 
         report = {
+            "num_runs" : self.chem_info.shape[2],
             "coverage" : coverage,
             "raw_intensity" : raw_intensities,
             "intensity" : coverage_intensities,
@@ -180,6 +185,7 @@ class Evaluator(metaclass=ABCMeta):
             "times_covered_summary" : times_covered_summary,
             
             "cumulative_coverage" : cumulative_coverage,
+            "sum_cumulative_coverage" : sum_cumulative_coverage,
             "cumulative_raw_intensity" : cumulative_raw_intensities,
             "cumulative_intensity" : cumulative_coverage_intensities,
             
@@ -193,6 +199,18 @@ class Evaluator(metaclass=ABCMeta):
         self.extra_info(report)
         return report
         
+    def summarise(self, min_intensity=0.0):
+        report = self.evaluation_report(min_intensity=min_intensity)
+        fields = {
+            "Number of fragmentations" : "num_frags",
+            "Cumulative coverage" : "sum_cumulative_coverage",
+            "Cumulative coverage proportion" : "cumulative_coverage_proportion",
+            "Cumulative intensity proportion" : "cumulative_intensity_proportion",
+            "Times covered" : "times_covered_summary",
+            "Times fragmented" : "times_fragmented_summary",
+        }
+        
+        return "\n".join(f"{name}: {report[key]}" for name, key in fields.items())
 
 class SyntheticEvaluator(Evaluator):
 
@@ -245,7 +263,7 @@ def evaluate_multiple_simulated_env(envs, min_intensity=0.0, group_list=None):
     """Evaluates_multiple simulated injections against a base set of chemicals that
     were used to derive the datasets"""
     eva = SyntheticEvaluator.from_envs(envs)
-    return eva.evaluation_report(min_intensity=min_intensity)
+    return eva
 
     
 def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
@@ -258,6 +276,7 @@ class RealEvaluator(Evaluator):
         super().__init__(chems=chems)
         self.fullscan_names = []
         self.mzmls = []
+        self.geoms = []
 
     @classmethod
     def from_aligned(cls, aligned_file):
@@ -284,7 +303,8 @@ class RealEvaluator(Evaluator):
                 row = []
                 split = ln.split(",")
                 for fname, inner in indices.items():
-                    if(split[inner["status"]] == "DETECTED"):
+                    if(split[inner["status"]].upper() == "DETECTED" 
+                       or split[inner["status"]].upper() == "ESTIMATED"):
                         row.append(
                             GenericBox(
                                 float(split[inner["RT start"]]) * 60,
@@ -299,38 +319,51 @@ class RealEvaluator(Evaluator):
                 
         eva = cls(chems)
         eva.fullscan_names = list(indices.keys())
+        eva.geoms = [None for _ in eva.fullscan_names]
         return eva
         
-    def add_info(self, fullscan_name, mzmls, isolation_width=None):
-        geom = BoxLineSweeper()
+    def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):
         if("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]
-        box2idx = {box : i for i, box in enumerate(chems)}
-        geom.register_boxes(ch for ch in chems if not ch is None)
         
-        for mzml in mzmls:
-            mzml = path_or_mzml(mzml)
-            self.mzmls.append(mzml)
-            new_info = np.zeros((len(chems), 3, 1))
-            
+        box2idxes = defaultdict(list)
+        for i, b in enumerate(chems):
+            box2idxes[b].append(i)
+        
+        self.mzmls.extend(mzmls)
+        mzmls = [path_or_mzml(mzml) for mzml in mzmls]
+        
+        geom = self.geoms[fs_idx]
+        if(geom is None):
+            geom = LineSweeper()
+            geom.register_boxes(ch for ch in chems if not ch is None)
+            self.geoms[fs_idx] = geom
+        
+        current_intensities = [[] for _ in self.chems]
+        new_info = np.zeros((len(chems), 3, len(mzmls)))
+        for mzml_idx, mzml in enumerate(mzmls):
             for s in sorted(mzml.scans, key=attrgetter("rt_in_seconds")):
                 geom.set_active_boxes(s.rt_in_seconds)
                 if(s.ms_level == 1):
+                
                     current_intensities = [[] for _ in self.chems]
+                    mzs, intensities = zip(*s.peaks)
                     
-                    for mz, intensity in s.peaks:
-                        related_boxes = geom.point_in_which_boxes(
-                            Point(s.rt_in_seconds, mz)
-                        )
-                        
-                        for b in related_boxes:
-                            idx = box2idx[b]
-                            current_intensities[idx].append((mz, intensity))
-                            new_info[idx, self.MAX_INTENSITY] = max(
-                                intensity,
-                                new_info[idx, self.MAX_INTENSITY]
-                            )
+                    for b in geom.get_active_boxes():
+                        p_idx = bisect.bisect_left(mzs, b.pt1.y)
+                        for ch_idx in box2idxes[b]:
+                            max_intensity = 0
+                            for i in range(p_idx, len(mzs)):
+                                if(mzs[i] > b.pt2.y): break
+                                current_intensities[ch_idx].append((mzs[i], intensities[i]))
+                                max_intensity = max(max_intensity, intensities[i])
+                            
+                            new_info[ch_idx, self.MAX_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_INTENSITY, mzml_idx],
+                                    max_intensity
+                                )
+                
                 else:
                     mz = s.precursor_mz
                     if(isolation_width is None):
@@ -339,29 +372,30 @@ class RealEvaluator(Evaluator):
                         )
 
                         for b in related_boxes:
-                            idx = box2idx[b]
-                            candidates = [
-                                cint for cmz, cint in current_intensities[idx]
-                                if cmz >= mz - 1E-10 and cmz <= mz + 1E-10
-                            ]
-                            new_info[idx, self.TIMES_FRAGMENTED] += 1
-                            new_info[idx, self.MAX_FRAG_INTENSITY] = max(
-                                max(candidates + [0.0]),
-                                new_info[idx, self.MAX_FRAG_INTENSITY]
-                            )
+                            for ch_idx in box2idxes[b]:
+                                candidates = [
+                                    cint for cmz, cint in current_intensities[ch_idx]
+                                    if 1e6 * np.abs(cmz - mz) / mz <= max_error
+                                ]
+                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
+                                    max(candidates + [0.0])
+                                )
                     else:
                         related_boxes = geom.interval_covers_which_boxes(
                             self._new_window(s.rt_in_seconds, mz, isolation_width)
                         )
 
                         for b in related_boxes:
-                            idx = box2idx[b]
-                            new_info[idx, self.TIMES_FRAGMENTED] += 1
-                            new_info[idx, self.MAX_FRAG_INTENSITY] = max(
-                                max([it for _, it in current_intensities[idx]] + [0.0]),
-                                new_info[idx, self.MAX_FRAG_INTENSITY]
-                            )
-            self.chem_info = np.concatenate((self.chem_info, new_info), axis=2)
+                            for ch_idx in box2idxes[b]:
+                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
+                                    max([it for _, it in current_intensities[ch_idx]] + [0.0])
+                                )
+        
+        self.chem_info = np.concatenate((self.chem_info, new_info), axis=2)
 
     def extra_info(self, report):
         num_frags = []
@@ -376,37 +410,57 @@ class RealEvaluator(Evaluator):
         self.chem_info[:] = 0
         self.mzmls = []
         
+    def partition_chems(self, min_intensity=0.0, aggregate=None):
+        partition = {
+            "fragmented": [],
+            "unfragmented": []
+        }
+        covered = self.evaluation_report(min_intensity=min_intensity)["cumulative_coverage"][-1]
+        
+        for row, hits in zip(self.chems, covered):
+            
+            if(not aggregate is None and aggregate.lower() == "max"):
+                b0 = row[0]
+                for b in row[1:]:
+                    b0 = b0.combine_max(b)
+                processed = [b0]
+            else:
+                processed = row
+                
+            if(hits > 0):
+                partition["fragmented"].append(processed)
+            else:
+                partition["unfragmented"].append(processed)
+                
+        return partition
         
 def evaluate_real(aligned_file,
-                  mzml_map,
-                  isolation_width=None, 
-                  min_intensity=0.0):
+                  mzml_pairs,
+                  isolation_width=None):
     """
     Produce combined evaluation report on real data stored in .mzmls.
     Args:
         aligned_file: Filepath of an MZMine peak-picking output file.
-        mzml_map: Dictionary mapping filepaths of fullscans which have been
-                  peak-picked, to lists of .mzmls which should be evaluated 
-                  using their parent fullscan's picked peaks. 
-                  .mzmls can be specified as either a filepath or an MZMLFile 
-                  object.
+        mzml_pairs: List of pairs mapping filepaths of fullscans which have been
+                    peak-picked, to .mzmls which should be evaluated using their 
+                    parent fullscan's picked peaks. 
+                    .mzmls can be specified as either a filepath or an MZMLFile 
+                    object.
         isolation_width: isolation width to use for evaluating whether a
                          fragmentation event is a hit.
                          None if the fragmentation event has to lie exactly
                          within the box.
                          Otherwise, checks if an interval of the specified
                          length entirely covers the box on the m/z dimension.
-        min_intensity: Fragmentation events with precursor below this threshold
-                       do not count as hits.
 
-    Returns: A dictionary mapping names to evaluation statistics.
+    Returns: A RealEvaluator object containing evaluation results.
     """
 
     eva = RealEvaluator.from_aligned(aligned_file)
-    for fullscan_path, mzmls in mzml_map.items():
+    for fullscan_path, mzml in mzml_pairs:
         fullscan_name = os.path.basename(fullscan_path)
-        eva.add_info(fullscan_name, mzmls, isolation_width=isolation_width)
-    return eva.evaluation_report(min_intensity=min_intensity)
+        eva.add_info(fullscan_name, [mzml], isolation_width=isolation_width)
+    return eva
 
 
 def calculate_chemical_p_values(datasets, group_list, base_chemicals):

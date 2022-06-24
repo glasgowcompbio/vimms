@@ -4,6 +4,7 @@ A controller based on the notion of generic boxes.
 Note: this module is still under development and might change significantly.
 """
 
+from math import log
 from copy import deepcopy
 
 import numpy as np
@@ -138,7 +139,7 @@ class IntensityGridController(GridController):
             )
 
 
-class TopNExController(GridController):
+class TopNEXController(GridController):
     def _overlap_scores(self):
         exclude = np.array([
             not self.grid.point_in_box(
@@ -179,9 +180,9 @@ class IntensityRoIExcludeController(IntensityGridController):
             r_rt, rt_mz, r_intensity = r[-1]
             boxes = self.grid.point_in_which_boxes(Point(r_rt, rt_mz))
             if(len(boxes) == 0):
-                new_intensities.append(r_intensity)
+                new_intensities.append(log(r_intensity))
             else:
-                new_intensities.append(r_intensity - max(b.intensity for b in boxes))
+                new_intensities.append(log(r_intensity) - log(max(b.intensity for b in boxes)))
         return new_intensities
         
 

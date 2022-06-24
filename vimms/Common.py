@@ -384,6 +384,21 @@ def path_or_mzml(mzml):
         if(not type(mzml) == MZMLFile):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
+    
+def get_avg_scan_times(mzmls):
+    ms1s, ms2s = [], []
+    for mzml in mzmls:
+        prev_level = 0
+        prev_time = 0
+        mzml = path_or_mzml(mzml)
+        for s in mzml.scans:
+            if(prev_level == 1):
+                ms1s.append(s.rt_in_seconds - prev_time)
+            if(prev_level == 2):
+                ms2s.append(s.rt_in_seconds - prev_time)
+            prev_level = s.ms_level
+            prev_time = s.rt_in_seconds
+    return {1 : np.mean(ms1s), 2 : np.mean(ms2s)}
 
 def save_obj(obj, filename):
     """

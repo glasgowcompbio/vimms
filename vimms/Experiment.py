@@ -128,6 +128,19 @@ class ExperimentCase:
                     EnvPlotPickler(env), 
                     os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
                 )
+                
+                try:
+                    roi_builder = env.controller.roi_builder
+                    live_roi, dead_roi, junk_roi = (
+                        roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
+                    )
+                    rois = live_roi + dead_roi + junk_roi
+                    save_obj(
+                        rois,
+                        os.path.join(out_dir, "pickle", out_file.split(".")[0] + "_rois.pkl")
+                    )
+                except AttributeError:
+                    pass
             
             mzml_names.append(
                 (fs, os.path.join(out_dir, out_file))

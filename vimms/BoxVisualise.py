@@ -647,15 +647,6 @@ class EnvPlotPickler():
         self.processing_times = env.controller.processing_times
         
         try:
-            roi_builder = env.controller.roi_builder
-            live_roi, dead_roi, junk_roi = (
-                roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
-            )
-            self.rois = live_roi + dead_roi + junk_roi
-        except AttributeError:
-            pass
-        
-        try:
             self.bm = env.controller.grid
         except AttributeError:
             pass

@@ -280,7 +280,10 @@ def generate_sequence_df(initial_runs, controller_repeat, samples, position, raw
 
 
 def select_sample_type_and_method_file(blank_method_path, instrument_method_path, sample):
-    if 'blank' in sample.lower():
+    if 'cmw' in sample.lower():
+        sample_type = 'Unknown'
+        method_file = instrument_method_path
+    elif 'blank' in sample.lower():
         sample_type = 'Blank'
         method_file = blank_method_path
     else:

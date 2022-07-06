@@ -228,13 +228,14 @@ class Experiment:
                        max_rt=1440,
                        ionisation_mode=POSITIVE,
                        scan_duration_dict=None,
+                       overwrite_keyfile=False,
                        num_workers=None):
         
         print("Creating Chemicals...")
         self.out_dir = out_dir
         chems = self.create_chems(out_dir, ionisation_mode, num_workers)
         print()
-        print("Running Experiment...")
+        print(f"Running Experiment of {len(self.cases)} cases...")
         try:
             with multiprocessing.Pool(num_workers) as pool:
                 case_iterable = [
@@ -254,7 +255,7 @@ class Experiment:
             self.case_mzmls = {}
             for mapping in case_mzmls: 
                 self.case_mzmls.update(mapping)
-            self.write_json()
+            self.write_json(overwrite=overwrite_keyfile)
         
         finally:
             for _, ppath in chems.items():
@@ -299,15 +300,22 @@ class Experiment:
         }
         return exp
         
-    def write_json(self, file_dir=None, file_name=None):
+    def write_json(self, file_dir=None, file_name=None, overwrite=False):
         if(file_dir is None):
             file_dir = self.out_dir
 
         if(file_name is None):
             file_name = "keyfile.json"
             
-        with open(os.path.join(file_dir, file_name), "w") as f:
-            json.dump(self.case_mzmls, f)
+        fname = os.path.join(file_dir, file_name)
+        if(not overwrite and os.path.exists(fname)):
+            with open(fname, "r") as f:
+                all_cases = {**json.load(f), **self.case_mzmls}
+        else:
+            all_cases = self.case_mzmls
+            
+        with open(fname, "w") as f:
+            json.dump(all_cases, f)
         
     @classmethod
     def load_from_json(cls, 

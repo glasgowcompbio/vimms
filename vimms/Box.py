@@ -17,6 +17,8 @@ import numpy as np
 from mass_spec_utils.data_import.mzmine import PickedBox
 
 class Point():
+    __slots__ = ("x", "y")
+
     def round(self, ndigits=8):
         self.x, self.y = round(self.x, ndigits), round(self.y, ndigits)
 
@@ -39,6 +41,7 @@ class Point():
 
 
 class Interval():
+    __slots__ = ("pt1", "pt2")
     errmsg = "Interval has to be flat on one of the dimensions!"
 
     def __init__(self, x1, x2, y1, y2):
@@ -67,6 +70,8 @@ class Interval():
 
 
 class Box():
+    __slots__ = ("id", "roi", "pt1", "pt2", "parents", "intensity")
+
     def __init__(self, x1, x2, y1, y2, 
                     parents=None, 
                     min_xwidth=0, 

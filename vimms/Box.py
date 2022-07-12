@@ -111,10 +111,10 @@ class Box():
     def serialise_info(self, minutes=False):
         timescale = 60 if minutes else 1
         return [
-            self.min_rt / timescale, 
-            self.max_rt / timescale, 
-            self.min_mz, 
-            self.max_mz, 
+            self.pt1.x / timescale, 
+            self.pt2.x / timescale, 
+            self.pt1.y, 
+            self.pt2.y, 
             self.intensity
         ]
 

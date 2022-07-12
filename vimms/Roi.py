@@ -1199,7 +1199,7 @@ def make_roi(input_file, roi_params):
 
             # get the raw peak data from spectrum
             mzs, intensities = spectrum_to_arrays(spectrum)
-
+            
             # update the ROI construction based on the new scan
             scan = Scan(scan_id, mzs, intensities, ms_level,
                         current_ms1_scan_rt)

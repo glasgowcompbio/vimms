@@ -11,7 +11,7 @@ from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Controller import TopNController, AgentBasedController
 from vimms.Agent import TopNDEWAgent
 from vimms.Controller.roi import TopN_RoiController
-from vimms.Box import BoxGrid
+from vimms.Box import BoxIntervalTrees, BoxGrid
 from vimms.BoxManager import BoxManager, BoxConverter, BoxSplitter
 from vimms.Controller.box import (
     TopNEXController, HardRoIExcludeController, IntensityRoIExcludeController,
@@ -62,18 +62,20 @@ class ExperimentCase:
                  fullscan_paths,
                  params,
                  name=None, 
-                 grid=None,
+                 grid_init=None,
                  pickle_env=False):
              
         self.name = name if not name is None else controller_type
         self.fullscan_paths = fullscan_paths
         self.datasets = []
+        self.params = params
+        self.grid_init = grid_init
         self.injection_num = 0
         self.pickle_env = pickle_env
         c = controller_type.replace(" ", "_").lower()
         
         try:
-            self.controller, shared = self.controllers[c]
+            self.controller, self.shared = self.controllers[c]
         except:
             error_msg = (
                 "Not a recognised controller, please use one of:\n"
@@ -81,12 +83,13 @@ class ExperimentCase:
             )
             raise ValueError(error_msg)
             
-        if(not grid is None):
-            self.params["grid"] = grid
-        elif(not shared is None):
-            self.params = shared.add_shareable(params)
+    def _init_shareable(self):
+        if(not self.grid_init is None):
+            return {**self.params, "grid" : self.grid_init()}
+        elif(not self.shared is None):
+            return self.shared.add_shareable({**self.params})
         else:
-            self.params = params
+            return self.params
     
     def run_controller(self, 
                        chems,
@@ -98,10 +101,11 @@ class ExperimentCase:
                        scan_duration_dict):
         
         mzml_names = []
+        params = self._init_shareable()
         
         for i, fs in enumerate(self.fullscan_paths):
             out_file = f"{self.name}_{i}.mzML"
-            controller = self.controller(**self.params)
+            controller = self.controller(**params)
             dataset = load_obj(chems[fs])
             
             mass_spec = IndependentMassSpectrometer(
@@ -141,6 +145,8 @@ class ExperimentCase:
                     )
                 except AttributeError:
                     pass
+                finally:
+                    roi_builder = None
             
             mzml_names.append(
                 (fs, os.path.join(out_dir, out_file))
@@ -161,8 +167,9 @@ class ExperimentCase:
            Returns: Boolean indicating whether an error was thrown.
         """
         
+        params = self._init_shareable()
         try:
-            self.controller(**self.params)
+            self.controller(**params)
             return True
         except AssertionError:
             return False
@@ -186,9 +193,9 @@ class Experiment:
         )
         
     @staticmethod
-    def _gen_chems(fs, ionisation_mode, out_dir):
+    def _gen_chems(fs, ionisation_mode, out_dir, point_noise_threshold):
         print(f"Generating chemicals for {fs}")
-        rp = RoiBuilderParams(min_roi_intensity=0, min_roi_length=0)
+        rp = RoiBuilderParams(min_roi_intensity=point_noise_threshold, min_roi_length=0)
         cm = ChemicalMixtureFromMZML(fs, roi_params=rp)
         generated = cm.sample(None, 2, source_polarity=ionisation_mode)
         
@@ -209,13 +216,14 @@ class Experiment:
             scan_duration_dict,
         )
         
-    def create_chems(self, out_dir, ionisation_mode, num_workers):
+    def create_chems(self, out_dir, ionisation_mode, num_workers, point_noise_threshold=0):
         all_fullscans = set(fs for case in self.cases for fs in case.fullscan_paths)
         with multiprocessing.Pool(num_workers) as pool:
             zipped = zip(
                 all_fullscans,
                 itertools.repeat(ionisation_mode),
-                itertools.repeat(out_dir)
+                itertools.repeat(out_dir),
+                itertools.repeat(point_noise_threshold)
             )
             pkl_names = pool.starmap(self._gen_chems, zipped)
             
@@ -228,12 +236,18 @@ class Experiment:
                        max_rt=1440,
                        ionisation_mode=POSITIVE,
                        scan_duration_dict=None,
+                       point_noise_threshold=0,
                        overwrite_keyfile=False,
                        num_workers=None):
         
         print("Creating Chemicals...")
         self.out_dir = out_dir
-        chems = self.create_chems(out_dir, ionisation_mode, num_workers)
+        chems = self.create_chems(
+            out_dir, 
+            ionisation_mode, 
+            num_workers, 
+            point_noise_threshold=point_noise_threshold
+        )
         print()
         print(f"Running Experiment of {len(self.cases)} cases...")
         try:
@@ -499,6 +513,7 @@ class Experiment:
                         max_rt=1440,
                         ionisation_mode=POSITIVE,
                         scan_duration_dict=None,
+                        point_noise_threshold=0,
                         num_workers=None):
                         
         pairs = {
@@ -545,6 +560,7 @@ class Experiment:
             max_rt=max_rt,
             ionisation_mode=ionisation_mode,
             scan_duration_dict=scan_duration_dict,
+            point_noise_threshold=point_noise_threshold,
             num_workers=num_workers
         )
         

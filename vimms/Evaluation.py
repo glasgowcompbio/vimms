@@ -134,7 +134,7 @@ class Evaluator(metaclass=ABCMeta):
         pass
 
     def evaluation_report(self, min_intensity=0.0):
-        chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] >= min_intensity, axis=1)
+        chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] > min_intensity, axis=1)
     
         frag_counts = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
         max_possible_intensities = self.chem_info[chem_appears, self.MAX_INTENSITY, :].T

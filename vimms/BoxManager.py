@@ -15,9 +15,10 @@ class BoxManager():
     def __init__(self, box_geometry=None,
                     box_converter=None,
                     box_splitter=None,
-                    drift_model=None
+                    drift_model=None,
+                    delete_rois=True
                 ):
-                
+        
         self.pending_ms2s = deque()
         self.observed_rois = [[]]
         self.boxes = [[]]
@@ -27,6 +28,7 @@ class BoxManager():
         self.box_converter = BoxConverter() if box_converter is None else box_converter
         self.box_splitter = BoxSplitter(split=False) if box_splitter is None else box_splitter
         self.box_geometry = BoxGrid() if box_geometry is None else box_geometry
+        self.delete_rois = delete_rois
 
     def point_in_box(self, pt):
         return self.box_geometry.point_in_box(pt)
@@ -112,6 +114,12 @@ class BoxManager():
     def update_after_injection(self):
         boxes = self.box_converter.rois2boxes(self.observed_rois[self.injection_count])
         self.boxes[self.injection_count].extend(boxes)
+        
+        if(self.delete_rois):
+            self.observed_rois[self.injection_count] = []
+            for b in self.boxes[self.injection_count]:
+                b.roi = None
+        
         self._update_geometry()
         self._next_model()
         

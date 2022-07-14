@@ -36,7 +36,8 @@ class Shareable:
                 **params,
                 "grid" : BoxManager(
                     box_geometry = BoxGrid(),
-                    box_splitter = BoxSplitter(split=self.split)
+                    box_splitter = BoxSplitter(split=self.split),
+                    delete_rois=True
                 )
             }
 

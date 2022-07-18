@@ -1,3 +1,5 @@
+import gc
+
 import pandas as pd
 from loguru import logger
 
@@ -65,6 +67,8 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
                                out_file)
+                del controller
+                gc.collect()
 
 
 # a variant of run_batch but for exhaustive fragmentation (experiment 3)
@@ -109,6 +113,8 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
                                out_file)
+                del controller
+                gc.collect()
 
 
 def make_grid(experiment_params, split_grid):
@@ -208,18 +214,20 @@ def run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
     if use_instrument:
         from vimms_fusion.MassSpec import IAPIMassSpectrometer
         from vimms_fusion.Environment import IAPIEnvironment
+
         mass_spec = IAPIMassSpectrometer(ionisation_mode, ref_dir, filename=None,
                                          show_console_logs=False,
                                          use_column=use_column)
-        env = IAPIEnvironment(mass_spec, controller, max_time, progress_bar=pbar, out_dir=out_dir,
-                              out_file=out_file)
+        with IAPIEnvironment(mass_spec, controller, max_time, progress_bar=pbar, out_dir=out_dir,
+                              out_file=out_file) as env:
+            env.run()
+        del mass_spec, env
     else:
         mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset,
                                                 scan_duration=scan_duration_dict)
         env = Environment(mass_spec, controller, 0, max_time, progress_bar=pbar, out_dir=out_dir,
                           out_file=out_file)
-
-    env.run()
+        env.run()
 
 
 def generate_sequence_df(initial_runs, controller_repeat, samples, position, raw_output_path,

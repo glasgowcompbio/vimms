@@ -1,4 +1,5 @@
 import gc
+import os
 
 import pandas as pd
 from loguru import logger
@@ -17,6 +18,7 @@ from vimms.Controller.box import NonOverlapController, IntensityNonOverlapContro
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiBuilderParams
+from vimms.Common import save_obj
 
 
 def extract_chemicals(seed_file, ionisation_mode):
@@ -67,6 +69,8 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
                                out_file)
+                fname = os.path.join(out_dir, out_file+'.controller')
+                save_obj(controller, fname)
                 del controller
                 gc.collect()
 
@@ -113,6 +117,8 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
                                out_file)
+                fname = os.path.join(out_dir, out_file+'.controller')
+                save_obj(controller, fname)
                 del controller
                 gc.collect()
 

@@ -69,8 +69,8 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
                                out_file)
-                fname = os.path.join(out_dir, out_file+'.controller')
-                save_obj(controller, fname)
+                # fname = os.path.join(out_dir, out_file+'.controller')
+                # save_obj(controller, fname)
                 del controller
                 gc.collect()
 
@@ -117,8 +117,8 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
                                out_file)
-                fname = os.path.join(out_dir, out_file+'.controller')
-                save_obj(controller, fname)
+                # fname = os.path.join(out_dir, out_file+'.controller')
+                # save_obj(controller, fname)
                 del controller
                 gc.collect()
 

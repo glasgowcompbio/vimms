@@ -5,6 +5,7 @@ import math
 import re
 import itertools
 import bisect
+import pathlib
 import subprocess
 from functools import reduce
 from operator import attrgetter
@@ -66,7 +67,8 @@ def pick_aligned_peaks(input_files,
                        mzmine_template,
                        mzmine_exe,
                        force=False):
-                       
+    
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     if(len(output_name.split(".")) > 1):
         output_name = "".join(output_name.split(".")[:-1])
     output_path = os.path.join(output_dir, f"{output_name}_aligned.csv")
@@ -418,14 +420,15 @@ class RealEvaluator(Evaluator):
         covered = self.evaluation_report(min_intensity=min_intensity)["cumulative_coverage"][-1]
         
         for row, hits in zip(self.chems, covered):
+            new_row = [b for b in row if not b is None]
             
             if(not aggregate is None and aggregate.lower() == "max"):
-                b0 = row[0]
-                for b in row[1:]:
+                b0 = new_row[0]
+                for b in new_row[1:]:
                     b0 = b0.combine_max(b)
                 processed = [b0]
             else:
-                processed = row
+                processed = new_row
                 
             if(hits > 0):
                 partition["fragmented"].append(processed)

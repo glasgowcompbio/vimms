@@ -173,6 +173,11 @@ class Evaluator(metaclass=ABCMeta):
             np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero])
             for c_i in cumulative_coverage_intensities
         ]
+        
+        cumulative_covered_intensities_prop = [
+            np.mean(c_i[covered] / max_coverage_intensities[covered])
+            for covered, c_i in zip(cumulative_coverage, cumulative_coverage_intensities)
+        ]
 
         report = {
             "num_runs" : self.chem_info.shape[2],
@@ -195,7 +200,8 @@ class Evaluator(metaclass=ABCMeta):
             "intensity_proportion" : coverage_intensity_prop,
             "cumulative_raw_intensity_proportion" : cumulative_raw_intensities_prop,
             "cumulative_coverage_proportion" : list(cumulative_coverage_prop),
-            "cumulative_intensity_proportion" : cumulative_coverage_intensities_prop
+            "cumulative_intensity_proportion" : cumulative_coverage_intensities_prop,
+            "cumulative_covered_intensities_proportion" : cumulative_covered_intensities_prop
         }
             
         self.extra_info(report)
@@ -208,6 +214,10 @@ class Evaluator(metaclass=ABCMeta):
             "Cumulative coverage" : "sum_cumulative_coverage",
             "Cumulative coverage proportion" : "cumulative_coverage_proportion",
             "Cumulative intensity proportion" : "cumulative_intensity_proportion",
+            
+            "Cumulative intensity proportion of covered spectra" : 
+            "cumulative_covered_intensities_proportion",
+
             "Times covered" : "times_covered_summary",
             "Times fragmented" : "times_fragmented_summary",
         }

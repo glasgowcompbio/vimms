@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 import scipy.stats
@@ -7,7 +7,9 @@ import bisect
 from vimms.Common import MAX_POSSIBLE_RT
 
 
-class Chromatogram(ABC):
+class Chromatogram(metaclass=ABCMeta):
+
+    __slots__ = ()
 
     @abstractmethod
     def get_relative_intensity(self, query_rt):
@@ -30,6 +32,17 @@ class EmpiricalChromatogram(Chromatogram):
     """
     Empirical Chromatograms to be used within Chemicals
     """
+    
+    __slots__ = (
+        "raw_rts",
+        "raw_mzs",
+        "raw_intensities",
+        "rts",
+        "mzs",
+        "intensities",
+        "min_rt",
+        "max_rt"
+    )
 
     def __init__(self, rts, mzs, intensities, single_point_length=0.9):
         self.raw_rts = rts

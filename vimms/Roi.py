@@ -837,13 +837,12 @@ class RoiBuilder():
 
         # intensity check:
         # Keep only the ROIs that can be fragmented above
-        # min_roi_intensity_for_fragmentation threshold.
+        # at_least_one_point_above threshold.
         all_roi = filtered_roi + self.dead_roi
         if self.roi_params.at_least_one_point_above > 0:
             keep = []
             for roi in all_roi:
-                if np.count_nonzero(np.array(
-                        roi.intensity_list) > self.roi_params.at_least_one_point_above) > 0:
+                if any(it > self.roi_params.at_least_one_point_above for it in roi.intensity_list):
                     keep.append(roi)
         else:
             keep = all_roi

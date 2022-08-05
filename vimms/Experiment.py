@@ -7,6 +7,7 @@ import json
 from vimms.Common import POSITIVE, save_obj, load_obj
 from vimms.Roi import RoiBuilderParams
 from vimms.Chemicals import ChemicalMixtureFromMZML
+from vimms.ChemicalSamplers import FixedMS2Sampler
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Controller import TopNController, AgentBasedController
 from vimms.Agent import TopNDEWAgent
@@ -194,10 +195,14 @@ class Experiment:
         )
         
     @staticmethod
-    def _gen_chems(fs, ionisation_mode, out_dir, point_noise_threshold):
+    def _gen_chems(fs, ionisation_mode, out_dir, point_noise_threshold, chem_noise_threshold):
         print(f"Generating chemicals for {fs}")
-        rp = RoiBuilderParams(min_roi_intensity=point_noise_threshold, min_roi_length=0)
-        cm = ChemicalMixtureFromMZML(fs, roi_params=rp)
+        rp = RoiBuilderParams(
+            min_roi_intensity=point_noise_threshold, 
+            at_least_one_point_above=chem_noise_threshold,
+            min_roi_length=0
+        )
+        cm = ChemicalMixtureFromMZML(fs, roi_params=rp, ms2_sampler=FixedMS2Sampler())
         generated = cm.sample(None, 2, source_polarity=ionisation_mode)
         
         basename = ".".join(os.path.basename(fs).split(".")[:-1])
@@ -217,14 +222,21 @@ class Experiment:
             scan_duration_dict,
         )
         
-    def create_chems(self, out_dir, ionisation_mode, num_workers, point_noise_threshold=0):
+    def create_chems(self, 
+                     out_dir, 
+                     ionisation_mode, 
+                     num_workers, 
+                     point_noise_threshold=0,
+                     chem_noise_threshold=0):
+        
         all_fullscans = set(fs for case in self.cases for fs in case.fullscan_paths)
         with multiprocessing.Pool(num_workers) as pool:
             zipped = zip(
                 all_fullscans,
                 itertools.repeat(ionisation_mode),
                 itertools.repeat(out_dir),
-                itertools.repeat(point_noise_threshold)
+                itertools.repeat(point_noise_threshold),
+                itertools.repeat(chem_noise_threshold)
             )
             pkl_names = pool.starmap(self._gen_chems, zipped)
             
@@ -238,6 +250,7 @@ class Experiment:
                        ionisation_mode=POSITIVE,
                        scan_duration_dict=None,
                        point_noise_threshold=0,
+                       chem_noise_threshold=0,
                        overwrite_keyfile=False,
                        num_workers=None):
         
@@ -247,7 +260,8 @@ class Experiment:
             out_dir, 
             ionisation_mode, 
             num_workers, 
-            point_noise_threshold=point_noise_threshold
+            point_noise_threshold=point_noise_threshold,
+            chem_noise_threshold=chem_noise_threshold
         )
         print()
         print(f"Running Experiment of {len(self.cases)} cases...")
@@ -515,6 +529,7 @@ class Experiment:
                         ionisation_mode=POSITIVE,
                         scan_duration_dict=None,
                         point_noise_threshold=0,
+                        chem_noise_threshold=0,
                         num_workers=None):
                         
         pairs = {
@@ -562,6 +577,7 @@ class Experiment:
             ionisation_mode=ionisation_mode,
             scan_duration_dict=scan_duration_dict,
             point_noise_threshold=point_noise_threshold,
+            chem_noise_threshold=chem_noise_threshold,
             num_workers=num_workers
         )
         

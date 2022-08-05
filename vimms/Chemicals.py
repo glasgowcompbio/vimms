@@ -3,7 +3,7 @@ Provides implementation of Chemicals objects that are used as input
 to the simulation.
 """
 import copy
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 import scipy
@@ -205,13 +205,18 @@ class Adducts():
         return self.adduct_names
 
 
-class BaseChemical(ABC):
+class BaseChemical(metaclass=ABCMeta):
     """
     The base class for Chemical objects across all MS levels.
     Chemicals at MS level = 1 is special and should be instantiated as either Known
     or Unknown chemicals.
     For other MS levels, please use the MSN class.
     """
+    
+    __slots__ = (
+        "ms_level",
+        "children"
+    )
 
     def __init__(self, ms_level, children):
         """
@@ -229,6 +234,14 @@ class Chemical(BaseChemical):
     The class that represents a Chemical object of MS-level 1.
     Should be realised as either Known or Unknown chemicals.
     """
+    
+    __slots__ = (
+        "rt",
+        "max_intensity",
+        "chromatogram",
+        "mz_diff",
+        "base_chemical",
+    )
 
     def __init__(self, rt, max_intensity, chromatogram, children,
                  base_chemical):
@@ -295,6 +308,12 @@ class UnknownChemical(Chemical):
     from an existing mzML file.
     """
 
+    __slots__ = (
+        "isotopes",
+        "adducts",
+        "mass"
+    )
+    
     def __init__(self, mz, rt, max_intensity, chromatogram, children=None,
                  base_chemical=None):
         """
@@ -374,6 +393,13 @@ class MSN(BaseChemical):
     """
     A chemical that represents an MS2+ fragment.
     """
+    
+    __slots__ = (
+        "isotopes",
+        "prop_ms2_mass",
+        "parent_mass_prop",
+        "parent"
+    )
 
     def __init__(self, mz, ms_level, prop_ms2_mass, parent_mass_prop,
                  children=None, parent=None):
@@ -389,9 +415,7 @@ class MSN(BaseChemical):
             parent: parent MS1 peak
         """
         super().__init__(ms_level, children)
-
         self.isotopes = [(mz, None, "MSN")]
-        self.ms_level = ms_level
         self.prop_ms2_mass = prop_ms2_mass
         self.parent_mass_prop = parent_mass_prop
         self.parent = parent

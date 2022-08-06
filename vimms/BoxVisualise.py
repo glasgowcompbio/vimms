@@ -1,4 +1,5 @@
 import os
+import copy
 import bisect
 import itertools
 import math
@@ -654,37 +655,62 @@ class EnvPlotPickler():
         
 def mpl_results_plot(experiment_names, 
                      evals, 
-                     min_intensity=0.0, 
+                     min_intensity=0.0,
+                     keys=None,
                      colours=None, 
-                     markers=None, 
+                     markers=None,
+                     leglocs=None,
                      suptitle=None):
                      
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    if(colours is None): colours = itertools.repeat(None)
-    if(markers is None): markers = itertools.repeat(None)
+    if(keys is None):
+        keys = ["cumulative_coverage_proportion", "cumulative_intensity_proportion"]
+                     
+    layouts = {
+        "cumulative_coverage_proportion" : {
+            "title" : "Multi-Sample Cumulative Coverage",
+            "ylabel" :  "Cumulative Coverage Proportion",
+        },
+        
+        "cumulative_intensity_proportion" : {
+            "title" : "Multi-Sample Cumulative Intensity Proportion",
+            "ylabel" : "Cumulative Intensity Proportion",
+        },
+        
+        "cumulative_covered_intensities_proportion" : {
+            "title" : "Multi-Sample Cumulative Intensity Proportion (Covered Peaks Only)",
+            "ylabel" : "Cumulative Intensity Proportion",
+        }
+    }
+                     
+    fig, axes = plt.subplots(1, len(keys))
+    try:
+        axes[0]
+    except TypeError:
+        axes = [axes]
     
-    for exp_name, eva, c, m in zip(experiment_names, evals, colours, markers):
+    if(colours is None): use_colours = itertools.repeat(None)
+    else: use_colours = copy.copy(colours)
+    
+    if(markers is None): use_markers = itertools.repeat(None)
+    else: use_markers = copy.copy(markers)
+    
+    if(leglocs is None): use_leglocs = itertools.repeat(None)
+    else: use_leglocs = copy.copy(leglocs)
+    
+    itr = zip(experiment_names, evals, use_colours, use_markers, use_leglocs)
+    for exp_name, eva, c, m, legloc in itr:
         results = eva.evaluation_report(min_intensity=min_intensity)
-        coverages = results["cumulative_coverage_proportion"]
-        intensity_proportions = results["cumulative_intensity_proportion"]
-        xs = list(range(1, len(coverages) + 1))
+        for key, ax in zip(keys, axes):
+            scores = results[key]
+            xs = list(range(1, len(scores) + 1))
 
-        ax1.set(
-            xlabel="Num. Runs", 
-            ylabel="Cumulative Coverage Proportion", 
-            title="Multi-Sample Cumulative Coverage"
-        )
-        ax1.plot(xs, coverages, label=exp_name, color=c, marker=m)
-        ax1.legend()
-
-        ax2.set(
-            xlabel="Num. Runs", 
-            ylabel="Cumulative Intensity Proportion", 
-            title="Multi-Sample Cumulative Intensity Proportion"
-        )
-        ax2.plot(xs, intensity_proportions, label=exp_name, color=c, marker=m)
-        ax2.legend()
-    
+            ax.set(
+                xlabel="Num. Runs", 
+                **layouts[key]
+            )
+            ax.plot(xs, scores, label=exp_name, color=c, marker=m)
+            ax.legend(loc=legloc)
+        
     fig.set_size_inches(18.5, 10.5)
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=18)

@@ -9,6 +9,7 @@ from vimms.Common import (
     adduct_transformation, DEFAULT_SCAN_TIME_DICT,
     INITIAL_SCAN_ID, ScanParameters
 )
+from vimms.Chemicals import ChemSet
 from vimms.Noise import NoPeakNoise
 
 
@@ -330,15 +331,8 @@ class IndependentMassSpectrometer():
         }
 
         # the list of all chemicals in the dataset
-        self.chemicals = chemicals
+        self.chemicals = ChemSet.to_chemset(chemicals)
         self.ionisation_mode = ionisation_mode
-
-        # stores the chromatograms start and end rt for quick retrieval
-        chem_rts = np.array([chem.rt for chem in self.chemicals])
-        self.chrom_min_rts = np.array(
-            [chem.chromatogram.min_rt for chem in self.chemicals]) + chem_rts
-        self.chrom_max_rts = np.array(
-            [chem.chromatogram.max_rt for chem in self.chemicals]) + chem_rts
 
         # whether to add noise to the generated peaks, the default is no noise
         self.mz_noise = mz_noise
@@ -630,7 +624,7 @@ class IndependentMassSpectrometer():
 
         # for all chemicals that come out from the column
         # coupled to the mass spec
-        idx = self._get_chem_indices(scan_time)
+        chems = self.chemicals.next_chems(scan_time)
 
         # the following is to ensure we generate fragment data when
         # we have a collision energe >0
@@ -639,8 +633,7 @@ class IndependentMassSpectrometer():
             use_ms_level = 2
 
         frag_events = []
-        for i in idx:
-            chemical = self.chemicals[i]
+        for chemical in chems:
             # mzs is a list of (mz, intensity) for the different
             # adduct/isotopes combinations of a chemical
             mzs = self._get_all_mz_peaks(chemical, scan_time, use_ms_level,
@@ -704,12 +697,6 @@ class IndependentMassSpectrometer():
         # We will set it later in the get_next_scan() method after
         # we've notified the controller that this scan is produced.
         return sc
-
-    def _get_chem_indices(self, query_rt):
-        rtmin_check = self.chrom_min_rts <= query_rt
-        rtmax_check = query_rt <= self.chrom_max_rts
-        idx = np.nonzero(rtmin_check & rtmax_check)[0]
-        return idx
 
     def _get_all_mz_peaks(self, chemical, query_rt, ms_level,
                           isolation_windows):

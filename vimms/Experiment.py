@@ -6,7 +6,7 @@ import json
 
 from vimms.Common import POSITIVE, save_obj, load_obj
 from vimms.Roi import RoiBuilderParams
-from vimms.Chemicals import ChemicalMixtureFromMZML
+from vimms.Chemicals import ChemicalMixtureFromMZML, ChemSet, MemoryChems, FileChems
 from vimms.ChemicalSamplers import FixedMS2Sampler
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Controller import TopNController, AgentBasedController
@@ -108,55 +108,53 @@ class ExperimentCase:
         for i, fs in enumerate(self.fullscan_paths):
             out_file = f"{self.name}_{i}.mzML"
             controller = self.controller(**params)
-            dataset = load_obj(chems[fs])
-            
-            mass_spec = IndependentMassSpectrometer(
-                ionisation_mode, 
-                dataset, 
-                None, 
-                scan_duration=scan_duration_dict
-            )
-            
-            env = Environment(
-                mass_spec, 
-                controller,
-                min_rt,
-                max_rt,
-                progress_bar=pbar,
-                out_dir=out_dir,
-                out_file=out_file
-            )    
-            
-            print(f"Outcome being written to: \"{out_file}\"")
-            env.run()
-            if(self.pickle_env):
-                save_obj(
-                    EnvPlotPickler(env), 
-                    os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
+            with FileChems.from_path(chems[fs]) as dataset:
+                mass_spec = IndependentMassSpectrometer(
+                    ionisation_mode, 
+                    dataset, 
+                    None, 
+                    scan_duration=scan_duration_dict
                 )
                 
-                try:
-                    roi_builder = env.controller.roi_builder
-                    live_roi, dead_roi, junk_roi = (
-                        roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
-                    )
-                    rois = live_roi + dead_roi + junk_roi
+                env = Environment(
+                    mass_spec, 
+                    controller,
+                    min_rt,
+                    max_rt,
+                    progress_bar=pbar,
+                    out_dir=out_dir,
+                    out_file=out_file
+                )    
+                
+                print(f"Outcome being written to: \"{out_file}\"")
+                env.run()
+                if(self.pickle_env):
                     save_obj(
-                        rois,
-                        os.path.join(out_dir, "pickle", out_file.split(".")[0] + "_rois.pkl")
+                        EnvPlotPickler(env), 
+                        os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
                     )
-                except AttributeError:
-                    pass
-                finally:
-                    roi_builder = None
-            
-            mzml_names.append(
-                (fs, os.path.join(out_dir, out_file))
-            )
-            
-            del env
-            del mass_spec
-            del dataset
+                    
+                    try:
+                        roi_builder = env.controller.roi_builder
+                        live_roi, dead_roi, junk_roi = (
+                            roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
+                        )
+                        rois = live_roi + dead_roi + junk_roi
+                        save_obj(
+                            rois,
+                            os.path.join(out_dir, "pickle", out_file.split(".")[0] + "_rois.pkl")
+                        )
+                    except AttributeError:
+                        pass
+                    finally:
+                        roi_builder = None
+                
+                mzml_names.append(
+                    (fs, os.path.join(out_dir, out_file))
+                )
+                
+                del env
+                del mass_spec
             
         return {self.name : mzml_names}
         
@@ -200,14 +198,15 @@ class Experiment:
         rp = RoiBuilderParams(
             min_roi_intensity=point_noise_threshold, 
             at_least_one_point_above=chem_noise_threshold,
-            min_roi_length=0
+            min_roi_length=2
         )
         cm = ChemicalMixtureFromMZML(fs, roi_params=rp, ms2_sampler=FixedMS2Sampler())
         generated = cm.sample(None, 2, source_polarity=ionisation_mode)
         
         basename = ".".join(os.path.basename(fs).split(".")[:-1])
         ppath = os.path.join(out_dir, f"{basename}_temp.pkl")
-        save_obj(generated, ppath)
+        ChemSet.dump_chems(generated, ppath)
+        
         return ppath  
 
     @staticmethod

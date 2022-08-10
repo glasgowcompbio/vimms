@@ -3,6 +3,10 @@ Provides implementation of Chemicals objects that are used as input
 to the simulation.
 """
 import copy
+import itertools
+import pickle
+from collections import deque
+from operator import attrgetter
 from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
@@ -248,7 +252,7 @@ class Chemical(BaseChemical):
         """
         Create a Chemical object
         Args:
-            rt: the RT value of this chemical
+            rt: the starting RT value of this chemical
             max_intensity: the maximum intensity of this chemical
             chromatogram: the chromatogram of this chemical
             children: any children of this chemical
@@ -322,7 +326,7 @@ class UnknownChemical(Chemical):
         Args:
             mz: the m/z value of this chemical. Unlike [vimms.Chemicals.KnownChemical][] here we
                 know the m/z value but do not known the formula that generates this chemical.
-            rt: the RT value of this chemical
+            rt: the starting RT value of this chemical
             max_intensity: the maximum intensity of this chemical
             chromatogram: the chromatogram of this chemical
             children: any children of this chemical
@@ -359,7 +363,7 @@ class KnownChemical(Chemical):
             formula: the formula of this chemical object.
             isotopes: the isotope of this chemical object
             adducts: the adduct of this chemical object
-            rt: the retention time value of this chemical object
+            rt: the starting retention time value of this chemical object
             max_intensity: the maximum intensity value in the chromatogram
             chromatogram: the chromatogram of the chemical
             children: any children of the chemical
@@ -387,6 +391,152 @@ class KnownChemical(Chemical):
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
             self.formula.formula_string, self.rt, self.max_intensity)
+            
+            
+class ChemSet():
+    def reset(self):
+        self.rt = 0
+        self.current = []
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, type, value, traceback):
+        pass
+        
+    @classmethod
+    def to_chemset(cls, chems, filepath=None):
+        if(type(chems) == MemoryChems or type(chems) == FileChems):
+            return chems
+        
+        if(filepath is None):
+            return MemoryChems(chems)
+        else:
+            return FileChems(filepath, chems)
+    
+    @staticmethod
+    def dump_chems(chems, filepath):
+        key = attrgetter("chromatogram.raw_min_rt")
+        srted = sorted(chems, key=key)
+        grouped = itertools.groupby(srted, key=lambda ch: round(ch.chromatogram.raw_min_rt, 1))
+        with open(filepath, "wb") as f:
+            for k, group in grouped:
+                pickle.dump(list(group), f, protocol=pickle.HIGHEST_PROTOCOL)
+        
+    def _update(self, rt, chems):
+        key = attrgetter("chromatogram.raw_max_rt")
+        self.current.extend(chems)
+        self.current.sort(key=key, reverse=True)
+        while(len(self.current) > 0 and self.current[-1].chromatogram.raw_max_rt < rt):
+            self.current.pop()
+        self.rt = rt
+
+    @abstractmethod
+    def next_chems(self, rt):
+        pass
+
+        
+class MemoryChems(ChemSet):
+    def __init__(self, local_chems):
+        key = attrgetter("chromatogram.raw_min_rt")
+        self.local_chems = sorted(local_chems, key=key)
+        self.reset()
+        
+    def reset(self):
+        self.pos = 0
+        super().reset()
+        
+    def __iter__(self):
+        return iter(self.local_chems)
+        
+    @classmethod
+    def from_chems(cls, chems):
+        if(type(chems) == cls):
+            return chems
+        return cls(chems)
+        
+    @classmethod
+    def from_path(cls, filepath):
+        chems = []
+        with open(filepath, "rb") as f:
+            try:
+                while(True):
+                    chems.extend(pickle.load(f))
+            except EOFError:
+                pass
+        return cls(chems)
+        
+    def next_chems(self, rt):
+        if(rt < self.rt): self.reset()
+        new_pos = self.pos
+        while(new_pos < len(self.local_chems)
+              and self.local_chems[new_pos].chromatogram.raw_min_rt <= rt):
+            new_pos += 1
+        self._update(rt, itertools.islice(self.local_chems, self.pos, new_pos))
+        self.pos = new_pos
+        return reversed(self.current)
+
+
+class FileChems(ChemSet):
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.f = None
+        self.reset()
+        
+    def reset(self):
+        if(not self.f is None):
+            self.f.close()
+            self.f = None
+        self.pending = deque()
+        self.finished = False
+        super().reset()
+        
+    def __iter__(self):
+        with open(self.filepath, "rb") as f:
+            try:
+                while(True):
+                    for ch in pickle.load(f):
+                        yield ch
+            except EOFError:
+                pass
+        
+    def __exit__(self, type, value, traceback):
+        if(not self.f is None):
+            self.f.close()
+            
+    @classmethod
+    def from_path(cls, filepath, chems=None):
+        if(type(chems) == cls):
+            return chems
+        
+        if(not chems is None):
+            self.dump_chems(chems, filepath)
+        
+        return cls(filepath)
+        
+    def next_chems(self, rt):
+        if(rt < self.rt): self.reset()
+        if(self.finished):
+            self._update(rt, [])
+            return iter(self.current)
+        
+        if(self.f is None):
+            self.f = open(self.filepath, "rb")
+        
+        try:
+            while(not self.finished and 
+                  (len(self.pending) == 0 or self.pending[-1].chromatogram.raw_min_rt <= rt)):
+                self.pending.extend(pickle.load(self.f))
+        except EOFError:
+            self.finished = True
+            self.f.close()
+        
+        new = []
+        while(len(self.pending) > 0 and self.pending[0].chromatogram.raw_min_rt <= rt):
+            new.append(self.pending.popleft())
+        
+        self._update(rt, new)
+        return reversed(self.current)
 
 
 class MSN(BaseChemical):

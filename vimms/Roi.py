@@ -33,7 +33,6 @@ from vimms.Evaluation import (
     load_peakonly_boxes, load_xcms_boxes, 
     get_precursor_intensities
 )
-from vimms.MassSpec import Scan
 
 
 class Roi():
@@ -1175,6 +1174,8 @@ def make_roi(input_file, roi_params):
              certain criteria.
 
     """
+    
+    from vimms.MassSpec import Scan #import in fn. body to avoid circular import
 
     run = pymzml.run.Reader(input_file, MS1_Precision=5e-6,
                             extraAccessions=[

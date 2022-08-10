@@ -41,13 +41,19 @@ class EmpiricalChromatogram(Chromatogram):
         "mzs",
         "intensities",
         "min_rt",
-        "max_rt"
+        "max_rt",
+        "raw_min_rt",
+        "raw_max_rt"
     )
 
     def __init__(self, rts, mzs, intensities, single_point_length=0.9):
         self.raw_rts = rts
         self.raw_mzs = mzs
         self.raw_intensities = intensities
+        
+        self.raw_min_rt = min(self.raw_rts)
+        self.raw_max_rt = max(self.raw_rts)
+        
         # ensures that all arrays are in sorted order
         if len(rts) > 1:
             p = rts.argsort()
@@ -60,14 +66,13 @@ class EmpiricalChromatogram(Chromatogram):
             mzs = np.array([mzs[0], mzs[0]])
             intensities = np.array([intensities[0], intensities[0]])
         # normalise arrays
-        self.rts = rts - min(rts)
-        self.mzs = mzs - np.mean(
-            mzs)  # may want to just set this to 0 and remove from input
+        self.rts = rts - self.raw_min_rt
+        self.mzs = mzs - np.mean(mzs)  # may want to just set this to 0 and remove from input
         self.intensities = intensities / max(intensities)
         # chromatogramDensityNormalisation(rts, intensities)
 
-        self.min_rt = min(self.rts)
-        self.max_rt = max(self.rts)
+        self.min_rt = np.min(self.rts)
+        self.max_rt = np.max(self.rts)
 
     def get_apex_rt(self):
         max_pos = 0

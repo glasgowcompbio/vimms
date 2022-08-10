@@ -1,6 +1,7 @@
 import os
 import itertools
 from collections import deque, OrderedDict
+import pathlib
 import multiprocessing
 import json
 
@@ -102,6 +103,7 @@ class ExperimentCase:
                        ionisation_mode,
                        scan_duration_dict):
         
+        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
         mzml_names = []
         params = self._init_shareable()
         

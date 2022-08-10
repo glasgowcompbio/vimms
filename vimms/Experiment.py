@@ -103,7 +103,6 @@ class ExperimentCase:
                        ionisation_mode,
                        scan_duration_dict):
         
-        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
         mzml_names = []
         params = self._init_shareable()
         
@@ -256,6 +255,7 @@ class Experiment:
                        num_workers=None):
         
         print("Creating Chemicals...")
+        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
         self.out_dir = out_dir
         chems = self.create_chems(
             out_dir, 

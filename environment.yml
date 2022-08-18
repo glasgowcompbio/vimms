@@ -1,6 +1,5 @@
 name: vimms
 channels:
-- conda-forge
 - defaults
 dependencies:
   - numpy
@@ -9,7 +8,6 @@ dependencies:
   - matplotlib
   - seaborn
   - scikit-learn
-  - events
   - tqdm
   - joblib
   - ipyparallel
@@ -26,11 +24,12 @@ dependencies:
   - intervaltree
   - jupyterlab
   - ipywidgets
-  - gpy
-  - mkdocs
-  - mkdocstrings
   - pip
   - pip:
+    - events
+    - gpy
+    - mkdocs
+    - mkdocstrings
     - pymzml==2.4.7
     - psims
     - mass-spec-utils

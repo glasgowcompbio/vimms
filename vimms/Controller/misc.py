@@ -7,13 +7,14 @@ import itertools
 import math
 import os
 import subprocess
+from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 from loguru import logger
 
 from vimms.Common import INITIAL_SCAN_ID, get_default_scan_params, \
     get_dda_scan_param, DEFAULT_ISOLATION_WIDTH
-from vimms.Controller.base import Controller
+from vimms.Controller.base import Controller, WrapperController
 
 
 class FixedScansController(Controller):
@@ -77,6 +78,24 @@ class FixedScansController(Controller):
 
     def _process_scan(self, scan):
         pass
+        
+
+class DsDAController(WrapperController):
+    def __init__(self, dsda_state, mzml_name):
+        self.dsda_state = dsda_state
+        self.mzml_name = mzml_name
+        
+        if(dsda_state.file_num == 0):
+            self.controller = self.dsda_state.get_base_controller()
+        else:
+            schedule_params = self.dsda_state.get_scan_params()
+            self.controller = FixedScansController(schedule=schedule_params)
+            
+        print(self.controller)
+        super().__init__()
+
+    def after_injection_cleanup(self):
+        self.dsda_state.register_mzml(self.mzml_name)
 
 
 class MS2PlannerController(FixedScansController):

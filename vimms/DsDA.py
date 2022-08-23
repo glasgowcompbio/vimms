@@ -1,6 +1,11 @@
+import copy
 import glob
 import os
 import time
+import itertools
+import pathlib
+import socket
+import subprocess
 
 import numpy as np
 import pandas as pd
@@ -130,8 +135,7 @@ def multi_sample_fragmentation_performance_aligned(params):
     return total_chemicals_found
 
 
-def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol,
-                         rt_tol):
+def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, rt_tol):
     scan_list = []
     schedule = pd.read_csv(schedule_file)
     template = pd.read_csv(template_file)
@@ -158,11 +162,11 @@ def create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir):
     timings = [min_rt]
     total_time = mass_spec.scan_duration_dict[1]
     timing_sequence = [0.0, mass_spec.scan_duration_dict[1]] + [
-        mass_spec.scan_duration_dict[2] for i in range(N - 1)]
+        mass_spec.scan_duration_dict[2] for i in range(N)]
     timing_sequence = list(np.cumsum(timing_sequence))
     scan_numbers = [N + 2]
     scan_types = ['lm']
-    scan_types_sequence = ['ms'] + ['msms' for i in range(N)]
+    scan_types_sequence = ['ms'] + ['msms' for i in range(N + 1)]
     while total_time < max_rt:
         timings.extend([x + total_time for x in timing_sequence])
         total_time += timing_sequence[-1] + mass_spec.scan_duration_dict[2]
@@ -172,3 +176,106 @@ def create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir):
     df = pd.DataFrame(data=d)
     df.to_csv(path_or_buf=os.path.join(base_dir, 'DsDA_Timing_schedule.csv'),
               index=False)
+
+
+class DsDAState():
+    def __init__(self,
+                 out_dir,
+                 dsda_loc, 
+                 base_controller,
+                 min_rt,
+                 max_rt, 
+                 scan_duration_dict,
+                 rscript_loc="RScript", 
+                 port=6011, 
+                 dsda_params={}):
+                 
+        self.out_dir = os.path.abspath(out_dir)
+        self.dsda_loc = dsda_loc
+        self.base_controller = base_controller
+        self.rscript_loc = rscript_loc
+        self.port = port
+        self.dsda_params = dsda_params
+        
+        self.file_num = 0
+        self.time_schedule = self.create_dsda_schedule(
+            scan_duration_dict, 
+            self.base_controller.N,
+            min_rt,
+            max_rt
+        )
+        self.mzml_names = []
+        self.schedule_names = []
+        
+    def create_dsda_schedule(self, scan_duration_dict, N, min_rt, max_rt):
+        pathlib.Path(os.path.join(self.out_dir, "dsda")).mkdir(parents=True, exist_ok=True)
+        fname = os.path.join(self.out_dir, "dsda", "DsDA_Timing_schedule.csv")
+        
+        with open(fname, "w") as f:
+            f.write("rt,f,type\n")
+            f.write(f"0.0,{N+2},lm\n")
+            
+            scan_no, rt = 0, scan_duration_dict[1]
+            while(rt < max_rt):
+                pos = scan_no % (N + 1)
+                f.write(f"{rt},{pos + 1},{'msms' if pos > 0 else 'ms'}\n")
+                scan_no += 1
+                rt += scan_duration_dict[2 if pos > 0 else 1]
+        
+        return fname
+        
+    def __enter__(self):
+        #R will silently fail if we don't do this - there may be better way to return errors?
+        if(not os.path.exists(self.dsda_loc)):
+            raise FileNotFoundError("DsDA R script not found")    
+    
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind(("localhost", self.port))
+        self.socket.listen()
+        
+        child = subprocess.Popen(
+            [
+                self.rscript_loc, 
+                self.dsda_loc
+            ] + [
+                arg for arg in itertools.chain(*(
+                                    (f"--{k}", str(v)) for k, v in self.dsda_params.items()
+                                ))
+            ] + [
+                f"{self.port}",
+                os.path.join(self.out_dir, "dsda"),
+                self.time_schedule
+            ],
+            stdin=subprocess.PIPE
+        )
+        (self.child_socket, self.address) = self.socket.accept()
+        return self
+        
+    def __exit__(self, type, value, traceback):
+        self.child_socket.send(b"q\r\n")
+        self.socket.close()
+        
+    def register_mzml(self, mzml_name):
+        self.mzml_names.append(mzml_name)
+        self.file_num += 1
+
+    def get_scan_params(self):
+        mzml_path = os.path.join(self.out_dir, self.mzml_names[self.file_num - 1])
+        self.child_socket.send((mzml_path + "\r\n").encode("utf-8"))
+        schedule_path = self.child_socket.recv(4096).decode('utf-8').strip()
+        self.schedule_names.append(
+            os.path.basename(schedule_path)
+        )
+        
+        schedule_params = dsda_get_scan_params(
+            schedule_path,
+            os.path.join(self.out_dir, "dsda", "DsDA_Timing_schedule.csv"),
+            self.base_controller.isolation_width, 
+            self.base_controller.mz_tol,
+            self.base_controller.rt_tol
+        )
+        
+        return schedule_params
+        
+    def get_base_controller(self):
+        return copy.deepcopy(self.base_controller)

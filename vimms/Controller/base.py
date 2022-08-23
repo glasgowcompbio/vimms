@@ -362,3 +362,64 @@ class Controller(ABC):
 
         """
         pass
+
+        
+class WrapperController(Controller):
+    """
+    Template for controller which wraps behaviour of at least one other 
+    controller.
+    """
+    
+    def __init__(self):
+        self.__dict__.update(self.controller.__dict__)
+        
+    def get_ms1_scan_params(self, metadata=None):
+        val = self.controller.get_ms1_scan_params(metadata=None)
+        self.__dict__.update(self.controller.__dict__)
+        return val
+        
+    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, 
+                            mz_tol, rt_tol, metadata=None):
+                            
+        val = self.controller.get_ms2_scan_params(
+            mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None
+        )
+        self.__dict__.update(self.controller.__dict__)
+        return val
+    
+    def get_initial_tasks(self):
+        val = self.controller.get_initial_tasks()
+        self.__dict__.update(self.controller.__dict__)
+        return val
+        
+    def get_initial_scan_params(self):
+        val = self.controller.get_initial_scan_params()
+        self.__dict__.update(self.controller.__dict__)
+        return val
+        
+    def set_environment(self, env):
+        val = self.controller.set_environment(env)
+        self.__dict__.update(self.controller.__dict__)
+        return val
+        
+    def handle_scan(self, scan, current_size, pending_size):
+        val = self.controller.handle_scan(scan, current_size, pending_size)
+        self.__dict__.update(self.controller.__dict__)
+        return val
+        
+    def update_state_after_scan(self, last_scan):
+        self.controller.update_state_after_scan(last_scan)
+        self.__dict__.update(self.controller.__dict__)
+        
+    def _process_scan(self, scan):
+        val = self.controller._process_scan(scan)
+        self.__dict__.update(self.controller.__dict__)
+        return val
+        
+    def dump_scans(self, output_method):
+        self.controller.dump_scans(output_method)
+        self.__dict__.update(self.controller.__dict__)
+        
+    def after_injection_cleanup(self):
+        self.controller.after_injection_cleanup()
+        self.__dict__.update(self.controller.__dict__)

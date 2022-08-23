@@ -275,6 +275,12 @@ class Chemical(BaseChemical):
         """
 
         return self.rt + self.chromatogram.get_apex_rt()
+        
+    def get_min_rt(self):
+        return self.chromatogram.min_rt + self.rt
+        
+    def get_max_rt(self):
+        return self.chromatogram.max_rt + self.rt
 
     def get_original_parent(self):
         """
@@ -416,18 +422,18 @@ class ChemSet():
     
     @staticmethod
     def dump_chems(chems, filepath):
-        key = attrgetter("chromatogram.raw_min_rt")
+        key = Chemical.get_min_rt
         srted = sorted(chems, key=key)
-        grouped = itertools.groupby(srted, key=lambda ch: round(ch.chromatogram.raw_min_rt, 1))
+        grouped = itertools.groupby(srted, key=lambda ch: round(Chemical.get_min_rt(ch), 1))
         with open(filepath, "wb") as f:
             for k, group in grouped:
                 pickle.dump(list(group), f, protocol=pickle.HIGHEST_PROTOCOL)
         
     def _update(self, rt, chems):
-        key = attrgetter("chromatogram.raw_max_rt")
+        key = Chemical.get_max_rt
         self.current.extend(chems)
         self.current.sort(key=key, reverse=True)
-        while(len(self.current) > 0 and self.current[-1].chromatogram.raw_max_rt < rt):
+        while(len(self.current) > 0 and Chemical.get_max_rt(self.current[-1]) < rt):
             self.current.pop()
         self.rt = rt
 
@@ -438,7 +444,7 @@ class ChemSet():
         
 class MemoryChems(ChemSet):
     def __init__(self, local_chems):
-        key = attrgetter("chromatogram.raw_min_rt")
+        key = Chemical.get_min_rt
         self.local_chems = sorted(local_chems, key=key)
         self.reset()
         
@@ -470,7 +476,7 @@ class MemoryChems(ChemSet):
         if(rt < self.rt): self.reset()
         new_pos = self.pos
         while(new_pos < len(self.local_chems)
-              and self.local_chems[new_pos].chromatogram.raw_min_rt <= rt):
+              and Chemical.get_min_rt(self.local_chems[new_pos]) <= rt):
             new_pos += 1
         self._update(rt, itertools.islice(self.local_chems, self.pos, new_pos))
         self.pos = new_pos
@@ -525,14 +531,14 @@ class FileChems(ChemSet):
         
         try:
             while(not self.finished and 
-                  (len(self.pending) == 0 or self.pending[-1].chromatogram.raw_min_rt <= rt)):
+                  (len(self.pending) == 0 or Chemical.get_min_rt(self.pending[-1]) <= rt)):
                 self.pending.extend(pickle.load(self.f))
         except EOFError:
             self.finished = True
             self.f.close()
         
         new = []
-        while(len(self.pending) > 0 and self.pending[0].chromatogram.raw_min_rt <= rt):
+        while(len(self.pending) > 0 and Chemical.get_min_rt(self.pending[0]) <= rt):
             new.append(self.pending.popleft())
         
         self._update(rt, new)

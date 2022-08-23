@@ -85,7 +85,7 @@ def pick_aligned_peaks(input_files,
                         e.remove(f)
                     for i, fname in enumerate(input_files):
                         new = xml.etree.ElementTree.SubElement(e, "file")
-                        new.text = fname
+                        new.text = os.path.abspath(fname)
                         padding = " " * (0 if i == len(input_files) - 1 else 8)
                         new.tail = e.tail + padding
                     input_found = True

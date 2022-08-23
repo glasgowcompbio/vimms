@@ -2,6 +2,7 @@ import os
 import itertools
 from collections import deque, OrderedDict
 import pathlib
+import inspect
 import multiprocessing
 import json
 
@@ -19,6 +20,8 @@ from vimms.Controller.box import (
     TopNEXController, HardRoIExcludeController, IntensityRoIExcludeController,
     NonOverlapController, IntensityNonOverlapController
 )
+from vimms.DsDA import DsDAState
+from vimms.Controller.misc import DsDAController
 from vimms.Environment import Environment
 from vimms.BoxVisualise import EnvPlotPickler
 from vimms.Evaluation import pick_aligned_peaks, evaluate_real
@@ -28,20 +31,44 @@ class Shareable:
         self.name = name
         self.split = split
         
+        self.shared = None
+        
     def add_shareable(self, params):
         if(self.name == "agent"):
+            self.shared = TopNDEWAgent(**params)
             return {
-                "agent" : TopNDEWAgent(**params)
+                "agent" : self.shared
             }
+            
         elif(self.name == "grid"):
+            self.shared = BoxManager(
+                box_geometry = BoxGrid(),
+                box_splitter = BoxSplitter(split=self.split),
+                delete_rois=True
+            )
+            
             return {
                 **params,
-                "grid" : BoxManager(
-                    box_geometry = BoxGrid(),
-                    box_splitter = BoxSplitter(split=self.split),
-                    delete_rois=True
-                )
+                "grid" : self.shared
             }
+            
+        elif(self.name == "dsda"):
+            self.shared = DsDAState(**params)
+            return {
+                "dsda_state" : self.shared
+            }
+            
+        else:
+            return params
+            
+    def __enter__(self):
+        if(self.name == "dsda"):
+            self.shared.__enter__()
+        return None
+    
+    def __exit__(self, type, value, traceback):
+        if(self.name == "dsda"):
+            self.shared.__exit__(type, value, traceback)
 
 class ExperimentCase:
 
@@ -49,15 +76,16 @@ class ExperimentCase:
     SPLIT_GRID = Shareable("grid", split=True)
 
     controllers = OrderedDict([
-        ("none", (None, None)),
-        ("topn", (TopNController, None)),
-        ("topn_roi", (TopN_RoiController, None)),
+        ("none", (None, Shareable(""))),
+        ("topn", (TopNController, Shareable(""))),
+        ("topn_roi", (TopN_RoiController, Shareable(""))),
         ("topn_exclusion", (AgentBasedController, Shareable("agent"))),
         ("topnex", (TopNEXController, GRID)),
         ("hard_roi_exclusion", (HardRoIExcludeController, GRID)),
         ("intensity_roi_exclusion", (IntensityRoIExcludeController, SPLIT_GRID)),
         ("non_overlap", (NonOverlapController, GRID)),   
-        ("intensity_non_overlap", (IntensityNonOverlapController, SPLIT_GRID))
+        ("intensity_non_overlap", (IntensityNonOverlapController, SPLIT_GRID)),
+        ("dsda", (DsDAController, Shareable("dsda")))
     ])
         
     def __init__(self, 
@@ -86,13 +114,12 @@ class ExperimentCase:
             )
             raise ValueError(error_msg)
             
-    def _init_shareable(self):
+    def _init_shareable(self, out_dir):
         if(not self.grid_init is None):
             return {**self.params, "grid" : self.grid_init()}
-        elif(not self.shared is None):
-            return self.shared.add_shareable({**self.params})
-        else:
-            return self.params
+        elif(self.shared.name == "dsda"):
+            return self.shared.add_shareable({**self.params, "out_dir" : out_dir})
+        return self.shared.add_shareable({**self.params})
     
     def run_controller(self, 
                        chems,
@@ -104,58 +131,65 @@ class ExperimentCase:
                        scan_duration_dict):
         
         mzml_names = []
-        params = self._init_shareable()
+        params = self._init_shareable(out_dir)
         
-        for i, fs in enumerate(self.fullscan_paths):
-            out_file = f"{self.name}_{i}.mzML"
-            controller = self.controller(**params)
-            with FileChems.from_path(chems[fs]) as dataset:
-                mass_spec = IndependentMassSpectrometer(
-                    ionisation_mode, 
-                    dataset, 
-                    None, 
-                    scan_duration=scan_duration_dict
-                )
+        #with ensures dsda process will be cleaned up - is there a cleaner way to do this?
+        with self.shared as _:
+            for i, fs in enumerate(self.fullscan_paths):
+                out_file = f"{self.name}_{i}.mzML"
                 
-                env = Environment(
-                    mass_spec, 
-                    controller,
-                    min_rt,
-                    max_rt,
-                    progress_bar=pbar,
-                    out_dir=out_dir,
-                    out_file=out_file
-                )    
+                if(self.controller == DsDAController):
+                    controller = self.controller(**params, mzml_name=out_file)
+                else:
+                    controller = self.controller(**params)
                 
-                print(f"Outcome being written to: \"{out_file}\"")
-                env.run()
-                if(self.pickle_env):
-                    save_obj(
-                        EnvPlotPickler(env), 
-                        os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
+                with FileChems.from_path(chems[fs]) as dataset:
+                    mass_spec = IndependentMassSpectrometer(
+                        ionisation_mode, 
+                        dataset, 
+                        None, 
+                        scan_duration=scan_duration_dict
                     )
                     
-                    try:
-                        roi_builder = env.controller.roi_builder
-                        live_roi, dead_roi, junk_roi = (
-                            roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
-                        )
-                        rois = live_roi + dead_roi + junk_roi
+                    env = Environment(
+                        mass_spec, 
+                        controller,
+                        min_rt,
+                        max_rt,
+                        progress_bar=pbar,
+                        out_dir=out_dir,
+                        out_file=out_file
+                    )    
+                    
+                    print(f"Outcome being written to: \"{out_file}\"")
+                    env.run()
+                    if(self.pickle_env):
                         save_obj(
-                            rois,
-                            os.path.join(out_dir, "pickle", out_file.split(".")[0] + "_rois.pkl")
+                            EnvPlotPickler(env), 
+                            os.path.join(out_dir, "pickle", out_file.split(".")[0] + ".pkl")
                         )
-                    except AttributeError:
-                        pass
-                    finally:
-                        roi_builder = None
-                
-                mzml_names.append(
-                    (fs, os.path.join(out_dir, out_file))
-                )
-                
-                del env
-                del mass_spec
+                        
+                        try:
+                            roi_builder = env.controller.roi_builder
+                            live_roi, dead_roi, junk_roi = (
+                                roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
+                            )
+                            rois = live_roi + dead_roi + junk_roi
+                            save_obj(
+                                rois,
+                                os.path.join(out_dir, "pickle", out_file.split(".")[0] + "_rois.pkl")
+                            )
+                        except AttributeError:
+                            pass
+                        finally:
+                            roi_builder = None
+                    
+                    mzml_names.append(
+                        (fs, os.path.join(out_dir, out_file))
+                    )
+                    
+                    del env
+                    del mass_spec
             
         return {self.name : mzml_names}
         

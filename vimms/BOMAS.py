@@ -2,23 +2,23 @@ import os
 import time
 
 import numpy as np
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, \
-    map_boxes_to_scans
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Agent import TopNDEWAgent
-from vimms.Box import IdentityDrift, LocatorGrid, AllOverlapGrid
+from vimms.Box import BoxGrid
 from vimms.Common import load_obj, POSITIVE, ROI_TYPE_NORMAL, ROI_EXCLUSION_DEW
-from vimms.Controller import TopN_SmartRoiController, WeightedDEWController, \
-    TopN_RoiController, \
-    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController, \
-    FlexibleNonOverlapController, \
-    FixedScansController, AgentBasedController, TopNController
+from vimms.Controller import (
+    TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, 
+    NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController,
+    FlexibleNonOverlapController, FixedScansController, AgentBasedController, 
+    TopNController
+)
 from vimms.DsDA import get_schedule, dsda_get_scan_params, create_dsda_schedule
 from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.Evaluation import evaluate_multiple_simulated_env
-from vimms.GridEstimator import CaseControlGridEstimator, GridEstimator
+from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import FrequentistRoiAligner, RoiAligner
 
@@ -444,9 +444,11 @@ def non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                       exclusion_t_0=None, progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
-        grid = GridEstimator(
-            LocatorGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
-            IdentityDrift())
+        grid = BoxManager(
+                    box_geometry = BoxGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
+                    box_splitter = BoxSplitter(split=False)
+        )
+            
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
@@ -510,9 +512,10 @@ def intensity_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                                 progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
-        grid = GridEstimator(
-            AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
-            IdentityDrift())
+        grid = BoxManager(
+                    box_geometry = BoxGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
+                    box_splitter = BoxSplitter(split=True)
+        )
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         for i in range(len(datasets)):
@@ -577,9 +580,10 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                                progress_bar=False):
     if base_chemicals is not None or mzmine_files is not None:
         env_list = []
-        grid = GridEstimator(
-            AllOverlapGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
-            IdentityDrift())
+        grid = BoxManager(
+                    box_geometry = BoxGrid(min_rt, max_rt, rt_box_size, 0, 3000, mz_box_size),
+                    box_splitter = BoxSplitter(split=True)
+        )
         mzml_files = []
         source_files = ['sample_' + str(i) for i in range(len(datasets))]
         if scoring_params['theta3'] != 0:
@@ -624,7 +628,7 @@ def flexible_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
     else:
         return None, None
 
-
+'''
 def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
                                                    isolation_window, mz_tol,
                                                    rt_tol, min_ms1_intensity,
@@ -688,7 +692,7 @@ def case_control_non_overlap_experiment_evaluation(datasets, min_rt, max_rt, N,
         return env_list, evaluation
     else:
         return None, None
-
+'''
 
 def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N,
                                isolation_window, mz_tol, rt_tol,
@@ -696,8 +700,7 @@ def dsda_experiment_evaluation(datasets, base_dir, min_rt, max_rt, N,
                                rt_tolerance=100, progress_bar=False):
     data_dir = os.path.join(base_dir, 'Data')
     schedule_dir = os.path.join(base_dir, 'settings')
-    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[
-        0])  # necessary to get timings for schedule
+    mass_spec = IndependentMassSpectrometer(POSITIVE, datasets[0]) #need to get schedule timings
     create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir)
     print('Please open and run R script now')
     time.sleep(1)

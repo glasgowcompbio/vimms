@@ -120,8 +120,7 @@ class MatchingScan():
         return new_scans
 
     @staticmethod
-    def topN_nodes(mzml_path, num_injection, N, max_rt, scan_duration_dict,
-                   mz_window=1E-10):
+    def topN_nodes(mzml_path, num_injection, N, max_rt, scan_duration_dict, mz_window=1E-10):
         ms_levels = itertools.cycle([1] + [2] * N)
         scan_times = itertools.accumulate(
             (scan_duration_dict[ms_level] for ms_level in copy.deepcopy(ms_levels)), 

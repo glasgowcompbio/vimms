@@ -2,10 +2,13 @@
 # simple script that loads an msp and an mzml and sees how many of the
 # spectra in the MSP file can be matched to a spectrum in an ms2 scan
 # in the .mzml
+import sys
+sys.path.append('..')
+sys.path.append('../..')  # if running in this folder
+
 import argparse
 import glob
 import os
-import sys
 
 import numpy as np
 import pandas as pd
@@ -15,9 +18,6 @@ from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import load_obj
-
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
 
 
 def process_block(block, file_name):

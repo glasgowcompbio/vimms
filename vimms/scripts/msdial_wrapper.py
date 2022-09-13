@@ -1,17 +1,18 @@
-from vimms.Common import create_if_not_exist, MSDIAL_DDA_MODE, MSDIAL_DIA_MODE
+import sys
+sys.path.append('..')
+sys.path.append('../..')  # if running in this folder
+
 import argparse
 import glob
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
 from loguru import logger
 
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
+from vimms.Common import create_if_not_exist, MSDIAL_DDA_MODE, MSDIAL_DIA_MODE
 
 
 def run_msdial(msdial_console_app, mode, params_file, input_dir,

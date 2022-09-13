@@ -1,20 +1,21 @@
 # computes optimal performance
+import sys
+sys.path.append('..')
+sys.path.append('../..')  # if running in this folder
+
 import argparse
 import bisect
 import os
-import sys
 
 import networkx as nx
 import numpy as np
 from loguru import logger
+
 from mass_spec_utils.data_import.mzmine import load_picked_boxes
 from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Common import POSITIVE
 from vimms.Roi import Roi
-
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
 
 
 def get_times(mzfile_object):

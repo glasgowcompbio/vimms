@@ -1,3 +1,7 @@
+import sys
+sys.path.append('..')
+sys.path.append('../..')  # if running in this folder
+
 import argparse
 import glob
 import os
@@ -5,9 +9,6 @@ import sys
 
 import pylab as plt
 from mass_spec_utils.data_import.mzml import MZMLFile
-
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
 
 
 def get_times(mzml_object):

@@ -8,7 +8,7 @@ import zipfile
 from loguru import logger
 
 from vimms.Chemicals import DatabaseCompound, ChemicalMixtureFromMZML
-from vimms.Common import DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS, save_obj
+from vimms.Common import save_obj
 from vimms.Roi import RoiBuilderParams
 
 
@@ -77,8 +77,7 @@ def extract_hmdb_metabolite(in_file, delete=True):
     return compounds
 
 
-def extract_roi(file_names, out_dir, pattern, mzml_path,
-                param_dict=DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS):
+def extract_roi(file_names, out_dir, pattern, mzml_path, rp=None):
     """
     Extract ROI for all mzML files listed in file_names, and turn them
     into Chemical objects.
@@ -104,7 +103,8 @@ def extract_roi(file_names, out_dir, pattern, mzml_path,
         else:
             mzml_file = file_names[i]
 
-        rp = RoiBuilderParams(**param_dict)
+        if rp is None:
+            rp = RoiBuilderParams()
         cm = ChemicalMixtureFromMZML(mzml_file, roi_params=rp)
         dataset = cm.sample(None, 2)
         datasets.append(dataset)

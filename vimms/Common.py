@@ -99,14 +99,6 @@ DUMMY_PRECURSOR_MZ = 123.456
 
 INITIAL_SCAN_ID = 100000
 DEFAULT_SCAN_TIME_DICT = {1: 0.4, 2: 0.2}
-DEFAULT_MZML_CHEMICAL_CREATOR_PARAMS = {
-    'min_intensity': 1.75E5,
-    'mz_tol': 10,
-    'mz_units': 'ppm',
-    'min_length': 2,
-    'start_rt': 0,
-    'stop_rt': 1440,
-}
 
 MSDIAL_DDA_MODE = 'lcmsdda'
 MSDIAL_DIA_MODE = 'lcmsdia'

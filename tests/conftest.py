@@ -30,7 +30,7 @@ MIN_RT = RT_RANGE[0][0]
 MAX_RT = RT_RANGE[0][1]
 N_CHEMS = 10
 
-BEER_CHEMS = load_obj(Path(BASE_DIR, 'QCB_22May19_1.p'))
+BEER_CHEMS = load_obj(Path(BASE_DIR, 'beer_compounds.p'))
 BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 

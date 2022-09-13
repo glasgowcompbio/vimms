@@ -87,21 +87,37 @@ def library_from_msp(msp_file_name):
     return sl
 
 
-def make_queries_from_aligned_msdial(msdial_file_name):
+def make_queries_from_aligned_msdial(msdial_file_name, frag_file=True):
     query_spectra = []
     msdial_df = pd.read_csv(msdial_file_name, sep='\t',
                             index_col='Alignment ID', header=4)
+
     for i in range(msdial_df.shape[0]):
-        precursor_mz = msdial_df['Average Mz'][i]
+
+        # fragmentation file, filter only those that have spectra
+        if frag_file and pd.isnull(msdial_df['MS/MS spectrum'][i]):
+                continue
+
         peaks = []
-        if msdial_df['MS/MS spectrum'][i] == msdial_df['MS/MS spectrum'][
-                i]:  # checking if nan
-            for info in msdial_df['MS/MS spectrum'][i].split():
-                mz, intensity = info.split(':')
-                peak = np.array([float(mz), float(intensity)])
-                peaks.append(peak)
-            new_spectrum = Spectrum(precursor_mz, peaks)
-            query_spectra.append(new_spectrum)
+        if frag_file:
+            # fragmentation file, filter only those that have spectra
+            if pd.isnull(msdial_df['MS/MS spectrum'][i]):
+                    continue
+            else:
+                for info in msdial_df['MS/MS spectrum'][i].split():
+                    mz, intensity = info.split(':')
+                    peak = np.array([float(mz), float(intensity)])
+                    peaks.append(peak)
+
+        precursor_mz = msdial_df['Average Mz'][i]
+        metadata = {
+            'rt': msdial_df['Average Rt(min)'][i] * 60,
+            'names': msdial_df['Metabolite name'][i]
+        }
+        original_file = msdial_df['Spectrum reference file name'][i]
+        spectrum_id = 'peak_%.6f' % precursor_mz
+        new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+        query_spectra.append(new_spectrum)
     return query_spectra
 
 

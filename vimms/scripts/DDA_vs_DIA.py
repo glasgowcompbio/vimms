@@ -13,6 +13,7 @@ from tqdm.auto import tqdm
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
+from mass_spec_utils.library_matching.spectrum import SpectralRecord
 
 from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
@@ -493,45 +494,158 @@ def plot_frag_events(exp_name, out_dir, repeat):
 # Real experiments
 ################################################################################
 
+def get_msdial_file(msdial_folder):
+    """In a folder, get the filename containing MS-DIAL aligned peaklist.
+
+    Args:
+        msdial_folder: the folder containing MS-DIAL output
+
+    Returns:
+        the path to MS-DIAL aligned result in the folder
+    """
+    msdial_file = None
+    
+    # search for 'Height' file (CorrDec output)
+    for filename in glob.glob(msdial_folder + '/*'):
+        if 'Height' in filename and 'txt' in filename:
+            msdial_file = filename
+            break        
+          
+    # if not found, search for 'ALignResult' file (ms2dec output)
+    if msdial_file is None:
+        for filename in glob.glob(msdial_folder + '/*'):
+            if 'AlignResult' in filename and '.msdial' in filename:
+                msdial_file = filename
+                break        
+                
+    return msdial_file
+
+def match_spectra_list(spectra_1, spectra_2, mz_tol, rt_tol, allow_multiple=False):
+    """
+    Match two lists `spectra_1` and `spectra_2`. 
+    Here `spectra_1` should be the fullscan features, while 
+    `spectra_2` is the fragmentation features from MS-DIAL.
+
+    - Each item in the list is a `SpectralRecord` object. This basically 
+      corresponds to a 'box' (peak) from the aligned MS-DIAL results. 
+      A box has average m/z and RT values (after alignment).
+    - For each item in `spectra_1`, find the items in `spectra_2` 
+      within mz_tol ppm and rt_tol seconds away.           
+
+    Args:
+        spectra_1: the first list of SpectralRecord objects
+        spectra_2: the second list of SpectralRecord objects
+        mz_tol: m/z tolerance in ppm
+        rt_tol: RT tolerance in seconds
+        allow_multiple: whether to allow multiple matches in the returned dictionary. 
+        If False, select the one closest in m/z value (might not be the best thing to do).
+
+    Returns:
+        A dictionary of matches, where the key is each spectra in spectra_1, and values are
+        spectra in spectra_2 that can be matched to spectra_1.
+    """
+    spectra_1 = np.array(spectra_1)
+    spectra_2 = np.array(spectra_2)
+    
+    # create mz range for matching in ppm
+    min_mzs = np.array([spec.precursor_mz * (1 - mz_tol / 1e6) for spec in spectra_2])
+    max_mzs = np.array([spec.precursor_mz * (1 + mz_tol / 1e6) for spec in spectra_2])
+
+    # create rt ranges for matching
+    min_rts = np.array([spec.metadata['rt'] - rt_tol for spec in spectra_2])
+    max_rts = np.array([spec.metadata['rt'] + rt_tol for spec in spectra_2])
+
+    matches_dict = {}
+    for query in spectra_1:  # loop over query and find a match
+        matches = find_match(query, min_rts, max_rts, min_mzs, max_mzs, 
+            spectra_2, allow_multiple)
+        matches_dict[query] = matches               
+    return matches_dict
+
+
+def find_match(query, min_rts, max_rts, min_mzs, max_mzs, spectra_arr, allow_multiple):
+    # check ranges
+    query_mz = query.precursor_mz
+    query_rt = query.metadata['rt']
+    min_rt_check = min_rts <= query_rt
+    max_rt_check = query_rt <= max_rts
+    min_mz_check = min_mzs <= query_mz
+    max_mz_check = query_mz <= max_mzs
+    idx = np.nonzero(min_rt_check & max_rt_check & min_mz_check & max_mz_check)[0]
+    # print(idx)
+    
+    # get matching spectra
+    if len(idx) == 0:  # no match
+        return []
+
+    elif len(idx) == 1:  # single match
+        return [spectra_arr[idx][0]]
+
+    else:  # multiple matches, take the closest in rt
+        matches = spectra_arr[idx]
+        if allow_multiple:
+            return matches
+        else:
+            # pick the one closest in precursor m/z
+            matches_mz = [spec.precursor_mz for spec in matches]
+            diffs = [np.abs(mz - query_mz) for mz in matches_mz]
+            idx = np.argmin(diffs)
+            return [matches[idx]]
+
+
 def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
-                    matching_method, matching_ms1_tol, matching_ms2_tol, matching_min_match_peaks):
+                    matching_method, matching_ms1_tol, matching_ms2_tol, 
+                    matching_min_match_peaks):
     print('chem_library', chem_library)
     results = []
     for method in methods:
 
         # get msdial results
         results_folder = os.path.join(base_folder, method)
-        spectra = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
+        matches = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
 
         # compare spectra
         for thresh in matching_thresholds:
-            print(method, len(spectra), thresh)
-            identified = []
+            print(method, thresh)
+            annotated_compounds = []
+            annotated_peaks = []
+            total_compounds = len(chem_library.sorted_record_list)
+            total_peaks = len(matches)
 
-            with tqdm(total=len(spectra)) as pbar:
-
-                spec_identified = 0
-                for i in range(len(spectra)):
-                    spec = spectra[i]
-                    hits = chem_library.spectral_match(spec, matching_method, matching_ms2_tol,
-                                                       matching_min_match_peaks, matching_ms1_tol, thresh)
-                    if len(hits) > 0:
-                        spec_identified += 1
-                        identified.extend([hit[0] for hit in hits])
+            with tqdm(total=total_peaks) as pbar:
+                for k, v in matches.items():
+                    for spec in v:
+                        hits = chem_library.spectral_match(spec, matching_method, 
+                            matching_ms2_tol, matching_min_match_peaks, 
+                            matching_ms1_tol, thresh)                            
+                        if len(hits) > 0:
+                            for item in hits:
+                                spectrum_id = item[0]
+                                score = item[1]
+                                if score > 0.0:
+                                    annotated_compounds.append(spectrum_id)
+                                    annotated_peaks.append(k)
                     pbar.update(1)
                 pbar.close()
 
-                hit_count = len(np.unique(np.array(identified)))
-                num_chem = len(spectra)  # FIXME: is this correct??!!
-                hit_prop = hit_count / num_chem
-
-                hit_prop = float(spec_identified) / num_chem
-
-                row = [method, num_chem, thresh, hit_count, hit_prop]
-                results.append(row)
+            no_annotated_compounds = len(set(annotated_compounds))
+            no_annotated_peaks = len(set(annotated_peaks))
+            prop_annotated_peaks = no_annotated_peaks / total_peaks
+            prop_annotated_compounds = no_annotated_compounds / total_compounds
+            row = [
+                method, 
+                thresh, 
+                no_annotated_compounds, 
+                no_annotated_peaks,
+                prop_annotated_compounds, 
+                prop_annotated_peaks
+            ]
+            results.append(row)
 
     df = pd.DataFrame(results, columns=[
-                      'method', 'num_peaks', 'matching_threshold', 'hit_count', 'hit_prop'])
+                      'method', 'matching_threshold',
+                      'no_annotated_compounds', 'no_annotated_peaks', 
+                      'prop_annotated_compounds', 'prop_annotated_peaks'])
     return df
 
 
@@ -581,7 +695,8 @@ def get_hits(filename, chemical_names, threshold=70):
     return df, hits.intersection(chemical_names)
 
 
-def load_hits(base_folder, controller_name, sample_list, chemical_names, combine_single_hits=False):
+def load_hits(base_folder, controller_name, sample_list, chemical_names, 
+    combine_single_hits=False):
     replicate = 0
 
     # load single hits
@@ -623,8 +738,8 @@ def get_ss_ms_df(all_controllers, msp_file, base_folder, sample_list):
     for controller_name in all_controllers:
         # combine_single_hits = True if controller_name == 'topN_exclusion' else False
         combine_single_hits = True
-        ss, ms = load_hits(base_folder, controller_name, sample_list, chemical_names,
-                           combine_single_hits=combine_single_hits)
+        ss, ms = load_hits(base_folder, controller_name, sample_list, 
+            chemical_names, combine_single_hits=combine_single_hits)
         results.append((controller_name, ss, 'single sample'))
         results.append((controller_name, ms, 'multiple samples'))
 
@@ -632,10 +747,12 @@ def get_ss_ms_df(all_controllers, msp_file, base_folder, sample_list):
 
 
 def spectral_distribution(chem_library, base_folder, methods, matching_threshold,
-                          matching_method, matching_ms1_tol, matching_ms2_tol, matching_min_match_peaks):
+                          matching_method, matching_ms1_tol, matching_ms2_tol, 
+                          matching_min_match_peaks):
     print('chem_library', chem_library)
     results = []
     for method in methods:
+        print(method)
 
         # get msdial results
         results_folder = os.path.join(base_folder, method)
@@ -643,17 +760,19 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
 
         # compare spectra
         with tqdm(total=len(spectra)) as pbar:
-            for spec in spectra:
-                # returns a list containing (spectrum_id, sc, c)
-                hits = chem_library.spectral_match(spec, matching_method, matching_ms2_tol,
-                                                   matching_min_match_peaks, matching_ms1_tol, matching_threshold)
-                if len(hits) > 0:
-                    max_item = max(hits, key=lambda item: item[1])  # 1 is sc
-                    spectrum_id = max_item[0]
-                    max_score = max_item[1]
-                    if max_score > 0.0:
-                        row = [method, spectrum_id, max_score]
-                        results.append(row)
+            for k, v in spectra.items():
+                for spec in v:
+                    # returns a list containing (spectrum_id, sc, c)
+                    hits = chem_library.spectral_match(spec, matching_method, 
+                        matching_ms2_tol, matching_min_match_peaks, 
+                        matching_ms1_tol, matching_threshold)
+                    if len(hits) > 0:
+                        for item in hits:
+                            spectrum_id = item[0]
+                            score = item[1]
+                            if score > 0.0:
+                                row = [method, spectrum_id, score]
+                                results.append(row)
                 pbar.update(1)
             pbar.close()
 
@@ -669,8 +788,9 @@ def spec_records_to_library(spectra):
     return chem_library
 
 
-def pairwise_spectral_distribution(chem_library, base_folder, methods, matching_threshold,
-    matching_method, matching_ms1_tol, matching_ms2_tol, matching_min_match_peaks):
+def pairwise_spectral_distribution(chem_library, base_folder, methods, 
+    matching_threshold, matching_method, matching_ms1_tol, 
+    matching_ms2_tol, matching_min_match_peaks):
     results = []
     methods = ['ground_truth'] + methods
     for method in methods:
@@ -691,33 +811,19 @@ def pairwise_spectral_distribution(chem_library, base_folder, methods, matching_
 
         # compare spectra to library, which is the spectra themselves
         with tqdm(total=len(spectra)) as pbar:
-            for spec in spectra:
-                try:
+            for k, v in spectra.items():
+                for spec in v:
                     # returns a list containing (spectrum_id, sc, c)
-                    hits = chem_library.spectral_match(spec, matching_method, matching_ms2_tol,
-                                                       matching_min_match_peaks, matching_ms1_tol,
-                                                       matching_threshold)
-                    if len(hits) == 1:
-                        first = hits[0]
-                        first_spectrum_id = first[0]
-                        assert first_spectrum_id == spec.spectrum_id
-                        max_score = 0.0
-                    else:
-                        max_score = 0.0
-                        for hit in hits:
-                            hit_spectrum_id = hit[0]
-                            score = hit[1]
-                            if hit_spectrum_id != spec.spectrum_id and score > max_score:
-                                max_score = score
-                    
-                    if max_score > 0.0:
-                        row = [method, spec.spectrum_id, max_score]
-                        # print('spectrum_id', spec.spectrum_id, 'max_score', 
-                        #     max_score, 'hits', hits)
-                        # print()
-                        results.append(row)
-                except TypeError:
-                    pass
+                    hits = chem_library.spectral_match(spec, matching_method, 
+                        matching_ms2_tol, matching_min_match_peaks, 
+                        matching_ms1_tol, matching_threshold)
+                    if len(hits) > 0:
+                        for item in hits:
+                            spectrum_id = item[0]
+                            score = item[1]
+                            if score > 0.0:
+                                row = [method, spectrum_id, score]
+                                results.append(row)
                 pbar.update(1)
             pbar.close()
 

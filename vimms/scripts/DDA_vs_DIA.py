@@ -803,27 +803,29 @@ def pairwise_spectral_distribution(chem_library, base_folder, methods,
 
             # get msdial results
             results_folder = os.path.join(base_folder, method)
-            spectra = load_obj(os.path.join(
+            matched = load_obj(os.path.join(
                 results_folder, 'matched_spectra.p'))
+            spectra = []
+            for k, v in matched.items():
+                spectra.extend(v)
 
             # chem_library is the same as spectra
             chem_library = spec_records_to_library(spectra)
 
         # compare spectra to library, which is the spectra themselves
         with tqdm(total=len(spectra)) as pbar:
-            for k, v in spectra.items():
-                for spec in v:
-                    # returns a list containing (spectrum_id, sc, c)
-                    hits = chem_library.spectral_match(spec, matching_method, 
-                        matching_ms2_tol, matching_min_match_peaks, 
-                        matching_ms1_tol, matching_threshold)
-                    if len(hits) > 0:
-                        for item in hits:
-                            spectrum_id = item[0]
-                            score = item[1]
-                            if score > 0.0:
-                                row = [method, spectrum_id, score]
-                                results.append(row)
+            for spec in spectra:
+                # returns a list containing (spectrum_id, sc, c)
+                hits = chem_library.spectral_match(spec, matching_method, 
+                    matching_ms2_tol, matching_min_match_peaks, 
+                    matching_ms1_tol, matching_threshold)
+                if len(hits) > 0:
+                    for item in hits:
+                        spectrum_id = item[0]
+                        score = item[1]
+                        if score != 1.00: # ignore matches to itself
+                            row = [method, spectrum_id, score]
+                            results.append(row)
                 pbar.update(1)
             pbar.close()
 

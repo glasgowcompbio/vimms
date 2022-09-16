@@ -92,29 +92,35 @@ def make_queries_from_aligned_msdial(msdial_file_name, frag_file=True):
     msdial_df = pd.read_csv(msdial_file_name, sep='\t',
                             index_col='Alignment ID', header=4)
 
-    for i in range(msdial_df.shape[0]):
+    if frag_file:
+        msdial_df = msdial_df[msdial_df['MS/MS assigned'] == True]
 
-        # fragmentation file, filter only those that have spectra
-        if frag_file and pd.isnull(msdial_df['MS/MS spectrum'][i]):
-                continue
+    for i, row in msdial_df.iterrows():
 
         peaks = []
-        if frag_file:
-            # fragmentation file, filter only those that have spectra
-            if pd.isnull(msdial_df['MS/MS spectrum'][i]):
-                    continue
-            else:
-                for info in msdial_df['MS/MS spectrum'][i].split():
-                    mz, intensity = info.split(':')
-                    peak = np.array([float(mz), float(intensity)])
-                    peaks.append(peak)
+        try:
+            for info in row['MS/MS spectrum'].split():
+                mz, intensity = info.split(':')
+                peak = np.array([float(mz), float(intensity)])
+                peaks.append(peak)
+        except AttributeError: # no MS2 spectrum
+            pass
 
-        precursor_mz = msdial_df['Average Mz'][i]
+        precursor_mz = row['Average Mz']
         metadata = {
-            'rt': msdial_df['Average Rt(min)'][i] * 60,
-            'names': msdial_df['Metabolite name'][i]
+            'rt': row['Average Rt(min)'] * 60,
+            'names': [row['Metabolite name']],
+            'msms_assigned': row['MS/MS assigned'],
+            'rt_matched': row['RT matched'],
+            'mz_matched': row['m/z matched'],
+            'msms_matched': row['MS/MS matched'],
+            'total_score': row['Total score'],
+            'dot_product': row['Dot product'],
+            'reverse_dot_product': row['Reverse dot product'],
+            'fragment_presence': row['Fragment presence %'],
+            'msms_spectrum': row['MS/MS spectrum']
         }
-        original_file = msdial_df['Spectrum reference file name'][i]
+        original_file = row['Spectrum reference file name']
         spectrum_id = 'peak_%.6f' % precursor_mz
         new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
         query_spectra.append(new_spectrum)

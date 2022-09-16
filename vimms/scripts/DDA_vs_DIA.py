@@ -504,21 +504,22 @@ def get_msdial_file(msdial_folder):
         the path to MS-DIAL aligned result in the folder
     """
     msdial_file = None
-    
+
     # search for 'Height' file (CorrDec output)
     for filename in glob.glob(msdial_folder + '/*'):
         if 'Height' in filename and 'txt' in filename:
             msdial_file = filename
-            break        
-          
+            break
+
     # if not found, search for 'ALignResult' file (ms2dec output)
     if msdial_file is None:
         for filename in glob.glob(msdial_folder + '/*'):
             if 'AlignResult' in filename and '.msdial' in filename:
                 msdial_file = filename
-                break        
-                
+                break
+
     return msdial_file
+
 
 def match_spectra_list(spectra_1, spectra_2, mz_tol, rt_tol, allow_multiple=False):
     """
@@ -546,7 +547,7 @@ def match_spectra_list(spectra_1, spectra_2, mz_tol, rt_tol, allow_multiple=Fals
     """
     spectra_1 = np.array(spectra_1)
     spectra_2 = np.array(spectra_2)
-    
+
     # create mz range for matching in ppm
     min_mzs = np.array([spec.precursor_mz * (1 - mz_tol / 1e6) for spec in spectra_2])
     max_mzs = np.array([spec.precursor_mz * (1 + mz_tol / 1e6) for spec in spectra_2])
@@ -557,9 +558,9 @@ def match_spectra_list(spectra_1, spectra_2, mz_tol, rt_tol, allow_multiple=Fals
 
     matches_dict = {}
     for query in spectra_1:  # loop over query and find a match
-        matches = find_match(query, min_rts, max_rts, min_mzs, max_mzs, 
-            spectra_2, allow_multiple)
-        matches_dict[query] = matches               
+        matches = find_match(query, min_rts, max_rts, min_mzs, max_mzs,
+                             spectra_2, allow_multiple)
+        matches_dict[query] = matches
     return matches_dict
 
 
@@ -573,7 +574,7 @@ def find_match(query, min_rts, max_rts, min_mzs, max_mzs, spectra_arr, allow_mul
     max_mz_check = query_mz <= max_mzs
     idx = np.nonzero(min_rt_check & max_rt_check & min_mz_check & max_mz_check)[0]
     # print(idx)
-    
+
     # get matching spectra
     if len(idx) == 0:  # no match
         return []
@@ -594,7 +595,7 @@ def find_match(query, min_rts, max_rts, min_mzs, max_mzs, spectra_arr, allow_mul
 
 
 def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
-                    matching_method, matching_ms1_tol, matching_ms2_tol, 
+                    matching_method, matching_ms1_tol, matching_ms2_tol,
                     matching_min_match_peaks):
     print('chem_library', chem_library)
     results = []
@@ -615,9 +616,9 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
             with tqdm(total=total_peaks) as pbar:
                 for k, v in matches.items():
                     for spec in v:
-                        hits = chem_library.spectral_match(spec, matching_method, 
-                            matching_ms2_tol, matching_min_match_peaks, 
-                            matching_ms1_tol, thresh)                            
+                        hits = chem_library.spectral_match(spec, matching_method,
+                                                           matching_ms2_tol, matching_min_match_peaks,
+                                                           matching_ms1_tol, thresh)
                         if len(hits) > 0:
                             for item in hits:
                                 spectrum_id = item[0]
@@ -633,121 +634,24 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
             prop_annotated_peaks = no_annotated_peaks / total_peaks
             prop_annotated_compounds = no_annotated_compounds / total_compounds
             row = [
-                method, 
-                thresh, 
-                no_annotated_compounds, 
+                method,
+                thresh,
+                no_annotated_compounds,
                 no_annotated_peaks,
-                prop_annotated_compounds, 
+                prop_annotated_compounds,
                 prop_annotated_peaks
             ]
             results.append(row)
 
     df = pd.DataFrame(results, columns=[
                       'method', 'matching_threshold',
-                      'no_annotated_compounds', 'no_annotated_peaks', 
+                      'no_annotated_compounds', 'no_annotated_peaks',
                       'prop_annotated_compounds', 'prop_annotated_peaks'])
     return df
 
 
-def get_chemical_names(msp_file):
-    names = []
-    with open(msp_file) as f:
-        for line in f:
-            if line.startswith('Name'):
-                tokens = line.split(':')
-                chemical_name = tokens[1].strip()
-                names.append(chemical_name)
-    return set(names)
-
-
-def load_alignment_df(msdial_file):
-    try:
-        df = pd.read_csv(msdial_file, sep='\t', skiprows=4,
-                         index_col='Alignment ID')
-    except ValueError:
-        df = pd.read_csv(msdial_file, sep='\t', skiprows=0, index_col='PeakID')
-    return df
-
-
-def get_hits(filename, chemical_names, threshold=70):
-    
-    # load MSDIAL alignment results
-    basename = os.path.basename(filename)
-    if '_replicates' in basename:
-        new_basename = basename.replace('_replicates', '')
-        filename = os.path.join(os.path.dirname(filename), new_basename)
-
-    df = load_alignment_df(filename)
-
-    # filter by 'Reverse dot product' above threshold
-    # filtered = df[df['Reverse dot product'] > threshold]
-
-    # filter by 'Total score' above threshold
-    filtered = df[df['Total score'] > threshold]
-
-    # get unique hits in the filtered results
-    try:
-        hits = set(filtered['Metabolite name'].values)
-    except KeyError:
-        hits = set(filtered['Title'].values)
-
-    # get the intersection between the chemical names and the hits
-    return df, hits.intersection(chemical_names)
-
-
-def load_hits(base_folder, controller_name, sample_list, chemical_names, 
-    combine_single_hits=False):
-    replicate = 0
-
-    # load single hits
-    hit_counts = []
-    unique_hits = set()
-    for sample in sample_list:
-        msdial_output = '%s_%s_%d.msdial' % (
-            controller_name, sample, replicate)
-        single_file = os.path.join(base_folder, controller_name, msdial_output)
-        _, hits = get_hits(single_file, chemical_names)
-        # print(sample, len(hits))
-        hit_counts.append(len(hits))
-        unique_hits.update(hits)
-
-    # single_hits = max(hit_counts)
-    single_hits = hit_counts[0]
-
-    # load multi hits
-    if not combine_single_hits:
-        aligned_files = glob.glob(os.path.join(
-            base_folder, controller_name, 'AlignResult*.msdial'))
-        aligned_file = aligned_files[0]
-        _, ms2dec_hits = get_hits(aligned_file, chemical_names)
-        multi_hits = len(ms2dec_hits)
-    else:
-        multi_hits = len(unique_hits)
-    # print(controller_name, multi_hits)
-
-    # print()
-    return single_hits, multi_hits
-
-
-def get_ss_ms_df(all_controllers, msp_file, base_folder, sample_list):
-    results = []
-    chemical_names = get_chemical_names(msp_file)
-
-    single_hits = []
-    multi_hits = []
-    for controller_name in all_controllers:
-        # combine_single_hits = True if controller_name == 'topN_exclusion' else False
-        combine_single_hits = True
-        ss, ms = load_hits(base_folder, controller_name, sample_list, 
-            chemical_names, combine_single_hits=combine_single_hits)
-        results.append((controller_name, ss, 'single sample'))
-        results.append((controller_name, ms, 'multiple samples'))
-
-    return pd.DataFrame(results, columns=['method', 'hit', 'sample availability'])
-
-
 def spectral_distribution(chem_library, base_folder, methods, matching_threshold,
-                          matching_method, matching_ms1_tol, matching_ms2_tol, 
+                          matching_method, matching_ms1_tol, matching_ms2_tol,
                           matching_min_match_peaks):
     print('chem_library', chem_library)
     results = []
@@ -763,9 +667,9 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
             for k, v in spectra.items():
                 for spec in v:
                     # returns a list containing (spectrum_id, sc, c)
-                    hits = chem_library.spectral_match(spec, matching_method, 
-                        matching_ms2_tol, matching_min_match_peaks, 
-                        matching_ms1_tol, matching_threshold)
+                    hits = chem_library.spectral_match(spec, matching_method,
+                                                       matching_ms2_tol, matching_min_match_peaks,
+                                                       matching_ms1_tol, matching_threshold)
                     if len(hits) > 0:
                         for item in hits:
                             spectrum_id = item[0]
@@ -788,9 +692,9 @@ def spec_records_to_library(spectra):
     return chem_library
 
 
-def pairwise_spectral_distribution(chem_library, base_folder, methods, 
-    matching_threshold, matching_method, matching_ms1_tol, 
-    matching_ms2_tol, matching_min_match_peaks):
+def pairwise_spectral_distribution(chem_library, base_folder, methods,
+                                   matching_threshold, matching_method, matching_ms1_tol,
+                                   matching_ms2_tol, matching_min_match_peaks):
     results = []
     methods = ['ground_truth'] + methods
     for method in methods:
@@ -816,14 +720,14 @@ def pairwise_spectral_distribution(chem_library, base_folder, methods,
         with tqdm(total=len(spectra)) as pbar:
             for spec in spectra:
                 # returns a list containing (spectrum_id, sc, c)
-                hits = chem_library.spectral_match(spec, matching_method, 
-                    matching_ms2_tol, matching_min_match_peaks, 
-                    matching_ms1_tol, matching_threshold)
+                hits = chem_library.spectral_match(spec, matching_method,
+                                                   matching_ms2_tol, matching_min_match_peaks,
+                                                   matching_ms1_tol, matching_threshold)
                 if len(hits) > 0:
                     for item in hits:
                         spectrum_id = item[0]
                         score = item[1]
-                        if score != 1.00: # ignore matches to itself
+                        if score != 1.00:  # ignore matches to itself
                             row = [method, spectrum_id, score]
                             results.append(row)
                 pbar.update(1)
@@ -831,3 +735,45 @@ def pairwise_spectral_distribution(chem_library, base_folder, methods,
 
     df = pd.DataFrame(results, columns=['method', 'spectrum_id', 'score'])
     return df
+
+
+def matched_spectra_as_df(base_folder, methods):
+    dfs = []
+    score_dfs = []
+    for method in methods:
+        print(method)
+        matched_spectra = load_obj(os.path.join(base_folder, method, 'matched_spectra.p'))
+
+        # for each method, convert its matched_spectra to dataframe
+        scores = []
+        for k, v in matched_spectra.items():
+            for spec in v:
+                row = {
+                    'method': method
+                }
+                row['precursor_mz'] = k.precursor_mz
+                row.update((spec.metadata))
+                if row['names'][0] == 'Unknown':
+                    row['names'] = np.NaN
+                else:
+                    row['names'] = row['names'][0]
+                scores.append(row)
+        df = pd.DataFrame(scores)
+        dfs.append(df)
+
+        # filter df and extract scores only
+        data = []
+        for idx, row in df.iterrows():
+            name = row['names']
+            score = row['dot_product']
+            if isinstance(name, str) and not np.isnan(score) and 'w/o MS2' not in name:
+                row = [method, name, score]
+                data.append(row)
+        score_df = pd.DataFrame(data, columns=['method', 'name', 'score'])
+        score_df = score_df.sort_values(
+            'score', ascending=False).drop_duplicates('name').sort_index()
+        score_dfs.append(score_df)
+
+    df = pd.concat(dfs).reset_index(drop=True)
+    score_df = pd.concat(score_dfs).reset_index(drop=True)
+    return df, score_df

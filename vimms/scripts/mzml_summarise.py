@@ -1,6 +1,7 @@
+import sys
+
 import glob
 import os
-import sys
 
 from mass_spec_utils.data_import.mzml import MZMLFile
 from tabulate import tabulate

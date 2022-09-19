@@ -1,7 +1,10 @@
+import sys
+sys.path.append('..')
+sys.path.append('../..')  # if running in this folder
+
 import argparse
 import configparser
 import os
-import sys
 from abc import ABC, abstractmethod
 
 from vimms.Common import IN_SILICO_OPTIMISE_TOPN, add_log_file, \
@@ -12,10 +15,6 @@ from vimms.InSilicoSimulation import extract_chemicals, get_timing, \
     run_WeightedDEW, extract_boxes, evaluate_boxes_as_dict, \
     evaluate_boxes_as_array, save_counts, string_to_list, \
     plot_counts
-
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
-
 
 class InSilicoSimulator(ABC):
     def __init__(self, sample_name, seed_file, out_dir, controller_name,

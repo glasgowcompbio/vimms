@@ -1,5 +1,4 @@
 import gc
-import os
 
 import pandas as pd
 from loguru import logger
@@ -18,7 +17,6 @@ from vimms.Controller.box import NonOverlapController, IntensityNonOverlapContro
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiBuilderParams
-from vimms.Common import save_obj
 
 
 def extract_chemicals(seed_file, ionisation_mode):

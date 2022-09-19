@@ -2,10 +2,13 @@
 # simple script that loads an msp and an mzml and sees how many of the
 # spectra in the MSP file can be matched to a spectrum in an ms2 scan
 # in the .mzml
+import sys
+sys.path.append('..')
+sys.path.append('../..')  # if running in this folder
+
 import argparse
 import glob
 import os
-import sys
 
 import numpy as np
 import pandas as pd
@@ -15,9 +18,6 @@ from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import load_obj
-
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
 
 
 def process_block(block, file_name):
@@ -87,21 +87,43 @@ def library_from_msp(msp_file_name):
     return sl
 
 
-def make_queries_from_aligned_msdial(msdial_file_name):
+def make_queries_from_aligned_msdial(msdial_file_name, frag_file=True):
     query_spectra = []
     msdial_df = pd.read_csv(msdial_file_name, sep='\t',
                             index_col='Alignment ID', header=4)
-    for i in range(msdial_df.shape[0]):
-        precursor_mz = msdial_df['Average Mz'][i]
+
+    if frag_file:
+        msdial_df = msdial_df[msdial_df['MS/MS assigned'] == True]
+
+    for i, row in msdial_df.iterrows():
+
         peaks = []
-        if msdial_df['MS/MS spectrum'][i] == msdial_df['MS/MS spectrum'][
-                i]:  # checking if nan
-            for info in msdial_df['MS/MS spectrum'][i].split():
+        try:
+            for info in row['MS/MS spectrum'].split():
                 mz, intensity = info.split(':')
                 peak = np.array([float(mz), float(intensity)])
                 peaks.append(peak)
-            new_spectrum = Spectrum(precursor_mz, peaks)
-            query_spectra.append(new_spectrum)
+        except AttributeError: # no MS2 spectrum
+            pass
+
+        precursor_mz = row['Average Mz']
+        metadata = {
+            'rt': row['Average Rt(min)'] * 60,
+            'names': [row['Metabolite name']],
+            'msms_assigned': row['MS/MS assigned'],
+            'rt_matched': row['RT matched'],
+            'mz_matched': row['m/z matched'],
+            'msms_matched': row['MS/MS matched'],
+            'total_score': row['Total score'],
+            'dot_product': row['Dot product'],
+            'reverse_dot_product': row['Reverse dot product'],
+            'fragment_presence': row['Fragment presence %'],
+            'msms_spectrum': row['MS/MS spectrum']
+        }
+        original_file = row['Spectrum reference file name']
+        spectrum_id = 'peak_%.6f' % precursor_mz
+        new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+        query_spectra.append(new_spectrum)
     return query_spectra
 
 

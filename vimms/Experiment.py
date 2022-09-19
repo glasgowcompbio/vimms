@@ -1,4 +1,5 @@
 import os
+import copy
 import itertools
 from collections import deque, OrderedDict
 import pathlib
@@ -21,7 +22,8 @@ from vimms.Controller.box import (
     NonOverlapController, IntensityNonOverlapController
 )
 from vimms.DsDA import DsDAState
-from vimms.Controller.misc import DsDAController
+from vimms.Matching import MatchingScan, MatchingChem, Matching
+from vimms.Controller.misc import DsDAController, MatchingController
 from vimms.Environment import Environment
 from vimms.BoxVisualise import EnvPlotPickler
 from vimms.Evaluation import pick_aligned_peaks, evaluate_real
@@ -32,34 +34,74 @@ class Shareable:
         self.split = split
         
         self.shared = None
+        self.stored_controllers = []
+        self.params = {}
         
-    def add_shareable(self, params):
+    def init_shareable(self, params, out_dir, fullscan_paths, grid_init=None):
         if(self.name == "agent"):
             self.shared = TopNDEWAgent(**params)
-            return {
+            self.params = {
                 "agent" : self.shared
             }
             
         elif(self.name == "grid"):
-            self.shared = BoxManager(
-                box_geometry = BoxGrid(),
-                box_splitter = BoxSplitter(split=self.split),
-                delete_rois=True
-            )
+            if(grid_init is None):
+                self.shared = BoxManager(
+                    box_geometry = BoxGrid(),
+                    box_splitter = BoxSplitter(split=self.split),
+                    delete_rois=True
+                )
+            else:
+                self.shared = grid_init()
             
-            return {
+            self.params = {
                 **params,
                 "grid" : self.shared
             }
             
         elif(self.name == "dsda"):
-            self.shared = DsDAState(**params)
-            return {
+            self.shared = DsDAState(**params, out_dir=out_dir)
+            self.params = {
                 "dsda_state" : self.shared
             }
             
+        elif(self.name == "matching"):
+            if(self.shared is None):
+                scans_list = []
+                for i, fs in enumerate(fullscan_paths):
+                    new_scans = MatchingScan.create_scan_intensities(
+                            fs,
+                            i,
+                            params["times_list"][i],
+                            params.get("mz_window", 1E-10)
+                    )
+                    scans_list.append(new_scans)
+                
+                chems_list = MatchingChem.mzmine2nodes(params["aligned_file"], fullscan_paths)
+                
+                self.shared = Matching.multi_schedule2graph(
+                    scans_list,
+                    chems_list,
+                    params["intensity_threshold"],
+                    edge_limit=params.get("edge_limit", None),
+                    weighted=params.get("weighted", Matching.TWOSTEP)
+                )
+            
+            if(self.stored_controllers == []):
+                self.stored_controllers = list(reversed(
+                    MatchingController.from_matching(self.shared, params["isolation_width"])
+                ))
+            
         else:
-            return params
+            self.params = params
+            
+    def get_controller(self, controller_type, out_file):
+        if(controller_type == DsDAController):
+            return controller_type(**self.params, mzml_name=out_file)
+        elif(controller_type == MatchingController):
+            return self.stored_controllers.pop()
+        else:
+            return controller_type(**self.params)
             
     def __enter__(self):
         if(self.name == "dsda"):
@@ -69,6 +111,7 @@ class Shareable:
     def __exit__(self, type, value, traceback):
         if(self.name == "dsda"):
             self.shared.__exit__(type, value, traceback)
+        self.stored_controllers = []
 
 class ExperimentCase:
 
@@ -85,7 +128,8 @@ class ExperimentCase:
         ("intensity_roi_exclusion", (IntensityRoIExcludeController, SPLIT_GRID)),
         ("non_overlap", (NonOverlapController, GRID)),   
         ("intensity_non_overlap", (IntensityNonOverlapController, SPLIT_GRID)),
-        ("dsda", (DsDAController, Shareable("dsda")))
+        ("dsda", (DsDAController, Shareable("dsda"))),
+        ("matching", (MatchingController, Shareable("matching")))
     ])
         
     def __init__(self, 
@@ -107,19 +151,13 @@ class ExperimentCase:
         
         try:
             self.controller, self.shared = self.controllers[c]
+            self.shared = copy.deepcopy(self.shared)
         except:
             error_msg = (
                 "Not a recognised controller, please use one of:\n"
                 + "\n".join(self.controllers.keys())
             )
             raise ValueError(error_msg)
-            
-    def _init_shareable(self, out_dir):
-        if(not self.grid_init is None):
-            return {**self.params, "grid" : self.grid_init()}
-        elif(self.shared.name == "dsda"):
-            return self.shared.add_shareable({**self.params, "out_dir" : out_dir})
-        return self.shared.add_shareable({**self.params})
     
     def run_controller(self, 
                        chems,
@@ -131,23 +169,24 @@ class ExperimentCase:
                        scan_duration_dict):
         
         mzml_names = []
-        params = self._init_shareable(out_dir)
+        self.shared.init_shareable(
+            self.params, 
+            out_dir, 
+            self.fullscan_paths, 
+            grid_init=self.grid_init
+        )
         
         #with ensures dsda process will be cleaned up - is there a cleaner way to do this?
         with self.shared as _:
             for i, fs in enumerate(self.fullscan_paths):
                 out_file = f"{self.name}_{i}.mzML"
-                
-                if(self.controller == DsDAController):
-                    controller = self.controller(**params, mzml_name=out_file)
-                else:
-                    controller = self.controller(**params)
+                controller = self.shared.get_controller(self.controller, out_file)
                 
                 with FileChems.from_path(chems[fs]) as dataset:
                     mass_spec = IndependentMassSpectrometer(
                         ionisation_mode, 
                         dataset, 
-                        None, 
+                        None,
                         scan_duration=scan_duration_dict
                     )
                     
@@ -177,7 +216,11 @@ class ExperimentCase:
                             rois = live_roi + dead_roi + junk_roi
                             save_obj(
                                 rois,
-                                os.path.join(out_dir, "pickle", out_file.split(".")[0] + "_rois.pkl")
+                                os.path.join(
+                                    out_dir, 
+                                    "pickle", 
+                                    out_file.split(".")[0] + "_rois.pkl"
+                                )
                             )
                         except AttributeError:
                             pass

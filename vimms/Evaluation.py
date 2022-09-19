@@ -69,6 +69,7 @@ def pick_aligned_peaks(input_files,
                        force=False):
     
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    input_files = list(set(input_files)) #filter duplicates
     if(len(output_name.split(".")) > 1):
         output_name = "".join(output_name.split(".")[:-1])
     output_path = os.path.join(output_dir, f"{output_name}_aligned.csv")
@@ -291,7 +292,7 @@ class RealEvaluator(Evaluator):
         self.geoms = []
 
     @classmethod
-    def from_aligned(cls, aligned_file):
+    def from_aligned(cls, aligned_file, min_box_ppm=10):
         include = [
                 "status",
                 "RT start",
@@ -323,7 +324,7 @@ class RealEvaluator(Evaluator):
                                 float(split[inner["RT end"]]) * 60,
                                 float(split[inner["m/z min"]]),
                                 float(split[inner["m/z max"]])
-                            )
+                            ).apply_min_box_ppm(ywidth=min_box_ppm)
                         )
                     else:
                         row.append(None)

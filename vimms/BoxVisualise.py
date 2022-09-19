@@ -355,6 +355,7 @@ class PlotPoints():
                     min_rt=None, max_rt=None, 
                     min_mz=None, max_mz=None,
                     draw_minm=0.0, colour_minm=None,
+                    marker_styles=None,
                     abs_scaling=False):
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         if(np.sum(self.active_ms1) == 0): return
@@ -365,8 +366,11 @@ class PlotPoints():
         srted = active_ms1[sort_idx]
         filter_idx = srted[:, 2] >= draw_minm
         rts, mzs, intensities = srted[filter_idx].T
+        
         markers = np.array(self.markers)[self.active_ms1][sort_idx][filter_idx]
-        markers = ["o" if m == "0" else m for m in markers]
+        if(marker_styles is None):
+            marker_styles = ["o", "x"]
+        markers = [marker_styles[0] if m == "0" else marker_styles[1] for m in markers]
         
         colours = self.colour_by_intensity(intensities, colour_minm, abs_scaling)
         for marker in ["o", "x"]:
@@ -1089,6 +1093,12 @@ class BoxViewer():
             rt_buffer=rt_buffer, 
             mz_buffer=mz_buffer
         )
+        
+        if(len(self.mzmls) == 1):
+            axes = [axes]
+        
+        if(len(self.boxes) == 1):
+            axes = [[ax] for ax in axes]
         
         for i, _ in enumerate(self.mzmls):
             pts = self.plot_points[i]

@@ -25,6 +25,9 @@ class Point():
     def __init__(self, x, y): 
         self.x, self.y = float(x), float(y)
         self.round()
+        
+    def __iter__(self):
+        return iter((self.x, self.y))
 
     def __eq__(self, other_point): 
         return (
@@ -220,6 +223,29 @@ class GenericBox(Box):
             parents=(self.parents + other_box.parents),
             intensity=max(self.intensity, other_box.intensity),
         )
+        
+    def apply_min_box_ppm(self, xwidth=None, ywidth=None):
+        x1, y1 = self.pt1
+        x2, y2 = self.pt2
+    
+        if(not xwidth is None):
+            mid = (x1 + x2) / 2
+            dist = (xwidth / 1e6) * mid
+            if(dist > x2 - x1):
+                x1 = mid - dist / 2
+                x2 = mid + dist / 2
+        
+        if(not ywidth is None):
+            mid = (y1 + y2) / 2
+            dist = (ywidth / 1e6) * mid
+            if(dist > y2 - y1):
+                y1 = mid - dist / 2
+                y2 = mid + dist / 2
+            
+        new_box = self.copy()
+        new_box.pt1.x, new_box.pt1.y = x1, y1
+        new_box.pt2.x, new_box.pt2.y = x2, y2
+        return new_box
         
     def overlap_raw(self, other_box):
         if(not self.overlaps_with_box(other_box)): 

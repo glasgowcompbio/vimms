@@ -146,8 +146,7 @@ class MS2PlannerController(FixedScansController):
                         sp[intensity]
                     ])
 
-        out_headers = ["Mass [m/z]", "retention_time", "charge", "Blank",
-                       "Sample"]
+        out_headers = ["Mass [m/z]", "retention_time", "charge", "Blank", "Sample"]
         with open(outpath, "w+") as f:
             f.write(",".join(out_headers) + "\n")
             for r in records:
@@ -311,9 +310,9 @@ class MS2PlannerController(FixedScansController):
             ]
         )
         schedules = [
-            MS2PlannerController.sched_dict2params(sch, scan_duration_dict) for
-            sch in
-            MS2PlannerController.parse_ms2planner(out_file)]
+            MS2PlannerController.sched_dict2params(sch, scan_duration_dict) 
+            for sch in MS2PlannerController.parse_ms2planner(out_file)
+        ]
         with open(os.path.join(os.path.dirname(out_file), "scan_params.txt"),
                   "w+") as f:
             for i, schedule in enumerate(schedules):
@@ -321,8 +320,10 @@ class MS2PlannerController(FixedScansController):
                 f.write("".join(
                     f"SCAN {j}: {scan}\n\n" for j, scan in enumerate(schedule))
                 )
-        return [MS2PlannerController(schedule=schedule, params=params) for
-                schedule in schedules]
+        return [
+            MS2PlannerController(schedule=schedule, params=params) 
+            for schedule in schedules
+        ]
 
 
 class MatchingController(FixedScansController):
@@ -330,11 +331,12 @@ class MatchingController(FixedScansController):
     A pre-scheduled controller that performs maximum matching to obtain the largest
     coverage
     """
-    @staticmethod
-    def from_matching(matching, isolation_width, params=None):
-        return [MatchingController(schedule=schedule, params=params) for
-                schedule in
-                matching.make_schedules(isolation_width)]
+    @classmethod
+    def from_matching(cls, matching, isolation_width, advanced_params=None):
+        return [
+            MatchingController(schedule=schedule, advanced_params=advanced_params) 
+            for schedule in matching.make_schedules(isolation_width)
+        ]
 
 
 class MultiIsolationController(Controller):

@@ -231,6 +231,7 @@ class DsDAState():
     
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(("localhost", self.port))
+        self.socket.settimeout(300)
         self.socket.listen()
         
         child = subprocess.Popen(
@@ -252,8 +253,12 @@ class DsDAState():
         return self
         
     def __exit__(self, type, value, traceback):
-        self.child_socket.send(b"q\r\n")
-        self.socket.close()
+        try:
+            self.child_socket.send(b"q\r\n")
+        except:
+            raise
+        finally:
+            self.socket.close()
         
     def register_mzml(self, mzml_name):
         self.mzml_names.append(mzml_name)

@@ -138,10 +138,10 @@ repeat {
   rname <-gsub(".mzML", ".Rdata", basename(mzmlPath))
   save(xset, file=file.path(dsda_dir, "xset", rname))
   
-  if(nrow(xset@peaks) < minPeaks) {
-    cat("file found with fewer than", minPeaks, "peaks", '\n')
-    break
-  }
+  #if(nrow(xset@peaks) < minPeaks) {
+  #  cat("file found with fewer than", minPeaks, "peaks", '\n')
+  #  break
+  #}
   
   if(!any(ls()=="allPeaks")) {  # if allPeaks does not exist, make an empty version of it.
     
@@ -452,9 +452,9 @@ repeat {
   write(outtxt, file=file.path("settings", "active.txt"))
   write(outtxt, file=txtpath)
 
-  if(nrow(xset@peaks) < minPeaks) {
-    next
-  }
+  #if(nrow(xset@peaks) < minPeaks) {
+  #  next
+  #}
   b<-Sys.time() 
   
   perMSMS<-length(which(allPeaks$ctmsms>0))/length(allPeaks$ctmsms)
@@ -464,9 +464,3 @@ repeat {
   
   write_resp <- writeLines(csvpath, con)
 } ## end repeat
-
-#cat("finish guiding MS/MS acquisition", "in project", getwd(), '\n')
-
-#out<-as.list(c(NA, NA)); names(out)<-c("allPeaks", "allMSMS")
-#out$allPeaks<-allPeaks
-#out$allMSMS<-allMSMS

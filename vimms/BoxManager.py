@@ -107,9 +107,6 @@ class BoxManager():
             drifts = (fn(b.roi, inj_num)[0] for b in inj)
             all_boxes.extend([b.copy(xshift=(-drift)) for b, drift in zip(inj, drifts)])
         
-        from vimms.Common import save_obj
-        import os
-        save_obj(self, os.path.join("C:\\", "Users", "mcbrider5002", "Desktop", "Workspace", "phd", "topNEXt_experiments", "rare_bug_test", "pkl", "BM_Before_Crash.pkl"))
         split_boxes = self.box_splitter.split_boxes(all_boxes)
         self.box_geometry.register_boxes(split_boxes)
 

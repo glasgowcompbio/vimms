@@ -81,7 +81,8 @@ class Box():
                     min_ywidth=0, 
                     intensity=0, 
                     id=None, 
-                    roi=None):
+                    roi=None,
+                    round_digits=8):
                 
         self.id = id
         self.roi = roi
@@ -100,8 +101,7 @@ class Box():
             self.pt1.y = midpoint - min_ywidth / 2 
             self.pt2.y = midpoint + min_ywidth / 2
             
-        self.pt1.round()
-        self.pt2.round()
+        self.round(ndigits=round_digits)
 
     def __repr__(self):
         return "Box({}, {})".format(self.pt1, self.pt2)
@@ -115,6 +115,10 @@ class Box():
 
     def __hash__(self):
         return (self.pt1, self.pt2).__hash__()
+        
+    def round(self, ndigits=8):
+        self.pt1.round(ndigits=ndigits)
+        self.pt2.round(ndigits=ndigits)
         
     def serialise_info(self, minutes=False):
         timescale = 60 if minutes else 1
@@ -141,13 +145,12 @@ class Box():
                 roi=self.roi
                )
 
-    def shift(self, xshift=0, yshift=0):
+    def shift(self, xshift=0, yshift=0, round_digits=8):
         self.pt1.x += xshift
         self.pt2.x += xshift
         self.pt1.y += yshift
         self.pt2.y += yshift
-        self.pt1.round()
-        self.pt2.round()
+        self.round(ndigits=round_digits)
 
     def num_overlaps(self):
         return len(self.parents)
@@ -224,7 +227,7 @@ class GenericBox(Box):
             intensity=max(self.intensity, other_box.intensity),
         )
         
-    def apply_min_box_ppm(self, xwidth=None, ywidth=None):
+    def apply_min_box_ppm(self, xwidth=None, ywidth=None, round_digits=8):
         x1, y1 = self.pt1
         x2, y2 = self.pt2
     
@@ -245,6 +248,7 @@ class GenericBox(Box):
         new_box = self.copy()
         new_box.pt1.x, new_box.pt1.y = x1, y1
         new_box.pt2.x, new_box.pt2.y = x2, y2
+        new_box.round(ndigits=round_digits)
         return new_box
         
     def overlap_raw(self, other_box):
@@ -485,7 +489,23 @@ class LineSweeper():
         b = self.active.pop()
         self.was_active.append(b)
         if(not b in self.removed):
-            self.active_intervals.removei(b.pt1.y, b.pt2.y + 1E-12, b)
+            try:
+                self.active_intervals.removei(b.pt1.y, b.pt2.y + 1E-12, b)
+            except KeyError:
+                inv = intervaltree.Interval(b.pt1.y, b.pt2.y + 1E-12, b)
+                if(inv in self.active_intervals): #hack for rare failure mode for intervaltree
+                    new_tree = intervaltree.IntervalTree()
+                    for other in self.active_intervals:
+                        if(inv != other): new_tree.add(other)
+                    errstr = f"""
+                        Failure when trying to error-correct IntervalTree failing remove
+                        len(old_tree) == {self.active_intervals}
+                        len(new_tree) == {new_tree}
+                    """
+                    assert len(self.active_intervals) == len(new_tree) + 1, errstr
+                    self.active_intervals = new_tree
+                else:
+                    raise
             self.removed.add(b)
     
     def set_active_boxes(self, current_loc):

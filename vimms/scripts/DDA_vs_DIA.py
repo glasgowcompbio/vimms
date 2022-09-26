@@ -25,9 +25,10 @@ from vimms.Controller import AgentBasedController, TopN_SmartRoiController, \
 from vimms.Controller.box import IntensityNonOverlapController, \
     NonOverlapController
 from vimms.Environment import Environment
-from vimms.Evaluation import evaluate_multi_peak_roi_aligner
+from vimms.Evaluation import evaluate_multi_peak_roi_aligner, RealEvaluator
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiAligner
+
 
 ################################################################################
 # Synthetic experiments
@@ -428,7 +429,6 @@ def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
 
 def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
                        cumulative=False, palette=None):
-
     sns.set_context(context='poster', font_scale=1, rc=None)
     figsize = (20, 10)
     fig, axes = plt.subplots(1, 2, figsize=figsize)
@@ -493,6 +493,52 @@ def plot_frag_events(exp_name, out_dir, repeat):
 ################################################################################
 # Real experiments
 ################################################################################
+
+def evaluate_fragmentation(aligned_file, eval_using, sample_col_name,
+                           sample_list, fragmentation_folder,
+                           methods, replicates, isolation_width):
+    eval_res = {}
+    for method, replicate in zip(methods, replicates):
+        print()
+        print(method)
+
+        if eval_using == 'mzmine':
+            eva = RealEvaluator.from_aligned(aligned_file)
+        elif eval_using == 'msdial':
+            eva = RealEvaluator.from_aligned_msdial(aligned_file, sample_col_name)
+
+        method_folder = os.path.join(fragmentation_folder, method)
+        method = method.replace('_replicates', '')
+
+        mzml_pairs = []
+        for sample in sample_list:
+            fullscan_name = 'fullscan_%s_0' % sample
+            mzmls = []
+            for i in range(replicate):
+                mzml = os.path.join(method_folder, '%s_%s_%d.mzML' % (method, sample, i))
+                mzmls.append(mzml)
+            pair = (fullscan_name, mzmls)
+            mzml_pairs.append(pair)
+
+        for fullscan_path, mzmls in mzml_pairs:
+            print(os.path.basename(fullscan_path))
+            fullscan_name = os.path.basename(fullscan_path)
+            eva.add_info(fullscan_name, mzmls, isolation_width=isolation_width)
+
+        eval_res[method] = eva
+    return eval_res
+
+
+def print_evaluations(eval_res):
+    for method in eval_res:
+        eva = eval_res[method]
+        print(eva.summarise())
+
+
+def evas_to_reports(eval_res):
+    reports = {method: eva.revaluation_report() for method, eva in eval_res.iteritems()}
+    return reports
+
 
 def get_msdial_file(msdial_folder):
     """In a folder, get the filename containing MS-DIAL aligned peaklist.
@@ -617,7 +663,8 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
                 for k, v in matches.items():
                     for spec in v:
                         hits = chem_library.spectral_match(spec, matching_method,
-                                                           matching_ms2_tol, matching_min_match_peaks,
+                                                           matching_ms2_tol,
+                                                           matching_min_match_peaks,
                                                            matching_ms1_tol, thresh)
                         if len(hits) > 0:
                             for item in hits:
@@ -639,14 +686,16 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
                 no_annotated_compounds,
                 no_annotated_peaks,
                 prop_annotated_compounds,
-                prop_annotated_peaks
+                prop_annotated_peaks,
+                set(annotated_peaks)
             ]
             results.append(row)
 
     df = pd.DataFrame(results, columns=[
-                      'method', 'matching_threshold',
-                      'no_annotated_compounds', 'no_annotated_peaks',
-                      'prop_annotated_compounds', 'prop_annotated_peaks'])
+        'method', 'matching_threshold',
+        'no_annotated_compounds', 'no_annotated_peaks',
+        'prop_annotated_compounds', 'prop_annotated_peaks',
+        'annotated_peaks'])
     return df
 
 
@@ -777,3 +826,86 @@ def matched_spectra_as_df(base_folder, methods):
     df = pd.concat(dfs).reset_index(drop=True)
     score_df = pd.concat(score_dfs).reset_index(drop=True)
     return df, score_df
+
+
+def plot_matching_thresholds_1(hit_prop_df, y='prop_annotated_peaks'):
+    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(20, 5))
+
+    selected_df = hit_prop_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df[selected_df['matching_threshold'].isin([0.2, 0.4, 0.6, 0.8])]
+
+    methods = selected_df['method'].unique()
+    colours = sns.color_palette(n_colors=len(methods))
+    palette = {method: colour for method, colour in zip(methods, colours)}
+
+    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'SWATH', 'AIF'])]
+    # line_at = plot_df[
+    #     (plot_df['method'] == 'Top-N') &
+    #     (plot_df['matching_threshold'] == 0.6)
+    # ][y].values[0]
+    g = sns.barplot(data=plot_df, x='matching_threshold',
+                    hue='method', y=y, ax=axes[0], palette=palette, hue_order=[
+            'AIF', 'SWATH', 'Top-N'])
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[0].set_title('1 replicate')
+
+    plot_df = selected_df[selected_df['method'].isin(
+        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
+    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+    g = sns.barplot(data=plot_df, x='matching_threshold',
+                    hue='method', y=y, ax=axes[1], palette=palette, hue_order=[
+            'Intensity\nNon-overlap', 'Top-N', 'Iterative\nExclusion'
+        ])
+    g.set(ylabel=None)
+    g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[1].set_title('4 replicates')
+
+    # axes[0].axhline(line_at, ls='--', color='k', alpha=0.60)
+    # axes[1].axhline(line_at, ls='--', color='k', alpha=0.60)
+
+    return palette
+
+
+def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
+    fig, axes = plt.subplots(2, 1, sharex=True, figsize=(15, 10))
+
+    selected_df = hit_prop_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df[selected_df['matching_threshold'].isin(
+        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])]
+
+    methods = selected_df['method'].unique()
+    colours = sns.color_palette(n_colors=len(methods))
+    palette = {method: colour for method, colour in zip(methods, colours)}
+
+    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'SWATH', 'AIF'])]
+    g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
+        'AIF', 'SWATH', 'Top-N'], y=y, ax=axes[0], palette=palette)
+    g.set(ylabel='Annotated features')
+    g.set(xlabel=None)
+    sns.move_legend(g, "upper right", title='Method')
+    axes[0].set_title('1 replicate')
+
+    plot_df = selected_df[selected_df['method'].isin(
+        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
+    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+    g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
+        'Intensity\nNon-overlap', 'Top-N', 'Iterative\nExclusion'], y=y, ax=axes[1],
+                    palette=palette)
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[1].set_title('4 replicates')
+    plt.tight_layout()
+
+    return palette

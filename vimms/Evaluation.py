@@ -21,6 +21,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_import.mzmine import (
     load_picked_boxes, map_boxes_to_scans, PickedBox
 )
+from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import path_or_mzml
 from vimms.Box import (
@@ -293,7 +294,8 @@ class RealEvaluator(Evaluator):
         self.fullscan_names = []
         self.mzmls = []
         self.geoms = []
-        self.matches = {} # currently only used for MS-DIAL results
+        self.box_to_fullscan_peaks = {} # generated after parsing MS-DIAL results
+        self.box_to_frag_spectra = defaultdict(list)
 
     @classmethod
     def from_aligned(cls, aligned_file):
@@ -408,7 +410,7 @@ class RealEvaluator(Evaluator):
 
             # select rows in individual sample's df matching this aligned query spectrum
             chem_row = []
-            matched_records = []
+            found = False
             for msdial_file in msdial_dfs:
                 df = msdial_dfs[msdial_file]
                 df = df[df['Title'] == query_name]
@@ -422,16 +424,20 @@ class RealEvaluator(Evaluator):
                     # other anyway, so we don't need this assert
                     # assert df.shape[0] == 1
                     first_df_row = df.head(1)
+                    found = True
+
+                    # convert df row into SpectralRecord, containing a box
                     result_record = row_to_spectral_record(first_df_row)
-                    chem_row.append(result_record.metadata['box'])
-                    matched_records.append(result_record)
+                    box = result_record.metadata['box']
+
+                    # store mapping for later use
+                    matches[box] = query_record
+                    chem_row.append(box)
                 else:
                     chem_row.append(None)
-                    matched_records.append(None)
 
-            if len(matched_records) > 0:
+            if found:
                 chems.append(chem_row)
-                matches[query_record] = matched_records
             else:
                 unmatched += 1 # FIXME: shouldn't happen?!
 
@@ -441,7 +447,7 @@ class RealEvaluator(Evaluator):
         eva = cls(chems)
         eva.fullscan_names = sample_cols
         eva.geoms = [None for _ in eva.fullscan_names]
-        eva.matches = matches
+        eva.box_to_fullscan_peaks = matches
         return eva
 
     def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):
@@ -504,6 +510,12 @@ class RealEvaluator(Evaluator):
                                     new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
                                     max(candidates + [0.0])
                                 )
+
+                            spectrum_id = 'peak_%.6f' % mz
+                            new_spectrum = SpectralRecord(mz, s.peaks, {}, fullscan_name,
+                                                          spectrum_id)
+                            self.box_to_frag_spectra[b].append(new_spectrum)
+
                     else:
                         related_boxes = geom.interval_covers_which_boxes(
                             self._new_window(s.rt_in_seconds, mz, isolation_width)
@@ -516,6 +528,10 @@ class RealEvaluator(Evaluator):
                                     new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
                                     max([it for _, it in current_intensities[ch_idx]] + [0.0])
                                 )
+                            spectrum_id = 'peak_%.6f' % mz
+                            new_spectrum = SpectralRecord(mz, s.peaks, {}, fullscan_name,
+                                                          spectrum_id)
+                            self.box_to_frag_spectra[b].append(new_spectrum)
 
         self.chem_info = np.concatenate((self.chem_info, new_info), axis=2)
 

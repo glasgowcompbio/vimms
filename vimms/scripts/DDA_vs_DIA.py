@@ -586,6 +586,55 @@ def evas_to_reports(eval_res):
     return reports
 
 
+def eval_res_to_df(eval_res):
+    dfs = []
+    for method in eval_res:
+        print(method)
+        report = eval_res[method].evaluation_report()
+        data = []
+
+        metric_names = [
+            'num_frags',
+            'sum_cumulative_coverage',
+            'cumulative_coverage_proportion',
+            'cumulative_intensity_proportion'
+        ]
+        for metric_name in metric_names:
+            for i, metric_value in enumerate(report[metric_name]):
+                data.append((method, i, metric_value, metric_name))
+
+        df = pd.DataFrame(data, columns=['method', 'sample_idx', 'metric_value', 'metric_name'])
+        dfs.append(df)
+
+    combined_df = pd.concat(dfs)
+    return combined_df
+
+
+def plot_coverage_intensity_props(df, selected_methods, suptitle=None):
+    fig, axes = plt.subplots(1, 2, sharey=False, figsize=(20, 10))
+
+    data = df[df['metric_name'] == 'cumulative_coverage_proportion']
+    data = data[data['method'].isin(selected_methods)].reset_index(drop=True)
+    g = sns.lineplot(data=data, x='sample_idx', y='metric_value', hue='method', ax=axes[0])
+
+    g.set(ylabel='Coverage proportion')
+    g.set(xlabel='Samples')
+    axes[0].set_title('Coverage proportion vs samples')
+    sns.move_legend(g, "upper left", bbox_to_anchor=(0.74, -0.14))
+
+    data = df[df['metric_name'] == 'cumulative_intensity_proportion']
+    data = data[data['method'].isin(selected_methods)].reset_index(drop=True)
+    g = sns.lineplot(data=data, x='sample_idx', y='metric_value', hue='method', ax=axes[1])
+
+    g.set(ylabel='Intensity proportion')
+    g.set(xlabel='Samples')
+    axes[1].set_title('Intensity proportion vs samples')
+    axes[1].get_legend().remove()
+
+    if suptitle is not None:
+        plt.suptitle(suptitle, fontsize=24)
+
+
 def get_msdial_file(msdial_folder):
     """In a folder, get the filename containing MS-DIAL aligned peaklist.
 

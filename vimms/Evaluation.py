@@ -427,6 +427,7 @@ class RealEvaluator(Evaluator):
                     matched_records.append(result_record)
                 else:
                     chem_row.append(None)
+                    matched_records.append(None)
 
             if len(matched_records) > 0:
                 chems.append(chem_row)

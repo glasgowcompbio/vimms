@@ -497,32 +497,76 @@ def plot_frag_events(exp_name, out_dir, repeat):
 def evaluate_fragmentation(aligned_file, eval_using, sample_col_name,
                            sample_list, fragmentation_folder,
                            methods, replicates, isolation_width):
+    """
+    Evaluate boxes against fragmentation spectra using the `RealEvaluator` class.
+    Args:
+        aligned_file: Path to aligned CSV file containing boxes.
+                      Can be produced by MzMine or MS-DIAL
+        eval_using: Which tool produced the aligned file, either 'mzmine' or 'msdial'
+        sample_col_name: a string to indicate which are the sample intensity columns
+                         in the MS-DIAL results, e.g. 'beer'
+        sample_list: a list of sample names, e.g. ['beer1', 'beer2', ...]
+        fragmentation_folder: the folder containing fragmentation mzMLs
+        methods: the name of methods, e.g. ['topN', 'topN_exclusion', ..]
+        replicates: the number of replicates
+        isolation_width: isolation width
+
+    Returns: a dictionary where the key is method, and value is a RealEvaluator object.
+
+    """
     eval_res = {}
     for method, replicate in zip(methods, replicates):
         print()
         print(method)
 
+        assert eval_using in ['mzmine', 'msdial']
         if eval_using == 'mzmine':
             eva = RealEvaluator.from_aligned(aligned_file)
         elif eval_using == 'msdial':
             eva = RealEvaluator.from_aligned_msdial(aligned_file, sample_col_name)
 
         method_folder = os.path.join(fragmentation_folder, method)
-        method = method.replace('_replicates', '')
+        method_name = method.replace('_replicates', '')
 
+        # TODO: check with Ross, but this seems incorrect?
+        # this will create: [
+        #     'fullscan_beer1_0': ['topN_beer1_0.mzML', 'topN_beer1_1.mzML', ...],
+        #     'fullscan_beer2_0': ['topN_beer2_0.mzML', 'topN_beer2_1.mzML', ...],
+        #     ...
+        # ]
+        # mzml_pairs = []
+        # for sample in sample_list:
+        #     fullscan_name = 'fullscan_%s_0' % sample
+        #     mzmls = []
+        #     for i in range(replicate):
+        #         mzml = os.path.join(method_folder, '%s_%s_%d.mzML' % (method_name, sample, i))
+        #         mzmls.append(mzml)
+        #     pair = (fullscan_name, mzmls)
+        #     mzml_pairs.append(pair)
+
+        # TODO: check with Ross
+        # this will create: [
+        #     'fullscan_beer1_0': ['topN_beer1_0.mzML'],
+        #     'fullscan_beer2_0': ['topN_beer2_0.mzML'],
+        #     'fullscan_beer3_0': ['topN_beer3_0.mzML'],
+        #     'fullscan_beer4_0': ['topN_beer4_0.mzML'],
+        #     'fullscan_beer5_0': ['topN_beer5_0.mzML'],
+        #     'fullscan_beer6_0': ['topN_beer6_0.mzML'],
+        #     'fullscan_beer1_0': ['topN_beer1_1.mzML'],
+        #     'fullscan_beer2_0': ['topN_beer2_1.mzML'],
+        #     'fullscan_beer3_0': ['topN_beer3_1.mzML'],
+        #     ...
+        # ]
         mzml_pairs = []
-        for sample in sample_list:
-            fullscan_name = 'fullscan_%s_0' % sample
-            mzmls = []
-            for i in range(replicate):
-                mzml = os.path.join(method_folder, '%s_%s_%d.mzML' % (method, sample, i))
-                mzmls.append(mzml)
-            pair = (fullscan_name, mzmls)
-            mzml_pairs.append(pair)
+        for i in range(replicate):
+            for sample in sample_list:
+                fullscan_name = 'fullscan_%s_0' % sample
+                mzmls = [os.path.join(method_folder, '%s_%s_%d.mzML' % (method_name, sample, i))]
+                pair = (fullscan_name, mzmls)
+                mzml_pairs.append(pair)
 
-        for fullscan_path, mzmls in mzml_pairs:
-            print(os.path.basename(fullscan_path))
-            fullscan_name = os.path.basename(fullscan_path)
+        for fullscan_name, mzmls in mzml_pairs:
+            print(fullscan_name, mzmls)
             eva.add_info(fullscan_name, mzmls, isolation_width=isolation_width)
 
         eval_res[method] = eva
@@ -532,7 +576,9 @@ def evaluate_fragmentation(aligned_file, eval_using, sample_col_name,
 def print_evaluations(eval_res):
     for method in eval_res:
         eva = eval_res[method]
+        print(method)
         print(eva.summarise())
+        print()
 
 
 def evas_to_reports(eval_res):

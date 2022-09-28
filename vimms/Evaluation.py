@@ -505,14 +505,16 @@ class RealEvaluator(Evaluator):
                                     cint for cmz, cint in current_intensities[ch_idx]
                                     if 1e6 * np.abs(cmz - mz) / mz <= max_error
                                 ]
-                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
-                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                best_intensity = max(
                                     new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
                                     max(candidates + [0.0])
                                 )
+                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = best_intensity
 
                             spectrum_id = 'peak_%.6f' % mz
-                            new_spectrum = SpectralRecord(mz, s.peaks, {}, fullscan_name,
+                            metadata = { 'best_intensity_at_frag': best_intensity }
+                            new_spectrum = SpectralRecord(mz, s.peaks, metadata, fullscan_name,
                                                           spectrum_id)
                             self.box_to_frag_spectra[b].append(new_spectrum)
 
@@ -523,13 +525,16 @@ class RealEvaluator(Evaluator):
 
                         for b in related_boxes:
                             for ch_idx in box2idxes[b]:
-                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
-                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = max(
+                                best_intensity = max(
                                     new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx],
                                     max([it for _, it in current_intensities[ch_idx]] + [0.0])
                                 )
+                                new_info[ch_idx, self.TIMES_FRAGMENTED, mzml_idx] += 1
+                                new_info[ch_idx, self.MAX_FRAG_INTENSITY, mzml_idx] = best_intensity
+
                             spectrum_id = 'peak_%.6f' % mz
-                            new_spectrum = SpectralRecord(mz, s.peaks, {}, fullscan_name,
+                            metadata = { 'best_intensity_at_frag': best_intensity }
+                            new_spectrum = SpectralRecord(mz, s.peaks, metadata, fullscan_name,
                                                           spectrum_id)
                             self.box_to_frag_spectra[b].append(new_spectrum)
 

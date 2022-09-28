@@ -1,5 +1,6 @@
 import glob
 import os
+from collections import defaultdict
 
 import ipyparallel as ipp
 import matplotlib.pyplot as plt
@@ -7,13 +8,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-
-from tqdm.auto import tqdm
-
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
-from mass_spec_utils.library_matching.spectrum import SpectralRecord
+from tqdm.auto import tqdm
 
 from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
@@ -660,6 +658,39 @@ def get_msdial_file(msdial_folder):
                 break
 
     return msdial_file
+
+
+def eva_to_matches(method, eval_res, allow_multiple=False):
+    eva = eval_res[method]
+
+    matches = defaultdict(list)
+    for box, fullscan_peak in eva.box_to_fullscan_peaks.items():
+        spectra = eva.box_to_frag_spectra[box]
+
+        # there could be multiple spectra associated to each box
+        # find spectra fragmented at the highest intensity and assign it to the fullscan peak
+        if len(spectra) > 0:
+            best_spectra = highest_intensity_at_frag(spectra)
+            matches[fullscan_peak].append(best_spectra)
+    matches = dict(matches)
+
+    # filter by allow_multiple
+    results = {}
+    for fullscan_peak, spectra in matches.items():
+        if not allow_multiple and len(spectra) > 1:
+            # choose highest intensity at fragmentaiton
+            best_spectra = highest_intensity_at_frag(spectra)
+            results[fullscan_peak] = [best_spectra]
+        else:
+            results[fullscan_peak] = spectra
+
+    return results
+
+
+def highest_intensity_at_frag(spectra):
+    spectra_intensities = [spec.metadata['best_intensity_at_frag'] for spec in spectra]
+    best_spectra = spectra[np.argmax(spectra_intensities)]
+    return best_spectra
 
 
 def match_spectra_list(spectra_1, spectra_2, mz_tol, rt_tol, allow_multiple=False):

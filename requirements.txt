@@ -43,7 +43,7 @@ ipywidgets==7.5.1
 jedi==0.18.0
 jeepney==0.7.1
 Jinja2==3.0.1
-joblib==1.0.1
+joblib==1.2.0
 json5==0.9.6
 jsonpickle==2.0.0
 jsonschema==3.2.0

@@ -836,15 +836,17 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
     print('chem_library', chem_library)
     results = []
     for method in methods:
-        print(method)
 
         # get msdial results
         results_folder = os.path.join(base_folder, method)
         spectra = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
+        print(method, len(spectra))
 
         # compare spectra
         with tqdm(total=len(spectra)) as pbar:
             for k, v in spectra.items():
+                best_score = 0.0
+                best_hit = None
                 for spec in v:
                     # returns a list containing (spectrum_id, sc, c)
                     hits = chem_library.spectral_match(spec, matching_method,
@@ -854,13 +856,15 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
                         for item in hits:
                             spectrum_id = item[0]
                             score = item[1]
-                            if score > 0.0:
-                                row = [method, spectrum_id, score]
-                                results.append(row)
+                            if score > best_score:
+                                best_score = score
+                                best_hit = spectrum_id
+                row = [method, k, best_hit, best_score]
+                results.append(row)
                 pbar.update(1)
             pbar.close()
 
-    df = pd.DataFrame(results, columns=['method', 'spectrum_id', 'score'])
+    df = pd.DataFrame(results, columns=['method', 'fullscan_peak', 'matched_id', 'score'])
     return df
 
 
@@ -1031,10 +1035,61 @@ def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
         ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
     plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
     g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
-        'Intensity\nNon-overlap', 'Top-N', 'Iterative\nExclusion'], y=y, ax=axes[1],
+        'Intensity\nNon-overlap', 'Iterative\nExclusion', 'Top-N'], y=y, ax=axes[1],
                     palette=palette)
     g.set(ylabel='Annotated features')
     g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[1].set_title('4 replicates')
+    plt.tight_layout()
+
+    return palette
+
+
+def plot_score_distributions(score_df, palette=None, bins=10):
+    fig, axes = plt.subplots(2, 1, sharex=True, figsize=(15, 10))
+
+    selected_df = score_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+    if palette is None:
+        methods = selected_df['method'].unique()
+        colours = sns.color_palette(n_colors=len(methods))
+        palette = {method: colour for method, colour in zip(methods, colours)}
+
+    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'AIF', 'SWATH'])]
+
+    g = sns.histplot(data=plot_df, hue='method', x='score', multiple="dodge", shrink=.8, bins=bins,
+                     palette=palette, hue_order=[
+            'AIF', 'SWATH', 'Top-N'], ax=axes[0])
+
+    # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[0]) # stacked histogram
+    # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[0]) # unfilled step function
+    # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20, col='method', ax=axes[0]) # separate into columns
+
+    g.set(ylabel='Annotated features')
+    g.set(xlabel=None)
+    sns.move_legend(g, "upper right", title='Method')
+    axes[0].set_title('1 replicate')
+
+    plot_df = selected_df[selected_df['method'].isin(
+        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
+    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+
+    g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
+                     bins=bins, palette=palette, hue_order=[
+            'Intensity\nNon-overlap', 'Iterative\nExclusion', 'Top-N'], ax=axes[1])
+
+    # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[1]) # stacked histogram
+    # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[1]) # unfilled step function
+    # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20, col='method', ax=axes[1]) # separate into columns
+
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Cosine similarity')
+    # g.set(xticklabels=range(1))
+
     sns.move_legend(g, "upper right", title='Method')
     axes[1].set_title('4 replicates')
     plt.tight_layout()

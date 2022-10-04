@@ -294,6 +294,7 @@ class RealEvaluator(Evaluator):
         self.fullscan_names = []
         self.mzmls = []
         self.geoms = []
+        self.all_fullscan_peaks = []
         self.box_to_fullscan_peaks = {} # generated after parsing MS-DIAL results
         self.box_to_frag_spectra = defaultdict(list)
 
@@ -399,6 +400,7 @@ class RealEvaluator(Evaluator):
         # attempt to match each row in the aligned df to the individual sample's df
         chems = []
         matches = {}
+        all_peaks = []
         unmatched = 0
         for i, query_row in aligned_df.iterrows():
             if i % 500 == 0:
@@ -407,6 +409,7 @@ class RealEvaluator(Evaluator):
             query_name = query_record.metadata['names'][0]
             query_precursor_mz = query_record.precursor_mz
             query_rt_in_minutes = query_record.metadata['rt_in_minutes']
+            all_peaks.append(query_record)
 
             # select rows in individual sample's df matching this aligned query spectrum
             chem_row = []
@@ -448,6 +451,7 @@ class RealEvaluator(Evaluator):
         eva.fullscan_names = sample_cols
         eva.geoms = [None for _ in eva.fullscan_names]
         eva.box_to_fullscan_peaks = matches
+        eva.all_fullscan_peaks = all_peaks
         return eva
 
     def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):

@@ -660,7 +660,7 @@ def get_msdial_file(msdial_folder):
     return msdial_file
 
 
-def eva_to_matches(method, eval_res, allow_multiple=False):
+def eva_to_matches(method, eval_res, fullscan_spectra, allow_multiple=False):
     eva = eval_res[method]
 
     matches = defaultdict(list)
@@ -676,7 +676,11 @@ def eva_to_matches(method, eval_res, allow_multiple=False):
 
     # filter by allow_multiple
     results = {}
-    for fullscan_peak, spectra in matches.items():
+    for fullscan_peak in eva.all_fullscan_peaks:
+        spectra = []
+        if fullscan_peak in matches:
+            spectra = matches[fullscan_peak]
+
         if not allow_multiple and len(spectra) > 1:
             # choose highest intensity at fragmentaiton
             best_spectra = highest_intensity_at_frag(spectra)
@@ -684,6 +688,7 @@ def eva_to_matches(method, eval_res, allow_multiple=False):
         else:
             results[fullscan_peak] = spectra
 
+    assert len(results) == len(fullscan_spectra)
     return results
 
 

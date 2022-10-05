@@ -1046,7 +1046,7 @@ def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
     return palette
 
 
-def plot_score_distributions(score_df, palette=None, bins=10):
+def plot_score_distributions(score_df, palette=None, bins=10, legend_pos=['upper right', 'upper right']):
     fig, axes = plt.subplots(2, 1, sharex=True, figsize=(15, 10))
 
     selected_df = score_df.replace({
@@ -1071,7 +1071,7 @@ def plot_score_distributions(score_df, palette=None, bins=10):
 
     g.set(ylabel='Annotated features')
     g.set(xlabel=None)
-    sns.move_legend(g, "upper right", title='Method')
+    sns.move_legend(g, legend_pos[0], title='Method')
     axes[0].set_title('1 replicate')
 
     plot_df = selected_df[selected_df['method'].isin(
@@ -1090,7 +1090,7 @@ def plot_score_distributions(score_df, palette=None, bins=10):
     g.set(xlabel='Cosine similarity')
     # g.set(xticklabels=range(1))
 
-    sns.move_legend(g, "upper right", title='Method')
+    sns.move_legend(g, legend_pos[1], title='Method')
     axes[1].set_title('4 replicates')
     plt.tight_layout()
 

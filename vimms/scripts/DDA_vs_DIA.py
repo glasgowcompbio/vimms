@@ -1046,24 +1046,24 @@ def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
     return palette
 
 
-def plot_score_distributions(score_df, palette=None, bins=10, legend_pos=['upper right', 'upper right']):
-    fig, axes = plt.subplots(2, 1, sharex=True, figsize=(15, 10))
+def plot_score_distributions_1(score_df, palette=None, bins=10):
+    plt.figure(figsize=(15, 5))
 
-    selected_df = score_df.replace({
-        'topN': 'Top-N',
-        'topN_exclusion_replicates': 'Iterative\nExclusion',
-        'intensity_non_overlap': 'Intensity\nNon-overlap'
-    })
     if palette is None:
-        methods = selected_df['method'].unique()
+        methods = score_df['method'].unique()
         colours = sns.color_palette(n_colors=len(methods))
         palette = {method: colour for method, colour in zip(methods, colours)}
 
-    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'AIF', 'SWATH'])]
+    selected_df = score_df[score_df['method'].isin(
+        ['topN', 'AIF', 'SWATH'])]
+    selected_df = selected_df.replace({
+        'topN': 'Top-N',
+    })
 
-    g = sns.histplot(data=plot_df, hue='method', x='score', multiple="dodge", shrink=.8, bins=bins,
+    g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
+                     bins=bins,
                      palette=palette, hue_order=[
-            'AIF', 'SWATH', 'Top-N'], ax=axes[0])
+            'AIF', 'SWATH', 'Top-N'])
 
     # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[0]) # stacked histogram
     # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[0]) # unfilled step function
@@ -1071,27 +1071,104 @@ def plot_score_distributions(score_df, palette=None, bins=10, legend_pos=['upper
 
     g.set(ylabel='Annotated features')
     g.set(xlabel=None)
-    sns.move_legend(g, legend_pos[0], title='Method')
-    axes[0].set_title('1 replicate')
+    sns.move_legend(g, 'best', title='Method')
+    plt.title('1 replicate')
 
-    plot_df = selected_df[selected_df['method'].isin(
-        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
-    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+    plt.tight_layout()
+    return palette
+
+
+def plot_score_distributions_2(score_df, palette=None, min_threshold=0.6, bins=4):
+    fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
+
+    if palette is None:
+        methods = score_df['method'].unique()
+        colours = sns.color_palette(n_colors=len(methods))
+        palette = {method: colour for method, colour in zip(methods, colours)}
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (
+        score_df['method'].isin(['topN', 'topN_exclusion', 'intensity_non_overlap']))]
+    selected_df = selected_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
 
     g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
                      bins=bins, palette=palette, hue_order=[
-            'Intensity\nNon-overlap', 'Iterative\nExclusion', 'Top-N'], ax=axes[1])
-
-    # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[1]) # stacked histogram
-    # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[1]) # unfilled step function
-    # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20, col='method', ax=axes[1]) # separate into columns
+            'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[0], legend=False)
 
     g.set(ylabel='Annotated features')
     g.set(xlabel='Cosine similarity')
-    # g.set(xticklabels=range(1))
+    axes[0].set_title('1 replicate')
 
-    sns.move_legend(g, legend_pos[1], title='Method')
+    selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
+        ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
+    selected_df = selected_df.replace({
+        'topN_replicates': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
+    })
+
+    g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
+                     bins=bins, palette=palette, hue_order=[
+            'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[1], legend=True)
+
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Cosine similarity')
     axes[1].set_title('4 replicates')
-    plt.tight_layout()
 
+    sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1.1, 1), title='Method')
+    plt.tight_layout()
+    return palette
+
+
+def plot_score_distributions_3(score_df, palette=None, min_threshold=0.6):
+    fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(10, 7))
+
+    if palette is None:
+        methods = score_df['method'].unique()
+        colours = sns.color_palette(n_colors=len(methods))
+        palette = {method: colour for method, colour in zip(methods, colours)}
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (
+        score_df['method'].isin(['topN', 'topN_exclusion', 'intensity_non_overlap']))]
+    selected_df = selected_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df.groupby('method').count().reset_index(drop=False)
+    selected_df = selected_df[sorted(selected_df.columns, key=lambda x: x[0], reverse=True)]
+    line_at = selected_df[selected_df['method'] == 'Top-N']['fullscan_peak'].values[0]
+
+    g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[0],
+                    order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
+
+    g.set(ylabel='Total annotated\nfeatures')
+    g.set(xlabel='Methods')
+    axes[0].set_title('1 replicate')
+    axes[0].tick_params(axis='x', rotation=90)
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
+        ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
+    selected_df = selected_df.replace({
+        'topN_replicates': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df.groupby('method').count().reset_index(drop=False)
+
+    g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[1],
+                    order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
+
+    g.set(ylabel=None)
+    g.set(xlabel='Methods')
+    axes[1].set_title('4 replicates')
+    axes[1].tick_params(axis='x', rotation=90)
+
+    axes[0].axhline(line_at, ls='--', color='k', alpha=0.60)
+    axes[1].axhline(line_at, ls='--', color='k', alpha=0.60)
+
+    plt.tight_layout()
     return palette

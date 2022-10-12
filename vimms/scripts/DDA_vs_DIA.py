@@ -1014,7 +1014,7 @@ def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
     selected_df = hit_prop_df.replace({
         'topN': 'Top-N',
         'topN_exclusion_replicates': 'Iterative\nExclusion',
-        'intensity_non_overlap': 'Intensity\nNon-overlap'
+        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
     })
     selected_df = selected_df[selected_df['matching_threshold'].isin(
         [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])]
@@ -1047,7 +1047,7 @@ def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
 
 
 def plot_score_distributions_1(score_df, palette=None, bins=10):
-    plt.figure(figsize=(15, 5))
+    fig, ax = plt.subplots(figsize=(15, 5))
 
     if palette is None:
         methods = score_df['method'].unique()
@@ -1069,10 +1069,24 @@ def plot_score_distributions_1(score_df, palette=None, bins=10):
     # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[0]) # unfilled step function
     # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20, col='method', ax=axes[0]) # separate into columns
 
-    g.set(ylabel='Annotated features')
-    g.set(xlabel=None)
+    g.set(ylabel='Features annotated')
+    g.set(xlabel='Cosine similiarity (%)')
     sns.move_legend(g, 'best', title='Method')
-    plt.title('1 replicate')
+    plt.title('Top-N, DIA (1 replicate)')
+    plt.xticks(np.arange(0.05, 1.05, 0.1))
+
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    labels[0] = '0-10'
+    labels[1] = '10-20'
+    labels[2] = '20-30'
+    labels[3] = '30-40'
+    labels[4] = '40-50'
+    labels[5] = '50-60'
+    labels[6] = '60-70'
+    labels[7] = '70-80'
+    labels[8] = '80-90'
+    labels[9] = '90-100'
+    ax.set_xticklabels(labels)
 
     plt.tight_layout()
     return palette
@@ -1098,9 +1112,16 @@ def plot_score_distributions_2(score_df, palette=None, min_threshold=0.6, bins=4
                      bins=bins, palette=palette, hue_order=[
             'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[0], legend=False)
 
-    g.set(ylabel='Annotated features')
-    g.set(xlabel='Cosine similarity')
-    axes[0].set_title('1 replicate')
+    g.set(ylabel='Features annotated')
+    g.set(xlabel='Cosine similiarity (%)')
+    axes[0].set_title('Top-N, Iterative DDA\n(1 replicate)')
+    axes[0].set_xticks(np.arange(min_threshold + 0.05, 1.05, 0.1))
+    labels = [item.get_text() for item in axes[0].get_xticklabels()]
+    labels[0] = '60-70'
+    labels[1] = '70-80'
+    labels[2] = '80-90'
+    labels[3] = '90-100'
+    axes[0].set_xticklabels(labels)
 
     selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
         ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
@@ -1116,7 +1137,7 @@ def plot_score_distributions_2(score_df, palette=None, min_threshold=0.6, bins=4
 
     g.set(ylabel='Annotated features')
     g.set(xlabel='Cosine similarity')
-    axes[1].set_title('4 replicates')
+    axes[1].set_title('Top-N, Iterative DDA\n(4 replicates)')
 
     sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1.1, 1), title='Method')
     plt.tight_layout()
@@ -1145,7 +1166,7 @@ def plot_score_distributions_3(score_df, palette=None, min_threshold=0.6):
     g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[0],
                     order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
 
-    g.set(ylabel='Total annotated\nfeatures')
+    g.set(ylabel='Total annotated features')
     g.set(xlabel='Methods')
     axes[0].set_title('1 replicate')
     axes[0].tick_params(axis='x', rotation=90)

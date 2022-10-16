@@ -26,7 +26,7 @@ from vimms.Matching import MatchingScan, MatchingChem, Matching
 from vimms.Controller.misc import DsDAController, MatchingController
 from vimms.Environment import Environment
 from vimms.BoxVisualise import EnvPlotPickler
-from vimms.Evaluation import pick_aligned_peaks, evaluate_real
+from vimms.Evaluation import pick_aligned_peaks, evaluate_real, check_files_match_mzmine
 
 class Shareable:
     def __init__(self, name, split=False):
@@ -236,7 +236,7 @@ class ExperimentCase:
             
         return {self.name : mzml_names}
         
-    def valid_controller(self):
+    def valid_controller(self, out_dir=""):
         """
            Checks if controller throws an assertion error during exception
            which should mean its initialisation is invalid due to 
@@ -245,9 +245,14 @@ class ExperimentCase:
            Returns: Boolean indicating whether an error was thrown.
         """
         
-        params = self._init_shareable()
+        params = self.shared.init_shareable(
+            self.params,
+            out_dir, 
+            self.fullscan_paths,
+            grid_init=self.grid_init
+        )
         try:
-            self.controller(**params)
+            self.shared.get_controller(self.controller, "")
             return True
         except AssertionError:
             return False
@@ -261,7 +266,7 @@ class Experiment:
         self.case_names = []
         self.case_mzmls = {}
         
-        self.evaluators = {}
+        self.evaluators = []
     
     def add_cases(self, cases):
         cases = list(cases)
@@ -509,6 +514,18 @@ class Experiment:
                 aligned_paths.append(path)
                 
         return aligned_paths
+        
+    def _check_files_match_mzmine(self, fullscan_names, aligned_path, mode="none"):
+        if(mode == "none"):
+            passed, fullscan_names, mzmine_names = check_files_match_mzmine(
+                fullscan_names, aligned_path, mode="subset"
+            )
+            return True, fullscan_names, mzmine_names
+            
+        else:
+            return check_files_match_mzmine(
+                fullscan_names, aligned_path, mode=mode
+            )
     
     def evaluate(self, 
                  num_workers=None,
@@ -518,7 +535,8 @@ class Experiment:
                  max_repeat=None,
                  mzmine_templates=None,
                  mzmine_exe=None,
-                 force_peak_picking=False):
+                 force_peak_picking=False,
+                 check_mzmine="none"):
         
         aligned_names = self._pick_aligned_peaks(
             aligned_dirs=aligned_dirs, 
@@ -536,6 +554,17 @@ class Experiment:
                 isolation_widths = list(isolation_widths)
             except:
                 isolation_widths = [isolation_widths] * len(self.case_names)
+        
+        for name, aligned_path in zip(self.case_names, aligned_names):
+            fs_names = [fs for fs, _ in self.case_mzmls[name]]
+            passed, fs_names, mzmine_names = self._check_files_match_mzmine(
+                fs_names, aligned_path, mode=check_mzmine
+            )
+            
+            if(not passed):
+                raise ValueError(
+                    (check_mzmine, fs_names, aligned_path, mzmine_names)
+                )
                 
         max_repeat = len(self.case_names) if max_repeat is None else max_repeat
         zipped = zip(
@@ -546,6 +575,29 @@ class Experiment:
 
         with multiprocessing.Pool(num_workers) as pool:
             self.evaluators = pool.starmap(evaluate_real, zipped)
+            
+    @staticmethod
+    def _report_helper(eva, min_it):
+        return eva.evaluation_report(min_intensity=min_it)
+            
+    def get_reports(self, min_intensities=None, num_workers=None):
+        if(min_intensities is None):
+            min_intensities = itertools.repeat(0.0)
+        else:
+            try:
+                min_intensities = list(min_intensities)
+            except TypeError:
+                min_intensities = [min_intensities] * len(self.evaluators)
+    
+        with multiprocessing.Pool(num_workers) as pool:
+            reports = pool.starmap(
+                self._report_helper, 
+                zip(self.evaluators, min_intensities)
+            )
+            
+        return {
+            n : r for n, r in zip(self.case_names, reports)
+        }
     
     @staticmethod
     def _score_eva(eva, min_it, rank_key):

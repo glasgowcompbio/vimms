@@ -664,25 +664,34 @@ def mpl_results_plot(experiment_names,
                      colours=None, 
                      markers=None,
                      leglocs=None,
-                     suptitle=None):
-                     
+                     suptitle=None,
+                     xsize=18.5,
+                     ysize=10.5,
+                     mode="absolute"):
+    
+    mode = mode.lower()
+    if(mode == "absolute"):
+        mode_str = "(Relative to Total)"
+    elif(mode == "relative"):
+        mode_str = "(% Variation From Mean)"
+    
     if(keys is None):
         keys = ["cumulative_coverage_proportion", "cumulative_intensity_proportion"]
-                     
+        
     layouts = {
         "cumulative_coverage_proportion" : {
             "title" : "Multi-Sample Cumulative Coverage",
-            "ylabel" :  "Cumulative Coverage Proportion",
+            "ylabel" :  f"Cumulative Coverage Proportion {mode_str}",
         },
         
         "cumulative_intensity_proportion" : {
             "title" : "Multi-Sample Cumulative Intensity Proportion",
-            "ylabel" : "Cumulative Intensity Proportion",
+            "ylabel" : f"Cumulative Intensity Proportion {mode_str}",
         },
         
         "cumulative_covered_intensities_proportion" : {
             "title" : "Multi-Sample Cumulative Intensity Proportion (Covered Peaks Only)",
-            "ylabel" : "Cumulative Intensity Proportion",
+            "ylabel" : f"Cumulative Intensity Proportion {mode_str}",
         }
     }
                      
@@ -701,11 +710,21 @@ def mpl_results_plot(experiment_names,
     if(leglocs is None): use_leglocs = itertools.repeat(None)
     else: use_leglocs = copy.copy(leglocs)
     
-    itr = zip(experiment_names, evals, use_colours, use_markers, use_leglocs)
-    for exp_name, eva, c, m, legloc in itr:
-        results = eva.evaluation_report(min_intensity=min_intensity)
-        for key, ax in zip(keys, axes):
-            scores = results[key]
+    results_list = [eva.evaluation_report(min_intensity=min_intensity) for eva in evals]
+    for key, ax in zip(keys, axes):
+        itr = zip(experiment_names, results_list, use_colours, use_markers, use_leglocs)
+        if(mode == "relative"):
+            means = np.mean(
+                [r[key] for r in results_list],
+                axis=0
+            )
+        
+        for exp_name, results, c, m, legloc in itr:
+            if(mode == "absolute"): 
+                scores = results[key]
+            elif(mode == "relative"): 
+                scores = [(r - m) * 100 / m for r, m in zip(results, means)]
+            
             xs = list(range(1, len(scores) + 1))
 
             ax.set(
@@ -715,14 +734,19 @@ def mpl_results_plot(experiment_names,
             ax.plot(xs, scores, label=exp_name, color=c, marker=m)
             ax.legend(loc=legloc)
         
-    fig.set_size_inches(18.5, 10.5)
+    fig.set_size_inches(xsize, ysize)
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=18)
     
     plt.show()
 
 
-def mpl_mzml(mzml, draw_minm=0.0, colour_minm=None, show_precursors=False):
+def mpl_mzml(mzml, 
+             draw_minm=0.0, 
+             colour_minm=None, 
+             show_precursors=False,
+             xsize=18.5,
+             ysize=10.5):
     fig, ax = plt.subplots(1, 1)
     
     pp = PlotPoints.from_mzml(mzml)
@@ -731,11 +755,46 @@ def mpl_mzml(mzml, draw_minm=0.0, colour_minm=None, show_precursors=False):
         xlabel="RT (Seconds)", 
         ylabel="m/z"
     )
-    fig.set_size_inches(18.5, 10.5)
+    fig.set_size_inches(xsize, ysize)
     plt.plot()
-    
 
-def mpl_fragmentation_events(exp_name, mzmls, colour_minm=None):
+
+def mpl_fragmentation_counts(exp_name, 
+                             eva, 
+                             min_intensity=0.0, 
+                             key="times_covered_summary", 
+                             fc=None):
+    
+    if(key == "times_covered_summary"):
+        title = f"Counts of Times Chemicals Covered in {exp_name}"
+        xlabel = "Times Covered"
+    elif(key == "times_fragmented_summary"):
+        title = f"Counts of Times Chemicals Fragmented in {exp_name}"
+        xlabel = "Times Fragmented"
+    else:
+        raise ValueError("Key not recognised")
+
+    report = eva.evaluation_report(min_intensity=min_intensity)
+    counter = report[key]
+    
+    fig, ax = plt.subplots()
+    fragmentations = [k for k, _ in counter.items()]
+    counts = [v for _, v in counter.items()]
+
+    ax.bar(
+        x=fragmentations, 
+        height=counts,
+        align='edge', 
+        fc='skyblue', 
+        ec='black'
+    )
+    plt.plot()
+
+def mpl_fragmentation_events(exp_name, 
+                             mzmls, 
+                             colour_minm=None,
+                             xsize=20,
+                             ysize=4):
     fig, axes = plt.subplots(len(mzmls), 1)
     
     for i, (mzml, ax) in enumerate(zip(mzmls, axes)):
@@ -747,16 +806,16 @@ def mpl_fragmentation_events(exp_name, mzmls, colour_minm=None):
         )
     
     axes[-1].set(xlabel="RT (Seconds)")
-    fig.set_size_inches(20, len(mzmls) * 4)
+    fig.set_size_inches(xsize, len(mzmls) * ysize)
     plt.plot()
 
 
-def mpl_fragmented_boxes_raw(exp_name, boxes):
+def mpl_fragmented_boxes_raw(exp_name, boxes, xsize=20, ysize=10):
     fig, ax = plt.subplots(1, 1)
     for b in boxes:
         b.mpl_add_to_plot(ax)
     ax.set(title=f"{exp_name} Picked Boxes", xlabel="RT (Seconds)", ylabel="m/z")
-    fig.set_size_inches(20, 10)
+    fig.set_size_inches(xsize, ysize)
     plt.plot()
     
 

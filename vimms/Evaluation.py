@@ -112,6 +112,31 @@ def pick_aligned_peaks(input_files,
     return output_path
 
 
+def check_files_match_mzmine(fullscan_names, aligned_path, mode="subset"):
+    fs_names = {os.path.basename(fs) for fs in fullscan_names}
+    mzmine_names = set()
+    
+    with open(aligned_path, "r") as f:
+        headers = f.readline().split(",")
+        pattern = re.compile(r"(.*\.mzML).*")
+        
+        for h in headers:
+            for fs in fs_names:
+                m = pattern.match(h)
+                if(not m is None):
+                    mzmine_names.add(m.group(1))
+    
+    mode = mode.lower()
+    if(mode == "exact"):
+        passed = not fs_names ^ mzmine_names
+    elif(mode == "subset"):
+        passed = not fs_names - mzmine_names
+    else:
+        raise ValueError("Mode not recognised")
+        
+    return passed, fs_names, mzmine_names
+                    
+
 class Evaluator(metaclass=ABCMeta):
 
     TIMES_FRAGMENTED = 0
@@ -304,7 +329,7 @@ class RealEvaluator(Evaluator):
         chems = []
         with open(aligned_file, "r") as f:
             headers = f.readline().split(",")
-            pattern = re.compile(r"(.*).mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
+            pattern = re.compile(r"(.*)\.mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
             
             indices = defaultdict(dict)
             for i, h in enumerate(headers):

@@ -196,7 +196,7 @@ class MatchingChem():
         
         with open(box_file_path, "r") as f:
             headers = f.readline().split(",")
-            pattern = re.compile(r"(.*).mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
+            pattern = re.compile(r"(.*)\.mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
             
             indices = defaultdict(dict)
             for i, h in enumerate(headers):

@@ -3,6 +3,9 @@
 # spectra in the MSP file can be matched to a spectrum in an ms2 scan
 # in the .mzml
 import sys
+
+from vimms.Box import GenericBox
+
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
@@ -87,62 +90,107 @@ def library_from_msp(msp_file_name):
     return sl
 
 
-def make_queries_from_aligned_msdial(msdial_file_name, frag_file=True):
+def make_queries_from_aligned_msdial(msdial_file_name, frag_file=True,
+                                     sample_name=None):
     query_spectra = []
     msdial_df = pd.read_csv(msdial_file_name, sep='\t',
                             index_col='Alignment ID', header=4)
-
     if frag_file:
         msdial_df = msdial_df[msdial_df['MS/MS assigned'] == True]
 
     for i, row in msdial_df.iterrows():
-
-        peaks = []
-        try:
-            for info in row['MS/MS spectrum'].split():
-                mz, intensity = info.split(':')
-                peak = np.array([float(mz), float(intensity)])
-                peaks.append(peak)
-        except AttributeError: # no MS2 spectrum
-            pass
-
-        precursor_mz = row['Average Mz']
-        metadata = {
-            'rt': row['Average Rt(min)'] * 60,
-            'names': [row['Metabolite name']],
-            'msms_assigned': row['MS/MS assigned'],
-            'rt_matched': row['RT matched'],
-            'mz_matched': row['m/z matched'],
-            'msms_matched': row['MS/MS matched'],
-            'total_score': row['Total score'],
-            'dot_product': row['Dot product'],
-            'reverse_dot_product': row['Reverse dot product'],
-            'fragment_presence': row['Fragment presence %'],
-            'msms_spectrum': row['MS/MS spectrum']
-        }
-        original_file = row['Spectrum reference file name']
-        spectrum_id = 'peak_%.6f' % precursor_mz
-        new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+        new_spectrum = aligned_row_to_spectral_record(row, sample_name=sample_name)
         query_spectra.append(new_spectrum)
     return query_spectra
 
 
+def aligned_row_to_spectral_record(row, sample_name=None):
+    peaks = extract_msdial_spectrum(row, 'MS/MS spectrum')
+    precursor_mz = row['Average Mz']
+    metadata = {
+        'rt_in_minutes': row['Average Rt(min)'],
+        'rt': row['Average Rt(min)'] * 60.0,
+        'names': [row['Metabolite name']],
+        'msms_assigned': row['MS/MS assigned'],
+        'rt_matched': row['RT matched'],
+        'mz_matched': row['m/z matched'],
+        'msms_matched': row['MS/MS matched'],
+        'total_score': row['Total score'],
+        'dot_product': row['Dot product'],
+        'reverse_dot_product': row['Reverse dot product'],
+        'fragment_presence': row['Fragment presence %'],
+        'msms_spectrum': row['MS/MS spectrum'],
+    }
+    if sample_name is not None:
+        sample_cols = row.filter(regex=sample_name)
+        metadata.update({
+            'samples': sample_cols.to_dict(),
+            'sample_count': np.count_nonzero(sample_cols.values)
+        })
+
+    original_file = row['Spectrum reference file name']
+    spectrum_id = 'peak_%.6f' % precursor_mz
+    new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+    return new_spectrum
+
+
+def extract_msdial_spectrum(row, key):
+    peaks = []
+    try:
+        for info in row[key].split():
+            mz, intensity = info.split(':')
+            peak = np.array([float(mz), float(intensity)])
+            peaks.append(peak)
+    except AttributeError:  # no MS2 spectrum
+        pass
+    return peaks
+
+
 def make_queries_from_msdial(msdial_file_name):
+    original_file = os.path.splitext(msdial_file_name)[0]
     query_spectra = []
     msdial_df = pd.read_csv(msdial_file_name, sep='\t', index_col='PeakID')  #
-    for i in range(msdial_df.shape[0]):
-        precursor_mz = msdial_df['Precursor m/z'][i]
-        peaks = []
-        if msdial_df['MSMS spectrum'][i] == msdial_df['MSMS spectrum'][
-                i]:  # checking if nan
-            for info in msdial_df['MSMS spectrum'][i].split():
-                mz, intensity = info.split(':')
-                peak = np.array([float(mz), float(intensity)])
-                peaks.append(peak)
-            new_spectrum = Spectrum(precursor_mz, peaks)
-            query_spectra.append(new_spectrum)
+    for i, row in msdial_df.iterrows():
+        new_spectrum = row_to_spectral_record(row, original_file=original_file)
+        query_spectra.append(new_spectrum)
     return query_spectra
 
+
+def row_to_spectral_record(row, original_file=None):
+    peaks = extract_msdial_spectrum(row, 'MSMS spectrum')
+    precursor_mz = row['Precursor m/z'].values[0]
+    metadata = {
+        'rt_in_minutes': row['RT (min)'].values[0],
+        'rt': row['RT (min)'].values[0] * 60.0,
+        'names': [row['Title'].values[0]],
+        'rt_matched': row['RT matched'].values[0],
+        'mz_matched': row['m/z matched'].values[0],
+        'msms_matched': row['MS/MS matched'].values[0],
+        'total_score': row['Total score'].values[0],
+        'dot_product': row['Dot product'].values[0],
+        'reverse_dot_product': row['Reverse dot product'].values[0],
+        'fragment_presence': row['Fragment presence %'].values[0],
+        'msms_spectrum': row['MSMS spectrum'].values[0],
+        'samples': {
+            'height': row['Height'].values[0],
+            'area': row['Area'].values[0]
+        },
+        'sample_count': 1,
+        'box': msdial_row_to_box(precursor_mz,
+                                 row["RT left(min)"].values[0],
+                                 row["RT right (min)"].values[0])
+    }
+    spectrum_id = 'peak_%.6f' % precursor_mz
+    new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+    return new_spectrum
+
+
+def msdial_row_to_box(precursor_mz, rt_left_in_minutes, rt_right_in_minutes, mz_tol=10):
+    x1 = rt_left_in_minutes * 60.0
+    x2 = rt_right_in_minutes * 60.0
+    y1 = precursor_mz * (1 - mz_tol / 1e6)
+    y2 = precursor_mz * (1 + mz_tol / 1e6)
+    return GenericBox(x1, x2, y1, y2)
 
 def make_queries_from_mzml(mzml_file_object):
     query_spectra = []

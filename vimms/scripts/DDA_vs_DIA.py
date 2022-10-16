@@ -1,5 +1,6 @@
 import glob
 import os
+from collections import defaultdict
 
 import ipyparallel as ipp
 import matplotlib.pyplot as plt
@@ -7,13 +8,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-
-from tqdm.auto import tqdm
-
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
-from mass_spec_utils.library_matching.spectrum import SpectralRecord
+from tqdm.auto import tqdm
 
 from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
@@ -25,9 +23,10 @@ from vimms.Controller import AgentBasedController, TopN_SmartRoiController, \
 from vimms.Controller.box import IntensityNonOverlapController, \
     NonOverlapController
 from vimms.Environment import Environment
-from vimms.Evaluation import evaluate_multi_peak_roi_aligner
+from vimms.Evaluation import evaluate_multi_peak_roi_aligner, RealEvaluator
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiAligner
+
 
 ################################################################################
 # Synthetic experiments
@@ -428,7 +427,6 @@ def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
 
 def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
                        cumulative=False, palette=None):
-
     sns.set_context(context='poster', font_scale=1, rc=None)
     figsize = (20, 10)
     fig, axes = plt.subplots(1, 2, figsize=figsize)
@@ -494,6 +492,147 @@ def plot_frag_events(exp_name, out_dir, repeat):
 # Real experiments
 ################################################################################
 
+def evaluate_fragmentation(aligned_file, eval_using, sample_col_name,
+                           sample_list, fragmentation_folder,
+                           methods, replicates, isolation_width):
+    """
+    Evaluate boxes against fragmentation spectra using the `RealEvaluator` class.
+    Args:
+        aligned_file: Path to aligned CSV file containing boxes.
+                      Can be produced by MzMine or MS-DIAL
+        eval_using: Which tool produced the aligned file, either 'mzmine' or 'msdial'
+        sample_col_name: a string to indicate which are the sample intensity columns
+                         in the MS-DIAL results, e.g. 'beer'
+        sample_list: a list of sample names, e.g. ['beer1', 'beer2', ...]
+        fragmentation_folder: the folder containing fragmentation mzMLs
+        methods: the name of methods, e.g. ['topN', 'topN_exclusion', ..]
+        replicates: the number of replicates
+        isolation_width: isolation width
+
+    Returns: a dictionary where the key is method, and value is a RealEvaluator object.
+
+    """
+    eval_res = {}
+    for method, replicate in zip(methods, replicates):
+        print()
+        print(method)
+
+        assert eval_using in ['mzmine', 'msdial']
+        if eval_using == 'mzmine':
+            eva = RealEvaluator.from_aligned(aligned_file)
+        elif eval_using == 'msdial':
+            eva = RealEvaluator.from_aligned_msdial(aligned_file, sample_col_name)
+
+        method_folder = os.path.join(fragmentation_folder, method)
+        method_name = method.replace('_replicates', '')
+
+        # TODO: check with Ross, but this seems incorrect?
+        # this will create: [
+        #     'fullscan_beer1_0': ['topN_beer1_0.mzML', 'topN_beer1_1.mzML', ...],
+        #     'fullscan_beer2_0': ['topN_beer2_0.mzML', 'topN_beer2_1.mzML', ...],
+        #     ...
+        # ]
+        # mzml_pairs = []
+        # for sample in sample_list:
+        #     fullscan_name = 'fullscan_%s_0' % sample
+        #     mzmls = []
+        #     for i in range(replicate):
+        #         mzml = os.path.join(method_folder, '%s_%s_%d.mzML' % (method_name, sample, i))
+        #         mzmls.append(mzml)
+        #     pair = (fullscan_name, mzmls)
+        #     mzml_pairs.append(pair)
+
+        # TODO: check with Ross
+        # this will create: [
+        #     'fullscan_beer1_0': ['topN_beer1_0.mzML'],
+        #     'fullscan_beer2_0': ['topN_beer2_0.mzML'],
+        #     'fullscan_beer3_0': ['topN_beer3_0.mzML'],
+        #     'fullscan_beer4_0': ['topN_beer4_0.mzML'],
+        #     'fullscan_beer5_0': ['topN_beer5_0.mzML'],
+        #     'fullscan_beer6_0': ['topN_beer6_0.mzML'],
+        #     'fullscan_beer1_0': ['topN_beer1_1.mzML'],
+        #     'fullscan_beer2_0': ['topN_beer2_1.mzML'],
+        #     'fullscan_beer3_0': ['topN_beer3_1.mzML'],
+        #     ...
+        # ]
+        mzml_pairs = []
+        for i in range(replicate):
+            for sample in sample_list:
+                fullscan_name = 'fullscan_%s_0' % sample
+                mzmls = [os.path.join(method_folder, '%s_%s_%d.mzML' % (method_name, sample, i))]
+                pair = (fullscan_name, mzmls)
+                mzml_pairs.append(pair)
+
+        for fullscan_name, mzmls in mzml_pairs:
+            print(fullscan_name, mzmls)
+            eva.add_info(fullscan_name, mzmls, isolation_width=isolation_width)
+
+        eval_res[method] = eva
+    return eval_res
+
+
+def print_evaluations(eval_res):
+    for method in eval_res:
+        eva = eval_res[method]
+        print(method)
+        print(eva.summarise())
+        print()
+
+
+def evas_to_reports(eval_res):
+    reports = {method: eva.revaluation_report() for method, eva in eval_res.iteritems()}
+    return reports
+
+
+def eval_res_to_df(eval_res):
+    dfs = []
+    for method in eval_res:
+        print(method)
+        report = eval_res[method].evaluation_report()
+        data = []
+
+        metric_names = [
+            'num_frags',
+            'sum_cumulative_coverage',
+            'cumulative_coverage_proportion',
+            'cumulative_intensity_proportion'
+        ]
+        for metric_name in metric_names:
+            for i, metric_value in enumerate(report[metric_name]):
+                data.append((method, i, metric_value, metric_name))
+
+        df = pd.DataFrame(data, columns=['method', 'sample_idx', 'metric_value', 'metric_name'])
+        dfs.append(df)
+
+    combined_df = pd.concat(dfs)
+    return combined_df
+
+
+def plot_coverage_intensity_props(df, selected_methods, suptitle=None):
+    fig, axes = plt.subplots(1, 2, sharey=False, figsize=(20, 10))
+
+    data = df[df['metric_name'] == 'cumulative_coverage_proportion']
+    data = data[data['method'].isin(selected_methods)].reset_index(drop=True)
+    g = sns.lineplot(data=data, x='sample_idx', y='metric_value', hue='method', ax=axes[0])
+
+    g.set(ylabel='Coverage proportion')
+    g.set(xlabel='Samples')
+    axes[0].set_title('Coverage proportion vs samples')
+    sns.move_legend(g, "upper left", bbox_to_anchor=(0.74, -0.14))
+
+    data = df[df['metric_name'] == 'cumulative_intensity_proportion']
+    data = data[data['method'].isin(selected_methods)].reset_index(drop=True)
+    g = sns.lineplot(data=data, x='sample_idx', y='metric_value', hue='method', ax=axes[1])
+
+    g.set(ylabel='Intensity proportion')
+    g.set(xlabel='Samples')
+    axes[1].set_title('Intensity proportion vs samples')
+    axes[1].get_legend().remove()
+
+    if suptitle is not None:
+        plt.suptitle(suptitle, fontsize=24)
+
+
 def get_msdial_file(msdial_folder):
     """In a folder, get the filename containing MS-DIAL aligned peaklist.
 
@@ -519,6 +658,44 @@ def get_msdial_file(msdial_folder):
                 break
 
     return msdial_file
+
+
+def eva_to_matches(method, eval_res, fullscan_spectra, allow_multiple=False):
+    eva = eval_res[method]
+
+    matches = defaultdict(list)
+    for box, fullscan_peak in eva.box_to_fullscan_peaks.items():
+        spectra = eva.box_to_frag_spectra[box]
+
+        # there could be multiple spectra associated to each box
+        # find spectra fragmented at the highest intensity and assign it to the fullscan peak
+        if len(spectra) > 0:
+            best_spectra = highest_intensity_at_frag(spectra)
+            matches[fullscan_peak].append(best_spectra)
+    matches = dict(matches)
+
+    # filter by allow_multiple
+    results = {}
+    for fullscan_peak in eva.all_fullscan_peaks:
+        spectra = []
+        if fullscan_peak in matches:
+            spectra = matches[fullscan_peak]
+
+        if not allow_multiple and len(spectra) > 1:
+            # choose highest intensity at fragmentaiton
+            best_spectra = highest_intensity_at_frag(spectra)
+            results[fullscan_peak] = [best_spectra]
+        else:
+            results[fullscan_peak] = spectra
+
+    assert len(results) == len(fullscan_spectra)
+    return results
+
+
+def highest_intensity_at_frag(spectra):
+    spectra_intensities = [spec.metadata['best_intensity_at_frag'] for spec in spectra]
+    best_spectra = spectra[np.argmax(spectra_intensities)]
+    return best_spectra
 
 
 def match_spectra_list(spectra_1, spectra_2, mz_tol, rt_tol, allow_multiple=False):
@@ -617,7 +794,8 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
                 for k, v in matches.items():
                     for spec in v:
                         hits = chem_library.spectral_match(spec, matching_method,
-                                                           matching_ms2_tol, matching_min_match_peaks,
+                                                           matching_ms2_tol,
+                                                           matching_min_match_peaks,
                                                            matching_ms1_tol, thresh)
                         if len(hits) > 0:
                             for item in hits:
@@ -639,14 +817,16 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
                 no_annotated_compounds,
                 no_annotated_peaks,
                 prop_annotated_compounds,
-                prop_annotated_peaks
+                prop_annotated_peaks,
+                set(annotated_peaks)
             ]
             results.append(row)
 
     df = pd.DataFrame(results, columns=[
-                      'method', 'matching_threshold',
-                      'no_annotated_compounds', 'no_annotated_peaks',
-                      'prop_annotated_compounds', 'prop_annotated_peaks'])
+        'method', 'matching_threshold',
+        'no_annotated_compounds', 'no_annotated_peaks',
+        'prop_annotated_compounds', 'prop_annotated_peaks',
+        'annotated_peaks'])
     return df
 
 
@@ -656,15 +836,17 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
     print('chem_library', chem_library)
     results = []
     for method in methods:
-        print(method)
 
         # get msdial results
         results_folder = os.path.join(base_folder, method)
         spectra = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
+        print(method, len(spectra))
 
         # compare spectra
         with tqdm(total=len(spectra)) as pbar:
             for k, v in spectra.items():
+                best_score = 0.0
+                best_hit = None
                 for spec in v:
                     # returns a list containing (spectrum_id, sc, c)
                     hits = chem_library.spectral_match(spec, matching_method,
@@ -674,13 +856,15 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
                         for item in hits:
                             spectrum_id = item[0]
                             score = item[1]
-                            if score > 0.0:
-                                row = [method, spectrum_id, score]
-                                results.append(row)
+                            if score > best_score:
+                                best_score = score
+                                best_hit = spectrum_id
+                row = [method, k, best_hit, best_score]
+                results.append(row)
                 pbar.update(1)
             pbar.close()
 
-    df = pd.DataFrame(results, columns=['method', 'spectrum_id', 'score'])
+    df = pd.DataFrame(results, columns=['method', 'fullscan_peak', 'matched_id', 'score'])
     return df
 
 
@@ -777,3 +961,235 @@ def matched_spectra_as_df(base_folder, methods):
     df = pd.concat(dfs).reset_index(drop=True)
     score_df = pd.concat(score_dfs).reset_index(drop=True)
     return df, score_df
+
+
+def plot_matching_thresholds_1(hit_prop_df, y='prop_annotated_peaks'):
+    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(20, 5))
+
+    selected_df = hit_prop_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df[selected_df['matching_threshold'].isin([0.2, 0.4, 0.6, 0.8])]
+
+    methods = selected_df['method'].unique()
+    colours = sns.color_palette(n_colors=len(methods))
+    palette = {method: colour for method, colour in zip(methods, colours)}
+
+    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'SWATH', 'AIF'])]
+    # line_at = plot_df[
+    #     (plot_df['method'] == 'Top-N') &
+    #     (plot_df['matching_threshold'] == 0.6)
+    # ][y].values[0]
+    g = sns.barplot(data=plot_df, x='matching_threshold',
+                    hue='method', y=y, ax=axes[0], palette=palette, hue_order=[
+            'AIF', 'SWATH', 'Top-N'])
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[0].set_title('1 replicate')
+
+    plot_df = selected_df[selected_df['method'].isin(
+        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
+    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+    g = sns.barplot(data=plot_df, x='matching_threshold',
+                    hue='method', y=y, ax=axes[1], palette=palette, hue_order=[
+            'Intensity\nNon-overlap', 'Top-N', 'Iterative\nExclusion'
+        ])
+    g.set(ylabel=None)
+    g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[1].set_title('4 replicates')
+
+    # axes[0].axhline(line_at, ls='--', color='k', alpha=0.60)
+    # axes[1].axhline(line_at, ls='--', color='k', alpha=0.60)
+
+    return palette
+
+
+def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
+    fig, axes = plt.subplots(2, 1, sharex=True, figsize=(15, 10))
+
+    selected_df = hit_prop_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df[selected_df['matching_threshold'].isin(
+        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])]
+
+    methods = selected_df['method'].unique()
+    colours = sns.color_palette(n_colors=len(methods))
+    palette = {method: colour for method, colour in zip(methods, colours)}
+
+    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'SWATH', 'AIF'])]
+    g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
+        'AIF', 'SWATH', 'Top-N'], y=y, ax=axes[0], palette=palette)
+    g.set(ylabel='Annotated features')
+    g.set(xlabel=None)
+    sns.move_legend(g, "upper right", title='Method')
+    axes[0].set_title('1 replicate')
+
+    plot_df = selected_df[selected_df['method'].isin(
+        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
+    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+    g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
+        'Intensity\nNon-overlap', 'Iterative\nExclusion', 'Top-N'], y=y, ax=axes[1],
+                    palette=palette)
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Matching threshold')
+    sns.move_legend(g, "upper right", title='Method')
+    axes[1].set_title('4 replicates')
+    plt.tight_layout()
+
+    return palette
+
+
+def plot_score_distributions_1(score_df, palette=None, bins=10):
+    fig, ax = plt.subplots(figsize=(15, 5))
+
+    if palette is None:
+        methods = score_df['method'].unique()
+        colours = sns.color_palette(n_colors=len(methods))
+        palette = {method: colour for method, colour in zip(methods, colours)}
+
+    selected_df = score_df[score_df['method'].isin(
+        ['topN', 'AIF', 'SWATH'])]
+    selected_df = selected_df.replace({
+        'topN': 'Top-N',
+    })
+
+    g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
+                     bins=bins,
+                     palette=palette, hue_order=[
+            'AIF', 'SWATH', 'Top-N'])
+
+    # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[0]) # stacked histogram
+    # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[0]) # unfilled step function
+    # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20, col='method', ax=axes[0]) # separate into columns
+
+    g.set(ylabel='Features annotated')
+    g.set(xlabel='Cosine similiarity (%)')
+    sns.move_legend(g, 'best', title='Method')
+    plt.title('Top-N, DIA (1 replicate)')
+    plt.xticks(np.arange(0.05, 1.05, 0.1))
+
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    labels[0] = '0-10'
+    labels[1] = '10-20'
+    labels[2] = '20-30'
+    labels[3] = '30-40'
+    labels[4] = '40-50'
+    labels[5] = '50-60'
+    labels[6] = '60-70'
+    labels[7] = '70-80'
+    labels[8] = '80-90'
+    labels[9] = '90-100'
+    ax.set_xticklabels(labels)
+
+    plt.tight_layout()
+    return palette
+
+
+def plot_score_distributions_2(score_df, palette=None, min_threshold=0.6, bins=4):
+    fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
+
+    if palette is None:
+        methods = score_df['method'].unique()
+        colours = sns.color_palette(n_colors=len(methods))
+        palette = {method: colour for method, colour in zip(methods, colours)}
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (
+        score_df['method'].isin(['topN', 'topN_exclusion', 'intensity_non_overlap']))]
+    selected_df = selected_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+
+    g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
+                     bins=bins, palette=palette, hue_order=[
+            'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[0], legend=False)
+
+    g.set(ylabel='Features annotated')
+    g.set(xlabel='Cosine similiarity (%)')
+    axes[0].set_title('Top-N, Iterative DDA\n(1 replicate)')
+    axes[0].set_xticks(np.arange(min_threshold + 0.05, 1.05, 0.1))
+    labels = [item.get_text() for item in axes[0].get_xticklabels()]
+    labels[0] = '60-70'
+    labels[1] = '70-80'
+    labels[2] = '80-90'
+    labels[3] = '90-100'
+    axes[0].set_xticklabels(labels)
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
+        ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
+    selected_df = selected_df.replace({
+        'topN_replicates': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
+    })
+
+    g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
+                     bins=bins, palette=palette, hue_order=[
+            'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[1], legend=True)
+
+    g.set(ylabel='Annotated features')
+    g.set(xlabel='Cosine similarity')
+    axes[1].set_title('Top-N, Iterative DDA\n(4 replicates)')
+
+    sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1.1, 1), title='Method')
+    plt.tight_layout()
+    return palette
+
+
+def plot_score_distributions_3(score_df, palette=None, min_threshold=0.6):
+    fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(10, 7))
+
+    if palette is None:
+        methods = score_df['method'].unique()
+        colours = sns.color_palette(n_colors=len(methods))
+        palette = {method: colour for method, colour in zip(methods, colours)}
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (
+        score_df['method'].isin(['topN', 'topN_exclusion', 'intensity_non_overlap']))]
+    selected_df = selected_df.replace({
+        'topN': 'Top-N',
+        'topN_exclusion': 'Iterative\nExclusion',
+        'intensity_non_overlap': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df.groupby('method').count().reset_index(drop=False)
+    selected_df = selected_df[sorted(selected_df.columns, key=lambda x: x[0], reverse=True)]
+    line_at = selected_df[selected_df['method'] == 'Top-N']['fullscan_peak'].values[0]
+
+    g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[0],
+                    order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
+
+    g.set(ylabel='Total annotated features')
+    g.set(xlabel='Methods')
+    axes[0].set_title('1 replicate')
+    axes[0].tick_params(axis='x', rotation=90)
+
+    selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
+        ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
+    selected_df = selected_df.replace({
+        'topN_replicates': 'Top-N',
+        'topN_exclusion_replicates': 'Iterative\nExclusion',
+        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
+    })
+    selected_df = selected_df.groupby('method').count().reset_index(drop=False)
+
+    g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[1],
+                    order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
+
+    g.set(ylabel=None)
+    g.set(xlabel='Methods')
+    axes[1].set_title('4 replicates')
+    axes[1].tick_params(axis='x', rotation=90)
+
+    axes[0].axhline(line_at, ls='--', color='k', alpha=0.60)
+    axes[1].axhline(line_at, ls='--', color='k', alpha=0.60)
+
+    plt.tight_layout()
+    return palette

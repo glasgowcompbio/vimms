@@ -117,11 +117,13 @@ A guideline for community contribution can be found [here](https://github.com/gl
 
 To reference the ViMMS simulator in your work, please cite our paper:
 
-[1] Wandy, Joe, et al. "*In Silico Optimization of Mass Spectrometry Fragmentation Strategies in Metabolomics.*" Metabolites 9.10 (2019): 219. https://www.mdpi.com/2218-1989/9/10/219
+Wandy, Joe, et al. "[*In Silico Optimization of Mass Spectrometry Fragmentation Strategies in Metabolomics.*](https://www.mdpi.com/2218-1989/9/10/219)" Metabolites 9.10 (2019): 219. 
+
+Wandy, Joe et al. "[*ViMMS 2.0: A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics*](https://joss.theoj.org/papers/10.21105/joss.03990.pdf)" Journal of Open Source Software 7.71 (2022): 3990.
 
 If you develop new controllers on top of ViMMS, please also cite the following paper: 
 
-[2] Davies, Vinny, et al. "*Rapid Development of Improved Data-dependent Acquisition Strategies.*" Analytical Chemistry (2020). https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895 ([data](http://researchdata.gla.ac.uk/1137/))
+Davies, Vinny, et al. "[*Rapid Development of Improved Data-dependent Acquisition Strategies.*](https://pubs.acs.org/doi/10.1021/acs.analchem.0c03895)" Analytical Chemistry 19.43 (2021): 5676-5683.  ([data](http://researchdata.gla.ac.uk/1137/))
 
 ### Presentations
 

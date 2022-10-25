@@ -20,7 +20,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
-from vimms.Common import load_obj
+from vimms.Common import load_obj, ScanParameters, PROTON_MASS
 
 
 def process_block(block, file_name):
@@ -192,6 +192,7 @@ def msdial_row_to_box(precursor_mz, rt_left_in_minutes, rt_right_in_minutes, mz_
     y2 = precursor_mz * (1 + mz_tol / 1e6)
     return GenericBox(x1, x2, y1, y2)
 
+
 def make_queries_from_mzml(mzml_file_object):
     query_spectra = []
     for scan in mzml_file_object.scans:
@@ -208,16 +209,35 @@ def make_queries_from_chemicals(chemicals_file_name):
     chemicals = load_obj(chemicals_file_name)
     query_spectra = []
     for chem in chemicals:
-        precursor_mz = chem.isotopes[0][0]
-        peaks = []
-        for child in chem.children:
-            mz = child.isotopes[0][0]
-            intensity = child.parent.max_intensity * child.prop_ms2_mass
-            peak = np.array([mz, intensity])
-            peaks.append(peak)
-        new_spectrum = Spectrum(precursor_mz, peaks)
+        new_spectrum = chem_to_spectral_record(chem)
         query_spectra.append(new_spectrum)
     return query_spectra
+
+
+def chem_to_spectral_record(chem):
+    # FIXME: quick hack, assume that we observe M+H only
+    precursor_mz = chem.isotopes[0][0] + PROTON_MASS
+    peaks = []
+    for child in chem.children:
+        mz = child.isotopes[0][0]
+        intensity = child.parent.max_intensity * child.prop_ms2_mass
+        peak = np.array([mz, intensity])
+        peaks.append(peak)
+    metadata = { 'rt': chem.rt }
+    original_file = None
+    spectrum_id = 'peak_%.6f' % precursor_mz
+    new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+    return new_spectrum
+
+
+def scan_to_spectral_record(scan):
+    precursor_mz = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
+    peaks = list(zip(scan.mzs, scan.intensities))
+    metadata = {}
+    original_file = None
+    spectrum_id = 'peak_%.6f' % precursor_mz
+    new_spectrum = SpectralRecord(precursor_mz, peaks, metadata, original_file, spectrum_id)
+    return new_spectrum
 
 
 def main(mzml_file_name, msp_file_name, precursor_tolerance, hit_threshold):

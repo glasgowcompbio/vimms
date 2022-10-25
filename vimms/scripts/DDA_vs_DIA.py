@@ -26,6 +26,7 @@ from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner, RealEvaluator
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiAligner
+from vimms.scripts.check_ms2_matches import library_from_msp
 
 
 ################################################################################
@@ -771,6 +772,43 @@ def find_match(query, min_rts, max_rts, min_mzs, max_mzs, spectra_arr, allow_mul
             return [matches[idx]]
 
 
+def compare_spectra_simulated(msp_folder, base_folder, suffix, methods, num_chems, repeat,
+                              matching_thresholds, matching_method='cosine',
+                              ms1_tol=0.20, ms2_tol=0.20, min_match_peaks=1):
+    dfs = []
+    for num_chem in num_chems:
+        for idx in range(repeat):
+            # chemicals
+            chem_library = library_from_msp(f'{msp_folder}/chems_{num_chem}_{idx}.msp')
+
+            results = []
+            for method in methods:
+
+                # get matched spectra, or msdial results
+                results_folder = os.path.join(
+                    base_folder, method, 'chems_%d_%d_%s' % (num_chem, idx, suffix))
+                matches = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
+
+                # compare spectra
+                for thresh in matching_thresholds:
+                    print(method, thresh)
+                    row = single_match(chem_library, matches, matching_method,
+                                       min_match_peaks,
+                                       ms1_tol, ms2_tol, method, thresh)
+                    results.append(row)
+
+            df = pd.DataFrame(results, columns=[
+                'method', 'matching_threshold',
+                'no_annotated_compounds', 'no_annotated_peaks',
+                'prop_annotated_compounds', 'prop_annotated_peaks',
+                'annotated_peaks'])
+            df['num_chem'] = num_chem
+            df['repeat'] = idx
+            dfs.append(df)
+    df = pd.concat(dfs)
+    return df
+
+
 def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
                     matching_method, matching_ms1_tol, matching_ms2_tol,
                     matching_min_match_peaks):
@@ -778,48 +816,15 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
     results = []
     for method in methods:
 
-        # get msdial results
+        # get matched spectra, or msdial results
         results_folder = os.path.join(base_folder, method)
         matches = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
 
         # compare spectra
         for thresh in matching_thresholds:
             print(method, thresh)
-            annotated_compounds = []
-            annotated_peaks = []
-            total_compounds = len(chem_library.sorted_record_list)
-            total_peaks = len(matches)
-
-            with tqdm(total=total_peaks) as pbar:
-                for k, v in matches.items():
-                    for spec in v:
-                        hits = chem_library.spectral_match(spec, matching_method,
-                                                           matching_ms2_tol,
-                                                           matching_min_match_peaks,
-                                                           matching_ms1_tol, thresh)
-                        if len(hits) > 0:
-                            for item in hits:
-                                spectrum_id = item[0]
-                                score = item[1]
-                                if score > 0.0:
-                                    annotated_compounds.append(spectrum_id)
-                                    annotated_peaks.append(k)
-                    pbar.update(1)
-                pbar.close()
-
-            no_annotated_compounds = len(set(annotated_compounds))
-            no_annotated_peaks = len(set(annotated_peaks))
-            prop_annotated_peaks = no_annotated_peaks / total_peaks
-            prop_annotated_compounds = no_annotated_compounds / total_compounds
-            row = [
-                method,
-                thresh,
-                no_annotated_compounds,
-                no_annotated_peaks,
-                prop_annotated_compounds,
-                prop_annotated_peaks,
-                set(annotated_peaks)
-            ]
+            row = single_match(chem_library, matches, matching_method, matching_min_match_peaks,
+                               matching_ms1_tol, matching_ms2_tol, method, thresh)
             results.append(row)
 
     df = pd.DataFrame(results, columns=[
@@ -828,6 +833,44 @@ def compare_spectra(chem_library, base_folder, methods, matching_thresholds,
         'prop_annotated_compounds', 'prop_annotated_peaks',
         'annotated_peaks'])
     return df
+
+
+def single_match(chem_library, matches, matching_method, matching_min_match_peaks,
+                 matching_ms1_tol, matching_ms2_tol, method, thresh):
+    annotated_compounds = []
+    annotated_peaks = []
+    total_compounds = len(chem_library.sorted_record_list)
+    total_peaks = len(matches)
+    with tqdm(total=total_peaks) as pbar:
+        for k, v in matches.items():
+            for spec in v:
+                hits = chem_library.spectral_match(spec, matching_method,
+                                                   matching_ms2_tol,
+                                                   matching_min_match_peaks,
+                                                   matching_ms1_tol, thresh)
+                if len(hits) > 0:
+                    for item in hits:
+                        spectrum_id = item[0]
+                        score = item[1]
+                        if score > 0.0:
+                            annotated_compounds.append(spectrum_id)
+                            annotated_peaks.append(k)
+            pbar.update(1)
+        pbar.close()
+    no_annotated_compounds = len(set(annotated_compounds))
+    no_annotated_peaks = len(set(annotated_peaks))
+    prop_annotated_peaks = no_annotated_peaks / total_peaks
+    prop_annotated_compounds = no_annotated_compounds / total_compounds
+    row = [
+        method,
+        thresh,
+        no_annotated_compounds,
+        no_annotated_peaks,
+        prop_annotated_compounds,
+        prop_annotated_peaks,
+        set(annotated_peaks)
+    ]
+    return row
 
 
 def spectral_distribution(chem_library, base_folder, methods, matching_threshold,
@@ -867,6 +910,46 @@ def spectral_distribution(chem_library, base_folder, methods, matching_threshold
     df = pd.DataFrame(results, columns=['method', 'fullscan_peak', 'matched_id', 'score'])
     return df
 
+
+def spectral_distribution_simulated(chem_library, base_folder, suffix, methods, num_chems, repeat,
+                          matching_threshold, matching_method, matching_ms1_tol, matching_ms2_tol,
+                          matching_min_match_peaks):
+    print('chem_library', chem_library)
+    results = []
+    for num_chem in num_chems:
+        for idx in range(repeat):
+            for method in methods:
+
+                # get matched spectra, or msdial results
+                results_folder = os.path.join(
+                    base_folder, method, 'chems_%d_%d_%s' % (num_chem, idx, suffix))
+                spectra = load_obj(os.path.join(results_folder, 'matched_spectra.p'))
+                print(method, len(spectra))
+
+                # compare spectra
+                with tqdm(total=len(spectra)) as pbar:
+                    for k, v in spectra.items():
+                        best_score = 0.0
+                        best_hit = None
+                        for spec in v:
+                            # returns a list containing (spectrum_id, sc, c)
+                            hits = chem_library.spectral_match(spec, matching_method,
+                                                               matching_ms2_tol, matching_min_match_peaks,
+                                                               matching_ms1_tol, matching_threshold)
+                            if len(hits) > 0:
+                                for item in hits:
+                                    spectrum_id = item[0]
+                                    score = item[1]
+                                    if score > best_score:
+                                        best_score = score
+                                        best_hit = spectrum_id
+                        row = [method, k, best_hit, best_score, num_chem, idx]
+                        results.append(row)
+                        pbar.update(1)
+                    pbar.close()
+
+    df = pd.DataFrame(results, columns=['method', 'fullscan_peak', 'matched_id', 'score', 'num_chem', 'repeat'])
+    return df
 
 def spec_records_to_library(spectra):
     # convert spectral records to spectral library for comparison
@@ -963,8 +1046,10 @@ def matched_spectra_as_df(base_folder, methods):
     return df, score_df
 
 
-def plot_matching_thresholds_1(hit_prop_df, y='prop_annotated_peaks'):
+def plot_matching_thresholds_1(hit_prop_df, y='prop_annotated_peaks', palette=None):
     fig, axes = plt.subplots(1, 2, sharey=True, figsize=(20, 5))
+    if palette is None:
+        palette = get_palette(hit_prop_df)
 
     selected_df = hit_prop_df.replace({
         'topN': 'Top-N',
@@ -1008,34 +1093,27 @@ def plot_matching_thresholds_1(hit_prop_df, y='prop_annotated_peaks'):
     return palette
 
 
-def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
+def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks', palette=None):
     fig, axes = plt.subplots(2, 1, sharex=True, figsize=(15, 10))
 
-    selected_df = hit_prop_df.replace({
-        'topN': 'Top-N',
-        'topN_exclusion_replicates': 'Iterative\nExclusion',
-        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
-    })
-    selected_df = selected_df[selected_df['matching_threshold'].isin(
+    if palette is None:
+        palette = get_palette(hit_prop_df)
+
+    selected_df = hit_prop_df[hit_prop_df['matching_threshold'].isin(
         [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])]
 
-    methods = selected_df['method'].unique()
-    colours = sns.color_palette(n_colors=len(methods))
-    palette = {method: colour for method, colour in zip(methods, colours)}
-
-    plot_df = selected_df[selected_df['method'].isin(['Top-N', 'SWATH', 'AIF'])]
+    plot_df = selected_df[selected_df['method'].isin(['topN', 'SWATH', 'AIF'])]
     g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
-        'AIF', 'SWATH', 'Top-N'], y=y, ax=axes[0], palette=palette)
+        'AIF', 'SWATH', 'topN'], y=y, ax=axes[0], palette=palette)
     g.set(ylabel='Annotated features')
     g.set(xlabel=None)
     sns.move_legend(g, "upper right", title='Method')
     axes[0].set_title('1 replicate')
 
     plot_df = selected_df[selected_df['method'].isin(
-        ['topN_replicates', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])]
-    plot_df = plot_df.replace({'topN_replicates': 'Top-N', })
+        ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates'])]
     g = sns.barplot(data=plot_df, x='matching_threshold', hue='method', hue_order=[
-        'Intensity\nNon-overlap', 'Iterative\nExclusion', 'Top-N'], y=y, ax=axes[1],
+        'intensity_non_overlap_replicates', 'topN_exclusion_replicates', 'topN_replicates'], y=y, ax=axes[1],
                     palette=palette)
     g.set(ylabel='Annotated features')
     g.set(xlabel='Matching threshold')
@@ -1046,24 +1124,29 @@ def plot_matching_thresholds_2(hit_prop_df, y='prop_annotated_peaks'):
     return palette
 
 
+def get_palette(df):
+    methods = sorted(df['method'].unique())
+    colours = sns.color_palette(n_colors=len(methods))
+    palette = {method: colour for method, colour in zip(methods, colours)}
+    palette['intensity_non_overlap_replicates'] = palette['intensity_non_overlap']
+    palette['topN_exclusion_replicates'] = palette['topN_exclusion']
+    palette['topN_replicates'] = palette['topN']
+    return palette
+
+
 def plot_score_distributions_1(score_df, palette=None, bins=10):
     fig, ax = plt.subplots(figsize=(15, 5))
 
     if palette is None:
-        methods = score_df['method'].unique()
-        colours = sns.color_palette(n_colors=len(methods))
-        palette = {method: colour for method, colour in zip(methods, colours)}
+        palette = get_palette(score_df)
 
     selected_df = score_df[score_df['method'].isin(
         ['topN', 'AIF', 'SWATH'])]
-    selected_df = selected_df.replace({
-        'topN': 'Top-N',
-    })
 
     g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
                      bins=bins,
                      palette=palette, hue_order=[
-            'AIF', 'SWATH', 'Top-N'])
+            'AIF', 'SWATH', 'topN'], legend=False)
 
     # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[0]) # stacked histogram
     # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[0]) # unfilled step function
@@ -1071,7 +1154,8 @@ def plot_score_distributions_1(score_df, palette=None, bins=10):
 
     g.set(ylabel='Features annotated')
     g.set(xlabel='Cosine similiarity (%)')
-    sns.move_legend(g, 'best', title='Method')
+    plt.legend(labels=['AIF', 'SWATH', 'Top-N'])
+    sns.move_legend(g, 'best', title='Methods')
     plt.title('Top-N, DIA (1 replicate)')
     plt.xticks(np.arange(0.05, 1.05, 0.1))
 
@@ -1093,24 +1177,17 @@ def plot_score_distributions_1(score_df, palette=None, bins=10):
 
 
 def plot_score_distributions_2(score_df, palette=None, min_threshold=0.6, bins=4):
-    fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
+    fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(20, 5))
 
     if palette is None:
-        methods = score_df['method'].unique()
-        colours = sns.color_palette(n_colors=len(methods))
-        palette = {method: colour for method, colour in zip(methods, colours)}
+        palette = get_palette(score_df)
 
     selected_df = score_df[(score_df['score'] > min_threshold) & (
         score_df['method'].isin(['topN', 'topN_exclusion', 'intensity_non_overlap']))]
-    selected_df = selected_df.replace({
-        'topN': 'Top-N',
-        'topN_exclusion': 'Iterative\nExclusion',
-        'intensity_non_overlap': 'Intensity\nNon-overlap'
-    })
 
     g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
                      bins=bins, palette=palette, hue_order=[
-            'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[0], legend=False)
+            'topN', 'topN_exclusion', 'intensity_non_overlap'], ax=axes[0], legend=False)
 
     g.set(ylabel='Features annotated')
     g.set(xlabel='Cosine similiarity (%)')
@@ -1125,21 +1202,17 @@ def plot_score_distributions_2(score_df, palette=None, min_threshold=0.6, bins=4
 
     selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
         ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
-    selected_df = selected_df.replace({
-        'topN_replicates': 'Top-N',
-        'topN_exclusion_replicates': 'Iterative\nExclusion',
-        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
-    })
 
     g = sns.histplot(data=selected_df, hue='method', x='score', multiple="dodge", shrink=.8,
                      bins=bins, palette=palette, hue_order=[
-            'Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'], ax=axes[1], legend=True)
+            'topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates'], ax=axes[1], legend=False)
 
     g.set(ylabel='Annotated features')
     g.set(xlabel='Cosine similarity')
     axes[1].set_title('Top-N, Iterative DDA\n(4 replicates)')
 
-    sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1.1, 1), title='Method')
+    plt.legend(labels=['Intensity\nNon-overlap', 'Iterative\nExclusion', 'Top-N'])
+    sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1.1, 1), title='Methods')
     plt.tight_layout()
     return palette
 
@@ -1148,45 +1221,35 @@ def plot_score_distributions_3(score_df, palette=None, min_threshold=0.6):
     fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(10, 7))
 
     if palette is None:
-        methods = score_df['method'].unique()
-        colours = sns.color_palette(n_colors=len(methods))
-        palette = {method: colour for method, colour in zip(methods, colours)}
+        palette = get_palette(score_df)
 
     selected_df = score_df[(score_df['score'] > min_threshold) & (
         score_df['method'].isin(['topN', 'topN_exclusion', 'intensity_non_overlap']))]
-    selected_df = selected_df.replace({
-        'topN': 'Top-N',
-        'topN_exclusion': 'Iterative\nExclusion',
-        'intensity_non_overlap': 'Intensity\nNon-overlap'
-    })
     selected_df = selected_df.groupby('method').count().reset_index(drop=False)
     selected_df = selected_df[sorted(selected_df.columns, key=lambda x: x[0], reverse=True)]
-    line_at = selected_df[selected_df['method'] == 'Top-N']['fullscan_peak'].values[0]
+    line_at = selected_df[selected_df['method'] == 'topN']['fullscan_peak'].values[0]
 
     g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[0],
-                    order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
+                    order=['topN', 'topN_exclusion', 'intensity_non_overlap'])
 
     g.set(ylabel='Total annotated features')
     g.set(xlabel='Methods')
     axes[0].set_title('1 replicate')
     axes[0].tick_params(axis='x', rotation=90)
+    axes[0].set_xticklabels(['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
 
     selected_df = score_df[(score_df['score'] > min_threshold) & (score_df['method'].isin(
         ['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates']))]
-    selected_df = selected_df.replace({
-        'topN_replicates': 'Top-N',
-        'topN_exclusion_replicates': 'Iterative\nExclusion',
-        'intensity_non_overlap_replicates': 'Intensity\nNon-overlap'
-    })
     selected_df = selected_df.groupby('method').count().reset_index(drop=False)
 
     g = sns.barplot(data=selected_df, x='method', y='fullscan_peak', palette=palette, ax=axes[1],
-                    order=['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
+                    order=['topN_replicates', 'topN_exclusion_replicates', 'intensity_non_overlap_replicates'])
 
     g.set(ylabel=None)
     g.set(xlabel='Methods')
     axes[1].set_title('4 replicates')
     axes[1].tick_params(axis='x', rotation=90)
+    axes[1].set_xticklabels(['Top-N', 'Iterative\nExclusion', 'Intensity\nNon-overlap'])
 
     axes[0].axhline(line_at, ls='--', color='k', alpha=0.60)
     axes[1].axhline(line_at, ls='--', color='k', alpha=0.60)

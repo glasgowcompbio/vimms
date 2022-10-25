@@ -655,18 +655,65 @@ class EnvPlotPickler():
             self.bm = env.controller.grid
         except AttributeError:
             pass
+
+
+def set_axis_style(ax,
+                   labelsize=None,
+                   titlesize=None,
+                   linewidth=None,
+                   markersize=None,
+                   legend_kwargs=None):
+    
+    if(not labelsize is None):
+        ax.xaxis.label.set_size(labelsize)
+        ax.yaxis.label.set_size(labelsize)
+    
+    if(not titlesize is None):
+        ax.title.set_fontsize(titlesize)
+    
+    for ln in ax.lines:
+        if(not linewidth is None):
+            ln.set_linewidth(linewidth)
         
+        if(not markersize is None):
+            ln.set_markersize(markersize)
+    
+    if(not legend_kwargs is None):
+        ax.legend(**legend_kwargs)
+
+
+def set_figure_style(fig,
+                     tick_kwargs=None,
+                     axis_borderwidth=None,
+                     axis_kwargs=None,
+                     suptitle=None, 
+                     suptitle_size=18,
+                     figure_sizes=None):
+    
+    for ax in fig.axes:
+        if(not tick_kwargs is None):
+            ax.tick_params(**tick_kwargs)
+            
+        if(not axis_borderwidth is None):
+            for pos in ["top", "bottom", "left", "right"]:
+                ax.spines[pos].set_linewidth(axis_borderwidth)
         
+        if(not axis_kwargs is None):
+            set_axis_style(ax, **axis_kwargs)
+            
+    if(not suptitle is None):
+        fig.suptitle(suptitle, fontsize=suptitle_size)
+    
+    if(not figure_sizes is None):
+        fig.set_size_inches(*figure_sizes)
+
+
 def mpl_results_plot(experiment_names, 
                      evals, 
                      min_intensity=0.0,
                      keys=None,
                      colours=None, 
                      markers=None,
-                     leglocs=None,
-                     suptitle=None,
-                     xsize=18.5,
-                     ysize=10.5,
                      mode="absolute"):
     
     mode = mode.lower()
@@ -707,46 +754,38 @@ def mpl_results_plot(experiment_names,
     if(markers is None): use_markers = itertools.repeat(None)
     else: use_markers = copy.copy(markers)
     
-    if(leglocs is None): use_leglocs = itertools.repeat(None)
-    else: use_leglocs = copy.copy(leglocs)
-    
     results_list = [eva.evaluation_report(min_intensity=min_intensity) for eva in evals]
     for key, ax in zip(keys, axes):
-        itr = zip(experiment_names, results_list, use_colours, use_markers, use_leglocs)
+        itr = zip(experiment_names, results_list, use_colours, use_markers)
         if(mode == "relative"):
             means = np.mean(
                 [r[key] for r in results_list],
                 axis=0
             )
         
-        for exp_name, results, c, m, legloc in itr:
+        for exp_name, results, c, m in itr:
             if(mode == "absolute"): 
                 scores = results[key]
             elif(mode == "relative"): 
                 scores = [(r - m) * 100 / m for r, m in zip(results, means)]
             
             xs = list(range(1, len(scores) + 1))
-
+            
             ax.set(
-                xlabel="Num. Runs", 
+                xlabel="Num. Runs",
                 **layouts[key]
             )
             ax.plot(xs, scores, label=exp_name, color=c, marker=m)
-            ax.legend(loc=legloc)
-        
-    fig.set_size_inches(xsize, ysize)
-    if suptitle is not None:
-        plt.suptitle(suptitle, fontsize=18)
+            ax.legend()
     
-    plt.show()
+    return fig, axes
 
 
 def mpl_mzml(mzml, 
              draw_minm=0.0, 
              colour_minm=None, 
-             show_precursors=False,
-             xsize=18.5,
-             ysize=10.5):
+             show_precursors=False):
+    
     fig, ax = plt.subplots(1, 1)
     
     pp = PlotPoints.from_mzml(mzml)
@@ -755,8 +794,8 @@ def mpl_mzml(mzml,
         xlabel="RT (Seconds)", 
         ylabel="m/z"
     )
-    fig.set_size_inches(xsize, ysize)
-    plt.plot()
+    
+    return fig, ax
 
 
 def mpl_fragmentation_counts(exp_name, 
@@ -784,17 +823,17 @@ def mpl_fragmentation_counts(exp_name,
     ax.bar(
         x=fragmentations, 
         height=counts,
-        align='edge', 
-        fc='skyblue', 
-        ec='black'
+        align="edge", 
+        fc="skyblue", 
+        ec="black"
     )
-    plt.plot()
+    
+    return fig, ax
 
 def mpl_fragmentation_events(exp_name, 
                              mzmls, 
-                             colour_minm=None,
-                             xsize=20,
-                             ysize=4):
+                             colour_minm=None):
+    
     fig, axes = plt.subplots(len(mzmls), 1)
     
     for i, (mzml, ax) in enumerate(zip(mzmls, axes)):
@@ -806,17 +845,20 @@ def mpl_fragmentation_events(exp_name,
         )
     
     axes[-1].set(xlabel="RT (Seconds)")
-    fig.set_size_inches(xsize, len(mzmls) * ysize)
-    plt.plot()
+    fig.set_size_inches(20, len(mzmls) * 4)
+    
+    return fig, axes
 
 
-def mpl_fragmented_boxes_raw(exp_name, boxes, xsize=20, ysize=10):
+def mpl_fragmented_boxes_raw(exp_name, boxes):
     fig, ax = plt.subplots(1, 1)
+    
     for b in boxes:
         b.mpl_add_to_plot(ax)
     ax.set(title=f"{exp_name} Picked Boxes", xlabel="RT (Seconds)", ylabel="m/z")
-    fig.set_size_inches(xsize, ysize)
-    plt.plot()
+    ax.autoscale_view()
+    
+    return fig, ax
     
 
 def mpl_fragmented_boxes(exp_name, eva, mode="max", min_intensity=0.0):
@@ -826,7 +868,7 @@ def mpl_fragmented_boxes(exp_name, eva, mode="max", min_intensity=0.0):
     """
     partition = PlotBox.from_evaluator(eva, min_intensity=min_intensity)
     boxes = partition["fragmented"] + partition["unfragmented"]
-    mpl_fragmented_boxes_raw(exp_name, boxes)
+    return mpl_fragmented_boxes_raw(exp_name, boxes)
 
 
 def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
@@ -964,40 +1006,52 @@ def plotly_fragmentation_events(exp_name, mzmls, colour_minm=None):
     fig.show()
 
 
-def seaborn_hist(data, title, xlabel, binsize=None):
-    fig, ax = plt.subplots(1, len(data), figsize=(15, 5), sharey=True)
-    plt.suptitle(title, fontsize=18)
+def seaborn_hist(data, xlabel, binsize=None):
+    fig, axes = plt.subplots(1, len(data), figsize=(15, 5), sharey=True)
+    
     for i, ts in enumerate(data):
-        sns.histplot(ts, ax=ax[i], label=f"iter {i}", binwidth=binsize)
-        ax[i].set(
+        sns.histplot(ts, ax=axes[i], label=f"iter {i}", binwidth=binsize)
+        axes[i].set(
             xlabel = xlabel,
             title = f"Iter {i}"
         )
+    
+    return fig, axes
 
 
-def seaborn_timing_hist(processing_times, title, binsize=None):
-    seaborn_hist(processing_times, title, xlabel="Processing time (secs)", binsize=binsize)
+def seaborn_timing_hist(processing_times, binsize=None):
+    return seaborn_hist(
+        processing_times, xlabel="Processing time (secs)", binsize=binsize
+    )
     
     
 def seaborn_uncovered_area_hist(eva, 
-                                box_likes, 
-                                title, 
+                                box_likes,
                                 min_intensity=0.0, 
                                 cumulative=False, 
                                 binsize=None):
+    
     boxes = [[b.to_box(0, 0) for b in ls] for ls in box_likes]    
     geom = BoxGrid()
     partition = eva.partition_chems(min_intensity=min_intensity, aggregate="max")
     
-    for name in ["fragmented", "unfragmented"]:
+    figs = []
+    labels = ["Fragmented", "Unfragmented"]
+    for name in labels:
         non_overlaps = []
         for ls in boxes:
             if(not cumulative): geom.clear()
             geom.register_boxes(ls)
             non_overlaps.append(
-                [geom.non_overlap(row[0]) for row in partition[name]]
+                [geom.non_overlap(row[0]) for row in partition[name.lower()]]
             )
-        seaborn_hist(non_overlaps, title + f" ({name})", "Uncovered Area", binsize=binsize)
+            
+        fig, axes = seaborn_hist(non_overlaps, "Uncovered Area", binsize=binsize)    
+        figs.append(
+            (fig, axes, name)
+        )
+        
+    return figs
         
 
 class BoxViewer():
@@ -1141,8 +1195,7 @@ class BoxViewer():
                      mz_buffer=None,
                      ms_level=1,
                      colour_minm=None,
-                     abs_scaling=None,
-                     suptitle=None):
+                     abs_scaling=None):
         
         self._check_length()
         fig, axes = plt.subplots(len(self.mzmls), len(self.boxes))
@@ -1204,11 +1257,9 @@ class BoxViewer():
             axes[0][j].set(title=self.headers[j])
             axes[-1][j].set(xlabel="RT (Seconds)")
             
-        if suptitle is not None:
-            plt.suptitle(suptitle, fontsize=18)
         fig.set_size_inches(20, len(self.mzmls) * 4)
         
-        plt.show()
+        return fig, axes
 
 
 def boxes2csv(fname, boxes, colours=None):

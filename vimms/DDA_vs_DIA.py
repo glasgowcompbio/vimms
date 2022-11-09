@@ -394,7 +394,7 @@ def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
         eval_res = eval_res_list[i]
 
         for controller_name in controller_names:
-            results = eval_res[controller_name]
+            results = eval_res[controller_name].evaluation_report()
             if cumulative:
                 coverages = results['cumulative_coverage_proportion']
                 intensity_proportions = results["cumulative_intensity_proportion"]

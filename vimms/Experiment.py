@@ -267,6 +267,10 @@ class Experiment:
         self.case_mzmls = {}
         
         self.evaluators = []
+        
+    def get_evaluator_by_name(self, case_name):
+        i = self.case_names.index(case_name)
+        return self.evaluators[i]
     
     def add_cases(self, cases):
         cases = list(cases)

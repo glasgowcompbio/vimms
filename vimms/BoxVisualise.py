@@ -657,8 +657,10 @@ class EnvPlotPickler():
             pass
 
 
-def set_axis_style(ax,
+def mpl_set_axis_style(ax,
                    labelsize=None,
+                   title=None,
+                   title_y=None,
                    titlesize=None,
                    linewidth=None,
                    markersize=None,
@@ -667,6 +669,9 @@ def set_axis_style(ax,
     if(not labelsize is None):
         ax.xaxis.label.set_size(labelsize)
         ax.yaxis.label.set_size(labelsize)
+    
+    if(not title is None):
+        ax.set_title(title, y=title_y)
     
     if(not titlesize is None):
         ax.title.set_fontsize(titlesize)
@@ -682,11 +687,12 @@ def set_axis_style(ax,
         ax.legend(**legend_kwargs)
 
 
-def set_figure_style(fig,
+def mpl_set_figure_style(fig,
                      tick_kwargs=None,
                      axis_borderwidth=None,
                      axis_kwargs=None,
                      suptitle=None, 
+                     suptitle_y=None,
                      suptitle_size=18,
                      figure_sizes=None):
     
@@ -699,10 +705,10 @@ def set_figure_style(fig,
                 ax.spines[pos].set_linewidth(axis_borderwidth)
         
         if(not axis_kwargs is None):
-            set_axis_style(ax, **axis_kwargs)
+            mpl_set_axis_style(ax, **axis_kwargs)
             
     if(not suptitle is None):
-        fig.suptitle(suptitle, fontsize=suptitle_size)
+        fig.suptitle(suptitle, y=suptitle_y, fontsize=suptitle_size)
     
     if(not figure_sizes is None):
         fig.set_size_inches(*figure_sizes)
@@ -718,9 +724,9 @@ def mpl_results_plot(experiment_names,
     
     mode = mode.lower()
     if(mode == "absolute"):
-        mode_str = "(Relative to Total)"
+        mode_str = ""
     elif(mode == "relative"):
-        mode_str = "(% Variation From Mean)"
+        mode_str = "(Relative)"
     
     if(keys is None):
         keys = ["cumulative_coverage_proportion", "cumulative_intensity_proportion"]
@@ -767,7 +773,10 @@ def mpl_results_plot(experiment_names,
             if(mode == "absolute"): 
                 scores = results[key]
             elif(mode == "relative"): 
-                scores = [(r - m) * 100 / m for r, m in zip(results, means)]
+                scores = [
+                    (np.array(r) - m) * 100 / m 
+                    for r, m in zip(results[key], means)
+                ]
             
             xs = list(range(1, len(scores) + 1))
             
@@ -798,37 +807,50 @@ def mpl_mzml(mzml,
     return fig, ax
 
 
-def mpl_fragmentation_counts(exp_name, 
-                             eva, 
+def mpl_fragmentation_counts(evals, 
                              min_intensity=0.0, 
                              key="times_covered_summary", 
-                             fc=None):
+                             fcs=None):
     
+    ylabel = "Count"
     if(key == "times_covered_summary"):
-        title = f"Counts of Times Chemicals Covered in {exp_name}"
+        title = "Times Peaks Covered"
         xlabel = "Times Covered"
     elif(key == "times_fragmented_summary"):
-        title = f"Counts of Times Chemicals Fragmented in {exp_name}"
+        title = "Times Peaks Fragmented"
         xlabel = "Times Fragmented"
     else:
-        raise ValueError("Key not recognised")
-
-    report = eva.evaluation_report(min_intensity=min_intensity)
-    counter = report[key]
+        raise ValueError(f"Key {key} not recognised")
+        
+    if(fcs is None):
+        fcs = itertools.repeat("skyblue")
     
-    fig, ax = plt.subplots()
-    fragmentations = [k for k, _ in counter.items()]
-    counts = [v for _, v in counter.items()]
-
-    ax.bar(
-        x=fragmentations, 
-        height=counts,
-        align="edge", 
-        fc="skyblue", 
-        ec="black"
-    )
+    fig, axes = plt.subplots(1, len(evals), sharey=True)
+    try: 
+        axes[0]
+    except:
+        axes = [axes]
     
-    return fig, ax
+    for eva, ax, fc in zip(evals, axes, fcs):
+        report = eva.evaluation_report(min_intensity=min_intensity)
+        counter = report[key]
+    
+        fragmentations = [k for k, _ in counter.items()]
+        counts = [v for _, v in counter.items()]
+
+        ax.bar(
+            x=fragmentations, 
+            height=counts,
+            align="center",
+            width=1.0,
+            fc=fc, 
+            ec="black"
+        )
+    
+        ax.set(title=title, xlabel=xlabel)
+    axes[0].set(ylabel=ylabel)
+    
+    return fig, axes
 
 def mpl_fragmentation_events(exp_name, 
                              mzmls, 

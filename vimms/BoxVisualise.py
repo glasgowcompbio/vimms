@@ -1059,6 +1059,9 @@ def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined):
     try: axes[0]
     except: axes = [axes]
     
+    try: axes[0][0]
+    except: axes = [axes]
+    
     for mzml, times, ax_ls in zip(mzmls, timings, axes):
         for i, ax in enumerate(ax_ls):
             sns.histplot(times[i+1], ax=ax, label=f"MS{i+1}", binwidth=binsize)

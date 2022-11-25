@@ -386,20 +386,31 @@ def path_or_mzml(mzml):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
     
-def get_avg_scan_times(mzmls):
-    ms1s, ms2s = [], []
+def get_scan_times(mzml):
+    scans = collections.defaultdict(list)
+    mzml = path_or_mzml(mzml)
+    
+    prev_level = mzml.scans[0].ms_level
+    prev_time = mzml.scans[0].rt_in_seconds
+    for s in mzml.scans[1:]:
+        scans[prev_level].append(s.rt_in_seconds - prev_time)
+        prev_level = s.ms_level
+        prev_time = s.rt_in_seconds
+        
+    return scans
+    
+def get_scan_times_combined(mzmls):
+    combined = collections.defaultdict(list)
     for mzml in mzmls:
-        prev_level = 0
-        prev_time = 0
-        mzml = path_or_mzml(mzml)
-        for s in mzml.scans:
-            if(prev_level == 1):
-                ms1s.append(s.rt_in_seconds - prev_time)
-            if(prev_level == 2):
-                ms2s.append(s.rt_in_seconds - prev_time)
-            prev_level = s.ms_level
-            prev_time = s.rt_in_seconds
-    return {1 : np.mean(ms1s), 2 : np.mean(ms2s)}
+        for level, times in get_scan_times(mzml).items():
+            combined[level].extend(times)
+    return combined
+    
+def get_avg_scan_times(mzmls):
+    return {
+        level : np.mean(times)
+        for level, times in get_scan_times_combined(mzmls).items()
+    }
 
 def save_obj(obj, filename):
     """

@@ -18,7 +18,7 @@ from plotly.subplots import make_subplots
 from plotly.colors import DEFAULT_PLOTLY_COLORS
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import path_or_mzml
+from vimms.Common import path_or_mzml, get_scan_times_combined
 from vimms.Box import GenericBox, BoxGrid
 
 
@@ -123,7 +123,7 @@ class ColourMap():
         self.add_to_subplot(ax, boxes, key)
         ax.set_xlim([min(b.pt1.x for b in boxes), max(b.pt2.x for b in boxes)])
         ax.set_ylim([min(b.pt1.y for b in boxes), max(b.pt2.y for b in boxes)])
-        return plt
+        return fig
 
 
 class FixedMap(ColourMap):
@@ -191,8 +191,10 @@ class AutoColourMap(ColourMap):
         # if there's no path from one box to another when we build a graph of
         # their overlaps, we can re-use colours
         pairs = [(top, set()) for b in boxes for top in b.parents]
+        if(all(note top.id is None for top, _ in pairs)):
+            pairs.sort(key=lambda p: p[0].id)
         top_level = OrderedDict(pairs)  # need uniqueness and maintain ordering
-        if (self.reuse_colours):
+        if(self.reuse_colours):
             for b in boxes:
                 for top in b.parents:
                     # note same set references in pairs and top_level
@@ -203,8 +205,10 @@ class AutoColourMap(ColourMap):
                 if (indices[i] == -1):
                     indices[i] = len(components)
                     components.append(OrderedDict([(parent, None)]))
-                update = [(j, k) for j, (k, v) in enumerate(pairs[i:]) if
-                          children & v]
+                update = [
+                    (j, k) for j, (k, v) in enumerate(pairs[i:]) 
+                    if children & v
+                ]
                 for (j, k) in update:
                     indices[j] = indices[i]
                     components[indices[i]][k] = None
@@ -233,7 +237,7 @@ class AutoColourMap(ColourMap):
         self.add_to_subplot(ax, boxes)
         ax.set_xlim([min(b.pt1.x for b in boxes), max(b.pt2.x for b in boxes)])
         ax.set_ylim([min(b.pt1.y for b in boxes), max(b.pt2.y for b in boxes)])
-        return plt
+        return fig
 
 class PlotPoints():
     hovertemplate = """
@@ -1031,6 +1035,9 @@ def plotly_fragmentation_events(exp_name, mzmls, colour_minm=None):
 def seaborn_hist(data, xlabel, binsize=None):
     fig, axes = plt.subplots(1, len(data), figsize=(15, 5), sharey=True)
     
+    try: axes[0]
+    except: axes = [axes]
+    
     for i, ts in enumerate(data):
         sns.histplot(ts, ax=axes[i], label=f"iter {i}", binwidth=binsize)
         axes[i].set(
@@ -1040,6 +1047,32 @@ def seaborn_hist(data, xlabel, binsize=None):
     
     return fig, axes
 
+
+def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined):
+    if(mode == "combined"):
+        timings = [get_scan_times_combined(mzmls)]
+    else:
+        timings = [get_scan_times(mzml) for mzml in mzmls]
+        
+    fig, axes = plt.subplots(len(timings), len(timings)[0]))
+    
+    try: axes[0]
+    except: axes = [axes]
+    
+    for mzml, times, ax_ls in zip(mzmls, timings, axes):
+        for i, ax in enumerate(ax_ls):
+            sns.histplot(times[i+1], ax=ax, label=f"MS{i+1}", binwidth=binsize)
+            ax.set(
+                xlabel = "Scan Duration",
+                title = f"MS{i+1}"
+            )
+            
+    for ax_ls in axes:
+        ax_ls[0].set(ylabel="Count")
+        for ax in ax_ls[1:]:
+            ax.set(ylabel="")
+            
+    return fig, axes
 
 def seaborn_timing_hist(processing_times, binsize=None):
     return seaborn_hist(

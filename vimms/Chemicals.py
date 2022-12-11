@@ -418,7 +418,7 @@ class ChemSet():
         if(filepath is None):
             return MemoryChems(chems)
         else:
-            return FileChems(filepath, chems)
+            return FileChems(filepath)
     
     @staticmethod
     def dump_chems(chems, filepath):

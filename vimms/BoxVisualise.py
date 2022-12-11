@@ -191,7 +191,7 @@ class AutoColourMap(ColourMap):
         # if there's no path from one box to another when we build a graph of
         # their overlaps, we can re-use colours
         pairs = [(top, set()) for b in boxes for top in b.parents]
-        if(all(note top.id is None for top, _ in pairs)):
+        if(all(not top.id is None for top, _ in pairs)):
             pairs.sort(key=lambda p: p[0].id)
         top_level = OrderedDict(pairs)  # need uniqueness and maintain ordering
         if(self.reuse_colours):
@@ -1048,13 +1048,13 @@ def seaborn_hist(data, xlabel, binsize=None):
     return fig, axes
 
 
-def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined):
+def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined"):
     if(mode == "combined"):
         timings = [get_scan_times_combined(mzmls)]
     else:
         timings = [get_scan_times(mzml) for mzml in mzmls]
         
-    fig, axes = plt.subplots(len(timings), len(timings)[0]))
+    fig, axes = plt.subplots(len(timings), len(timings)[0])
     
     try: axes[0]
     except: axes = [axes]

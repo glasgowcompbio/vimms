@@ -516,7 +516,7 @@ class FileChems(ChemSet):
             return chems
         
         if(not chems is None):
-            self.dump_chems(chems, filepath)
+            cls.dump_chems(chems, filepath)
         
         return cls(filepath)
         

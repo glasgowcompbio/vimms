@@ -737,17 +737,17 @@ def mpl_results_plot(experiment_names,
         
     layouts = {
         "cumulative_coverage_proportion" : {
-            "title" : "Multi-Sample Cumulative Coverage",
+            "title" : "Cumulative Coverage",
             "ylabel" :  f"Cumulative Coverage Proportion {mode_str}",
         },
         
         "cumulative_intensity_proportion" : {
-            "title" : "Multi-Sample Cumulative Intensity Proportion",
+            "title" : "Cumulative Intensity Proportion",
             "ylabel" : f"Cumulative Intensity Proportion {mode_str}",
         },
         
         "cumulative_covered_intensities_proportion" : {
-            "title" : "Multi-Sample Cumulative Intensity Proportion (Covered Peaks Only)",
+            "title" : "Cumulative Intensity Proportion (Covered Peaks Only)",
             "ylabel" : f"Cumulative Intensity Proportion {mode_str}",
         }
     }

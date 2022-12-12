@@ -1054,7 +1054,7 @@ def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined"):
     else:
         timings = [get_scan_times(mzml) for mzml in mzmls]
         
-    fig, axes = plt.subplots(len(timings), len(timings)[0])
+    fig, axes = plt.subplots(len(timings), len(timings[0]))
     
     try: axes[0]
     except: axes = [axes]

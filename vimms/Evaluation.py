@@ -1,5 +1,6 @@
 import os
 import csv
+import copy
 import xml
 import math
 import re
@@ -7,6 +8,7 @@ import itertools
 import bisect
 import pathlib
 import subprocess
+import json
 from functools import reduce
 from operator import attrgetter
 from collections import Counter, defaultdict
@@ -150,6 +152,7 @@ class Evaluator(metaclass=ABCMeta):
     def __init__(self, chems=[]):
         self.chems = chems
         self.chem_info = np.zeros((len(chems), 3, 0), dtype=float)
+        self.report, self.report_min_intensity = None, 0.0
 
     @staticmethod
     def _new_window(rt, mz, isolation_width):
@@ -165,7 +168,13 @@ class Evaluator(metaclass=ABCMeta):
     def extra_info(self, report):
         pass
 
-    def evaluation_report(self, min_intensity=0.0):
+    def evaluation_report(self, min_intensity=None):
+        if(min_intensity is None):
+            min_intensity = self.report_min_intensity
+        
+        if(not self.report is None and math.isclose(min_intensity, self.report_min_intensity)):
+            return self.report
+    
         chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] > min_intensity, axis=1)
 
         frag_counts = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
@@ -176,41 +185,48 @@ class Evaluator(metaclass=ABCMeta):
         coverage = np.array(coverage_intensities, dtype=np.bool)
 
         times_fragmented = np.sum(frag_counts, axis=0)
-        times_fragmented_summary = Counter(times_fragmented.ravel())
+        times_fragmented_summary = {
+            int(k) : int(v) for k, v in zip(*np.unique(times_fragmented, return_counts=True))
+        }
         times_covered = np.sum(coverage, axis=0)
-        times_covered_summary = Counter(times_covered.ravel())
+        times_covered_summary = {
+            int(k) : int(v) for k, v in zip(*np.unique(times_covered, return_counts=True))
+        }
 
-        cumulative_coverage = list(itertools.accumulate(coverage, np.logical_or))
-        sum_cumulative_coverage = [np.sum(ccov) for ccov in cumulative_coverage]
-        cumulative_raw_intensities = list(itertools.accumulate(raw_intensities, np.fmax))
-        cumulative_coverage_intensities = list(itertools.accumulate(coverage_intensities, np.fmax))
+        cumulative_coverage = np.logical_or.accumulate(coverage, axis=0)
+        sum_cumulative_coverage = np.sum(cumulative_coverage, axis=1)
+        cumulative_raw_intensities = np.fmax.accumulate(raw_intensities, axis=0)
+        cumulative_coverage_intensities = np.fmax.accumulate(coverage_intensities, axis=0)
 
         num_chems = np.sum(chem_appears)
         coverage_prop = np.sum(coverage, axis=1) / num_chems
         cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
 
-        max_coverage_intensities = reduce(np.fmax, max_possible_intensities)
+        max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
         which_non_zero = max_coverage_intensities > 0.0
-        coverage_intensity_prop = [
-            np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero])
-            for c_i in coverage_intensities
-        ]
-        cumulative_raw_intensities_prop = [
-            np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero])
-            for c_i in cumulative_raw_intensities
-        ]
-        cumulative_coverage_intensities_prop = [
-            np.mean(c_i[which_non_zero] / max_coverage_intensities[which_non_zero])
-            for c_i in cumulative_coverage_intensities
-        ]
+        max_obtainable = max_coverage_intensities[np.newaxis, which_non_zero]
+        
+        coverage_intensity_prop = np.mean(
+            coverage_intensities[:, which_non_zero] / max_obtainable,
+            axis=1
+        )
+        cumulative_raw_intensities_prop = np.mean(
+            cumulative_raw_intensities[:, which_non_zero] / max_obtainable,
+            axis=1
+        )
+        cumulative_coverage_intensities_prop = np.mean(
+            cumulative_coverage_intensities[:, which_non_zero] / max_obtainable,
+            axis=1
+        )
 
-        cumulative_covered_intensities_prop = [
-            np.mean(c_i[covered] / max_coverage_intensities[covered])
-            for covered, c_i in zip(cumulative_coverage, cumulative_coverage_intensities)
-        ]
+        masked = np.where(cumulative_coverage, cumulative_coverage_intensities, np.nan)
+        cumulative_covered_intensities_prop = np.nanmean(
+            masked / max_coverage_intensities[np.newaxis, :],
+            axis=1
+        )
 
         report = {
-            "num_runs": self.chem_info.shape[2],
+            "num_runs": int(self.chem_info.shape[2]),
             "coverage": coverage,
             "raw_intensity": raw_intensities,
             "intensity": coverage_intensities,
@@ -221,23 +237,25 @@ class Evaluator(metaclass=ABCMeta):
             "times_covered": times_covered,
             "times_covered_summary": times_covered_summary,
 
-            "cumulative_coverage": cumulative_coverage,
-            "sum_cumulative_coverage": sum_cumulative_coverage,
-            "cumulative_raw_intensity": cumulative_raw_intensities,
-            "cumulative_intensity": cumulative_coverage_intensities,
+            "cumulative_coverage": cumulative_coverage.tolist(),
+            "sum_cumulative_coverage": sum_cumulative_coverage.tolist(),
+            "cumulative_raw_intensity": cumulative_raw_intensities.tolist(),
+            "cumulative_intensity": cumulative_coverage_intensities.tolist(),
 
-            "coverage_proportion": list(coverage_prop),
-            "intensity_proportion": coverage_intensity_prop,
-            "cumulative_raw_intensity_proportion": cumulative_raw_intensities_prop,
-            "cumulative_coverage_proportion": list(cumulative_coverage_prop),
-            "cumulative_intensity_proportion": cumulative_coverage_intensities_prop,
-            "cumulative_covered_intensities_proportion": cumulative_covered_intensities_prop
+            "coverage_proportion": coverage_prop.tolist(),
+            "intensity_proportion": coverage_intensity_prop.tolist(),
+            "cumulative_raw_intensity_proportion": cumulative_raw_intensities_prop.tolist(),
+            "cumulative_coverage_proportion": cumulative_coverage_prop.tolist(),
+            "cumulative_intensity_proportion": cumulative_coverage_intensities_prop.tolist(),
+            "cumulative_covered_intensities_proportion": 
+                cumulative_covered_intensities_prop.tolist()
         }
 
         self.extra_info(report)
+        self.report, self.report_min_intensity = report, min_intensity
         return report
 
-    def summarise(self, min_intensity=0.0):
+    def summarise(self, min_intensity=None):
         report = self.evaluation_report(min_intensity=min_intensity)
         fields = {
             "Number of fragmentations": "num_frags",
@@ -253,7 +271,47 @@ class Evaluator(metaclass=ABCMeta):
         }
 
         return "\n".join(f"{name}: {report[key]}" for name, key in fields.items())
-
+    
+    def report_to_json(self, filepath, min_intensity=None):
+        np_fields = [
+            "coverage", 
+            "raw_intensity", 
+            "intensity", 
+            "max_possible_intensity",
+            "times_fragmented",
+            "times_covered"
+        ]
+    
+        report = copy.copy(self.evaluation_report(min_intensity=min_intensity))
+        
+        for k in np_fields:
+            report[k] = report[k].tolist()
+            
+        with open(filepath, "w") as f:
+            json.dump([report, self.report_min_intensity], f)
+        
+    @classmethod
+    def from_report_json(cls, filepath):
+        np_fields = [
+            "coverage", 
+            "raw_intensity", 
+            "intensity", 
+            "max_possible_intensity",
+            "times_fragmented",
+            "times_covered"
+        ]
+    
+        with open(filepath, "r") as f:
+            eva = cls()
+            eva.report, eva.report_min_intensity = json.load(f)
+            
+            for k in np_fields:
+                eva.report[k] = np.array(eva.report[k])
+            
+            for k in ["times_fragmented_summary", "times_covered_summary"]:
+                eva.report[k] = {int(k) : int(v) for k, v in eva.report[k].items()}
+            
+            return eva
 
 class SyntheticEvaluator(Evaluator):
 
@@ -263,6 +321,7 @@ class SyntheticEvaluator(Evaluator):
 
     @classmethod
     def from_envs(cls, envs):
+        self.report, self.report_min_intensity = None, 0.0
         envs = list(envs)
 
         observed_chems = set(
@@ -302,14 +361,14 @@ class SyntheticEvaluator(Evaluator):
 
 
 # TODO: these are only here for backwards compatibility - can delete?
-def evaluate_multiple_simulated_env(envs, min_intensity=0.0, group_list=None):
+def evaluate_multiple_simulated_env(envs, min_intensity=None, group_list=None):
     """Evaluates_multiple simulated injections against a base set of chemicals that
     were used to derive the datasets"""
     eva = SyntheticEvaluator.from_envs(envs)
     return eva
 
 
-def evaluate_simulated_env(env, min_intensity=0.0, base_chemicals=None):
+def evaluate_simulated_env(env, min_intensity=None, base_chemicals=None):
     """Evaluates a single simulated injection against the chemicals present in that injection"""
     return evaluate_multiple_simulated_env([env], min_intensity=min_intensity)
 
@@ -481,6 +540,7 @@ class RealEvaluator(Evaluator):
         return eva
 
     def add_info(self, fullscan_name, mzmls, isolation_width=None, max_error=10):
+        self.report, self.report_min_intensity = None, 0.0
         if ("." in fullscan_name): fullscan_name = ".".join(fullscan_name.split(".")[:-1])
         fs_idx = self.fullscan_names.index(os.path.basename(fullscan_name))
         chems = [row[fs_idx] for row in self.chems]
@@ -583,7 +643,7 @@ class RealEvaluator(Evaluator):
         self.chem_info[:] = 0
         self.mzmls = []
 
-    def partition_chems(self, min_intensity=0.0, aggregate=None):
+    def partition_chems(self, min_intensity=None, aggregate=None):
         partition = {
             "fragmented": [],
             "unfragmented": []

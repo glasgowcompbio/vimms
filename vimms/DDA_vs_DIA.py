@@ -1,5 +1,6 @@
 import glob
 import os
+from os.path import exists
 
 import ipyparallel as ipp
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
 from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.BoxVisualise import PlotPoints
-from vimms.Common import load_obj, create_if_not_exist
+from vimms.Common import load_obj, create_if_not_exist, POSITIVE
 from vimms.Controller import AgentBasedController, TopN_SmartRoiController, TopNController, \
     WeightedDEWController, AIF, SWATH, AdvancedParams
 from vimms.Controller.box import IntensityNonOverlapController, NonOverlapController
@@ -22,7 +23,45 @@ from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiAligner
+from vimms.Utils import write_msp
 
+
+def make_msp(pickle_folder, sample_list=None):
+    msp_folder = pickle_folder  # put msp in the same folder
+    original_files = glob.glob(os.path.join(pickle_folder, '*.p'))
+    for pf in original_files:
+        logger.info(pf)
+        root, ext = os.path.splitext(pf)
+
+        chems = load_obj(pf)
+        if sample_list is None:  # single injection
+            msp_filename = '%s.msp' % root
+            if not exists(msp_filename):
+                logger.info(msp_filename)
+                write_msp(chems, msp_filename, out_dir=None, skip_rt=True, all_isotopes=False,
+                          ion_mode=[POSITIVE])
+
+        else:  # multiple injections
+            assert len(chems) == len(sample_list)
+
+            # write individual msp files
+            all_chems = []
+            for i in range(len(sample_list)):
+                sample_name = sample_list[i]
+                chem = chems[i]
+                all_chems.extend(chem)
+                msp_filename = '%s_%s.msp' % (root, sample_name)
+                if not exists(msp_filename):
+                    logger.info(msp_filename)
+                    write_msp(chem, msp_filename, out_dir=None, skip_rt=True, all_isotopes=False,
+                              ion_mode=[POSITIVE])
+
+                    # write the combined msp files
+            msp_filename = '%s.msp' % root
+            if not exists(msp_filename):
+                logger.info(msp_filename)
+                write_msp(all_chems, msp_filename, out_dir=None, skip_rt=True, all_isotopes=False,
+                          ion_mode=[POSITIVE])
 
 def run_experiment(result_folder, sample_list, controller_names, experiment_params, parallel=True):
     """

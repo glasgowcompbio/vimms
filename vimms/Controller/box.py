@@ -18,7 +18,7 @@ from vimms.Roi import RoiBuilder
 from vimms.Box import Point, GenericBox
 
 
-class GridController(RoiController):
+class TopNEXtController(RoiController):
     """
     A multi-sample controller that use a grid to track which regions-of-interests (ROIs)
     have been fragmented across multiple injections.
@@ -121,7 +121,7 @@ class GridController(RoiController):
         self.grid.update_after_injection()
 
 
-class IntensityGridController(GridController):
+class IntensityTopNEXtController(TopNEXtController):
     def _get_scores(self):
         if(self.roi_builder.live_roi != []):
             rt = max(r.max_rt for r in self.roi_builder.live_roi)
@@ -139,7 +139,7 @@ class IntensityGridController(GridController):
             )
 
 
-class TopNEXController(GridController):
+class TopNEXController(TopNEXtController):
     def _overlap_scores(self):
         exclude = np.array([
             not self.grid.point_in_box(
@@ -162,7 +162,7 @@ class TopNEXController(GridController):
         super().after_injection_cleanup()
         
 
-class HardRoIExcludeController(GridController):
+class HardRoIExcludeController(TopNEXtController):
     def _overlap_scores(self):
         exclude = np.array([
             not self.grid.point_in_box(
@@ -173,7 +173,7 @@ class HardRoIExcludeController(GridController):
         return exclude
 
 
-class IntensityRoIExcludeController(IntensityGridController):
+class IntensityRoIExcludeController(IntensityTopNEXtController):
     def _overlap_scores(self):
         new_intensities = []
         for r in self.roi_builder.live_roi:
@@ -186,7 +186,7 @@ class IntensityRoIExcludeController(IntensityGridController):
         return new_intensities
         
 
-class NonOverlapController(GridController):
+class NonOverlapController(TopNEXtController):
     """
     A controller that implements the `non-overlapping` idea to determine how regions-of-interests
     should be fragmented across injections.
@@ -198,7 +198,7 @@ class NonOverlapController(GridController):
         return weights
 
 
-class IntensityNonOverlapController(IntensityGridController):
+class IntensityNonOverlapController(IntensityTopNEXtController):
     """
     A variant of the non-overlap controller but it takes into account intensity changes.
     """
@@ -214,7 +214,7 @@ class IntensityNonOverlapController(IntensityGridController):
         return new_intensities
         
 
-class FlexibleNonOverlapController(GridController):
+class FlexibleNonOverlapController(TopNEXtController):
     """
     TODO: this class can probably be removed.
     """
@@ -268,7 +268,7 @@ class FlexibleNonOverlapController(GridController):
         return scores
 
 
-class CaseControlNonOverlapController(GridController):
+class CaseControlNonOverlapController(TopNEXtController):
     """
     Case-control non-overlap controller
     """
@@ -322,7 +322,7 @@ class CaseControlNonOverlapController(GridController):
         return self._get_top_N_scores(scores * self._score_filters())
 
 
-class TopNBoxRoiController2(GridController):
+class TopNBoxRoiController2(TopNEXtController):
     """
     TODO: This class can probably be removed too?
     """

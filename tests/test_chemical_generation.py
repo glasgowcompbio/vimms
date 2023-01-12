@@ -5,12 +5,15 @@ from pathlib import Path
 
 import pytest
 from mass_spec_utils.library_matching.gnps import load_mgf
+from loguru import logger
 
-from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check_non_empty_MS2
+from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check_non_empty_MS2, \
+    BEER_CHEMS, run_environment, BEER_MIN_BOUND, BEER_MAX_BOUND, MIN_MS1_INTENSITY, BEER_CHEMS_PATH
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, \
     UniformMZFormulaSampler, CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, \
     MZMLRTandIntensitySampler, MZMLFormulaSampler, MZMLChromatogramSampler, MzMLScanTimeSampler
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, \
+    ChemicalMixtureFromMZML, ChemSet
 from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning, \
     DEFAULT_SCAN_TIME_DICT
 from vimms.Controller import SimpleMs1Controller, TopNController
@@ -314,4 +317,59 @@ class TestScanTiming():
         set_log_level_warning()
         env.run()
         filename = 'test_scan_time_mean_from_mzml.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+
+class TestChemSet():
+
+    def test_memory_chems(self):
+        logger.info('Testing memory chems')
+        chemset = ChemSet.to_chemset(BEER_CHEMS)
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, chemset)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                                    MIN_MS1_INTENSITY)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'test_chemset_memory.mzML'
+        check_mzML(env, OUT_DIR, filename)
+
+    def test_file_chems(self):
+        logger.info('Testing file chems')
+        chemset = ChemSet.to_chemset(None, filepath=BEER_CHEMS_PATH)
+
+        isolation_width = 1
+        N = 10
+        rt_tol = 15
+        mz_tol = 10
+        ionisation_mode = POSITIVE
+
+        # create a simulated mass spec without noise and Top-N controller
+        mass_spec = IndependentMassSpectrometer(ionisation_mode, chemset)
+        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
+                                    MIN_MS1_INTENSITY)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        run_environment(env)
+
+        # check that there is at least one non-empty MS2 scan
+        check_non_empty_MS2(controller)
+
+        # write simulated output to mzML file
+        filename = 'test_chemset_file.mzML'
         check_mzML(env, OUT_DIR, filename)

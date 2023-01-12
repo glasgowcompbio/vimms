@@ -19,7 +19,7 @@ from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, \
 from vimms.Chromatograms import EmpiricalChromatogram
 from vimms.Common import POS_TRANSFORMATIONS, Formula, DummyFormula, \
     PROTON_MASS, POSITIVE, NEGATIVE, C12_PROPORTION, \
-    C13_MZ_DIFF, C, MONO, C13
+    C13_MZ_DIFF, C, MONO, C13, load_obj
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiBuilderParams
 
@@ -532,7 +532,16 @@ class FileChems(ChemSet):
         try:
             while(not self.finished and 
                   (len(self.pending) == 0 or Chemical.get_min_rt(self.pending[-1]) <= rt)):
-                self.pending.extend(pickle.load(self.f))
+                try:
+                    new_chems = pickle.load(self.f)
+                except pickle.UnpicklingError:
+
+                    # failed to unpickle chems previously saved using save_obj
+                    # try to load again using load_obj
+                    key = Chemical.get_min_rt
+                    new_chems = sorted(load_obj(self.filepath), key=key) # important to sort
+
+                self.pending.extend(new_chems)
         except EOFError:
             self.finished = True
             self.f.close()

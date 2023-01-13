@@ -276,8 +276,6 @@ class TopNExclusion():
         """
         excluded = self.exclusion_list.is_in_box(mz, rt)
         if excluded:
-            logger.debug(
-                'Excluded precursor ion mz {:.4f} rt {:.2f}'.format(mz, rt))
             return True, 0.0
         else:
             return False, 1.0
@@ -302,10 +300,6 @@ class TopNExclusion():
                 rt_tol = task.get(ScanParameters.DYNAMIC_EXCLUSION_RT_TOL)
                 x = self._get_exclusion_item(mz, rt, mz_tol, rt_tol)
                 self.exclusion_list.add_box(x)
-                logger.debug(
-                    'Time {:.6f} Created dynamic temporary exclusion '
-                    'window mz ({}-{}) rt ({}-{})'.format(
-                        rt, x.from_mz, x.to_mz, x.from_rt, x.to_rt))
 
     def _get_exclusion_item(self, mz, rt, mz_tol, rt_tol):
         """

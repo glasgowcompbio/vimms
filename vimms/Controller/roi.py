@@ -139,8 +139,6 @@ class RoiController(TopNController):
             for i in np.argsort(scores)[::-1]:
                 # stopping criteria is done based on the scores
                 if scores[i] <= 0:
-                    logger.debug('Time %f Top-%d ions have been selected' %
-                                 (rt, self.N))
                     break
 
                 mz, intensity, roi_id = self.roi_builder.get_mz_intensity(i)

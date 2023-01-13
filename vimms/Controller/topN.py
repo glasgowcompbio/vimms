@@ -81,8 +81,6 @@ class TopNController(Controller):
                 # stopping criteria is after we've fragmented N ions or
                 # we found ion < min_intensity
                 if fragmented_count >= self.N:
-                    logger.debug('Time %f Top-%d ions have been selected' %
-                                 (rt, self.N))
                     break
 
                 if intensity < self.min_ms1_intensity:
@@ -222,8 +220,6 @@ class WeightedDEWController(TopNController):
                 # stopping criteria is after we've fragmented N ions or we
                 # found ion < min_intensity
                 if fragmented_count >= self.N:
-                    logger.debug('Time %f Top-%d ions have been selected' %
-                                 (rt, self.N))
                     break
 
                 mz = mzi[i].mz

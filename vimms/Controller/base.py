@@ -228,9 +228,6 @@ class Controller(ABC):
         Returns: a list of new [vimms.Common.ScanParameters][] describing what to do next.
 
         """
-        logger.debug('tasks to be sent = %d' % (current_size))
-        logger.debug('tasks sent but not received = %d' % (pending_size))
-
         # record every scan that we've received
         self.scans[scan.ms_level].append(scan)
 
@@ -243,17 +240,11 @@ class Controller(ABC):
         # have been sent and processed AND this ms1 scan is a custom scan
         # we'd sent before (not a method scan) then store it for
         # fragmentation next time
-        logger.debug(
-            'scan.scan_id = %d, self.next_processed_scan_id = %d' % (
-                scan.scan_id, self.next_processed_scan_id))
+
         if scan.scan_id == self.next_processed_scan_id:
             self.scan_to_process = scan
-            logger.debug('Next processed scan %d has arrived' %
-                         self.next_processed_scan_id)
         else:
             self.scan_to_process = None
-        logger.debug('scan_to_process = %s' % self.scan_to_process)
-        logger.debug('scan.scan_params = %s' % scan.scan_params)
 
         # implemented by subclass
         if self.scan_to_process is not None:

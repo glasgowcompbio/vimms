@@ -374,14 +374,12 @@ class IndependentMassSpectrometer():
             # This could return an empty list if there's nothing there.
             params_list = self.get_params()
         else:
-            logger.debug('Got an initial task from controller')
             params_list = [params]  # initial param passed from the controller
 
         # Send params away. In the simulated case, no sending actually occurs,
         # instead we just track these params we've sent by adding them to
         # self.environment.pending_tasks
         if len(params_list) > 0:
-            logger.debug('new tasks ready to send = %d' % len(params_list))
             self.send_params(params_list)
 
         # pick up the last param that has been sent and generate a new scan
@@ -434,7 +432,6 @@ class IndependentMassSpectrometer():
 
         """
         params_list = self.task_manager.to_send()
-        logger.debug('Selected %d tasks to send' % (len(params_list)))
         return params_list
 
     def send_params(self, params_list):
@@ -452,7 +449,6 @@ class IndependentMassSpectrometer():
 
         """
         self.task_manager.add_pending(params_list)
-        logger.debug('Successfully sent %d tasks' % (len(params_list)))
 
     def fire_event(self, event_name, arg=None):
         """
@@ -524,7 +520,6 @@ class IndependentMassSpectrometer():
         Returns: None
 
         """
-        logger.debug('Unregistering event handlers')
         self.clear_events()
 
     ###########################################################################
@@ -565,8 +560,6 @@ class IndependentMassSpectrometer():
                                                         next_level)
 
         self.time += current_scan_duration
-        logger.debug(
-            'scan_duration=%f time %f' % (current_scan_duration, self.time))
         return current_scan_duration
 
     ###########################################################################

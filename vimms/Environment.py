@@ -86,10 +86,10 @@ class Environment():
         except Exception as e:
             raise e
         finally:
+            self.close_progress_bar()
             self.mass_spec.fire_event(
                 IndependentMassSpectrometer.ACQUISITION_STREAM_CLOSED)
             self.mass_spec.close()
-            self.close_progress_bar()
         self.write_mzML(self.out_dir, self.out_file)
         if self.save_eval:
             self.write_eval_data(self.out_dir, self.out_file)
@@ -192,8 +192,6 @@ class Environment():
         Returns: None
 
         """
-        logger.debug('Time %f Received %s' % (scan.rt, scan))
-
         # check the status of the last block of pending tasks we sent to
         # determine if their corresponding scans have actually been performed
         # by the mass spec
@@ -243,11 +241,10 @@ class Environment():
 
         """
         mzml_filename = self._get_out_file(out_dir, out_file)
-        logger.debug('Writing mzML file to %s' % mzml_filename)
         if mzml_filename is not None:
             writer = MzmlWriter('my_analysis', self.controller.scans)
             writer.write_mzML(mzml_filename)
-            logger.debug('mzML file successfully written!')
+            logger.debug('Created mzML file %s' % mzml_filename)
 
     def write_eval_data(self, out_dir, out_file):
         """

@@ -1,5 +1,6 @@
 import os
 import random as rand
+import time
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,7 @@ from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensit
     MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler
 from vimms.Chemicals import ChemicalMixtureCreator, ChemicalMixtureFromMZML
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, \
-    ADDUCT_DICT_POS_MH, ScanParameters
+    ADDUCT_DICT_POS_MH, ScanParameters, set_log_level_info
 from vimms.Roi import RoiBuilderParams
 
 # define some useful constants
@@ -49,21 +50,19 @@ def get_rt_bounds(dataset, centre):
 
 
 def run_environment(env):
-    # set the log level to WARNING so we don't see too many messages when environment is running
-    set_log_level_warning()
+    # set the log level to INFO so we don't see too many messages when environment is running
+    # set_log_level_info()
     # run the simulation
-    logger.info('Running simulation')
+    start_time = time.time()
     env.run()
-    logger.info('Done')
+    logger.info('Done in %s seconds' % (time.time() - start_time))
     # set the log level back to DEBUG
-    set_log_level_debug()
+    # set_log_level_debug()
 
 
 def check_mzML(env, out_dir, filename):
     out_file = os.path.join(out_dir, filename)
-    logger.info('Writing out mzML')
     env.write_mzML(out_dir, filename)
-    logger.info('Done')
     assert os.path.exists(out_file)
 
 

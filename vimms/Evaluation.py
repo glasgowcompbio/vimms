@@ -321,7 +321,7 @@ class SyntheticEvaluator(Evaluator):
 
     @classmethod
     def from_envs(cls, envs):
-        self.report, self.report_min_intensity = None, 0.0
+        # self.report, self.report_min_intensity = None, 0.0
         envs = list(envs)
 
         observed_chems = set(

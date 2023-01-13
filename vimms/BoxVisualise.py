@@ -18,7 +18,7 @@ from plotly.subplots import make_subplots
 from plotly.colors import DEFAULT_PLOTLY_COLORS
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-from vimms.Common import path_or_mzml, get_scan_times_combined
+from vimms.Common import path_or_mzml, get_scan_times_combined, get_scan_times
 from vimms.Box import GenericBox, BoxGrid
 
 

@@ -1,5 +1,5 @@
 from numba import njit, float64, float32, int32, types
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 import numpy as np
 
 from vimms.Common import CHROM_TYPE_EMPIRICAL
@@ -23,7 +23,7 @@ def adduct_transformation(mz: float64, mul: float64, add: float64) -> float64:
 
 
 @njit
-def bisect_right(a: List[float64], x: float64) -> int32:
+def bisect_right(a: np.ndarray, x: float64) -> int32:
     """Return the index where to insert item x in list a, assuming a is sorted.
 
     The return value i is such that all e in a[:i] have e <= x, and all e in
@@ -65,7 +65,7 @@ def bisect_right(a: List[float64], x: float64) -> int32:
 
 
 @njit
-def get_distance(rts: List[float64], query_rt: float64) -> float64:
+def get_distance(rts: np.ndarray, query_rt: float64) -> float64:
     which_above = bisect_right(rts, query_rt)
     which_below = which_above - 1
     rt_below = rts[which_below]
@@ -79,14 +79,14 @@ def rt_match(min_rt: float64, max_rt: float64, query_rt: float64) -> float64:
 
 
 @njit
-def interpolate(value_above: float64, value_below: float64, rts: List[float64],
+def interpolate(value_above: float64, value_below: float64, rts: np.ndarray,
                 query_rt: float64) -> float64:
     return value_below + (value_above - value_below) * get_distance(rts, query_rt)
 
 
 @njit
-def get_relative_value(query_rt: float64, min_rt: float64, max_rt: float64, rts: List[float64],
-                       intensities: List[float64]) -> float64:
+def get_relative_value(query_rt: float64, min_rt: float64, max_rt: float64, rts: np.ndarray,
+                       intensities: np.ndarray) -> float64:
     if not rt_match(min_rt, max_rt, query_rt):
         return None
     which_above = bisect_right(rts, query_rt)
@@ -113,8 +113,8 @@ def get_mz_value(mz: float64, mul: float64, add: float64, mz_to_add: float64) ->
 
 @njit
 def get_relative_mz(chrom_type: types.unicode_type, query_rt: float64, chrom_min_rt: float64,
-                    chrom_max_rt: float64, chrom_rts: List[float64],
-                    chrom_mzs: List[float32]) -> float64:
+                    chrom_max_rt: float64, chrom_rts: np.ndarray,
+                    chrom_mzs: np.ndarray) -> float64:
     if chrom_type == CHROM_TYPE_EMPIRICAL:
         return get_relative_value(query_rt, chrom_min_rt, chrom_max_rt, chrom_rts, chrom_mzs)
     return 0.0
@@ -124,8 +124,17 @@ def get_relative_mz(chrom_type: types.unicode_type, query_rt: float64, chrom_min
 def get_mz_ms1(mz: float64, mul: float64, add: float64, chrom_type: types.unicode_type,
                query_rt: float64, chemical_rt: float64,
                chrom_min_rt: float64, chrom_max_rt: float64,
-               chrom_rts: List[float64], chrom_mzs: List[float32]) -> float64:
+               chrom_rts: np.ndarray, chrom_mzs: np.ndarray) -> float64:
     relative_mz = get_relative_mz(chrom_type, query_rt - chemical_rt,
                                   chrom_min_rt, chrom_max_rt,
                                   chrom_rts, chrom_mzs)
     return get_mz_value(mz, mul, add, relative_mz)
+
+
+# @njit
+def get_mz_msn(mz: float64, mul: float64, add: float64, ms1_parent_isotopes: np.ndarray,
+               which_isotope: int32) -> float64:
+    isotope_transformation = ms1_parent_isotopes[which_isotope][0] - \
+                             ms1_parent_isotopes[0][0]
+    mz_value = get_mz_value(mz, mul, add, isotope_transformation)
+    return mz_value

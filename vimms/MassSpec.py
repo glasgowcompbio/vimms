@@ -9,8 +9,9 @@ from vimms.Common import (
     DEFAULT_SCAN_TIME_DICT,
     INITIAL_SCAN_ID, ScanParameters, ADDUCT_TERMS
 )
-from vimms.MassSpecUtils import adduct_transformation, isolation_match, get_mz_value, get_relative_mz, \
-    get_mz_ms1
+from vimms.MassSpecUtils import adduct_transformation, isolation_match, get_mz_value, \
+    get_relative_mz, \
+    get_mz_ms1, get_mz_msn
 from vimms.Chemicals import ChemSet
 from vimms.Noise import NoPeakNoise
 
@@ -826,22 +827,27 @@ class IndependentMassSpectrometer():
     def _get_mz_ms1(self, chemical, query_rt, which_isotope, which_adduct):
         chrom = chemical.chromatogram
         chrom_type = chrom.get_chrom_type()
+
         mz = chemical.isotopes[which_isotope][0]
         adduct = chemical.adducts[self.ionisation_mode][which_adduct][0]
         mul, add = ADDUCT_TERMS[adduct]
-        return get_mz_ms1(mz, mul, add, chrom_type, query_rt, chemical.rt,
+
+        mz_value = get_mz_ms1(mz, mul, add, chrom_type, query_rt, chemical.rt,
                    chrom.min_rt, chrom.max_rt,
                    chrom.rts, chrom.mzs)
+        return mz_value
 
     def _get_mz_msn(self, chemical, which_isotope, which_adduct):
         ms1_parent = chemical
         while ms1_parent.ms_level != 1:
             ms1_parent = chemical.parent
-        isotope_transformation = ms1_parent.isotopes[which_isotope][0] - \
-                                 ms1_parent.isotopes[0][0]
+        ms1_parent_isotopes = ms1_parent.isotopes
+
         # TODO: Needs improving
         mz = chemical.isotopes[0][0]
         parent_adduct = chemical.parent.adducts[self.ionisation_mode]
         adduct = parent_adduct[which_adduct][0]
         mul, add = ADDUCT_TERMS[adduct]
-        return get_mz_value(mz, mul, add, isotope_transformation)
+
+        mz_value = get_mz_msn(mz, mul, add, ms1_parent_isotopes, which_isotope)
+        return mz_value

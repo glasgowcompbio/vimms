@@ -6,8 +6,9 @@ import pysmiles
 from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chemicals import KnownChemical, UnknownChemical, DatabaseCompound
-from vimms.Common import adduct_transformation, create_if_not_exist, \
+from vimms.Common import create_if_not_exist, \
     ATOM_MASSES, POSITIVE
+from vimms.MassSpecUtils import adduct_transformation
 
 # Constants for write_msp
 COLLISION_ENERGY = '25'

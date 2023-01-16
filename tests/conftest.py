@@ -50,14 +50,10 @@ def get_rt_bounds(dataset, centre):
 
 
 def run_environment(env):
-    # set the log level to INFO so we don't see too many messages when environment is running
-    # set_log_level_info()
     # run the simulation
     start_time = time.time()
     env.run()
     logger.info('Done in %s seconds' % (time.time() - start_time))
-    # set the log level back to DEBUG
-    # set_log_level_debug()
 
 
 def check_mzML(env, out_dir, filename):

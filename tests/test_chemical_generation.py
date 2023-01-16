@@ -325,33 +325,22 @@ class TestChemSet():
     def test_memory_chems(self):
         logger.info('Testing memory chems')
         chemset = ChemSet.to_chemset(BEER_CHEMS)
+        out_file = 'test_chemset_memory.mzML'
+        self._run_topN(chemset, out_file)
 
-        isolation_width = 1
-        N = 10
-        rt_tol = 15
-        mz_tol = 10
-        ionisation_mode = POSITIVE
-
-        # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, chemset)
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    MIN_MS1_INTENSITY)
-
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
-        run_environment(env)
-
-        # check that there is at least one non-empty MS2 scan
-        check_non_empty_MS2(controller)
-
-        # write simulated output to mzML file
-        filename = 'test_chemset_memory.mzML'
-        check_mzML(env, OUT_DIR, filename)
+    def test_fast_memory_chems(self):
+        logger.info('Testing fast memory chems')
+        chemset = ChemSet.to_chemset(BEER_CHEMS, fast=True)
+        out_file = 'test_chemset_fast_memory.mzML'
+        self._run_topN(chemset, out_file)
 
     def test_file_chems(self):
         logger.info('Testing file chems')
         chemset = ChemSet.to_chemset(None, filepath=BEER_CHEMS_PATH)
+        out_file = 'test_chemset_file.mzML'
+        self._run_topN(chemset, out_file)
 
+    def _run_topN(self, chemset, out_file):
         isolation_width = 1
         N = 10
         rt_tol = 15
@@ -364,12 +353,11 @@ class TestChemSet():
                                     MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, 0, 1440, progress_bar=True)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
         check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
-        filename = 'test_chemset_file.mzML'
-        check_mzML(env, OUT_DIR, filename)
+        check_mzML(env, OUT_DIR, out_file)

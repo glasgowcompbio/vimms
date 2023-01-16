@@ -8,14 +8,15 @@ import pickle
 import re
 import sys
 import zipfile
-from bisect import bisect_left
 
+from numba import njit
 import numpy as np
 import requests
 from loguru import logger
 from tqdm.auto import tqdm
 
 from mass_spec_utils.data_import.mzml import MZMLFile
+
 ###############################################################################
 # Common constants
 ###############################################################################
@@ -61,26 +62,36 @@ DEFAULT_SOURCE_CID_ENERGY = 0
 
 PROTON_MASS = 1.00727645199076
 
-# Note: M+H should come first in this dict because of the prior specification
-POS_TRANSFORMATIONS = collections.OrderedDict()
-POS_TRANSFORMATIONS['M+H'] = lambda mz: (mz + PROTON_MASS)
-POS_TRANSFORMATIONS['[M+ACN]+H'] = lambda mz: (mz + 42.033823)
-POS_TRANSFORMATIONS['[M+CH3OH]+H'] = lambda mz: (mz + 33.033489)
-POS_TRANSFORMATIONS['[M+NH3]+H'] = lambda mz: (mz + 18.033823)
-POS_TRANSFORMATIONS['M+Na'] = lambda mz: (mz + 22.989218)
-POS_TRANSFORMATIONS['M+K'] = lambda mz: (mz + 38.963158)
-POS_TRANSFORMATIONS['M+2Na-H'] = lambda mz: (mz + 44.971160)
-POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
-POS_TRANSFORMATIONS['M+2Na-H'] = lambda mz: (mz + 44.971160)
-POS_TRANSFORMATIONS['M+2K+H'] = lambda mz: (mz + 76.919040)
-POS_TRANSFORMATIONS['[M+DMSO]+H'] = lambda mz: (mz + 79.02122)
-POS_TRANSFORMATIONS['[M+2ACN]+H'] = lambda mz: (mz + 83.060370)
-POS_TRANSFORMATIONS['2M+H'] = lambda mz: (mz * 2) + 1.007276
-POS_TRANSFORMATIONS['M+ACN+Na'] = lambda mz: (mz + 64.015765)
-POS_TRANSFORMATIONS['2M+NH4'] = lambda mz: (mz * 2) + 18.
+CHROM_TYPE_EMPIRICAL = 'empirical'
+CHROM_TYPE_CONSTANT = 'constant'
+CHROM_TYPE_FUNCTIONAL = 'functional'
 
-NEG_TRANSFORMATIONS = collections.OrderedDict()
-NEG_TRANSFORMATIONS['M-H'] = lambda mz: (mz - PROTON_MASS)
+ADDUCT_NAMES_POS = [
+    'M+H', '[M+ACN]+H', '[M+CH3OH]+H', '[M+NH3]+H', 'M+Na',
+    'M+K', 'M+2Na-H', 'M+ACN+Na', 'M+2K+H', '[M+DMSO]+H',
+    '[M+2ACN]+H', '2M+H', 'M+ACN+Na', '2M+NH4'
+]
+ADDUCT_NAMES_NEG = [
+    'M-H'
+]
+
+ADDUCT_TERMS = {
+    'M+H': (1, PROTON_MASS),
+    '[M+ACN]+H': (1, 42.033823),
+    '[M+CH3OH]+H': (1, 33.033489),
+    '[M+NH3]+H': (1, 18.033823),
+    'M+Na': (1, 22.989218),
+    'M+K': (1, 38.963158),
+    'M+2Na-H': (1, 44.971160),
+    'M+ACN+Na': (1, 64.015765),
+    'M+2K+H': (1, 76.919040),
+    '[M+DMSO]+H': (1, 79.02122),
+    '[M+2ACN]+H': (1, 83.060370),
+    '2M+H': (2, 1.007276),
+    'M+ACN+Na': (1, 64.015765),
+    '2M+NH4': (2, 18),
+    'M-H': (1, -PROTON_MASS)
+}
 
 # example prior dictionary to be passed when creating an
 # adducts object to only get M+H adducts out
@@ -129,6 +140,7 @@ CONTROLLER_NON_OVERLAP = 'non_overlap'
 CONTROLLER_INTENSITY_NON_OVERLAP = 'intensity_non_overlap'
 CONTROLLER_INTENSITY_ROI_EXCLUSION = 'intensity_roi_exclusion'
 CONTROLLER_HARD_ROI_EXCLUSION = 'hard_roi_exclusion'
+
 
 ###############################################################################
 # Common classes
@@ -317,22 +329,25 @@ class ScanParameters():
         Gets the full-width (DDA) isolation window around a precursor m/z
         """
         precursor_list = self.get(ScanParameters.PRECURSOR_MZ)
+        precursor_mz_list = [precursor.precursor_mz for precursor in precursor_list]
         isolation_width_list = self.get(ScanParameters.ISOLATION_WIDTH)
-
-        isolation_windows = []
-
-        windows = []
-        for i, precursor in enumerate(precursor_list):
-            isolation_width = isolation_width_list[i]
-            mz_lower = precursor.precursor_mz - (isolation_width / 2)
-            mz_upper = precursor.precursor_mz + (isolation_width / 2)
-            windows.append((mz_lower, mz_upper))
-
-        isolation_windows.append(windows)
-        return isolation_windows
+        return compute_isolation_windows(isolation_width_list, precursor_mz_list)
 
     def __repr__(self):
         return 'ScanParameters %s' % (self.params)
+
+
+@njit()
+def compute_isolation_windows(isolation_width_list, precursor_mz_list):
+    isolation_windows = []
+    windows = []
+    for i, mz in enumerate(precursor_mz_list):
+        isolation_width = isolation_width_list[i]
+        mz_lower = mz - (isolation_width / 2)
+        mz_upper = mz + (isolation_width / 2)
+        windows.append((mz_lower, mz_upper))
+    isolation_windows.append(windows)
+    return isolation_windows
 
 
 class Precursor():
@@ -377,40 +392,45 @@ def create_if_not_exist(out_dir):
     if not pathlib.Path(out_dir).exists():
         logger.info('Created %s' % out_dir)
         pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-        
-def path_or_mzml(mzml):    
+
+
+def path_or_mzml(mzml):
     try:
         mzml = MZMLFile(mzml)
     except:
-        if(not type(mzml) == MZMLFile):
+        if (not type(mzml) == MZMLFile):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
-    
+
+
 def get_scan_times(mzml):
     scans = collections.defaultdict(list)
     mzml = path_or_mzml(mzml)
-    
+
     prev_level = mzml.scans[0].ms_level
     prev_time = mzml.scans[0].rt_in_seconds
     for s in mzml.scans[1:]:
         scans[prev_level].append(s.rt_in_seconds - prev_time)
         prev_level = s.ms_level
         prev_time = s.rt_in_seconds
-        
+
     return scans
-    
+
+
 def get_scan_times_combined(mzmls):
     combined = collections.defaultdict(list)
     for mzml in mzmls:
         for level, times in get_scan_times(mzml).items():
             combined[level].extend(times)
     return combined
-    
+
+
 def get_avg_scan_times(mzmls):
     return {
-        level : np.mean(times)
+        level: np.mean(times)
         for level, times in get_scan_times_combined(mzmls).items()
     }
+
 
 def save_obj(obj, filename):
     """
@@ -478,51 +498,6 @@ def chromatogramDensityNormalisation(rts, intensities):
     return new_intensities
 
 
-def adduct_transformation(mz, adduct):
-    """
-    Transform m/z value according to the selected adduct transformation.
-
-    Args:
-        mz: the m/z value to check
-        adduct: the selected adduct transformation
-
-    Returns: the new m/z value for the adduct
-
-    """
-    if adduct in POS_TRANSFORMATIONS:
-        f = POS_TRANSFORMATIONS[adduct]
-    elif adduct in NEG_TRANSFORMATIONS:
-        f = NEG_TRANSFORMATIONS[adduct]
-    else:
-        def f(mz):
-            return mz
-    return f(mz)
-
-
-def take_closest(my_list, my_number):
-    """
-    Assumes myList is sorted. Returns closest value to myNumber.
-
-    Args:
-        my_list: the list to check
-        my_number: the number to find in the list
-
-    Returns: The closest value to myNumber. If two numbers are equally close,
-    return the smallest number.
-    """
-    pos = bisect_left(my_list, my_number)
-    if pos == 0:
-        return 0
-    if pos == len(my_list):
-        return -1
-    before = my_list[pos - 1]
-    after = my_list[pos]
-    if after - my_number < my_number - before:
-        return pos
-    else:
-        return pos - 1
-
-
 def set_log_level(level, remove_id=None):
     """
     Set the logging level of the default logger
@@ -534,7 +509,7 @@ def set_log_level(level, remove_id=None):
 
     """
     if remove_id is None:
-        logger.remove() # remove all previously set handlers
+        logger.remove()  # remove all previously set handlers
     else:
         try:
             logger.remove(remove_id)  # remove previously set handler by id

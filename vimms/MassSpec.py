@@ -6,9 +6,11 @@ from events import Events
 from loguru import logger
 
 from vimms.Common import (
-    adduct_transformation, DEFAULT_SCAN_TIME_DICT,
-    INITIAL_SCAN_ID, ScanParameters
+    DEFAULT_SCAN_TIME_DICT,
+    INITIAL_SCAN_ID, ScanParameters, ADDUCT_TERMS
 )
+from vimms.MassSpecUtils import adduct_transformation, isolation_match, get_mz_value, get_relative_mz, \
+    get_mz_ms1
 from vimms.Chemicals import ChemSet
 from vimms.Noise import NoPeakNoise
 
@@ -86,16 +88,16 @@ class Scan():
         self.scan_params = scan_params
         self.parent = parent
         self.fragevent = fragevent
-        
+
     @classmethod
     def from_mzmlscan(self, scan):
         mzs, intensities = zip(*scan.peaks)
         return Scan(
-            scan_id = scan.scan_no,
-            mzs = np.array(mzs),
-            intensities = np.array(intensities),
-            ms_level = scan.ms_level,
-            rt = scan.rt_in_seconds
+            scan_id=scan.scan_no,
+            mzs=np.array(mzs),
+            intensities=np.array(intensities),
+            ms_level=scan.ms_level,
+            rt=scan.rt_in_seconds
         )
 
     def __repr__(self):
@@ -609,6 +611,10 @@ class IndependentMassSpectrometer():
             # if isolation_windows is None:
             isolation_windows = params.compute_isolation_windows()
 
+        # make isolation windows to be a numpy array for convenience later
+        if not isinstance(isolation_windows, np.ndarray):
+            isolation_windows = np.array(isolation_windows)
+
         # if the scan id is specified in the params, use it
         # otherwise use the one that has been incremented from the previous one
         scan_id = params.get(ScanParameters.SCAN_ID)
@@ -678,7 +684,7 @@ class IndependentMassSpectrometer():
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
 
-        if len(frag_events) == 0: # for compatibility with old codes
+        if len(frag_events) == 0:  # for compatibility with old codes
             frag_events = None
 
         sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time,
@@ -737,9 +743,8 @@ class IndependentMassSpectrometer():
             if not (which_isotope > 0 and which_adduct > 0):
                 # rechecks isolations window if not monoisotopic and
                 # "M + H" adduct
-                if self._isolation_match(chemical, query_rt,
-                                         isolation_windows[0], which_isotope,
-                                         which_adduct):
+                mz = self._get_mz(chemical, query_rt, which_isotope, which_adduct)
+                if isolation_match(mz, isolation_windows[0]):
                     intensity = self._get_intensity(
                         chemical, query_rt, which_isotope, which_adduct)
                     mz = self._get_mz(chemical, query_rt, which_isotope,
@@ -771,9 +776,8 @@ class IndependentMassSpectrometer():
         else:
             # check isolation window for ms2+ scans, queries children
             # if isolation windows ok
-            isolated = self._isolation_match(
-                chemical, query_rt, isolation_windows[chemical.ms_level - 1],
-                which_isotope, which_adduct)
+            mz = self._get_mz(chemical, query_rt, which_isotope, which_adduct)
+            isolated = isolation_match(mz, isolation_windows[chemical.ms_level - 1])
             if isolated and chemical.children is not None:
                 for i in range(len(chemical.children)):
                     mz_peaks.extend(
@@ -815,29 +819,29 @@ class IndependentMassSpectrometer():
 
     def _get_mz(self, chemical, query_rt, which_isotope, which_adduct):
         if chemical.ms_level == 1:
-            return (adduct_transformation(chemical.isotopes[which_isotope][0],
-                                          self._get_adducts(chemical)[
-                                              which_adduct][0]) +
-                    chemical.chromatogram.get_relative_mz(
-                        query_rt - chemical.rt))
+            return self._get_mz_ms1(chemical, query_rt, which_isotope, which_adduct)
         else:
-            ms1_parent = chemical
-            while ms1_parent.ms_level != 1:
-                ms1_parent = chemical.parent
-            isotope_transformation = ms1_parent.isotopes[which_isotope][0] - \
-                                     ms1_parent.isotopes[0][0]
-            # TODO: Needs improving
-            return (adduct_transformation(chemical.isotopes[0][0],
-                                          self._get_adducts(chemical)[
-                                              which_adduct][
-                                              0]) + isotope_transformation)
+            return self._get_mz_msn(chemical, which_isotope, which_adduct)
 
-    def _isolation_match(self, chemical, query_rt, isolation_windows,
-                         which_isotope, which_adduct):
-        # assumes list is formated like:
-        # [(min_1,max_1),(min_2,max_2),...]
-        for window in isolation_windows:
-            if window[0] < self._get_mz(chemical, query_rt, which_isotope,
-                                        which_adduct) <= window[1]:
-                return True
-        return False
+    def _get_mz_ms1(self, chemical, query_rt, which_isotope, which_adduct):
+        chrom = chemical.chromatogram
+        chrom_type = chrom.get_chrom_type()
+        mz = chemical.isotopes[which_isotope][0]
+        adduct = chemical.adducts[self.ionisation_mode][which_adduct][0]
+        mul, add = ADDUCT_TERMS[adduct]
+        return get_mz_ms1(mz, mul, add, chrom_type, query_rt, chemical.rt,
+                   chrom.min_rt, chrom.max_rt,
+                   chrom.rts, chrom.mzs)
+
+    def _get_mz_msn(self, chemical, which_isotope, which_adduct):
+        ms1_parent = chemical
+        while ms1_parent.ms_level != 1:
+            ms1_parent = chemical.parent
+        isotope_transformation = ms1_parent.isotopes[which_isotope][0] - \
+                                 ms1_parent.isotopes[0][0]
+        # TODO: Needs improving
+        mz = chemical.isotopes[0][0]
+        parent_adduct = chemical.parent.adducts[self.ionisation_mode]
+        adduct = parent_adduct[which_adduct][0]
+        mul, add = ADDUCT_TERMS[adduct]
+        return get_mz_value(mz, mul, add, isotope_transformation)

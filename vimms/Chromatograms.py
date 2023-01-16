@@ -1,14 +1,14 @@
-from abc import ABC, ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 import scipy.stats
-import bisect
 
-from vimms.Common import MAX_POSSIBLE_RT
+from vimms.Common import MAX_POSSIBLE_RT, CHROM_TYPE_EMPIRICAL, CHROM_TYPE_CONSTANT, \
+    CHROM_TYPE_FUNCTIONAL
+from vimms.MassSpecUtils import rt_match, get_relative_value
 
 
 class Chromatogram(metaclass=ABCMeta):
-
     __slots__ = ()
 
     @abstractmethod
@@ -27,12 +27,16 @@ class Chromatogram(metaclass=ABCMeta):
     def get_apex_rt(self):
         pass
 
+    @abstractmethod
+    def get_chrom_type(self):
+        pass
+
 
 class EmpiricalChromatogram(Chromatogram):
     """
     Empirical Chromatograms to be used within Chemicals
     """
-    
+
     __slots__ = (
         "raw_rts",
         "raw_mzs",
@@ -50,10 +54,10 @@ class EmpiricalChromatogram(Chromatogram):
         self.raw_rts = rts
         self.raw_mzs = mzs
         self.raw_intensities = intensities
-        
+
         self.raw_min_rt = min(self.raw_rts)
         self.raw_max_rt = max(self.raw_rts)
-        
+
         # ensures that all arrays are in sorted order
         if len(rts) > 1:
             p = rts.argsort()
@@ -84,64 +88,25 @@ class EmpiricalChromatogram(Chromatogram):
         return self.rts[max_pos]
 
     def get_relative_intensity(self, query_rt):
-        if not self._rt_match(query_rt):
-            return None
-        else:
-            neighbours_which = self._get_rt_neighbours_which(query_rt)
-            intensity_below = self.intensities[neighbours_which[0]]
-            intensity_above = self.intensities[neighbours_which[1]]
-            return intensity_below + (
-                    intensity_above - intensity_below) * self._get_distance(
-                query_rt)
+        return get_relative_value(query_rt, self.min_rt, self.max_rt, self.rts, self.intensities)
 
     def get_relative_mz(self, query_rt):
-        if not self._rt_match(query_rt):
-            return None
-        else:
-            neighbours_which = self._get_rt_neighbours_which(query_rt)
-            mz_below = self.mzs[neighbours_which[0]]
-            mz_above = self.mzs[neighbours_which[1]]
-            return mz_below + (mz_above - mz_below) * self._get_distance(
-                query_rt)
-
-    def _get_rt_neighbours(self, query_rt):
-        which_rt_below, which_rt_above = self._get_rt_neighbours_which(
-            query_rt)
-        rt_below = self.rts[which_rt_below]
-        rt_above = self.rts[which_rt_above]
-        return [rt_below, rt_above]
-
-    def _get_rt_neighbours_which(self, query_rt):
-
-        # slow! O(n)
-        # # find the max index of self.rts smaller than query_rt
-        # pos = np.where(self.rts <= query_rt)[0]
-        # which_rt_below = pos[-1]
-        #
-        # # take the min index of self.rts larger than query_rt
-        # pos = np.where(self.rts > query_rt)[0]
-        # which_rt_above = pos[0]
-
-        # much faster, O(log n)
-        which_rt_above = bisect.bisect(self.rts, query_rt)
-        which_rt_below = which_rt_above - 1
-        return [which_rt_below, which_rt_above]
-
-    def _get_distance(self, query_rt):
-        rt_below, rt_above = self._get_rt_neighbours(query_rt)
-        return (query_rt - rt_below) / (rt_above - rt_below)
+        return get_relative_value(query_rt, self.min_rt, self.max_rt, self.rts, self.mzs)
 
     def _rt_match(self, query_rt):
-        return self.min_rt < query_rt < self.max_rt
+        return rt_match(self.min_rt, self.max_rt, query_rt)
 
     def __eq__(self, other):
         if not isinstance(other, EmpiricalChromatogram):
             # don't attempt to compare against unrelated types
             return NotImplemented
         res = np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs)) and \
-            np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
-            np.array_equal(sorted(self.raw_intensities), sorted(other.raw_intensities))
+              np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
+              np.array_equal(sorted(self.raw_intensities), sorted(other.raw_intensities))
         return res
+
+    def get_chrom_type(self):
+        return CHROM_TYPE_EMPIRICAL
 
 
 class ConstantChromatogram(Chromatogram):
@@ -162,6 +127,9 @@ class ConstantChromatogram(Chromatogram):
 
     def get_apex_rt(self):
         return self.min_rt
+
+    def get_chrom_type(self):
+        return CHROM_TYPE_CONSTANT
 
 
 # Make this more generalisable. Make scipy.stats... as input,
@@ -185,10 +153,10 @@ class FunctionalChromatogram(Chromatogram):
             self.distrib = scipy.stats.uniform(parameters[0], parameters[1])
         else:
             raise NotImplementedError("distribution not implemented")
-        
+
         self.min_rt = 0
         self.max_rt = (
-            self.distrib.ppf(1 - (self.cutoff / 2)) - self.distrib.ppf(self.cutoff / 2)
+                self.distrib.ppf(1 - (self.cutoff / 2)) - self.distrib.ppf(self.cutoff / 2)
         )
 
     def get_relative_intensity(self, query_rt):
@@ -212,10 +180,7 @@ class FunctionalChromatogram(Chromatogram):
             return self.mz
 
     def _rt_match(self, query_rt):
-        if query_rt < 0 or query_rt > self.max_rt:
-            return False
-        else:
-            return True
+        return rt_match(0, self.max_rt, query_rt)
 
     def get_apex_rt(self):
         if self.distribution_name == 'uniform':
@@ -224,3 +189,6 @@ class FunctionalChromatogram(Chromatogram):
             return (self.max_rt - self.min_rt) / 2
         else:
             raise NotImplementedError()
+
+    def get_chrom_type(self):
+        return CHROM_TYPE_FUNCTIONAL

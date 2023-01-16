@@ -17,9 +17,9 @@ from loguru import logger
 from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, \
     GaussianChromatogramSampler, UniformMS2Sampler
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import POS_TRANSFORMATIONS, Formula, DummyFormula, \
+from vimms.Common import Formula, DummyFormula, \
     PROTON_MASS, POSITIVE, NEGATIVE, C12_PROPORTION, \
-    C13_MZ_DIFF, C, MONO, C13, load_obj
+    C13_MZ_DIFF, C, MONO, C13, load_obj, ADDUCT_NAMES_POS, ADDUCT_NAMES_NEG
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiBuilderParams
 
@@ -149,11 +149,17 @@ class Adducts():
             adduct_prior_dict: custom adduct dictionary, if any
         """
         if adduct_prior_dict is None:
-            self.adduct_names = {POSITIVE: list(POS_TRANSFORMATIONS.keys())}
+            self.adduct_names = {
+                POSITIVE: ADDUCT_NAMES_POS,
+                NEGATIVE: ADDUCT_NAMES_NEG
+            }
             self.adduct_prior = {
-                POSITIVE: np.ones(len(self.adduct_names[POSITIVE])) * 0.1}
-            self.adduct_prior[POSITIVE][
-                0] = 1.0  # give more weight to the first one, i.e. M+H
+                POSITIVE: np.ones(len(self.adduct_names[POSITIVE])) * 0.1,
+                NEGATIVE: np.ones(len(self.adduct_names[NEGATIVE])) * 0.1
+            }
+            # give more weight to the first one, i.e. M+H
+            self.adduct_prior[POSITIVE][0] = 1.0
+            self.adduct_prior[NEGATIVE][0] = 1.0
         else:
             assert POSITIVE in adduct_prior_dict or \
                    NEGATIVE in adduct_prior_dict
@@ -216,7 +222,7 @@ class BaseChemical(metaclass=ABCMeta):
     or Unknown chemicals.
     For other MS levels, please use the MSN class.
     """
-    
+
     __slots__ = (
         "ms_level",
         "children"
@@ -238,7 +244,7 @@ class Chemical(BaseChemical):
     The class that represents a Chemical object of MS-level 1.
     Should be realised as either Known or Unknown chemicals.
     """
-    
+
     __slots__ = (
         "rt",
         "max_intensity",
@@ -275,10 +281,10 @@ class Chemical(BaseChemical):
         """
 
         return self.rt + self.chromatogram.get_apex_rt()
-        
+
     def get_min_rt(self):
         return self.chromatogram.min_rt + self.rt
-        
+
     def get_max_rt(self):
         return self.chromatogram.max_rt + self.rt
 
@@ -323,7 +329,7 @@ class UnknownChemical(Chemical):
         "adducts",
         "mass"
     )
-    
+
     def __init__(self, mz, rt, max_intensity, chromatogram, children=None,
                  base_chemical=None):
         """
@@ -397,29 +403,34 @@ class KnownChemical(Chemical):
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
             self.formula.formula_string, self.rt, self.max_intensity)
-            
-            
+
+
 class ChemSet():
     def reset(self):
         self.rt = 0
         self.current = []
-        
+
     def __enter__(self):
         return self
-        
+
     def __exit__(self, type, value, traceback):
         pass
-        
+
     @classmethod
-    def to_chemset(cls, chems, filepath=None):
-        if(type(chems) == MemoryChems or type(chems) == FileChems):
+    def to_chemset(cls, chems, filepath=None, fast=False):
+        if type(chems) == MemoryChems or \
+                type(chems) == FileChems or \
+                type(chems) == FastMemoryChems:
             return chems
-        
-        if(filepath is None):
-            return MemoryChems(chems)
+
+        if filepath is None:
+            if fast:
+                return FastMemoryChems(chems)
+            else:
+                return MemoryChems(chems)
         else:
             return FileChems(filepath)
-    
+
     @staticmethod
     def dump_chems(chems, filepath):
         key = Chemical.get_min_rt
@@ -428,12 +439,12 @@ class ChemSet():
         with open(filepath, "wb") as f:
             for k, group in grouped:
                 pickle.dump(list(group), f, protocol=pickle.HIGHEST_PROTOCOL)
-        
+
     def _update(self, rt, chems):
         key = Chemical.get_max_rt
         self.current.extend(chems)
         self.current.sort(key=key, reverse=True)
-        while(len(self.current) > 0 and Chemical.get_max_rt(self.current[-1]) < rt):
+        while (len(self.current) > 0 and Chemical.get_max_rt(self.current[-1]) < rt):
             self.current.pop()
         self.rt = rt
 
@@ -441,97 +452,120 @@ class ChemSet():
     def next_chems(self, rt):
         pass
 
-        
+
 class MemoryChems(ChemSet):
     def __init__(self, local_chems):
+        logger.debug('MemoryChems initialised')
         key = Chemical.get_min_rt
         self.local_chems = sorted(local_chems, key=key)
         self.reset()
-        
+
     def reset(self):
         self.pos = 0
         super().reset()
-        
+
     def __iter__(self):
         return iter(self.local_chems)
-        
+
     @classmethod
     def from_chems(cls, chems):
-        if(type(chems) == cls):
+        if (type(chems) == cls):
             return chems
         return cls(chems)
-        
+
     @classmethod
     def from_path(cls, filepath):
         chems = []
         with open(filepath, "rb") as f:
             try:
-                while(True):
+                while (True):
                     chems.extend(pickle.load(f))
             except EOFError:
                 pass
         return cls(chems)
-        
+
     def next_chems(self, rt):
-        if(rt < self.rt): self.reset()
+        if (rt < self.rt): self.reset()
         new_pos = self.pos
-        while(new_pos < len(self.local_chems)
-              and Chemical.get_min_rt(self.local_chems[new_pos]) <= rt):
+        while (new_pos < len(self.local_chems)
+               and Chemical.get_min_rt(self.local_chems[new_pos]) <= rt):
             new_pos += 1
         self._update(rt, itertools.islice(self.local_chems, self.pos, new_pos))
         self.pos = new_pos
         return reversed(self.current)
 
 
+class FastMemoryChems(MemoryChems):
+
+    def __init__(self, local_chems):
+        logger.debug('FastMemoryChems initialised')
+        super().reset()
+        self.local_chems = np.array(local_chems)
+
+        # stores the chromatograms start and end rt for quick retrieval
+        chem_rts = np.array([chem.rt for chem in self.local_chems])
+        self.chrom_min_rts = np.array(
+            [chem.chromatogram.min_rt for chem in self.local_chems]) + chem_rts
+        self.chrom_max_rts = np.array(
+            [chem.chromatogram.max_rt for chem in self.local_chems]) + chem_rts
+
+    def next_chems(self, rt):
+        rtmin_check = self.chrom_min_rts <= rt
+        rtmax_check = rt <= self.chrom_max_rts
+        idx = np.nonzero(rtmin_check & rtmax_check)[0]
+        return self.local_chems[idx]
+
+
 class FileChems(ChemSet):
     def __init__(self, filepath):
+        logger.debug('FileChems initialised')
         self.filepath = filepath
         self.f = None
         self.reset()
-        
+
     def reset(self):
-        if(not self.f is None):
+        if (not self.f is None):
             self.f.close()
             self.f = None
         self.pending = deque()
         self.finished = False
         super().reset()
-        
+
     def __iter__(self):
         with open(self.filepath, "rb") as f:
             try:
-                while(True):
+                while (True):
                     for ch in pickle.load(f):
                         yield ch
             except EOFError:
                 pass
-        
+
     def __exit__(self, type, value, traceback):
-        if(not self.f is None):
+        if (not self.f is None):
             self.f.close()
-            
+
     @classmethod
     def from_path(cls, filepath, chems=None):
-        if(type(chems) == cls):
+        if (type(chems) == cls):
             return chems
-        
-        if(not chems is None):
+
+        if (not chems is None):
             cls.dump_chems(chems, filepath)
-        
+
         return cls(filepath)
-        
+
     def next_chems(self, rt):
-        if(rt < self.rt): self.reset()
-        if(self.finished):
+        if (rt < self.rt): self.reset()
+        if (self.finished):
             self._update(rt, [])
             return iter(self.current)
-        
-        if(self.f is None):
+
+        if (self.f is None):
             self.f = open(self.filepath, "rb")
-        
+
         try:
-            while(not self.finished and 
-                  (len(self.pending) == 0 or Chemical.get_min_rt(self.pending[-1]) <= rt)):
+            while (not self.finished and
+                   (len(self.pending) == 0 or Chemical.get_min_rt(self.pending[-1]) <= rt)):
                 try:
                     new_chems = pickle.load(self.f)
                 except pickle.UnpicklingError:
@@ -539,17 +573,17 @@ class FileChems(ChemSet):
                     # failed to unpickle chems previously saved using save_obj
                     # try to load again using load_obj
                     key = Chemical.get_min_rt
-                    new_chems = sorted(load_obj(self.filepath), key=key) # important to sort
+                    new_chems = sorted(load_obj(self.filepath), key=key)  # important to sort
 
                 self.pending.extend(new_chems)
         except EOFError:
             self.finished = True
             self.f.close()
-        
+
         new = []
-        while(len(self.pending) > 0 and Chemical.get_min_rt(self.pending[0]) <= rt):
+        while (len(self.pending) > 0 and Chemical.get_min_rt(self.pending[0]) <= rt):
             new.append(self.pending.popleft())
-        
+
         self._update(rt, new)
         return reversed(self.current)
 
@@ -558,7 +592,7 @@ class MSN(BaseChemical):
     """
     A chemical that represents an MS2+ fragment.
     """
-    
+
     __slots__ = (
         "isotopes",
         "prop_ms2_mass",

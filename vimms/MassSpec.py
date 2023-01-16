@@ -1,22 +1,21 @@
 import math
+from collections import defaultdict
 
 import numpy as np
-import scipy
 from events import Events
-from loguru import logger
 
+from vimms.Chemicals import ChemSet
 from vimms.Common import (
     DEFAULT_SCAN_TIME_DICT,
-    INITIAL_SCAN_ID, ScanParameters, ADDUCT_TERMS
+    INITIAL_SCAN_ID, ScanParameters, ADDUCT_TERMS, PEAKS_MZ_IDX, PEAKS_INTENSITY_IDX,
+    PEAKS_MS1_INTENSITY_IDX, PEAKS_WHICH_ISOTOPE_IDX, PEAKS_WHICH_ADDUCT_IDX
 )
-from vimms.MassSpecUtils import adduct_transformation, isolation_match, get_mz_value, \
-    get_relative_mz, \
-    get_mz_ms1, get_mz_msn
-from vimms.Chemicals import ChemSet
+from vimms.MassSpecUtils import get_mz_ms1, get_mz_msn, \
+    generate_chem_ms1_peaks_for_ms2, generate_chem_ms1_peaks_for_ms1, ChemDataCollector
 from vimms.Noise import NoPeakNoise
 
 
-class Peak():
+class ScanEventPeak():
     """
     A class to represent an empirical or sampled scan-level peak object
     """
@@ -41,7 +40,7 @@ class Peak():
             self.mz, self.rt, self.intensity, self.ms_level)
 
     def __eq__(self, other):
-        if not isinstance(other, Peak):
+        if not isinstance(other, ScanEventPeak):
             # don't attempt to compare against unrelated types
             return NotImplemented
 
@@ -336,6 +335,7 @@ class IndependentMassSpectrometer():
         # the list of all chemicals in the dataset
         self.chemicals = ChemSet.to_chemset(chemicals)
         self.ionisation_mode = ionisation_mode
+        self.chem_data_collector = ChemDataCollector(self.ionisation_mode)
 
         # whether to add noise to the generated peaks, the default is no noise
         self.mz_noise = mz_noise
@@ -585,36 +585,13 @@ class IndependentMassSpectrometer():
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
-
         ms1_source_collision_energy = params.get(
             ScanParameters.SOURCE_CID_ENERGY)
-
-        scan_mzs = []  # all the mzs values in this scan
-        scan_intensities = []  # all the intensity values in this scan
         ms_level = params.get(ScanParameters.MS_LEVEL)
-        if ms_level == 1:  # if ms1 then we scan the whole range of m/z
-            isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
-            if isolation_windows is None:
-                isolation_windows = [
-                    [(min_measurement_mz, max_measurement_mz)]]
-            if not isolation_windows[0][0][0] == min_measurement_mz or not \
-                    isolation_windows[0][0][
-                        1] == max_measurement_mz:
-                logger.warning(
-                    "MS1 scan: MS1 isolation window and measurement "
-                    "mz range mismatch")
 
-        else:
-            # if ms2 then we check if the isolation window parameter
-            # is specified
-            # isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
-            # if not then we compute from the precursor mz and isolation width
-            # if isolation_windows is None:
-            isolation_windows = params.compute_isolation_windows()
-
-        # make isolation windows to be a numpy array for convenience later
-        if not isinstance(isolation_windows, np.ndarray):
-            isolation_windows = np.array(isolation_windows)
+        # compute isolation window, depending on whether it's MS1 or MS2 scan
+        isolation_windows = self._get_isolation_windows(max_measurement_mz, min_measurement_mz,
+                                                        ms_level, params)
 
         # if the scan id is specified in the params, use it
         # otherwise use the one that has been incremented from the previous one
@@ -622,58 +599,26 @@ class IndependentMassSpectrometer():
         if scan_id is None:
             scan_id = self.idx
 
-        # for all chemicals that come out from the column
-        # coupled to the mass spec
-        chems = self.chemicals.next_chems(scan_time)
-
         # the following is to ensure we generate fragment data when
         # we have a collision energe >0
         use_ms_level = ms_level
         if ms_level == 1 and ms1_source_collision_energy > 0:
             use_ms_level = 2
 
-        frag_events = []
-        for chemical in chems:
-            # mzs is a list of (mz, intensity) for the different
-            # adduct/isotopes combinations of a chemical
-            mzs = self._get_all_mz_peaks(chemical, scan_time, use_ms_level,
-                                         isolation_windows)
-            peaks = []
-            peaks_ms1_intensities = []
-            peaks_which_isotopes = []
-            peaks_which_adducts = []
-            if mzs is not None:
-                chem_mzs = []
-                chem_intensities = []
-                for items in mzs:
-                    peak_mz, peak_intensity, peak_ms1_int, peak_isotope, \
-                    peak_adduct = items
-                    if (min_measurement_mz <= peak_mz <= max_measurement_mz) \
-                            and peak_intensity > 0:
-                        chem_mzs.append(peak_mz)
-                        chem_intensities.append(peak_intensity)
-                        p = Peak(peak_mz, scan_time, peak_intensity,
-                                 use_ms_level)
-                        peaks.append(p)
-                        peaks_ms1_intensities.append(peak_ms1_int)
-                        peaks_which_isotopes.append(peak_isotope)
-                        peaks_which_adducts.append(peak_adduct)
-                scan_mzs.extend(chem_mzs)
-                scan_intensities.extend(chem_intensities)
-            # for benchmarking purpose
-            if len(peaks) > 0:
-                frag = ScanEvent(chemical, scan_time, use_ms_level, peaks,
-                                 scan_id,
-                                 parents_intensity=peaks_ms1_intensities,
-                                 parent_adduct=peaks_which_adducts,
-                                 parent_isotope=peaks_which_isotopes,
-                                 precursor_mz=params.get(
-                                     ScanParameters.PRECURSOR_MZ),
-                                 isolation_window=isolation_windows,
-                                 scan_params=params)
-                frag_events.append(frag)
+        # generate peaks for all valid chemicals that appear at scan time
+        chems, chemical_peaks = self._get_chem_peaks(isolation_windows, scan_time,
+                                                     use_ms_level)
+
+        # post-processing:
+        # - add noise to generate peak m/z and intensity values
+        # - filter invalid values
+        # - create a fragmentation event for valid peaks in a scan
+        scan_mzs, scan_intensities, frag_events = self._get_scan_post_processing(
+            chemical_peaks, chems, isolation_windows, max_measurement_mz, min_measurement_mz,
+            ms_level, params, scan_id, scan_time, use_ms_level)
         self.fragmentation_events.extend(frag_events)
 
+        # add spike noise to the scan
         # FIXME: this here means spike noise is not a chemical and cannot be fragmented
         # (even though it appears in the scan). Is this the best thing to do?
         if self.spike_noise is not None:
@@ -682,12 +627,12 @@ class IndependentMassSpectrometer():
             scan_mzs.extend(spike_mzs)
             scan_intensities.extend(spike_intensities)
 
+        # for compatibility with old codes
+        frag_events = None if len(frag_events) == 0 else frag_events
+
+        # finally generate a Scan object
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
-
-        if len(frag_events) == 0:  # for compatibility with old codes
-            frag_events = None
-
         sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time,
                   scan_duration=None, scan_params=params,
                   fragevent=frag_events)
@@ -698,91 +643,156 @@ class IndependentMassSpectrometer():
         # we've notified the controller that this scan is produced.
         return sc
 
-    def _get_all_mz_peaks(self, chemical, query_rt, ms_level,
-                          isolation_windows):
+    def _get_isolation_windows(self, max_measurement_mz, min_measurement_mz, ms_level, params):
+        # if ms1 then we scan the whole range of m/z
+        if ms_level == 1:
+            isolation_windows = params.get(ScanParameters.ISOLATION_WINDOWS)
+            if isolation_windows is None:
+                isolation_windows = [[(min_measurement_mz, max_measurement_mz)]]
+            assert isolation_windows[0][0][0] == min_measurement_mz
+            assert isolation_windows[0][0][1] == max_measurement_mz
 
-        # check if the chemical RT matches the current query RT
-        if not self._rt_match(chemical, query_rt):
-            return None
+        else:
+            # if ms2 then we check if the isolation window parameter is specified
+            # if not then we compute from the precursor mz and isolation width
+            isolation_windows = params.compute_isolation_windows()
 
-        # if yes, then gather all the peaks from all the isotopes and
-        # adduct of this chemical at the given MS level
-        if ms_level == 1:  # fragment ms1 peaks
+        # make isolation windows to be a numpy array for convenience later
+        if not isinstance(isolation_windows, np.ndarray):
+            isolation_windows = np.array(isolation_windows)
+        return isolation_windows
+
+    def _get_chem_peaks(self, isolation_windows, scan_time, use_ms_level):
+        assert use_ms_level in [1, 2]
+        chems = self.chemicals.next_chems(scan_time)
+        if use_ms_level == 1:
+            chemical_peaks = self._get_chem_peaks_for_ms1(chems, self.chem_data_collector,
+                                                          scan_time)
+        elif use_ms_level == 2:
+            chemical_peaks = self._get_chem_peaks_for_ms2(chems, self.chem_data_collector,
+                                                          isolation_windows, scan_time)
+        # assert len(chems) == len(chemical_peaks)
+        return chems, chemical_peaks
+
+    def _get_chem_peaks_for_ms1(self, chems, cdc, scan_time):
+        all_chems, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms1(
+            chems, scan_time, cdc)
+
+        # convert to defaultdict, key: chem, value: list of peaks for that chem
+        chemical_peaks = defaultdict(list)
+        for chemical, peak in zip(all_chems, peaks):
+            chemical_peaks[chemical].append(peak)
+        return chemical_peaks
+
+    def _get_chem_peaks_for_ms2(self, chems, cdc, isolation_windows, scan_time):
+
+        isolated_chems, isolated_which_adducts, isolated_which_isotopes = \
+            self._isolate_chems_for_fragmentation(
+                chems, cdc, isolation_windows, scan_time)
+
+        chemical_peaks = self._get_children_spectra(chems, isolated_chems,
+                                                    isolated_which_adducts,
+                                                    isolated_which_isotopes, isolation_windows,
+                                                    scan_time)
+        return chemical_peaks
+
+    def _isolate_chems_for_fragmentation(self, chems, cdc, isolation_windows,
+                                         scan_time):
+
+        _, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms2(
+            chems, scan_time, cdc)
+        mzs = peaks[:, 0]
+
+        # FIXME: only support one window, maybe not correct
+        # original code is
+        #             isolated = isolation_match(mz, isolation_windows[chemical.ms_level - 1])
+        assert len(isolation_windows[0]) == 1, 'Multiple isolation windows not supported'
+        lower_bound, upper_bound = isolation_windows[0][0]
+
+        isolated = np.logical_and(mzs >= lower_bound, mzs <= upper_bound)
+        isolated_chems = chems[isolated]
+        isolated_which_adducts = which_adducts[isolated]
+        isolated_which_isotopes = which_isotopes[isolated]
+        return isolated_chems, isolated_which_adducts, isolated_which_isotopes
+
+    def _get_children_spectra(self, chems, isolated_chems, isolated_which_adducts,
+                              isolated_which_isotopes, isolation_windows, scan_time):
+
+        chemical_peaks = defaultdict(list)
+
+        # TODO: vectorise this
+        query_rt = scan_time
+        for chemical, which_adduct, which_isotope in zip(
+                isolated_chems, isolated_which_adducts, isolated_which_isotopes):
+
             mz_peaks = []
-            for which_isotope in range(len(chemical.isotopes)):
-                for which_adduct in range(len(self._get_adducts(chemical))):
-                    assert chemical.ms_level == 1
-                    assert ms_level == 1 or ms_level == 2
-                    peaks = self.get_parent_spectra(chemical, query_rt, ms_level,
-                                                    isolation_windows,
-                                                    which_isotope, which_adduct)
-            mz_peaks.extend(peaks)
-
-        else:  # fragment MS2 peaks
-            mz_peaks = []
-            for which_isotope in range(len(chemical.isotopes)):
-                for which_adduct in range(len(self._get_adducts(chemical))):
-                    assert chemical.ms_level == 1
-                    assert ms_level == 1 or ms_level == 2
-                    peaks = self.get_children_spectra(chemical, query_rt, ms_level,
-                                                      isolation_windows,
-                                                      which_isotope, which_adduct)
-            mz_peaks.extend(peaks)
-
-        # if no peaks generated, then just return None
-        if len(mz_peaks) == 0:
-            return None
-
-        # apply noise if any
-        noisy_mz_peaks = []
-        for i in range(len(mz_peaks)):
-            original_mz = mz_peaks[i][0]
-            original_intensity = mz_peaks[i][1]
-            noisy_mz = self.mz_noise.get(original_mz, ms_level)
-            noisy_intensity = self.intensity_noise.get(original_intensity,
-                                                       ms_level)
-            noisy_mz_peaks.append((noisy_mz, noisy_intensity, mz_peaks[i][2],
-                                   mz_peaks[i][3], mz_peaks[i][4]))
-        return noisy_mz_peaks
-
-    def get_parent_spectra(self, chemical, query_rt, ms_level, isolation_windows,
-                           which_isotope, which_adduct):
-
-        # generate an MS1 scan from an MS1 chemical
-        assert ms_level == 1 and chemical.ms_level == 1
-
-        # returns ms1 peaks if chemical is has ms_level = 1 and
-        # scan is an ms1 scan
-        mz_peaks = []
-        if not (which_isotope > 0 and which_adduct > 0):
-            # rechecks isolations window if not monoisotopic and
-            # "M + H" adduct
-            mz = self.get_ms1_peaks_from_chemical(chemical, query_rt, which_isotope, which_adduct)
-            if isolation_match(mz, isolation_windows[0]):
-                intensity = self._get_intensity(
-                    chemical, query_rt, which_isotope, which_adduct)
-                mz_peaks.extend([(mz, intensity, None, None, None)])
-        return mz_peaks
-
-    def get_children_spectra(self, chemical, query_rt, ms_level, isolation_windows,
-                             which_isotope, which_adduct):
-
-        # generate MS2 scan from a parent MS1 chemical
-        assert ms_level == 2
-
-        # check isolation window for ms2+ scans, queries children
-        # if isolation windows ok
-        mz_peaks = []
-        mz = self.get_ms1_peaks_from_chemical(chemical, query_rt, which_isotope, which_adduct)
-        isolated = isolation_match(mz, isolation_windows[chemical.ms_level - 1])
-        if isolated and chemical.children is not None:
             for i in range(len(chemical.children)):
                 mz_peaks.extend(
                     self._get_mz_peaks_child(chemical.children[i], query_rt,
                                              isolation_windows,
                                              which_isotope, which_adduct))
-            return mz_peaks
-        return mz_peaks
+
+            for row in mz_peaks:
+                chemical_peaks[chemical].append(row)
+
+        return chemical_peaks
+
+    def _get_scan_post_processing(self, chemical_peaks, chems, isolation_windows,
+                                  max_measurement_mz, min_measurement_mz, ms_level, params,
+                                  scan_id, scan_time, use_ms_level):
+
+        scan_mzs = []  # all the mzs values in this scan
+        scan_intensities = []  # all the intensity values in this scan
+        frag_events = []
+        # assert len(chems) == len(chemical_peaks)
+        for chemical in chems:
+            peaks = chemical_peaks[chemical]
+            if len(peaks) == 0:
+                continue
+
+            # apply noise if any
+            peaks = self.add_noise_and_filter(max_measurement_mz, min_measurement_mz,
+                                              ms_level, peaks)
+            if len(peaks) > 0:
+                chem_mzs = peaks[:, PEAKS_MZ_IDX].tolist()
+                chem_intensities = peaks[:, PEAKS_INTENSITY_IDX].tolist()
+                scan_mzs.extend(chem_mzs)
+                scan_intensities.extend(chem_intensities)
+
+                # for synthetic performance evaluation
+                frag = self._get_frag_event(chemical, isolation_windows, peaks, params,
+                                            scan_id, scan_time, use_ms_level)
+                frag_events.append(frag)
+        return scan_mzs, scan_intensities, frag_events
+
+    def add_noise_and_filter(self, max_measurement_mz, min_measurement_mz, ms_level, peaks):
+        noise_peaks = []
+        for i in range(len(peaks)):
+            original_mz = peaks[i][0]
+            original_intensity = peaks[i][1]
+            noisy_mz = self.mz_noise.get(original_mz, ms_level)
+            noisy_intensity = self.intensity_noise.get(original_intensity, ms_level)
+            if (min_measurement_mz <= noisy_mz <= max_measurement_mz) and (noisy_intensity > 0):
+                noise_peaks.append((noisy_mz, noisy_intensity, peaks[i][2],
+                                    peaks[i][3], peaks[i][4]))
+        noise_peaks = np.array(noise_peaks, dtype=float)
+        return noise_peaks
+
+    def _get_frag_event(self, chemical, isolation_windows, peaks, params, scan_id, scan_time,
+                        use_ms_level):
+        scan_peaks = [ScanEventPeak(peak[PEAKS_MZ_IDX],
+                                    scan_time,
+                                    peak[PEAKS_INTENSITY_IDX],
+                                    use_ms_level) for peak in peaks]
+        frag = ScanEvent(chemical, scan_time, use_ms_level, scan_peaks,
+                         scan_id,
+                         parents_intensity=peaks[:, PEAKS_MS1_INTENSITY_IDX],
+                         parent_adduct=peaks[:, PEAKS_WHICH_ISOTOPE_IDX],
+                         parent_isotope=peaks[:, PEAKS_WHICH_ADDUCT_IDX],
+                         precursor_mz=params.get(ScanParameters.PRECURSOR_MZ),
+                         isolation_window=isolation_windows,
+                         scan_params=params)
+        return frag
 
     def _get_mz_peaks_child(self, chemical, query_rt, isolation_windows,
                             which_isotope, which_adduct):
@@ -792,10 +802,10 @@ class IndependentMassSpectrometer():
 
         # returns ms2 fragments if chemical and scan are both ms2,
         # returns ms3 fragments if chemical and scan are both ms3, etc, etc
-        ms1_intensity = self._get_intensity(chemical.parent, query_rt,
-                                            which_isotope, which_adduct)
-        intensity = self._get_intensity(chemical, query_rt, which_isotope,
-                                        which_adduct)
+        ms1_intensity = self._get_intensity_ms1(chemical.parent, query_rt,
+                                                which_isotope, which_adduct)
+        ms2_intensity = self._get_intensity_ms2(chemical, query_rt, which_isotope,
+                                                which_adduct)
         mz = self.get_ms2_peaks_from_chemical(chemical, which_isotope, which_adduct)
 
         # experimental gaussian isolation window function, maybe can be removed
@@ -804,22 +814,27 @@ class IndependentMassSpectrometer():
         #                                         which_adduct, isolation_windows, ms_level,
         #                                         intensity)
 
-        return_values = [(mz, intensity, ms1_intensity, which_isotope,
+        return_values = [(mz, ms2_intensity, ms1_intensity, which_isotope,
                           which_adduct)]
         return return_values
 
-    def get_ms1_peaks_from_chemical(self, chemical, query_rt, which_isotope, which_adduct):
-        chrom = chemical.chromatogram
-        chrom_type = chrom.get_chrom_type()
+    def _get_intensity_ms1(self, chemical, query_rt, which_isotope, which_adduct):
+        assert chemical.ms_level == 1
+        intensity = chemical.isotopes[which_isotope][1] * \
+                    self._get_adducts(chemical)[which_adduct][1] * \
+                    chemical.max_intensity
+        return intensity * chemical.chromatogram.get_relative_intensity(
+            query_rt - chemical.rt)
 
-        mz = chemical.isotopes[which_isotope][0]
-        adduct = chemical.adducts[self.ionisation_mode][which_adduct][0]
-        mul, add = ADDUCT_TERMS[adduct]
-
-        mz_value = get_mz_ms1(mz, mul, add, chrom_type, query_rt, chemical.rt,
-                              chrom.min_rt, chrom.max_rt,
-                              chrom.rts, chrom.mzs)
-        return mz_value
+    def _get_intensity_ms2(self, chemical, query_rt, which_isotope, which_adduct):
+        assert chemical.ms_level == 2
+        prop = chemical.parent_mass_prop
+        if isinstance(prop, np.ndarray):
+            prop = prop[0]
+        intensity = self._get_intensity_ms1(
+            chemical.parent, query_rt, which_isotope, which_adduct)
+        intensity = intensity * prop * chemical.prop_ms2_mass
+        return intensity
 
     def get_ms2_peaks_from_chemical(self, chemical, which_isotope, which_adduct):
         ms1_parent = chemical
@@ -836,18 +851,19 @@ class IndependentMassSpectrometer():
         mz_value = get_mz_msn(mz, mul, add, ms1_parent_isotopes, which_isotope)
         return mz_value
 
-    def gaussian_isolation(self, chemical, query_rt, which_isotope, which_adduct,
-                           isolation_windows, ms_level, intensity):
-        parent_mz = self.get_ms1_peaks_from_chemical(chemical.parent, query_rt,
-                                                     which_isotope, which_adduct)
-        norm_dist = scipy.stats.norm(
-            0, self.isolation_transition_window_params[0])
-        scale_factor = norm_dist.pdf(
-            parent_mz - sum(isolation_windows[ms_level - 2][0]) / 2)
-        scale_factor /= scipy.stats.norm(
-            0, self.isolation_transition_window_params[0]).pdf(0)
-        intensity *= scale_factor
-        return intensity
+    # experimental code, maybe can remove
+    # def gaussian_isolation(self, chemical, query_rt, which_isotope, which_adduct,
+    #                        isolation_windows, ms_level, intensity):
+    #     parent_mz = self.get_chemical_mz_ms1(chemical.parent, query_rt,
+    #                                          which_isotope, which_adduct)
+    #     norm_dist = scipy.stats.norm(
+    #         0, self.isolation_transition_window_params[0])
+    #     scale_factor = norm_dist.pdf(
+    #         parent_mz - sum(isolation_windows[ms_level - 2][0]) / 2)
+    #     scale_factor /= scipy.stats.norm(
+    #         0, self.isolation_transition_window_params[0]).pdf(0)
+    #     intensity *= scale_factor
+    #     return intensity
 
     def _get_adducts(self, chemical):
         if chemical.ms_level == 1:
@@ -858,22 +874,22 @@ class IndependentMassSpectrometer():
         else:
             return self._get_adducts(chemical.parent)
 
-    def _rt_match(self, chemical, query_rt):
-        return chemical.ms_level != 1 or chemical.chromatogram._rt_match(
-            query_rt - chemical.rt)
+    def get_chemical_mz_ms1(self, chemical, query_rt, which_isotope, which_adduct):
+        chrom = chemical.chromatogram
+        chrom_type = chrom.get_chrom_type()
 
-    def _get_intensity(self, chemical, query_rt, which_isotope, which_adduct):
-        if chemical.ms_level == 1:
-            intensity = chemical.isotopes[which_isotope][1] * \
-                        self._get_adducts(chemical)[which_adduct][1] * \
-                        chemical.max_intensity
-            return intensity * chemical.chromatogram.get_relative_intensity(
-                query_rt - chemical.rt)
-        else:
-            prop = chemical.parent_mass_prop
-            if isinstance(prop, np.ndarray):
-                prop = prop[0]
-            intensity = self._get_intensity(
-                chemical.parent, query_rt, which_isotope, which_adduct)
-            intensity = intensity * prop * chemical.prop_ms2_mass
-            return intensity
+        mz = chemical.isotopes[which_isotope][0]
+        adduct = chemical.adducts[self.ionisation_mode][which_adduct][0]
+        mul, add = ADDUCT_TERMS[adduct]
+
+        try:
+            rts = chrom.rts
+            mzs = chrom.mzs
+        except AttributeError:
+            rts = np.array([])
+            mzs = np.array([])
+
+        mz_value = get_mz_ms1(mz, mul, add, chrom_type, query_rt, chemical.rt,
+                              chrom.min_rt, chrom.max_rt,
+                              rts, mzs)
+        return mz_value

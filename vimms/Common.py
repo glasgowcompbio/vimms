@@ -141,6 +141,23 @@ CONTROLLER_INTENSITY_NON_OVERLAP = 'intensity_non_overlap'
 CONTROLLER_INTENSITY_ROI_EXCLUSION = 'intensity_roi_exclusion'
 CONTROLLER_HARD_ROI_EXCLUSION = 'hard_roi_exclusion'
 
+PEAKS_MZ_IDX = 0
+PEAKS_INTENSITY_IDX = 1
+PEAKS_MS1_INTENSITY_IDX = 2
+PEAKS_WHICH_ISOTOPE_IDX = 3
+PEAKS_WHICH_ADDUCT_IDX = 4
+
+ISOTOPE_MZ_IDX = 0
+ISOTOPE_PROP_IDX = 1
+ADDUCT_PROB_IDX = 2
+MUL_IDX = 3
+ADD_IDX = 4
+CHEM_MAX_INTENSITY_IDX = 5
+CHEM_RT_IDX = 6
+CHROM_REL_INTENSITY_IDX = 7
+CHROM_MZ_IDX = 8
+WHICH_ISOTOPES_IDX = 9
+WHICH_ADDUCTS_IDX = 10
 
 ###############################################################################
 # Common classes
@@ -337,7 +354,6 @@ class ScanParameters():
         return 'ScanParameters %s' % (self.params)
 
 
-@njit()
 def compute_isolation_windows(isolation_width_list, precursor_mz_list):
     isolation_windows = []
     windows = []

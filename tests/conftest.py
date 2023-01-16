@@ -56,10 +56,13 @@ def run_environment(env):
     logger.info('Done in %s seconds' % (time.time() - start_time))
 
 
-def check_mzML(env, out_dir, filename):
+def check_mzML(env, out_dir, filename, assert_size=None):
     out_file = os.path.join(out_dir, filename)
     env.write_mzML(out_dir, filename)
     assert os.path.exists(out_file)
+    if assert_size is not None:
+        file_size = os.path.getsize(out_file)
+        assert file_size == assert_size
 
 
 def check_non_empty_MS1(controller):
@@ -118,6 +121,21 @@ def fragscan_dataset():
     cs = GaussianChromatogramSampler(sigma=100)
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
     return cm.sample(N_CHEMS, 2)
+
+
+@pytest.fixture(scope="module")
+def large_fragscan_dataset():
+    np.random.seed(0)
+    rand.seed(0)
+    min_mz = MZ_RANGE[0][0]
+    max_mz = MZ_RANGE[0][1]
+    min_rt = RT_RANGE[0][0]
+    max_rt = RT_RANGE[0][1]
+    um = UniformMZFormulaSampler(min_mz=min_mz, max_mz=max_mz)
+    ri = UniformRTAndIntensitySampler(min_rt=min_rt, max_rt=max_rt)
+    cs = GaussianChromatogramSampler(sigma=100)
+    cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
+    return cm.sample(N_CHEMS*100, 2)
 
 
 @pytest.fixture(scope="module")

@@ -4,6 +4,7 @@ channels:
 dependencies:
   - numpy
   - pandas
+  - numba
   - scipy
   - matplotlib
   - seaborn

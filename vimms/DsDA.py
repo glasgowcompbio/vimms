@@ -103,7 +103,7 @@ def fragmentation_performance_aligned(param_dict):
     # Check with Ross that get_ms1_peaks_from_chemical below is what we want
     # (generateing MS1 peaks from a chemical).
     event_query_mzs = np.array(
-        [controller.environment.mass_spec.get_ms1_peaks_from_chemical(
+        [controller.environment.mass_spec.get_chemical_mz_ms1(
             event.chem, event.query_rt, 0, 0) for event in events])
     assert False
 

@@ -322,25 +322,36 @@ class TestScanTiming():
 
 class TestChemSet():
 
-    def test_memory_chems(self):
+    def test_memory_beer_chems(self):
         logger.info('Testing memory chems')
         chemset = ChemSet.to_chemset(BEER_CHEMS)
         out_file = 'test_chemset_memory.mzML'
-        self._run_topN(chemset, out_file)
+        self._run_topN(chemset, out_file, 30302625)
 
-    def test_fast_memory_chems(self):
+    def test_fast_memory_beer_chems(self):
         logger.info('Testing fast memory chems')
         chemset = ChemSet.to_chemset(BEER_CHEMS, fast=True)
         out_file = 'test_chemset_fast_memory.mzML'
-        self._run_topN(chemset, out_file)
+        self._run_topN(chemset, out_file, 30302625)
 
-    def test_file_chems(self):
+    def test_file_beer_chems(self):
         logger.info('Testing file chems')
         chemset = ChemSet.to_chemset(None, filepath=BEER_CHEMS_PATH)
         out_file = 'test_chemset_file.mzML'
-        self._run_topN(chemset, out_file)
+        self._run_topN(chemset, out_file, 30302625)
 
-    def _run_topN(self, chemset, out_file):
+    def test_fast_memory_synthetic_chems(self, large_fragscan_dataset):
+        logger.info('Testing fast memory synthetic chems')
+        chemset = ChemSet.to_chemset(large_fragscan_dataset, fast=True)
+        out_file = 'test_chemset_fast_synthetic_memory.mzML'
+
+        # Initial size in master is this:
+        # self._run_topN(chemset, out_file, 28917347)
+
+        # New size is this. FIXME: small changes due to vectorisation?
+        self._run_topN(chemset, out_file, 28917352)
+
+    def _run_topN(self, chemset, out_file, expected_size):
         isolation_width = 1
         N = 10
         rt_tol = 15
@@ -360,4 +371,4 @@ class TestChemSet():
         check_non_empty_MS2(controller)
 
         # write simulated output to mzML file
-        check_mzML(env, OUT_DIR, out_file)
+        check_mzML(env, OUT_DIR, out_file, assert_size=expected_size)

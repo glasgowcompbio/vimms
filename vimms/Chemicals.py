@@ -5,9 +5,8 @@ to the simulation.
 import copy
 import itertools
 import pickle
+from abc import ABCMeta, abstractmethod
 from collections import deque
-from operator import attrgetter
-from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 import scipy
@@ -298,24 +297,6 @@ class Chemical(BaseChemical):
         return self if self.base_chemical is None else \
             self.base_chemical.get_original_parent()
 
-    @abstractmethod
-    def get_key(self):
-        """
-        Turns a chemical object into some sensible keys for comparison
-
-        Returns: keys for comparisons in __eq__ and __hash__
-
-        """
-        pass
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.get_key() == other.get_key()
-        return False
-
-    def __hash__(self):
-        return hash(self.get_key())
-
 
 class UnknownChemical(Chemical):
     """
@@ -349,9 +330,6 @@ class UnknownChemical(Chemical):
             (mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
         self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.mass = mz
-
-    def get_key(self):
-        return tuple(self.isotopes), self.rt, self.max_intensity
 
     def __repr__(self):
         return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
@@ -396,9 +374,6 @@ class KnownChemical(Chemical):
             self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.mass = self.formula.mass
         self.database_accession = database_accession
-
-    def get_key(self):
-        return tuple(self.formula.formula_string), self.rt
 
     def __repr__(self):
         return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
@@ -492,9 +467,10 @@ class MemoryChems(ChemSet):
             new_pos += 1
         self._update(rt, itertools.islice(self.local_chems, self.pos, new_pos))
         self.pos = new_pos
-        return reversed(self.current)
+        return np.array(list(reversed(self.current)))
 
 
+# TODO: doesn't seem to be much faster. Try intervaltree.
 class FastMemoryChems(MemoryChems):
 
     def __init__(self, local_chems):
@@ -502,7 +478,6 @@ class FastMemoryChems(MemoryChems):
         super().reset()
         self.local_chems = np.array(local_chems)
 
-        # stores the chromatograms start and end rt for quick retrieval
         chem_rts = np.array([chem.rt for chem in self.local_chems])
         self.chrom_min_rts = np.array(
             [chem.chromatogram.min_rt for chem in self.local_chems]) + chem_rts
@@ -510,9 +485,7 @@ class FastMemoryChems(MemoryChems):
             [chem.chromatogram.max_rt for chem in self.local_chems]) + chem_rts
 
     def next_chems(self, rt):
-        rtmin_check = self.chrom_min_rts <= rt
-        rtmax_check = rt <= self.chrom_max_rts
-        idx = np.nonzero(rtmin_check & rtmax_check)[0]
+        idx = np.where((self.chrom_min_rts < rt) & (rt < self.chrom_max_rts))[0]
         return self.local_chems[idx]
 
 
@@ -585,7 +558,7 @@ class FileChems(ChemSet):
             new.append(self.pending.popleft())
 
         self._update(rt, new)
-        return reversed(self.current)
+        return np.array(list(reversed(self.current)))
 
 
 class MSN(BaseChemical):

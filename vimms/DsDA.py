@@ -94,9 +94,18 @@ def fragmentation_performance_aligned(param_dict):
                        controller.environment.mass_spec.fragmentation_events if
                        event.ms_level == 2])
     event_query_rts = np.array([event.query_rt for event in events])
+
+    # FIXME: mass_spec._get_mz() has been removed
+    # event_query_mzs = np.array(
+    #     [controller.environment.mass_spec._get_mz(
+    #         event.chem, event.query_rt, 0, 0) for event in events])
+
+    # Check with Ross that get_ms1_peaks_from_chemical below is what we want
+    # (generateing MS1 peaks from a chemical).
     event_query_mzs = np.array(
-        [controller.environment.mass_spec._get_mz(
+        [controller.environment.mass_spec.get_ms1_peaks_from_chemical(
             event.chem, event.query_rt, 0, 0) for event in events])
+    assert False
 
     chemicals_found = [0 for i in range(n_chemicals_aligned)]
 

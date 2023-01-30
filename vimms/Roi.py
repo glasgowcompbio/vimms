@@ -69,7 +69,9 @@ class Roi():
         self.n = len(self.mz_list)
         self.mz_sum = sum(self.mz_list)
         self.mean_mz = self.calculate_mean_mz()
-        self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+        self.min_rt = self.rt_list[0]
+        self.max_rt = self.rt_list[-1]
+        self.length_in_seconds = self.max_rt - self.min_rt
         self.is_fragmented = False
         self.can_fragment = True
 
@@ -125,7 +127,9 @@ class Roi():
         self.mz_sum += mz
         self.n += 1
         self.mean_mz = self.calculate_mean_mz()
-        self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
+        self.min_rt = self.rt_list[0]
+        self.max_rt = self.rt_list[-1]
+        self.length_in_seconds = self.max_rt - self.min_rt
 
     def add_fragmentation_event(self, scan, precursor_intensity):
         """

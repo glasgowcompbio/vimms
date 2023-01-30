@@ -251,7 +251,7 @@ class ChemDataCollector():
                 chrom_mz_arr = None
                 chrom_rt_arr = None
                 chrom_intensity_arr = None
-                chrom_mz = None
+                chrom_mz = chrom.mz
 
             single_chem_data = []
             single_chrom_mz_arr = []

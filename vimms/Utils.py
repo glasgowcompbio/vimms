@@ -7,7 +7,7 @@ from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chemicals import KnownChemical, UnknownChemical, DatabaseCompound
 from vimms.Common import create_if_not_exist, \
-    ATOM_MASSES, POSITIVE
+    ATOM_MASSES, POSITIVE, ADDUCT_TERMS
 from vimms.MassSpecUtils import adduct_transformation
 
 # Constants for write_msp
@@ -65,9 +65,11 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
                     else:
                         raise NotImplementedError()
                     outln = packline(outln, name)
-                    mz = adduct_transformation(chem.isotopes[which_isotope][0],
-                                               chem.adducts[ionisation_mode][
-                                                   which_adduct][0])
+
+                    mz = chem.isotopes[which_isotope][0]
+                    adduct = chem.adducts[ionisation_mode][which_adduct][0]
+                    mul, add = ADDUCT_TERMS[adduct]
+                    mz = adduct_transformation(mz, mul, add)
                     outln = packline(
                         outln, 'PRECURSORMZ: ' + decimal_to_string(mz, 2))
                     outln = packline(outln,
@@ -92,10 +94,10 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
                     outln = packline(outln,
                                      'Num Peaks: ' + str(len(chem.children)))
                     for msn in chem.children:
-                        msn_mz = adduct_transformation(msn.isotopes[0][0],
-                                                       chem.adducts[
-                                                           ionisation_mode][
-                                                           which_adduct][0])
+                        mz = msn.isotopes[0][0]
+                        adduct = chem.adducts[ionisation_mode][which_adduct][0]
+                        mul, add = ADDUCT_TERMS[adduct]
+                        msn_mz = adduct_transformation(mz, mul, add)
                         msn_peak = chem.isotopes[which_isotope][1] * \
                                    chem.adducts[ionisation_mode][which_adduct][
                                        1] * chem.max_intensity * \

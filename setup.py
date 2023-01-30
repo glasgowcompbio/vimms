@@ -27,6 +27,7 @@ setup(
     install_requires=['numpy', 'pandas', 'scipy', 'matplotlib', 'seaborn', 'scikit-learn',
                       'pymzml==2.4.7', 'psims', 'events', 'tqdm', 'joblib', 'ipyparallel',
                       'requests', 'loguru', 'networkx', 'jsonpickle', 'statsmodels',
-                      'mass-spec-utils', 'tabulate', 'pysmiles', 'intervaltree', 'gpy'],
+                      'mass-spec-utils', 'tabulate', 'pysmiles', 'intervaltree', 'gpy',
+                      'numba', 'numba-stats'],
 
 )

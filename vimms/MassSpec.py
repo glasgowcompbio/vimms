@@ -624,8 +624,8 @@ class IndependentMassSpectrometer():
         if self.spike_noise is not None:
             spike_mzs, spike_intensities = self.spike_noise.sample(
                 min_measurement_mz, max_measurement_mz)
-            scan_mzs.extend(spike_mzs)
-            scan_intensities.extend(spike_intensities)
+            scan_mzs = np.concatenate([scan_mzs, spike_mzs])
+            scan_intensities = np.concatenate([scan_intensities, spike_intensities])
 
         # for compatibility with old codes
         frag_events = None if len(frag_events) == 0 else frag_events
@@ -701,7 +701,11 @@ class IndependentMassSpectrometer():
 
         _, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms2(
             chems, scan_time, cdc)
-        mzs = peaks[:, 0]
+
+        if len(peaks) > 0:
+            mzs = peaks[:, 0]
+        else:
+            mzs = np.array([])
 
         # FIXME: only support one window, maybe not correct
         # original code is

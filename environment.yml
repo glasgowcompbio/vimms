@@ -36,3 +36,4 @@ dependencies:
     - psims
     - mass-spec-utils
     - pysmiles
+    - numba-stats

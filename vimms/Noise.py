@@ -131,4 +131,4 @@ class UniformSpikeNoise():
         mz_vals = uniform_list(
             n_points, min_measurement_mz, max_measurement_mz)
         intensity_vals = uniform_list(n_points, self.min_val, self.max_val)
-        return mz_vals, intensity_vals
+        return np.array(mz_vals), np.array(intensity_vals)

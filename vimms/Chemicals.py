@@ -470,7 +470,7 @@ class MemoryChems(ChemSet):
         return np.array(list(reversed(self.current)))
 
 
-# TODO: doesn't seem to be much faster. Try intervaltree.
+# TODO: slightly faster than MemoryChems, but can be made faster with intervaltree.
 class FastMemoryChems(MemoryChems):
 
     def __init__(self, local_chems):

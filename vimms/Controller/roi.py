@@ -86,8 +86,6 @@ class RoiController(TopNController):
         ms1_scan_params = self.get_ms1_scan_params()
         self.current_task_id += 1
         self.next_processed_scan_id = self.current_task_id
-        logger.debug('Created the next processed scan %d' % (
-            self.next_processed_scan_id))
         new_tasks.append(ms1_scan_params)
 
     class MS2Scheduler():

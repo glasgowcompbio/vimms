@@ -155,7 +155,7 @@ def generate_chem_ms1_peaks_for_ms2(chems, scan_time, cdc):
 
 def generate_chem_ms1_peaks(chems, scan_time, cdc, with_intensity):
     all_chems, all_data, all_chrom_mz_arr, all_chrom_rt_arr, all_chrom_intensity_arr, \
-        chrom_shape_cutoff, chrom_shape_parameters, chrom_type, distribution_name = \
+    chrom_shape_cutoff, chrom_shape_parameters, chrom_type, distribution_name = \
         cdc.collect_chem_data(chems)
 
     assert len(all_chems) == len(all_data)
@@ -289,83 +289,6 @@ class ChemDataCollector():
                             single_chrom_intensity_arr, single_chems)
             self.seen_chems[chem] = chem_results
             return chem_results
-
-
-# def collect_chem_data(chems, ionisation_mode):
-#     chrom_type = None
-#     distribution_name = None
-#     chrom_shape_cutoff = None
-#     chrom_shape_parameters = (None, None)
-#
-#     all_data = []
-#     all_chrom_mz_arr = []
-#     all_chrom_rt_arr = []
-#     all_chrom_intensity_arr = []
-#
-#     if len(chems) > 0:
-#         chrom = chems[0].chromatogram
-#         chrom_type = chrom.get_chrom_type()
-#         if chrom_type == CHROM_TYPE_FUNCTIONAL:
-#             distribution_name = chrom.distribution_name
-#             chrom_shape_cutoff = chrom.cutoff
-#             chrom_shape_parameters = chrom.parameters
-#
-#         for i in range(len(chems)):
-#             chemical = chems[i]
-#             chrom = chemical.chromatogram
-#
-#             if chrom_type == CHROM_TYPE_EMPIRICAL:
-#                 chrom_relative_intensity = None
-#                 chrom_mz_arr = chrom.mzs
-#                 chrom_rt_arr = chrom.rts
-#                 chrom_intensity_arr = chrom.intensities
-#                 chrom_mz = None
-#
-#             elif chrom_type == CHROM_TYPE_FUNCTIONAL:
-#                 chrom_relative_intensity = None
-#                 chrom_mz_arr = None
-#                 chrom_rt_arr = None
-#                 chrom_intensity_arr = None
-#                 chrom_mz = chrom.mz
-#
-#             elif chrom_type == CHROM_TYPE_CONSTANT:
-#                 chrom_relative_intensity = chrom.relative_intensity
-#                 chrom_mz_arr = None
-#                 chrom_rt_arr = None
-#                 chrom_intensity_arr = None
-#                 chrom_mz = None
-#
-#             for which_isotope in range(len(chemical.isotopes)):
-#                 isotope_mz, isotope_prop, isotope_name = chemical.isotopes[which_isotope]
-#
-#                 for which_adduct in range(len(chemical.adducts[ionisation_mode])):
-#                     adduct_name, adduct_prob = chemical.adducts[ionisation_mode][
-#                         which_adduct]
-#                     mul, add = ADDUCT_TERMS[adduct_name]
-#
-#                     row = [
-#                         isotope_mz,
-#                         isotope_prop,
-#                         adduct_prob,
-#                         mul,
-#                         add,
-#                         chemical.max_intensity,
-#                         chemical.rt,
-#                         chrom_relative_intensity,
-#                         chrom_mz,
-#                         i,
-#                         which_isotope,
-#                         which_adduct
-#                     ]
-#                     all_data.append(row)
-#                     all_chrom_mz_arr.append(chrom_mz_arr)
-#                     all_chrom_rt_arr.append(chrom_rt_arr)
-#                     all_chrom_intensity_arr.append(chrom_intensity_arr)
-#
-#     all_data = _get_all_data_arr(all_data) # FIXME: slow!!
-#
-#     return all_data, all_chrom_mz_arr, all_chrom_rt_arr, all_chrom_intensity_arr, \
-#            chrom_shape_cutoff, chrom_shape_parameters, chrom_type, distribution_name
 
 
 def _get_all_data_arr(all_data):

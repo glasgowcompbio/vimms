@@ -113,7 +113,7 @@ class MS2PointMatcher():
 
     def send_training_data(self, model, scan, roi, inj_num):
         # TODO: put some limitation on mz(/rt?) of boxes that can be matched
-        spectrum = Spectrum(roi.get_mean_mz(), list(zip(scan.mzs, scan.intensities)))
+        spectrum = Spectrum(roi.mean_mz, list(zip(scan.mzs, scan.intensities)))
 
         rt, _, __ = roi[0]
         if(inj_num > 0):

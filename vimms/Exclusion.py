@@ -540,7 +540,7 @@ class SmartROIFilter(ScoreFilter):
         Returns: an array of indicator whether ROI can be fragmented or not.
 
         """
-        can_fragments = np.array([roi.get_can_fragment() for roi in rois])
+        can_fragments = np.array([roi.can_fragment for roi in rois])
         return can_fragments
 
 

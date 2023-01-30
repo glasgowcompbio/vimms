@@ -21,6 +21,7 @@ from mass_spec_utils.data_import.mzmine import (
 )
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
+from numba import njit
 from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
@@ -62,18 +63,15 @@ class Roi():
         self.fragmentation_events = []
         self.fragmentation_intensities = []
         self.max_fragmentation_intensity = 0.0
-        self.mz_list = self._to_list(mz)
-        self.rt_list = self._to_list(rt)
-        self.intensity_list = self._to_list(intensity)
+        self.mz_list = [mz]
+        self.rt_list = [rt]
+        self.intensity_list = [intensity]
         self.n = len(self.mz_list)
         self.mz_sum = sum(self.mz_list)
+        self.mean_mz = self.calculate_mean_mz()
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
         self.is_fragmented = False
         self.can_fragment = True
-        
-        self.min_rt, self.max_rt = min(self.rt_list), max(self.rt_list)
-        self.min_mz, self.max_mz = min(self.mz_list), max(self.mz_list)
-        self.min_intensity, self.max_intensity = min(self.intensity_list), max(self.intensity_list)
 
     def fragmented(self):
         """
@@ -82,23 +80,20 @@ class Roi():
         self.is_fragmented = True
         self.can_fragment = True
 
-    def get_mean_mz(self):
-        """
-        Returns the mean m/z values of points in this ROI
-        """
+    def calculate_mean_mz(self):
         return self.mz_sum / self.n
 
     def get_max_intensity(self):
         """
         Returns the maximum intensity value of this ROI
         """
-        return self.max_intensity
+        return max(self.intensity_list)
 
     def get_min_intensity(self):
         """
         Returns the minimum intensity value of this ROI
         """
-        return self.min_intensity
+        return min(self.intensity_list)
 
     def get_autocorrelation(self, lag=1):
         """
@@ -129,10 +124,8 @@ class Roi():
         self.intensity_list.append(intensity)
         self.mz_sum += mz
         self.n += 1
+        self.mean_mz = self.calculate_mean_mz()
         self.length_in_seconds = self.rt_list[-1] - self.rt_list[0]
-        self.min_rt, self.max_rt = min(self.min_rt, rt), max(self.max_rt, rt)
-        self.min_mz, self.max_mz = min(self.min_mz, mz), max(self.max_mz, mz)
-        self.min_intensity, self.max_intensity = min(self.min_intensity, intensity), max(self.max_intensity, intensity)
 
     def add_fragmentation_event(self, scan, precursor_intensity):
         """
@@ -195,13 +188,16 @@ class Roi():
         Returns: a [vimms.Box.GenericBox][] object.
 
         """
-        min_rt, max_rt = self._set_fixed_bounds_for_box(fixed_rt_dist, self.min_rt, self.max_rt)
+        min_rt, max_rt = min(self.rt_list), max(self.rt_list)
+        min_mz, max_mz = min(self.mz_list), max(self.mz_list)
+
+        min_rt, max_rt = self._set_fixed_bounds_for_box(fixed_rt_dist, min_rt, max_rt)
         dalton_dist = (
-            self.get_mean_mz() * fixed_mz_dist / 1E6
+            self.mean_mz * fixed_mz_dist / 1E6
             if not fixed_mz_dist is None
             else None
         )
-        min_mz, max_mz = self._set_fixed_bounds_for_box(dalton_dist, self.min_mz, self.max_mz)  
+        min_mz, max_mz = self._set_fixed_bounds_for_box(dalton_dist, min_mz, max_mz)
         
         return GenericBox(
                     min_rt + rt_shift, 
@@ -260,19 +256,6 @@ class Roi():
         """
         return self.mz_list[-1], self.rt_list[-1], self.intensity_list[-1]
 
-    def _to_list(self, val):
-        """
-        Ensures that the value passed in is a list
-
-        Args:
-            val: the value to check, can be either a list or a single value
-
-        Returns: val, but always as a list
-
-        """
-        values = val if type(val) == list else [val]
-        return values
-
     def __getitem__(self, idx):
         """
         Returns a single point in this ROI at the
@@ -297,7 +280,7 @@ class Roi():
         Returns: comparison is done by mean m/z of ROIs
 
         """
-        return self.get_mean_mz() <= other.get_mean_mz()
+        return self.mean_mz <= other.mean_mz
 
     def __repr__(self):
         """
@@ -341,25 +324,28 @@ class SmartRoi(Roi):
             id: the ID of this ROI
         """
         super().__init__(mz, rt, intensity, id=id)
+        self.max_at_frag = 0.0
+        self.max_since_last_frag = 0.0
         self.params = smartroi_params
 
         if self.params.initial_length_seconds > 0:
             self.status = SmartRoi.INITIAL_WAITING
-            self.set_can_fragment(False)
+            self.can_fragment = False
         else:
             self.status = SmartRoi.CAN_FRAGMENT
-            self.set_can_fragment(True)
+            self.can_fragment = True
 
         self.min_frag_intensity = None
-        self.intensity_diff = 0
 
     def fragmented(self):
         """
         Sets this SmartROI as having been fragmented
         """
         self.is_fragmented = True
-        self.set_can_fragment(False)
+        self.can_fragment = False
         self.fragmented_index = len(self.mz_list) - 1
+        self.max_at_frag = self.intensity_list[self.fragmented_index]
+        self.max_since_last_frag = self.max_at_frag
         self.status = SmartRoi.AFTER_FRAGMENT
 
     def get_status(self):
@@ -389,38 +375,49 @@ class SmartRoi(Roi):
 
         """
         super().add(mz, rt, intensity)
+        if intensity > self.max_since_last_frag:
+            self.max_since_last_frag = intensity
+
         if self.status == SmartRoi.INITIAL_WAITING:
             if self.length_in_seconds >= self.params.initial_length_seconds:
                 self.status = SmartRoi.CAN_FRAGMENT
-                self.set_can_fragment(True)
+                self.can_fragment = True
+
         elif self.status == SmartRoi.AFTER_FRAGMENT:
-            # in a period after a fragmentation has happened
-            # if enough time has elapsed, reset everything
-            if self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.params.reset_length_seconds:
-                self.status = SmartRoi.CAN_FRAGMENT
-                self.set_can_fragment(True)
-            elif self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.params.dew:
-                # standard DEW has expired so apply smartroi rules
-                frag = self.intensity_list[self.fragmented_index]
-                max_since_frag = max(self.intensity_list[self.fragmented_index:])
-                
-                if self.intensity_list[-1] > self.params.intensity_increase_factor * frag:
-                    self.status = SmartRoi.CAN_FRAGMENT
-                    self.set_can_fragment(True)
-                
-                elif self.intensity_list[-1] < self.params.drop_perc * max_since_frag:
-                    # signal has dropped, but ROI still exists.
-                    self.status = SmartRoi.CAN_FRAGMENT
-                    self.set_can_fragment(True)
+            self.set_smartroi_rules()
 
         # code below never happens
-        elif self.status == SmartRoi.POST_PEAK:
-            if self.rt_list[-1] - self.rt_list[
-                self.fragmented_index] > self.params.dew:
-                if self.intensity_list[-1] > self.min_frag_intensity:
-                    self.status = SmartRoi.CAN_FRAGMENT
-                    self.set_can_fragment(True)
+        # elif self.status == SmartRoi.POST_PEAK:
+        #     if self.rt_list[-1] - self.rt_list[
+        #         self.fragmented_index] > self.params.dew:
+        #         if self.intensity_list[-1] > self.min_frag_intensity:
+        #             self.status = SmartRoi.CAN_FRAGMENT
+        #             self.set_can_fragment(True)
+
+    def set_smartroi_rules(self):
+        # in a period after a fragmentation has happened
+        # if enough time has elapsed, reset everything
+        if self.rt_list[-1] - self.rt_list[self.fragmented_index] > \
+                self.params.reset_length_seconds:
+            self.status = SmartRoi.CAN_FRAGMENT
+            self.can_fragment = True
+
+        elif self.rt_list[-1] - self.rt_list[self.fragmented_index] > self.params.dew:
+            # standard DEW has expired so apply smartroi rules
+            frag = self.intensity_list[self.fragmented_index]
+
+            # too slow to recompute this each time
+            # max_since_frag = max(self.intensity_list[self.fragmented_index:])
+            # assert self.max_since_last_frag == max_since_frag
+
+            if self.intensity_list[-1] > self.params.intensity_increase_factor * frag:
+                self.status = SmartRoi.CAN_FRAGMENT
+                self.can_fragment = True
+
+            elif self.intensity_list[-1] < self.params.drop_perc * self.max_since_last_frag:
+                # signal has dropped, but ROI still exists.
+                self.status = SmartRoi.CAN_FRAGMENT
+                self.can_fragment = True
 
     def get_can_fragment(self):
         """
@@ -440,12 +437,6 @@ class SmartRoi(Roi):
 
         """
         self.can_fragment = status
-        try:
-            self.intensity_diff = abs(
-                self.intensity_list[-1] - self.intensity_list[
-                    self.fragmented_index])
-        except AttributeError:  # no fragmented index
-            self.intensity_diff = 0
 
 
 class SmartRoiParams():
@@ -695,8 +686,8 @@ class RoiBuilder():
 
         if pos == len(roi_list):
             dist_left = 1e6 * (
-                mz.get_mean_mz() - roi_list[pos - 1].get_mean_mz()
-            ) / mz.get_mean_mz()
+                mz.mean_mz - roi_list[pos - 1].mean_mz
+            ) / mz.mean_mz
             
             if dist_left < mz_tol:
                 return roi_list[pos - 1]
@@ -705,8 +696,8 @@ class RoiBuilder():
         
         elif pos == 0:
             dist_right = 1e6 * (
-                roi_list[pos].get_mean_mz() - mz.get_mean_mz()
-            ) / mz.get_mean_mz()
+                roi_list[pos].mean_mz - mz.mean_mz
+            ) / mz.mean_mz
             
             if dist_right < mz_tol:
                 return roi_list[pos]
@@ -715,11 +706,11 @@ class RoiBuilder():
                 
         else:
             dist_left = 1e6 * (
-                mz.get_mean_mz() - roi_list[pos - 1].get_mean_mz()
-            ) / mz.get_mean_mz()
+                mz.mean_mz - roi_list[pos - 1].mean_mz
+            ) / mz.mean_mz
             dist_right = 1e6 * (
-                roi_list[pos].get_mean_mz() - mz.get_mean_mz()
-            ) / mz.get_mean_mz()
+                roi_list[pos].mean_mz - mz.mean_mz
+            ) / mz.mean_mz
 
             if dist_left < mz_tol < dist_right:
                 return roi_list[pos - 1]
@@ -914,7 +905,7 @@ class RoiAligner():
         these_peaks, frag_intensities, temp_boxes = [], [], []
         for i, roi in enumerate(rois):
             source_id = f"{sample_name}_{i}"
-            peak_mz = roi.get_mean_mz()
+            peak_mz = roi.mean_mz
             peak_rt = roi.estimate_apex()
             peak_intensity = roi.get_max_intensity()
             these_peaks.append(
@@ -1053,7 +1044,7 @@ class RoiAligner():
         """
         return np.array(
             [
-                [peakset.get_intensity(filename) for fname in self.files_loaded] 
+                [ps.get_intensity(fname) for fname in self.files_loaded]
                 for ps in self.peaksets
             ], 
             dtype=np.double
@@ -1381,7 +1372,7 @@ def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
         return picked_boxes
         
     new_boxes = copy.deepcopy(picked_boxes)
-    for box, sec_shift, mz_shift in zip(new_boxes, rt_shifts, min_shifts):
+    for box, sec_shift, mz_shift in zip(new_boxes, rt_shifts, mz_shifts):
         if rt_shifts is not None:
             sec_shift = float(sec_shift)
             min_shift = sec_shift / 60.0

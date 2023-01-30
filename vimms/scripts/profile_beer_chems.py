@@ -8,9 +8,10 @@ from loguru import logger
 
 from vimms.Chemicals import ChemSet
 from vimms.Common import POSITIVE, load_obj
-from vimms.Controller import TopNController
+from vimms.Controller import TopNController, TopN_SmartRoiController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Roi import RoiBuilderParams, SmartRoiParams
 
 MZ_RANGE = [(0, 1050)]
 RT_RANGE = [(0, 1200)]

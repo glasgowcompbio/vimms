@@ -741,55 +741,98 @@ class IndependentMassSpectrometer():
                                   max_measurement_mz, min_measurement_mz, ms_level, params,
                                   scan_id, scan_time, use_ms_level):
 
-        scan_mzs = []  # all the mzs values in this scan
-        scan_intensities = []  # all the intensity values in this scan
+        scan_mzs = np.array([])  # all the mzs values in this scan
+        scan_intensities = np.array([])  # all the intensity values in this scan
+
+        all_peaks = []
         frag_events = []
-        # assert len(chems) == len(chemical_peaks)
         for chemical in chems:
             peaks = chemical_peaks[chemical]
             if len(peaks) == 0:
                 continue
 
             # apply noise if any
+            peaks = np.array(peaks)
             peaks = self.add_noise_and_filter(max_measurement_mz, min_measurement_mz,
                                               ms_level, peaks)
-            if len(peaks) > 0:
-                chem_mzs = peaks[:, PEAKS_MZ_IDX].tolist()
-                chem_intensities = peaks[:, PEAKS_INTENSITY_IDX].tolist()
-                scan_mzs.extend(chem_mzs)
-                scan_intensities.extend(chem_intensities)
+
+            if len(peaks) > 0:  # if after filter, some peaks are left
+                all_peaks.append(peaks)
 
                 # for synthetic performance evaluation
                 frag = self._get_frag_event(chemical, isolation_windows, peaks, params,
                                             scan_id, scan_time, use_ms_level)
                 frag_events.append(frag)
+
+        # combine generated peaks, if any
+        if len(all_peaks) > 0:
+            concat_peaks = np.concatenate(all_peaks, axis=0)
+            scan_mzs = concat_peaks[:, PEAKS_MZ_IDX]
+            scan_intensities = concat_peaks[:, PEAKS_INTENSITY_IDX]
         return scan_mzs, scan_intensities, frag_events
 
     def add_noise_and_filter(self, max_measurement_mz, min_measurement_mz, ms_level, peaks):
+
+        # Non-vectorised, but faster
         noise_peaks = []
         for i in range(len(peaks)):
-            original_mz = peaks[i][0]
-            original_intensity = peaks[i][1]
+            original_mz = peaks[i][PEAKS_MZ_IDX]
+            original_intensity = peaks[i][PEAKS_INTENSITY_IDX]
             noisy_mz = self.mz_noise.get(original_mz, ms_level)
             noisy_intensity = self.intensity_noise.get(original_intensity, ms_level)
+
             if (min_measurement_mz <= noisy_mz <= max_measurement_mz) and (noisy_intensity > 0):
-                noise_peaks.append((noisy_mz, noisy_intensity, peaks[i][2],
-                                    peaks[i][3], peaks[i][4]))
-        noise_peaks = np.array(noise_peaks, dtype=float)
+                noise_peaks.append(
+                    (noisy_mz, noisy_intensity,
+                     peaks[i][PEAKS_MS1_INTENSITY_IDX],
+                     peaks[i][PEAKS_WHICH_ISOTOPE_IDX],
+                     peaks[i][PEAKS_WHICH_ADDUCT_IDX])
+                )
+        noise_peaks = np.array(noise_peaks)
+
+        # Vectorised but SLOW?!
+        # noisy_mz = np.zeros(peaks.shape[0])
+        # noisy_intensity = np.zeros(peaks.shape[0])
+        # for i in range(peaks.shape[0]):
+        #     original_mz = peaks[i, PEAKS_MZ_IDX]
+        #     original_intensity = peaks[i, PEAKS_INTENSITY_IDX]
+        #     noisy_mz[i] = self.mz_noise.get(original_mz, ms_level)
+        #     noisy_intensity[i] = self.intensity_noise.get(original_intensity, ms_level)
+        #
+        # peaks[:, PEAKS_MZ_IDX] = noisy_mz
+        # peaks[:, PEAKS_INTENSITY_IDX] = noisy_intensity
+        # mask = (min_measurement_mz <= peaks[:, PEAKS_MZ_IDX]) & (
+        #             peaks[:, PEAKS_MZ_IDX] <= max_measurement_mz) & (
+        #                    peaks[:, PEAKS_INTENSITY_IDX] > 0)
+        # noise_peaks = peaks[mask, :]
+
         return noise_peaks
 
     def _get_frag_event(self, chemical, isolation_windows, peaks, params, scan_id, scan_time,
                         use_ms_level):
-        scan_peaks = [ScanEventPeak(peak[PEAKS_MZ_IDX],
-                                    scan_time,
-                                    peak[PEAKS_INTENSITY_IDX],
-                                    use_ms_level) for peak in peaks]
+
+        # Slow. Not sure if it's ever needed.
+        # scan_peaks = [ScanEventPeak(peak[PEAKS_MZ_IDX],
+        #                             scan_time,
+        #                             peak[PEAKS_INTENSITY_IDX],
+        #                             use_ms_level) for peak in peaks]
+        scan_peaks = None
+        parents_intensity = None
+        parent_adduct = None
+        parent_isotope = None
+        precursor_mz = None
+        if use_ms_level == 2:
+            parents_intensity = peaks[:, PEAKS_MS1_INTENSITY_IDX]
+            parent_adduct = peaks[:, PEAKS_WHICH_ISOTOPE_IDX]
+            parent_isotope = peaks[:, PEAKS_WHICH_ADDUCT_IDX]
+            precursor_mz = params.get(ScanParameters.PRECURSOR_MZ)
+
         frag = ScanEvent(chemical, scan_time, use_ms_level, scan_peaks,
                          scan_id,
-                         parents_intensity=peaks[:, PEAKS_MS1_INTENSITY_IDX],
-                         parent_adduct=peaks[:, PEAKS_WHICH_ISOTOPE_IDX],
-                         parent_isotope=peaks[:, PEAKS_WHICH_ADDUCT_IDX],
-                         precursor_mz=params.get(ScanParameters.PRECURSOR_MZ),
+                         parents_intensity=parents_intensity,
+                         parent_adduct=parent_adduct,
+                         parent_isotope=parent_isotope,
+                         precursor_mz=precursor_mz,
                          isolation_window=isolation_windows,
                          scan_params=params)
         return frag

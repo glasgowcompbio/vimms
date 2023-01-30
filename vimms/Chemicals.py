@@ -857,7 +857,7 @@ class ChemicalMixtureFromMZML():
         chemicals = []
         for roi_idx in rois_to_use:
             r = self.good_rois[roi_idx]
-            mz = r.get_mean_mz()
+            mz = r.mean_mz
             if source_polarity == POSITIVE:
                 mz -= PROTON_MASS
             elif source_polarity == NEGATIVE:

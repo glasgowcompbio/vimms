@@ -112,7 +112,7 @@ class TestFixedScansController:
 #         # ionisation_mode = POSITIVE
 #         controller = MultiIsolationController(N)
 #         ms = IndependentMassSpectrometer(POSITIVE, d)
-#         env = Environment(ms, controller, 10, 20, progress_bar=True)
+#         env = Environment(ms, controller, 10, 20, progress_bar=False)
 #         set_log_level_warning()
 #         env.run()
 #

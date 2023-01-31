@@ -53,7 +53,7 @@ class TestAIFControllers:
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
 
         # set the log level to WARNING so we don't see too many messages when
         # environment is running
@@ -83,7 +83,7 @@ class TestAIFControllers:
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
 
         # set the log level to WARNING so we don't see too many messages
         # when environment is running
@@ -123,7 +123,7 @@ class TestAIFControllers:
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
-                          progress_bar=True)
+                          progress_bar=False)
 
         # set the log level to WARNING so we don't see too many messages
         # when environment is running
@@ -172,7 +172,7 @@ class TestAIFControllers:
         controller = AIF(ms1_source_cid_energy)
         ionisation_mode = POSITIVE
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d)
-        env = Environment(mass_spec, controller, 10, 20, progress_bar=True)
+        env = Environment(mass_spec, controller, 10, 20, progress_bar=False)
 
         set_log_level_warning()
         env.run()
@@ -208,7 +208,7 @@ class TestSWATH:
                                                 spike_noise=spike_noise,
                                                 scan_duration=scan_time_dict)
 
-        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
 
         set_log_level_warning()
 
@@ -235,7 +235,7 @@ class TestSWATH:
         scan_time_dict = {1: 0.124, 2: 0.124}
         mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
                                                 scan_duration=scan_time_dict)
-        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
         set_log_level_warning()
         env.run()
 
@@ -249,7 +249,7 @@ class TestSWATH:
         scan_time_dict = {1: 0.124, 2: 0.124}
         mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
                                                 scan_duration=scan_time_dict)
-        env = Environment(mass_spec, controller2, 200, 300, progress_bar=True)
+        env = Environment(mass_spec, controller2, 200, 300, progress_bar=False)
         env.run()
 
         ms2_scans2 = controller2.scans[2]
@@ -262,7 +262,7 @@ class TestSWATH:
         scan_time_dict = {1: 0.124, 2: 0.124}
         mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
                                                 scan_duration=scan_time_dict)
-        env = Environment(mass_spec, controller3, 200, 300, progress_bar=True)
+        env = Environment(mass_spec, controller3, 200, 300, progress_bar=False)
         env.run()
 
         ms2_scans3 = controller3.scans[2]
@@ -315,7 +315,7 @@ class TestSWATH:
 #                                                 scan_duration=scan_time_dict)
 #         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
 #                                    scan_overlap=scan_overlap)
-#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
 #         set_log_level_warning()
 #         env.run()
 #
@@ -346,7 +346,7 @@ class TestSWATH:
 #                                                 scan_duration=scan_time_dict)
 #         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
 #                                    scan_overlap=scan_overlap)
-#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
 #         set_log_level_warning()
 #         env.run()
 #
@@ -377,7 +377,7 @@ class TestSWATH:
 #                                                 scan_duration=scan_time_dict)
 #         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
 #                                    scan_overlap=scan_overlap)
-#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
 #         set_log_level_warning()
 #         env.run()
 #
@@ -408,7 +408,7 @@ class TestSWATH:
 #                                                 scan_duration=scan_time_dict)
 #         controller = DiaController(min_mz, max_mz, window_type, kaufmann_design, num_windows,
 #                                    scan_overlap=scan_overlap)
-#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
+#         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
 #         set_log_level_warning()
 #         env.run()
 #

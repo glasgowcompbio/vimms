@@ -211,7 +211,7 @@ class TestChemicalsFromMZML():
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
         ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
-        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         filename = 'fullscan_from_mzml.mzML'
@@ -227,7 +227,7 @@ class TestChemicalsFromMZML():
         controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                                     min_ms1_intensity)
         ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
-        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         check_non_empty_MS2(controller)
@@ -238,7 +238,7 @@ class TestChemicalsFromMZML():
         ionisation_mode = POSITIVE
         controller = SimpleMs1Controller()
         ms = IndependentMassSpectrometer(ionisation_mode, chem_mz_rt_i_from_mzml)
-        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         filename = 'fullscan_mz_rt_i_from_mzml.mzML'
@@ -259,7 +259,7 @@ class TestScanTiming():
         # run simulation using default scan times
         ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml,
                                          scan_duration=DEFAULT_SCAN_TIME_DICT)
-        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         filename = 'test_scan_time_default.mzML'
@@ -285,7 +285,7 @@ class TestScanTiming():
         ms = IndependentMassSpectrometer(ionisation_mode, chems, scan_duration=sd)
 
         # run simulation
-        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         filename = 'test_scan_time_from_mzml.mzML'
@@ -311,7 +311,7 @@ class TestScanTiming():
         ms = IndependentMassSpectrometer(ionisation_mode, chems, scan_duration=sd)
 
         # run simulation
-        env = Environment(ms, controller, 500, 600, progress_bar=True)
+        env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         filename = 'test_scan_time_mean_from_mzml.mzML'

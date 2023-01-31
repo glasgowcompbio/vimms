@@ -28,7 +28,7 @@ class TestAgentBasedController:
         controller = AgentBasedController(agent)
         spike_noise = UniformSpikeNoise(0.1, 1000)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
-        env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
+        env = Environment(mass_spec, controller, 0, 100, progress_bar=False)
         set_log_level_warning()
         env.run()
 
@@ -38,7 +38,7 @@ class TestAgentBasedController:
 
         controller = AgentBasedController(agent)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
-        env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
+        env = Environment(mass_spec, controller, 0, 100, progress_bar=False)
         set_log_level_warning()
         env.run()
 
@@ -48,7 +48,7 @@ class TestAgentBasedController:
 
         controller = AgentBasedController(agent)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
-        env = Environment(mass_spec, controller, 0, 100, progress_bar=True)
+        env = Environment(mass_spec, controller, 0, 100, progress_bar=False)
         set_log_level_warning()
         env.run()
 

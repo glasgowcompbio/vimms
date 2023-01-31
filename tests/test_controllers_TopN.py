@@ -23,7 +23,7 @@ class TestNegative:
         mass_spec = IndependentMassSpectrometer(NEGATIVE, even_chems)
         N = 10
         controller = TopNController(NEGATIVE, N, 0.7, 10, 15, 0, force_N=True)
-        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
         run_environment(env)
 
         for level in controller.scans:
@@ -55,7 +55,7 @@ class TestTopNForcedN:
         mass_spec = IndependentMassSpectrometer(POSITIVE, ten_chems)
         N = 20
         controller = TopNController(POSITIVE, N, 0.7, 10, 15, 0, force_N=True)
-        env = Environment(mass_spec, controller, 200, 300, progress_bar=True)
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
         run_environment(env)
 
         all_scans = controller.scans[1] + controller.scans[2]
@@ -93,7 +93,7 @@ class TestTopNController:
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -123,7 +123,7 @@ class TestTopNController:
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -148,7 +148,7 @@ class TestTopNController:
                                     MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -179,7 +179,7 @@ class TestTopNController:
                                     MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -225,7 +225,7 @@ class TestTopNAdvanced:
                                     MIN_MS1_INTENSITY, advanced_params=params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that some of the scan parameters returned are actually what we set
@@ -279,7 +279,7 @@ class TestTopNControllerSpectra:
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -307,7 +307,7 @@ class TestIonisationMode:
         ms = IndependentMassSpectrometer(POSITIVE, dataset)
         controller = TopNController(POSITIVE, N, isolation_width, mz_tol, rt_tol,
                                     MIN_MS1_INTENSITY)
-        env = Environment(ms, controller, 102, 110, progress_bar=True)
+        env = Environment(ms, controller, 102, 110, progress_bar=False)
         set_log_level_warning()
         env.run()
         ms1_mz_vals = [int(m) for m in controller.scans[1][0].mzs]
@@ -338,7 +338,7 @@ class TestIonisationMode:
         ms = IndependentMassSpectrometer(NEGATIVE, dataset)
         controller = TopNController(NEGATIVE, N, isolation_width, mz_tol, rt_tol,
                                     MIN_MS1_INTENSITY)
-        env = Environment(ms, controller, 102, 110, progress_bar=True)
+        env = Environment(ms, controller, 102, 110, progress_bar=False)
         set_log_level_warning()
         env.run()
         ms1_mz_vals = [int(m) for m in controller.scans[1][0].mzs]
@@ -372,7 +372,7 @@ class TestIonisationMode:
         # some adducts might not be sampled if the probability is less than 0.2
         controller = SimpleMs1Controller()
         ms = IndependentMassSpectrometer(POSITIVE, dataset)
-        env = Environment(ms, controller, 102, 110, progress_bar=True)
+        env = Environment(ms, controller, 102, 110, progress_bar=False)
         set_log_level_warning()
         env.run()
         for scan in controller.scans[1]:
@@ -397,7 +397,7 @@ class TestExclusion:
                                         MIN_MS1_INTENSITY,
                                         initial_exclusion_list=initial_exclusion_list)
             env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
-                              progress_bar=True)
+                              progress_bar=False)
             run_environment(env)
 
             mz_intervals = list(controller.exclusion.exclusion_list.boxes_mz.items())
@@ -438,7 +438,7 @@ class TestExclusion:
             controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                                         min_ms1_intensity,
                                         initial_exclusion_list=initial_exclusion_list)
-            env = Environment(mass_spec, controller, 0, 20, progress_bar=True)
+            env = Environment(mass_spec, controller, 0, 20, progress_bar=False)
             run_environment(env)
 
             mz_intervals = list(controller.exclusion.exclusion_list.boxes_mz.items())
@@ -480,7 +480,7 @@ class TestTopNShiftedController:
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
-                          progress_bar=True)
+                          progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -517,7 +517,7 @@ class TestWeightedDEWController:
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
-                          progress_bar=True)
+                          progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan

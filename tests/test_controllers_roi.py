@@ -166,7 +166,7 @@ class TestROIController:
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -195,7 +195,7 @@ class TestROIController:
                                         MIN_MS1_INTENSITY, roi_params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -236,7 +236,7 @@ class TestSMARTROIController:
 
         # create an environment to run both the mass spec and controller
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         assert len(controller.scans[2]) > 0
@@ -269,7 +269,7 @@ class TestSMARTROIController:
                                              MIN_MS1_INTENSITY, roi_params, smartroi_params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -307,7 +307,7 @@ class TestNonOverlapController:
                                           MIN_MS1_INTENSITY, roi_params, grid)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         assert len(controller.scans[2]) > 0
@@ -343,7 +343,7 @@ class TestNonOverlapController:
                                           MIN_MS1_INTENSITY, roi_params, grid)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -379,7 +379,7 @@ class TestNonOverlapController:
                                           smartroi_params=smartroi_params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -416,7 +416,7 @@ class TestNonOverlapController:
                                           exclusion_t_0=exclusion_t_0)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -455,7 +455,7 @@ class TestIntensityNonOverlapController:
                                                    rt_tol, MIN_MS1_INTENSITY, roi_params, grid)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         assert len(controller.scans[2]) > 0
@@ -492,7 +492,7 @@ class TestIntensityNonOverlapController:
                                                    rt_tol, MIN_MS1_INTENSITY, roi_params, grid)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -530,7 +530,7 @@ class TestIntensityNonOverlapController:
                                                    smartroi_params=smartroi_params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -569,7 +569,7 @@ class TestIntensityNonOverlapController:
                                                    exclusion_t_0=exclusion_t_0)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -608,7 +608,7 @@ class TestFlexibleNonOverlapController:
             roi_params, grid)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=True)
+        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
         run_environment(env)
 
         assert len(controller.scans[2]) > 0
@@ -645,7 +645,7 @@ class TestFlexibleNonOverlapController:
                                                   rt_tol, MIN_MS1_INTENSITY, roi_params, grid)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -683,7 +683,7 @@ class TestFlexibleNonOverlapController:
                                                   smartroi_params=smartroi_params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan
@@ -722,7 +722,7 @@ class TestFlexibleNonOverlapController:
                                                   exclusion_t_0=exclusion_t_0)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         run_environment(env)
 
         # check that there is at least one non-empty MS2 scan

@@ -30,7 +30,7 @@ class TestSimulatedMassSpec:
                                     MIN_MS1_INTENSITY)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=True)
+        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
         # run_environment(env)
         env.run()
 

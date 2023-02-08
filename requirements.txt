@@ -17,7 +17,7 @@ chardet==3.0.4
 charset-normalizer==2.0.6
 click==8.0.1
 colorama==0.4.4
-cryptography==3.4.8
+cryptography==39.0.1
 cycler==0.10.0
 Cython==0.29.24
 debugpy==1.4.3

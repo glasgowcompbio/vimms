@@ -1402,48 +1402,56 @@ def plot_hit_proportion(plot_df, suptitle=None, out_file=None, palette=None):
         palette = get_palette(plot_df)
 
     df = plot_df[plot_df['matching_threshold'] == 0.2].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[0][0]
-    sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                  err_style='bars', ax=axes, legend=True, palette=palette)
     axes.set_title('Similarity >= 20%')
     axes.set_xlabel('No. of chemicals')
-    axes.set_ylabel('Annotated chemicals')
-    axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_ylabel('Chemicals annotated')
+    # axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     df = plot_df[plot_df['matching_threshold'] == 0.4].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[0][1]
-    sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                  err_style='bars', ax=axes, legend=True, palette=palette)
     axes.set_title('Similarity >= 40%')
     axes.set_xlabel('No. of chemicals')
     axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     df = plot_df[plot_df['matching_threshold'] == 0.6].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[1][0]
-    sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                  err_style='bars', ax=axes, legend=True, palette=palette)
     axes.set_title('Similarity >= 60%')
     axes.set_xlabel('No. of chemicals')
     axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     df = plot_df[plot_df['matching_threshold'] == 0.8].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[1][1]
-    g = sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    g = sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                      err_style='bars', ax=axes, palette=palette)
     axes.set_title('Similarity >= 80%')
     axes.set_xlabel('No. of chemicals')
     axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     # g.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
     # plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)

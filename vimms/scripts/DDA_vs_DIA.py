@@ -12,8 +12,9 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.mzmine import pick_peaks
 from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
-from tqdm.auto import tqdm
 from matplotlib_venn import venn3
+from scipy.stats import ttest_ind
+from tqdm.auto import tqdm
 
 from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
@@ -1078,7 +1079,6 @@ def pairwise_spectral_distribution_simulated(
         base_folder, msp_folder, num_chems, repeat, suffix,
         methods, matching_threshold, matching_method, matching_ms1_tol,
         matching_ms2_tol, matching_min_match_peaks):
-
     results = []
     for num_chem in num_chems:
         for idx in range(repeat):
@@ -1314,6 +1314,7 @@ def plot_score_distribution_simulated(plot_df, suptitle=None, palette=None, out_
 
     return palette
 
+
 def match_chems_to_spectra_dda(clms_home, num_chem, idx, experiment, method, suffix, sample_list):
     results_folder = os.path.join(clms_home, experiment, method,
                                   'chems_%d_%d_%s' % (num_chem, idx, suffix))
@@ -1402,48 +1403,56 @@ def plot_hit_proportion(plot_df, suptitle=None, out_file=None, palette=None):
         palette = get_palette(plot_df)
 
     df = plot_df[plot_df['matching_threshold'] == 0.2].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[0][0]
-    sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                  err_style='bars', ax=axes, legend=True, palette=palette)
     axes.set_title('Similarity >= 20%')
     axes.set_xlabel('No. of chemicals')
-    axes.set_ylabel('Annotated chemicals')
+    axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     df = plot_df[plot_df['matching_threshold'] == 0.4].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[0][1]
-    sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                  err_style='bars', ax=axes, legend=True, palette=palette)
     axes.set_title('Similarity >= 40%')
     axes.set_xlabel('No. of chemicals')
     axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     df = plot_df[plot_df['matching_threshold'] == 0.6].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[1][0]
-    sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                  err_style='bars', ax=axes, legend=True, palette=palette)
     axes.set_title('Similarity >= 60%')
     axes.set_xlabel('No. of chemicals')
     axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     df = plot_df[plot_df['matching_threshold'] == 0.8].reset_index(drop=True)
+    df['log_num_chem'] = np.log10(df['num_chem'])
+
     axes = ax[1][1]
-    g = sns.lineplot(data=df, x='num_chem', y='prop_annotated_compounds', hue='method',
+    g = sns.lineplot(data=df, x='log_num_chem', y='prop_annotated_compounds', hue='method',
                      err_style='bars', ax=axes, palette=palette)
     axes.set_title('Similarity >= 80%')
     axes.set_xlabel('No. of chemicals')
     axes.set_ylabel('Chemicals annotated')
     axes.legend(labels=['Top-N', 'SWATH', 'AIF'])
-    axes.set_xticks([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
-    axes.set_xticklabels([None, None, None, 100, None, 500, 1000, 2000, 5000], rotation=45)
+    axes.set_xticks(np.log10([10, 20, 50, 100, 200, 500, 1000, 2000, 5000]))
+    axes.set_xticklabels([10, 20, 50, 100, 200, 500, 1000, 2000, 5000], rotation=45)
 
     # g.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
     # plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -1459,13 +1468,16 @@ def get_annotated_peaks(hit_prop_df, threshold, selected_methods):
     selected_df = selected_df[selected_df['matching_threshold'] == threshold]
 
     method_rows = selected_df[selected_df['method'] == selected_methods[0]]
-    dict_1 = {peak.spectrum_id: peak for peak in method_rows['annotated_peaks'].values[0]}
+    dict_1 = {(peak.precursor_mz, peak.original_file, peak.metadata['rt_in_minutes']):
+                  peak for peak in method_rows['annotated_peaks'].values[0]}
 
     method_rows = selected_df[selected_df['method'] == selected_methods[1]]
-    dict_2 = {peak.spectrum_id: peak for peak in method_rows['annotated_peaks'].values[0]}
+    dict_2 = {(peak.precursor_mz, peak.original_file, peak.metadata['rt_in_minutes']):
+                  peak for peak in method_rows['annotated_peaks'].values[0]}
 
     method_rows = selected_df[selected_df['method'] == selected_methods[2]]
-    dict_3 = {peak.spectrum_id: peak for peak in method_rows['annotated_peaks'].values[0]}
+    dict_3 = {(peak.precursor_mz, peak.original_file, peak.metadata['rt_in_minutes']):
+                  peak for peak in method_rows['annotated_peaks'].values[0]}
 
     s1 = set(dict_1.keys())
     s2 = set(dict_2.keys())
@@ -1497,3 +1509,56 @@ def venn_diagram(hit_prop_df, methods, threshold, out_file=None):
 
     if out_file is not None:
         plt.savefig(out_file, dpi=300, bbox_inches="tight")
+
+
+def get_fullscan_df(base_dir):
+    fullscan_folder = os.path.join(base_dir, 'ground_truth_construction', 'fullscan')
+    fullscan_file_name = get_msdial_file(fullscan_folder)
+    fullscan_df = pd.read_csv(fullscan_file_name, sep='\t', index_col='Alignment ID', header=4)
+    return fullscan_df
+
+
+def get_fullscan_rows_for_venn(hit_prop_df, fullscan_df, method, threshold):
+    selected_df = hit_prop_df[hit_prop_df['method'] == method]
+    method_rows = selected_df[selected_df['matching_threshold'] == threshold]
+
+    peaks = list(method_rows['annotated_peaks'].values[0])
+    data = set([(spec.metadata['rt_in_minutes'], spec.precursor_mz, spec.original_file) for spec in
+                peaks])
+    method_df = pd.DataFrame(data, columns=['Average Rt(min)', 'Average Mz',
+                                            'Spectrum reference file name'])
+
+    merged_df = pd.merge(method_df, fullscan_df,
+                         on=['Average Rt(min)', 'Average Mz', 'Spectrum reference file name'],
+                         how='left')
+
+    merged_df['avg_intensity'] = merged_df[[
+        'fullscan_beer1_0', 'fullscan_beer2_0', 'fullscan_beer3_0', 'fullscan_beer4_0',
+        'fullscan_beer5_0', 'fullscan_beer6_0'
+    ]].mean(axis=1)
+    return merged_df
+
+
+def intersect(df1, df2, how='inner'):
+    on = ['Average Rt(min)', 'Average Mz', 'Spectrum reference file name']
+    return df1.merge(df2, on=on, how=how).reset_index(drop=True)
+
+
+def substract(df1, df2):
+    on = ['Average Rt(min)', 'Average Mz', 'Spectrum reference file name']
+    df_all = df1.merge(df2.drop_duplicates(), on=on, how='left', indicator=True)
+    cond = df_all['_merge'] == 'left_only'
+    return df1[cond].reset_index(drop=True)
+
+
+def union(df1, df2):
+    df = pd.concat([df1, df2], axis=0)
+    df = df.drop_duplicates()
+    return df.reset_index(drop=True)
+
+
+def compare_DDA_DIA_means(data):
+    dda = data[data['Method'] == 'DDA']['Log(intensity)']
+    dia = data[data['Method'] == 'DIA']['Log(intensity)']
+    t, p = ttest_ind(dda, dia)
+    return {'t': t, 'p': p}

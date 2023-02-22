@@ -84,7 +84,11 @@ class Shareable:
                     chems_list,
                     params["intensity_threshold"],
                     edge_limit=params.get("edge_limit", None),
-                    weighted=params.get("weighted", Matching.TWOSTEP)
+                    weighted=params.get("weighted", Matching.TWOSTEP),
+                    full_assignment_strategy=params.get(
+                        "full_assignment_strategy", 
+                        Matching.RECURSIVE_ASSIGNMENT
+                    )
                 )
             
             if(self.stored_controllers == []):

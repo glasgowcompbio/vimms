@@ -177,9 +177,9 @@ class Evaluator(metaclass=ABCMeta):
     
         chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] > min_intensity, axis=1)
 
-        frag_counts = self.chem_info[chem_appears, self.TIMES_FRAGMENTED, :].T
-        max_possible_intensities = self.chem_info[chem_appears, self.MAX_INTENSITY, :].T
-        raw_intensities = self.chem_info[chem_appears, self.MAX_FRAG_INTENSITY, :].T
+        frag_counts = self.chem_info[:, self.TIMES_FRAGMENTED, :].T
+        max_possible_intensities = self.chem_info[:, self.MAX_INTENSITY, :].T
+        raw_intensities = self.chem_info[:, self.MAX_FRAG_INTENSITY, :].T
 
         coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
         coverage = np.array(coverage_intensities, dtype=np.bool)
@@ -203,19 +203,19 @@ class Evaluator(metaclass=ABCMeta):
         cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
 
         max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
-        which_non_zero = max_coverage_intensities > 0.0
-        max_obtainable = max_coverage_intensities[np.newaxis, which_non_zero]
+        which_obtainable = max_coverage_intensities >= min_intensity
+        max_obtainable = max_coverage_intensities[np.newaxis, which_obtainable]
         
         coverage_intensity_prop = np.mean(
-            coverage_intensities[:, which_non_zero] / max_obtainable,
+            coverage_intensities[:, which_obtainable] / max_obtainable,
             axis=1
         )
         cumulative_raw_intensities_prop = np.mean(
-            cumulative_raw_intensities[:, which_non_zero] / max_obtainable,
+            cumulative_raw_intensities[:, which_obtainable] / max_obtainable,
             axis=1
         )
         cumulative_coverage_intensities_prop = np.mean(
-            cumulative_coverage_intensities[:, which_non_zero] / max_obtainable,
+            cumulative_coverage_intensities[:, which_obtainable] / max_obtainable,
             axis=1
         )
 
@@ -227,6 +227,7 @@ class Evaluator(metaclass=ABCMeta):
 
         report = {
             "num_runs": int(self.chem_info.shape[2]),
+            "chem_appears": chem_appears,
             "coverage": coverage,
             "raw_intensity": raw_intensities,
             "intensity": coverage_intensities,

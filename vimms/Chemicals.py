@@ -531,7 +531,7 @@ class FileChems(ChemSet):
         if (rt < self.rt): self.reset()
         if (self.finished):
             self._update(rt, [])
-            return iter(self.current)
+            return np.array(list(reversed(self.current)))
 
         if (self.f is None):
             self.f = open(self.filepath, "rb")

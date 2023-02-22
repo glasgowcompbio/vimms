@@ -13,7 +13,6 @@ import networkx as nx
 import numpy as np
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-# TODO: test working controller
 # TODO: intensities seem to be a bit wonky, many zero values
 # TODO: graph extensions in slack
 # TODO: scans from mzml function
@@ -21,12 +20,8 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 #  particular MS2 time than using precursor
 # TODO: bin sort version
 # TODO: constraint programming/stable marriage versions??
-# TODO: general weighted matching is slow, need to find weighted bipartite
-#  algorithm in another package
 # TODO: could chemical collapse with arbitrary exclusion condition, for when
 #  chems_list doesn't have same items e.g. with aligner
-# TODO: matching controller should be able to function without precursor MS1
-#  scans during actual run???
 # TODO: MatchingChem.env2nodes could split chemicals on RoI bounds to have
 #  a slightly more accurate view of simulated chemicals
 # TODO: MatchingChem.env2nodes could also work on non-RoI controllers
@@ -36,7 +31,8 @@ from vimms.Common import (
 
 
 class MatchingScan():
-    def __init__(self, injection_num, ms_level, rt, mzs, intensities):
+    def __init__(self, scan_idx, injection_num, ms_level, rt, mzs, intensities):
+        self.scan_idx = scan_idx
         self.injection_num = injection_num
         self.ms_level = ms_level
         self.rt = rt
@@ -59,7 +55,8 @@ class MatchingScan():
         
     def __hash__(self): 
         return (self.injection_num, self.ms_level, self.rt).__hash__()
-        
+    
+    @staticmethod
     def interpolate_scan(left, right, mz_window):
         left_mzs, left_intensities = zip(*left.peaks)
         right_mzs, right_intensities = zip(*right.peaks)
@@ -93,7 +90,7 @@ class MatchingScan():
             MatchingScan.interpolate_scan(original_scans[-1], original_scans[-2], mz_window)
         )
         
-        for s in schedule:
+        for s_idx, s in enumerate(schedule):
             try: ms_level, rt = s.ms_level, s.rt
             except AttributeError: ms_level, rt = s
             
@@ -109,7 +106,9 @@ class MatchingScan():
                         )
                 
             if(ms_level > 1 or len(original_scans) < 2):
-                new_scans.append(MatchingScan(injection_num, ms_level, rt, [], []))
+                new_scans.append(
+                    MatchingScan(s_idx, injection_num, ms_level, rt, [], [])
+                )
             else:
                 w = (rt - left_rt) / (right_rt - left_rt)
                 weighted_intensities = (owner * (1 - w) * intensities
@@ -120,7 +119,9 @@ class MatchingScan():
                     np.max(weighted_intensities[left_bound:right_bound]) 
                     for (left_bound, right_bound) in in_window
                 ]
-                new_scans.append(MatchingScan(injection_num, ms_level, rt, mzs, new_intensities))
+                new_scans.append(
+                    MatchingScan(s_idx, injection_num, ms_level, rt, mzs, new_intensities)
+                )
         
         return new_scans
 
@@ -141,7 +142,10 @@ class MatchingScan():
                 key=lambda s: s.rt
             )
         )
-        return [MatchingScan(injection_num, s.ms_level, s.rt, s.mzs, s.intensities) for s in scans]
+        return [
+            MatchingScan(s_idx, injection_num, s.ms_level, s.rt, s.mzs, s.intensities) 
+            for s_idx, s in enumerate(scans)
+        ]
         
     @staticmethod
     def topN_nodes(mzml_path, injection_num, N, max_rt, scan_duration_dict, mz_window=1E-10):
@@ -277,14 +281,31 @@ class MatchingChem():
 
 
 class Matching():
+    #Matching weight modes
     UNWEIGHTED = 0
     TWOSTEP = 1
+    
+    #full_assignment_strategy modes
+    MATCHING_ONLY = 0
+    RECURSIVE_ASSIGNMENT = 1
+    NEAREST_ASSIGNMENT = 2
 
-    def __init__(self, scans_list, chems_list, matching, nx_graph=None, aux_graph=None):
+    def __init__(self, 
+                 scans_list, 
+                 chems_list, 
+                 matching,
+                 weighted,
+                 nx_graph=None, 
+                 aux_graph=None,
+                 full_assignment_strategy=1):
+                 
         self.scans_list, self.chems_list = scans_list, chems_list
         self.matching = matching
+        self.weighted = weighted
         self.nx_graph = nx_graph
         self.aux_graph = aux_graph
+        self.full_assignment_strategy = full_assignment_strategy
+        self.full_assignment = []
         
     def __len__(self): 
         return sum(type(k) == MatchingChem for k in self.matching.keys())
@@ -419,38 +440,111 @@ class Matching():
         return nx.bipartite.matching.hopcroft_karp_matching(G, top_nodes)
 
     @staticmethod
-    def two_step_weighted_matching(scans_list, 
-                                   chems_list, 
-                                   intensity_threshold, 
-                                   G,
-                                   edge_limit=None):
+    def two_step_weighted_matching(G):
 
         first_match = Matching.unweighted_matching(G)
-        new_chems = set(v for _, v in first_match.items())
+        new_chems = set(v for v in first_match.keys() if type(v) == MatchingChem)
+        if(len(new_chems) < 1):
+            return {}, None
         
-        new_chems_list = [
-            [ch for ch in chem_list if ch in new_chems]
-            for chem_list in chems_list
+        aux_G = copy.copy(G)
+        chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
+        print(f"len(CHEMS): {len(chems)}")
+        for ch in chems:
+            if(not ch in new_chems):
+                aux_G.remove_node(ch)
+        
+        top_nodes = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
+        return (
+            nx.bipartite.matching.minimum_weight_full_matching(aux_G, top_nodes),
+            aux_G
+        )
+        
+    def _assign_remaining_scans(self):
+        '''
+        Turn matching into a total assignment of scans.
+        '''
+        
+        if(self.weighted == Matching.TWOSTEP):
+            G = self.aux_graph
+            matching_f = lambda G: Matching.two_step_weighted_matching(G)[0]
+        else:
+            G = self.nx_graph
+            matching_f = Matching.unweighted_matching
+        
+        DEFAULT_VAL = 75.0 #change this to real default
+        self.full_assignment = [
+            [DEFAULT_VAL for s in scans] for scans in self.scans_list 
         ]
         
-        aux_graph = Matching._make_graph(
-            scans_list, 
-            new_chems_list, 
-            intensity_threshold,
-            edge_limit=edge_limit
-        )
-        top_nodes = {n for n, d in aux_graph.nodes(data=True) if d["bipartite"] == 0}
-        return (
-            nx.bipartite.matching.minimum_weight_full_matching(aux_graph, top_nodes),
-            aux_graph
-        )
+        for s in self.matching:
+            if(type(s) == MatchingScan):
+                ch = self.matching[s]
+                self.full_assignment[s.injection_num][s.scan_idx] = (ch.min_mz + ch.max_mz) / 2
+                
+        if(self.full_assignment_strategy == self.RECURSIVE_ASSIGNMENT):
+            aux_G = copy.copy(G)
+            chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
+            matching = self.matching
+            for ch in chems:
+                if(not ch in matching):
+                    aux_G.remove_node(ch)
+                    
+            remove = [n for n, degree in aux_G.degree() if degree < 1]
+            for n in remove: aux_G.remove_node(n)
+        
+            scans = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
+            while(len(scans) > 0):
+                print(f"NUM SCANS IN GRAPH: {len(scans)}")
+                
+                for s in matching:
+                    if(type(s) == MatchingScan):
+                        ch = matching[s]
+                        self.full_assignment[s.injection_num][s.scan_idx] = (
+                            (ch.min_mz + ch.max_mz) / 2
+                        )
+                        aux_G.remove_node(s)
+                
+                scans = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
+                matching = matching_f(aux_G)
+                
+        elif(self.full_assignment_strategy == self.NEAREST_ASSIGNMENT):
+            for scans in self.full_assignment:
+                left_i = right_i = last_i = 0
+            
+                for i in range(len(scans)):
+                    if(not math.isclose(scans[i], DEFAULT_VAL)):
+                        for j in range(i):
+                            scans[j] = scans[i]
+                        left_i = last_i = i
+                        break
+                        
+                for i in range(len(scans) - 1, -1, -1):
+                    if(not math.isclose(scans[i], DEFAULT_VAL)):
+                        for j in range(i+1, len(scans)):
+                            scans[j] = scans[i]
+                        right_i = i
+                        break
+                
+                for i in range(left_i + 1, right_i):
+                    if(not math.isclose(scans[i], DEFAULT_VAL)):
+                        mid = 1 + (last_i + i) // 2
+                        
+                        for j in range(last_i + 1, mid):
+                            scans[j] = scans[last_i] 
+                        
+                        for j in range(mid, i):
+                            scans[j] = scans[i] 
+                        
+                        last_i = i
 
     @staticmethod
     def multi_schedule2graph(scans_list, 
                              chems_list, 
                              intensity_threshold, 
                              edge_limit=None, 
-                             weighted=1):
+                             weighted=1,
+                             full_assignment_strategy=1):
 
         G = Matching._make_graph(
             scans_list, 
@@ -461,37 +555,52 @@ class Matching():
         
         aux_graph = None
         if(weighted == Matching.TWOSTEP):
-            matching, aux_graph = Matching.two_step_weighted_matching(
-                scans_list, 
-                chems_list, 
-                intensity_threshold, 
-                G
-            )
+            matching, aux_graph = Matching.two_step_weighted_matching(G)
         else:
             matching = Matching.unweighted_matching(G)
         
-        return Matching(scans_list, chems_list, matching, nx_graph=G)
+        matching = Matching(
+            scans_list, 
+            chems_list, 
+            matching,
+            weighted,
+            nx_graph=G,
+            aux_graph=aux_graph,
+            full_assignment_strategy=full_assignment_strategy
+        )
+
+        matching._assign_remaining_scans()
+        return matching
 
     @staticmethod
-    def schedule2graph(scans, chems, intensity_threshold, edge_limit=None, weighted=1):
-        return Matching.multi_schedule2graph(
-            [scans], [chems], intensity_threshold, edge_limit=None, weighted=weighted
-        )
+    def schedule2graph(scans, 
+                       chems, 
+                       intensity_threshold, 
+                       edge_limit=None, 
+                       weighted=1,
+                       full_assignment_strategy=1):
         
+        return Matching.multi_schedule2graph(
+            [scans], 
+            [chems], 
+            intensity_threshold, 
+            edge_limit=edge_limit, 
+            weighted=weighted,
+            full_assignment_strategy=full_assignment_strategy
+        )
+    
     def make_schedules(self, isolation_width):
         id_count, precursor_id = INITIAL_SCAN_ID, -1
         schedules_list = [[] for _ in self.scans_list]
-        for (i, scans) in enumerate(self.scans_list):
+        ms2_targets = itertools.chain(*self.full_assignment)
+        
+        for i, scans in enumerate(self.scans_list):
             for s in scans:
+                target_mz = next(ms2_targets)
                 if (s.ms_level == 1):
                     precursor_id = id_count
                     schedules_list[i].append(get_default_scan_params(scan_id=precursor_id))
                 elif (s.ms_level == 2):
-                    if (s in self.matching):
-                        ch = self.matching[s]
-                        target_mz = (ch.min_mz + ch.max_mz) / 2
-                    else:
-                        target_mz = 100.0
                     schedules_list[i].append(
                         get_dda_scan_param(
                             target_mz, 
@@ -504,4 +613,5 @@ class Matching():
                         )
                     )
                 id_count += 1
+        
         return schedules_list

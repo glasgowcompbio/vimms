@@ -142,7 +142,7 @@ class MS2PlannerController(FixedScansController):
                         sp[mz],
                         str(float(sp[rt]) * 60),
                         sp[charge],
-                        "1",
+                        "0.0",
                         sp[intensity]
                     ])
 
@@ -176,8 +176,7 @@ class MS2PlannerController(FixedScansController):
 
         """
         best_coefficients = (float("inf"), [])
-        stack = [MS2PlannerController.minimise_single(args[0], target)] if len(
-            args) > 0 else []
+        stack = [MS2PlannerController.minimise_single(args[0], target)] if len(args) > 0 else []
         while (stack != []):
             remainder = target - sum(s * a for s, a in zip(stack, args))
             for i in range(len(stack), len(args)):
@@ -185,10 +184,8 @@ class MS2PlannerController(FixedScansController):
                 stack.append(c)
                 remainder -= c * args[i]
             dist = abs(remainder)
-            if (not math.isclose(dist, best_coefficients[0]) and dist <
-                    best_coefficients[0]):
-                best_coefficients = (
-                    dist, copy.copy(stack))
+            if (not math.isclose(dist, best_coefficients[0]) and dist < best_coefficients[0]):
+                best_coefficients = (dist, copy.copy(stack))
             # if(dist < best_coefficients[0]): best_coefficients = (
             #     dist, copy.copy(stack))
             # if(dist < best_coefficients[0]):
@@ -213,8 +210,7 @@ class MS2PlannerController(FixedScansController):
             for path in f:
                 schedules.append([])
                 for scan in path.strip().split("\t")[1:]:
-                    schedules[-1].append(
-                        dict(zip(fields, map(float, scan.split(" ")))))
+                    schedules[-1].append(dict(zip(fields, map(float, scan.split(" ")))))
         return schedules
 
     @staticmethod
@@ -230,85 +226,121 @@ class MS2PlannerController(FixedScansController):
         Returns: new schedule
 
         """
-        time, new_sched = 0, []
+        time = scan_duration_dict[1]
+        new_sched = [get_default_scan_params(scan_id=INITIAL_SCAN_ID)]
+        precursor_id = INITIAL_SCAN_ID
+        id_count = INITIAL_SCAN_ID + 1
+        
         srted = sorted(schedule, key=lambda s: s["rt_start"])
         print("Schedule times: {}".format([s["rt_start"] for s in srted]))
         print(f"NUM SCANS IN SCHEDULE FILE: {len(schedule)}")
-        # new_sched.append(get_default_scan_params())
-        # scan_duration_dict = {1: 0.2, 2: 0.2}
-        id_count = INITIAL_SCAN_ID
         for ms2 in srted:
-            filler = MS2PlannerController.minimise_distance(
-                ms2["rt_start"] - time, scan_duration_dict[1],
-                scan_duration_dict[2])
-            print(f"filler_scans: {filler}")
-            for i in range(filler[0]):
-                sp = get_default_scan_params()
-                new_sched.append(sp)
-                id_count += 1
-            for i in range(filler[1]):
+        
+            num_ms1, num_ms2 = MS2PlannerController.minimise_distance(
+                ms2["rt_start"] - time, 
+                scan_duration_dict[1],
+                scan_duration_dict[2]
+            )
+            
+            print(f"filler_scans: {(num_ms1, num_ms2)}")
+            
+            num_ms2 += 1 #add the actual scan
+            filler_diff = num_ms1 - num_ms2
+            fillers = [
+                1 if filler_diff > 0 else 2
+                for i in range(abs(filler_diff))
+            ]
+            fillers.extend([1, 2] * min(num_ms1, num_ms2))
+                
+            for ms_level in fillers:
                 # print(f"sid: {id_count}")
-                new_sched.append(get_dda_scan_param(0, 0.0, id_count,
-                                                    ms2["mz_isolation"] * 2,
-                                                    0.0, 0.0))
+                if(ms_level == 1):
+                    precursor_id = id_count
+                    new_sched.append(get_default_scan_params(scan_id=precursor_id))
+                else:
+                    new_sched.append(
+                        get_dda_scan_param(
+                            ms2["mz_centre"], 
+                            0.0, 
+                            precursor_id,
+                            ms2["mz_isolation"],
+                            0.0, 
+                            0.0,
+                            scan_id=id_count
+                        )
+                    )
                 id_count += 1
-            new_sched.append(
-                get_dda_scan_param(ms2["mz_centre"], 0.0, id_count,
-                                   ms2["mz_isolation"] * 2, 0.0, 0.0))
-            id_count += 1
-            times = [time, scan_duration_dict[1] * filler[0],
-                     scan_duration_dict[2] * filler[1]]
-            time += sum(c * scan_duration_dict[i + 1] for i, c in
-                        enumerate(filler)) + scan_duration_dict[2]
+            
+            times = [
+                time, 
+                scan_duration_dict[1] * num_ms1,
+                scan_duration_dict[2] * num_ms2
+            ]
+            time = sum(times)
+            
             print(f"Start time: {times[0]}, MS1 duration: {times[1]}, "
                   f"MS2 duration: {times[2]}, End time: {time}")
             print(f"schedule_length: {len(new_sched)}")
         print(f"Durations: {scan_duration_dict}")
+        
         return new_sched
 
     @staticmethod
     def from_fullscan(ms2planner_dir,
-                      fullscan_file,
                       fullscan_mzmine_table,
                       out_file,
                       intensity_threshold,
                       intensity_ratio,
                       num_injections,
                       intensity_accu,
-                      restriction,
                       isolation,
                       delay,
-                      min_rt,
-                      max_rt,
+                      min_scan_len,
+                      max_scan_len,
                       scan_duration_dict,
-                      params=None,
+                      mode="apex",
+                      fullscan_file=None,
+                      restriction=None,
                       cluster_method="kNN",
-                      userpython="python"):
+                      userpython="python",
+                      advanced_params=None):
 
-        converted = os.path.join(os.path.dirname(out_file),
-                                 "mzmine2ms2planner.txt")
-        MS2PlannerController.mzmine2ms2planner(
-            fullscan_mzmine_table, converted)
-        subprocess.run(
-            [
-                userpython,
-                os.path.join(ms2planner_dir, "path_finder.py"),
-                "curve",
-                converted,
-                out_file,
-                str(intensity_threshold),
-                str(intensity_ratio),
-                str(num_injections),
+        converted = os.path.join(os.path.dirname(out_file), "mzmine2ms2planner.txt")
+        MS2PlannerController.mzmine2ms2planner(fullscan_mzmine_table, converted)
+        
+        process_args = [
+            userpython,
+            os.path.join(ms2planner_dir, "path_finder.py"),
+            mode,
+            converted,
+            out_file,
+            str(intensity_threshold),
+            str(intensity_ratio),
+            str(num_injections),
+            "-intensity_accu", str(intensity_accu),
+            "-isolation", str(isolation),
+            "-delay", str(delay),
+            "-min_scan", str(min_scan_len),
+            "-max_scan", str(max_scan_len),
+        ]
+        
+        if(mode.lower() == "curve"):
+            if(fullscan_file is None or restriction is None):
+                raise ValueError(
+                    """fullscan_file and restriction arguments must be 
+                       supplied for curve mode!"""
+                )
+            
+            process_args.extend([
                 "-infile_raw", str(fullscan_file),
-                "-intensity_accu", str(intensity_accu),
                 "-restriction", str(restriction[0]), str(restriction[1]),
-                "-isolation", str(isolation),
-                "-delay", str(delay),
-                "-min_scan", str(min_rt),
-                "-max_scan", str(max_rt),
                 "-cluster", str(cluster_method)
-            ]
-        )
+            ])
+                
+        elif(mode.lower() != "apex"):
+            raise ValueError("Only curve and apex are supported as modes!")
+        
+        subprocess.run(process_args)
         schedules = [
             MS2PlannerController.sched_dict2params(sch, scan_duration_dict) 
             for sch in MS2PlannerController.parse_ms2planner(out_file)
@@ -321,7 +353,7 @@ class MS2PlannerController(FixedScansController):
                     f"SCAN {j}: {scan}\n\n" for j, scan in enumerate(schedule))
                 )
         return [
-            MS2PlannerController(schedule=schedule, params=params) 
+            MS2PlannerController(schedule=schedule, advanced_params=advanced_params) 
             for schedule in schedules
         ]
 

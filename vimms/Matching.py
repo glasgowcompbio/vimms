@@ -604,9 +604,9 @@ class Matching():
                     schedules_list[i].append(
                         get_dda_scan_param(
                             target_mz, 
-                            0.0, 
+                            0.0,
                             precursor_id, 
-                            isolation_width, 
+                            isolation_width,
                             0.0, 
                             0.0, 
                             scan_id=id_count

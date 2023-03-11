@@ -195,13 +195,11 @@ class RoiController(TopNController):
         """
         if self.exclusion_method == ROI_EXCLUSION_DEW:
             f = DEWFilter(self.rt_tol)
-            return f.filter(self.scan_to_process.rt,
-                            self.roi_builder.live_roi_last_rt)
+            return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi)
+
         elif self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
             f = WeightedDEWFilter(self.exclusion)
-            return f.filter(self.scan_to_process.rt,
-                            self.roi_builder.live_roi_last_rt,
-                            self.roi_builder.live_roi)
+            return f.filter(self.scan_to_process.rt, self.roi_builder.live_roi)
 
     def _length_filter(self):
         """
@@ -389,109 +387,109 @@ class TopN_RoiController(RoiController):
         return scores
 
 
-class TopNBoxRoiController(RoiController):
-    """
-    TODO: not sure if this is still in use?
-    """
-    def __init__(self,
-                 ionisation_mode,
-                 isolation_width,
-                 N,
-                 mz_tol,
-                 rt_tol,
-                 min_ms1_intensity,
-                 roi_params,
-                 boxes_params=None,
-                 boxes=None,
-                 boxes_intensity=None,
-                 boxes_pvalues=None,
-                 box_min_rt_width=0.01,
-                 box_min_mz_width=0.01,
-                 min_roi_length_for_fragmentation=1,
-                 ms1_shift=0,
-                 advanced_params=None,
-                 exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None):
-        super().__init__(ionisation_mode,
-                         isolation_width,
-                         N,
-                         mz_tol,
-                         rt_tol,
-                         min_ms1_intensity,
-                         roi_params,
-                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         ms1_shift=ms1_shift,
-                         advanced_params=advanced_params,
-                         exclusion_method=exclusion_method,
-                         exclusion_t_0=exclusion_t_0)
-        self.boxes_params = boxes_params
-        self.boxes = boxes
-        # the intensity the boxes have been fragmented at before
-        self.boxes_intensity = boxes_intensity
-        self.boxes_pvalues = boxes_pvalues
-        self.box_min_rt_width = box_min_rt_width
-        self.box_min_mz_width = box_min_mz_width
-
-    def _get_scores(self):
-        if self.boxes is not None:
-            # calculate dda stuff
-            log_intensities = self._log_roi_intensities()
-            intensity_filter = self._min_intensity_filter()
-            time_filter = (1 - np.array(
-                self.roi_builder.live_roi_fragmented).astype(int))
-            time_filter[time_filter == 0] = (
-                    (self.scan_to_process.rt -
-                     np.array(self.roi_builder.live_roi_last_rt)[
-                         time_filter == 0]) > self.rt_tol)
-            # calculate overlap stuff
-            initial_scores = []
-            copy_boxes = deepcopy(self.boxes)
-            for box in copy_boxes:
-                box.pt2.x = min(box.pt2.x, max(self.last_ms1_rt, box.pt1.x))
-            prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)),
-                                        [0 for i in self.boxes_intensity])
-            box_fragmented = (np.array(self.boxes_intensity) == 0) * 1
-            for i in range(len(log_intensities)):
-                overlaps = np.array(
-                    self.roi_builder.live_roi[i].get_boxes_overlap(
-                        copy_boxes, self.box_min_rt_width,
-                        self.box_min_mz_width))
-                # new peaks not in list of boxes
-                new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]
-                # previously fragmented peaks
-                old_peaks_score1 = sum(
-                    overlaps * (log_intensities[i] - prev_intensity) * (
-                            1 - box_fragmented))
-                # peaks seen before, but not fragmented
-                old_peaks_score2 = sum(
-                    overlaps * log_intensities[i] * box_fragmented)
-                if self.boxes_pvalues is not None:
-                    # based on p values, previously fragmented
-                    p_value_scores1 = sum(
-                        overlaps * (log_intensities[i] - prev_intensity) * (
-                                1 - np.array(self.boxes_pvalues)))
-                    # based on p values, not previously fragmented
-                    p_value_scores2 = sum(overlaps * log_intensities[i] * (
-                            1 - np.array(self.boxes_pvalues)))
-                # get the score
-                score = self.boxes_params['theta1'] * new_peaks_score
-                score += self.boxes_params['theta2'] * old_peaks_score1
-                score += self.boxes_params['theta3'] * old_peaks_score2
-                if self.boxes_pvalues is not None:
-                    score += self.boxes_params['theta4'] * p_value_scores1
-                    score += self.boxes_params['theta5'] * p_value_scores2
-                score *= time_filter[i]
-                # check intensity meets minimal requirement
-                score *= intensity_filter
-                score *= (score > self.boxes_params[
-                    'min_score'])  # check meets min score
-                initial_scores.append(score[0])
-            initial_scores = np.array(initial_scores)
-        else:
-            initial_scores = self._get_dda_scores()
-
-        scores = self._get_top_N_scores(initial_scores)
-        return scores
+# class TopNBoxRoiController(RoiController):
+#     """
+#     TODO: not sure if this is still in use?
+#     """
+#     def __init__(self,
+#                  ionisation_mode,
+#                  isolation_width,
+#                  N,
+#                  mz_tol,
+#                  rt_tol,
+#                  min_ms1_intensity,
+#                  roi_params,
+#                  boxes_params=None,
+#                  boxes=None,
+#                  boxes_intensity=None,
+#                  boxes_pvalues=None,
+#                  box_min_rt_width=0.01,
+#                  box_min_mz_width=0.01,
+#                  min_roi_length_for_fragmentation=1,
+#                  ms1_shift=0,
+#                  advanced_params=None,
+#                  exclusion_method=ROI_EXCLUSION_DEW,
+#                  exclusion_t_0=None):
+#         super().__init__(ionisation_mode,
+#                          isolation_width,
+#                          N,
+#                          mz_tol,
+#                          rt_tol,
+#                          min_ms1_intensity,
+#                          roi_params,
+#                          min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+#                          ms1_shift=ms1_shift,
+#                          advanced_params=advanced_params,
+#                          exclusion_method=exclusion_method,
+#                          exclusion_t_0=exclusion_t_0)
+#         self.boxes_params = boxes_params
+#         self.boxes = boxes
+#         # the intensity the boxes have been fragmented at before
+#         self.boxes_intensity = boxes_intensity
+#         self.boxes_pvalues = boxes_pvalues
+#         self.box_min_rt_width = box_min_rt_width
+#         self.box_min_mz_width = box_min_mz_width
+#
+#     def _get_scores(self):
+#         if self.boxes is not None:
+#             # calculate dda stuff
+#             log_intensities = self._log_roi_intensities()
+#             intensity_filter = self._min_intensity_filter()
+#             time_filter = (1 - np.array(
+#                 self.roi_builder.live_roi_fragmented).astype(int))
+#             time_filter[time_filter == 0] = (
+#                     (self.scan_to_process.rt -
+#                      np.array(self.roi_builder.live_roi_last_rt)[
+#                          time_filter == 0]) > self.rt_tol)
+#             # calculate overlap stuff
+#             initial_scores = []
+#             copy_boxes = deepcopy(self.boxes)
+#             for box in copy_boxes:
+#                 box.pt2.x = min(box.pt2.x, max(self.last_ms1_rt, box.pt1.x))
+#             prev_intensity = np.maximum(np.log(np.array(self.boxes_intensity)),
+#                                         [0 for i in self.boxes_intensity])
+#             box_fragmented = (np.array(self.boxes_intensity) == 0) * 1
+#             for i in range(len(log_intensities)):
+#                 overlaps = np.array(
+#                     self.roi_builder.live_roi[i].get_boxes_overlap(
+#                         copy_boxes, self.box_min_rt_width,
+#                         self.box_min_mz_width))
+#                 # new peaks not in list of boxes
+#                 new_peaks_score = max(0, (1 - sum(overlaps))) * log_intensities[i]
+#                 # previously fragmented peaks
+#                 old_peaks_score1 = sum(
+#                     overlaps * (log_intensities[i] - prev_intensity) * (
+#                             1 - box_fragmented))
+#                 # peaks seen before, but not fragmented
+#                 old_peaks_score2 = sum(
+#                     overlaps * log_intensities[i] * box_fragmented)
+#                 if self.boxes_pvalues is not None:
+#                     # based on p values, previously fragmented
+#                     p_value_scores1 = sum(
+#                         overlaps * (log_intensities[i] - prev_intensity) * (
+#                                 1 - np.array(self.boxes_pvalues)))
+#                     # based on p values, not previously fragmented
+#                     p_value_scores2 = sum(overlaps * log_intensities[i] * (
+#                             1 - np.array(self.boxes_pvalues)))
+#                 # get the score
+#                 score = self.boxes_params['theta1'] * new_peaks_score
+#                 score += self.boxes_params['theta2'] * old_peaks_score1
+#                 score += self.boxes_params['theta3'] * old_peaks_score2
+#                 if self.boxes_pvalues is not None:
+#                     score += self.boxes_params['theta4'] * p_value_scores1
+#                     score += self.boxes_params['theta5'] * p_value_scores2
+#                 score *= time_filter[i]
+#                 # check intensity meets minimal requirement
+#                 score *= intensity_filter
+#                 score *= (score > self.boxes_params[
+#                     'min_score'])  # check meets min score
+#                 initial_scores.append(score[0])
+#             initial_scores = np.array(initial_scores)
+#         else:
+#             initial_scores = self._get_dda_scores()
+#
+#         scores = self._get_top_N_scores(initial_scores)
+#         return scores
 
 
 ###############################################################################

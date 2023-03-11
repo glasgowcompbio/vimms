@@ -74,13 +74,15 @@ class Roi():
         self.length_in_seconds = self.max_rt - self.min_rt
         self.is_fragmented = False
         self.can_fragment = True
+        self.last_frag_rt = None
 
-    def fragmented(self):
+    def fragmented(self, rt):
         """
         Sets flags to indicate that this ROI can or has been fragmented
         """
         self.is_fragmented = True
         self.can_fragment = True
+        self.last_frag_rt = rt
 
     def calculate_mean_mz(self):
         return self.mz_sum / self.n
@@ -341,12 +343,13 @@ class SmartRoi(Roi):
 
         self.min_frag_intensity = None
 
-    def fragmented(self):
+    def fragmented(self, rt):
         """
         Sets this SmartROI as having been fragmented
         """
         self.is_fragmented = True
         self.can_fragment = False
+        self.last_frag_rt = rt
         self.fragmented_index = len(self.mz_list) - 1
         self.max_at_frag = self.intensity_list[self.fragmented_index]
         self.max_since_last_frag = self.max_at_frag
@@ -542,10 +545,6 @@ class RoiBuilder():
         self.dead_roi = []
         self.junk_roi = []
 
-        # FIXME: not sure if we actually need the two properties below?
-        self.live_roi_fragmented = []
-        self.live_roi_last_rt = []  # last fragmentation time of ROI
-
         # fragmentation to Roi dictionaries
         self.frag_roi_dicts = []  # scan_id, roi_id, precursor_intensity
         self.roi_id_counter = 0
@@ -571,10 +570,6 @@ class RoiBuilder():
             # are also consistent with the sorting order.
             order = np.argsort(self.live_roi)
             self.live_roi.sort()
-            self.live_roi_fragmented = np.array(self.live_roi_fragmented)[
-                order].tolist()
-            self.live_roi_last_rt = np.array(self.live_roi_last_rt)[
-                order].tolist()
 
             # Current scan retention time of the MS1 scan is the RT of all
             # points in this scan
@@ -629,13 +624,6 @@ class RoiBuilder():
                         self.roi_id_counter += 1
                         bisect.insort_right(self.live_roi, new_roi)
 
-                        # Set the fragmented flag of a new ROI to False.
-                        # Also set its last fragmented time to None
-                        self.live_roi_fragmented.insert(
-                            self.live_roi.index(new_roi), False)
-                        self.live_roi_last_rt.insert(
-                            self.live_roi.index(new_roi), None)
-
             # Separate the ROIs that have not been grown into dead or junk ROIs
             # Dead ROIs are longer than self.min_roi_length but they haven't
             # been grown. Junk ROIs are too short and not grown.
@@ -654,8 +642,6 @@ class RoiBuilder():
                     # Remove not-grown ROI from the list of live ROIs
                     pos = self.live_roi.index(roi)
                     del self.live_roi[pos]
-                    del self.live_roi_fragmented[pos]
-                    del self.live_roi_last_rt[pos]
 
                     # this ROI is either dead or junk, so delete from skip count
                     # as we don't need to track it anymore
@@ -779,10 +765,7 @@ class RoiBuilder():
         Returns: None
 
         """
-        # updated fragmented list and times
-        self.live_roi_fragmented[i] = True
-        self.live_roi_last_rt[i] = rt
-        self.live_roi[i].fragmented()
+        self.live_roi[i].fragmented(rt)
 
         # Add information on which scan has fragmented this ROI
         self.frag_roi_dicts.append(

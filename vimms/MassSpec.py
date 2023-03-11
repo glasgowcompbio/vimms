@@ -334,7 +334,7 @@ class IndependentMassSpectrometer():
         }
 
         # the list of all chemicals in the dataset
-        self.chemicals = ChemSet.to_chemset(chemicals)
+        self.chemicals = ChemSet.to_chemset(chemicals, fast=True)
         self.ionisation_mode = ionisation_mode
         self.chem_data_collector = ChemDataCollector(self.ionisation_mode)
 

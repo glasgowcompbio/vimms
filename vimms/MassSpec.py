@@ -290,7 +290,8 @@ class IndependentMassSpectrometer():
                  intensity_noise=None, spike_noise=None,
                  isolation_transition_window='rectangular',
                  isolation_transition_window_params=None,
-                 scan_duration=DEFAULT_SCAN_TIME_DICT, task_manager=None):
+                 scan_duration=DEFAULT_SCAN_TIME_DICT, task_manager=None,
+                 skip_ms2_spectra_generation=False):
         """
         Creates a mass spec object.
 
@@ -352,6 +353,7 @@ class IndependentMassSpectrometer():
         self.isolation_transition_window_params = isolation_transition_window_params  # noqa
 
         self.scan_duration_dict = scan_duration
+        self.skip_ms2_spectra_generation = skip_ms2_spectra_generation
 
     ###########################################################################
     # Public methods
@@ -729,11 +731,13 @@ class IndependentMassSpectrometer():
         for chemical, which_adduct, which_isotope in zip(
                 isolated_chems, isolated_which_adducts, isolated_which_isotopes):
 
+            ms1_intensity = self._get_intensity_ms1(chemical, query_rt,
+                                                    which_isotope, which_adduct)
+
             mz_peaks = []
             for i in range(len(chemical.children)):
                 mz_peaks.extend(
-                    self._get_mz_peaks_child(chemical.children[i], query_rt,
-                                             isolation_windows,
+                    self._get_mz_peaks_child(chemical.children[i], ms1_intensity,
                                              which_isotope, which_adduct))
 
             for row in mz_peaks:
@@ -841,18 +845,22 @@ class IndependentMassSpectrometer():
                          scan_params=params)
         return frag
 
-    def _get_mz_peaks_child(self, chemical, query_rt, isolation_windows,
+    def _get_mz_peaks_child(self, chemical, ms1_intensity,
                             which_isotope, which_adduct):
 
         # generate MS2 scan from a child MS2 chemical
         assert chemical.ms_level == 2
 
+        if self.skip_ms2_spectra_generation:
+            # small speed-up by not actually generating the proper ms2 spectra here
+            ms2_intensity = 1000
+            mz = 100
+            return_values = [(mz, ms2_intensity, ms1_intensity, which_isotope, which_adduct)]
+            return return_values
+
         # returns ms2 fragments if chemical and scan are both ms2,
         # returns ms3 fragments if chemical and scan are both ms3, etc, etc
-        ms1_intensity = self._get_intensity_ms1(chemical.parent, query_rt,
-                                                which_isotope, which_adduct)
-        ms2_intensity = self._get_intensity_ms2(chemical, query_rt, which_isotope,
-                                                which_adduct)
+        ms2_intensity = self._get_intensity_ms2(chemical, ms1_intensity)
         mz = self.get_ms2_peaks_from_chemical(chemical, which_isotope, which_adduct)
 
         # experimental gaussian isolation window function, maybe can be removed
@@ -861,8 +869,7 @@ class IndependentMassSpectrometer():
         #                                         which_adduct, isolation_windows, ms_level,
         #                                         intensity)
 
-        return_values = [(mz, ms2_intensity, ms1_intensity, which_isotope,
-                          which_adduct)]
+        return_values = [(mz, ms2_intensity, ms1_intensity, which_isotope, which_adduct)]
         return return_values
 
     def _get_intensity_ms1(self, chemical, query_rt, which_isotope, which_adduct):
@@ -873,14 +880,12 @@ class IndependentMassSpectrometer():
         return intensity * chemical.chromatogram.get_relative_intensity(
             query_rt - chemical.rt)
 
-    def _get_intensity_ms2(self, chemical, query_rt, which_isotope, which_adduct):
+    def _get_intensity_ms2(self, chemical, ms1_intensity):
         assert chemical.ms_level == 2
         prop = chemical.parent_mass_prop
         if isinstance(prop, np.ndarray):
             prop = prop[0]
-        intensity = self._get_intensity_ms1(
-            chemical.parent, query_rt, which_isotope, which_adduct)
-        intensity = intensity * prop * chemical.prop_ms2_mass
+        intensity = ms1_intensity * prop * chemical.prop_ms2_mass
         return intensity
 
     def get_ms2_peaks_from_chemical(self, chemical, which_isotope, which_adduct):

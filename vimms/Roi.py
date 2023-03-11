@@ -568,7 +568,6 @@ class RoiBuilder():
             # Sort ROIs in live_roi according to their m/z values.
             # Ensure that the live roi fragmented flags and the last RT
             # are also consistent with the sorting order.
-            order = np.argsort(self.live_roi)
             self.live_roi.sort()
 
             # Current scan retention time of the MS1 scan is the RT of all

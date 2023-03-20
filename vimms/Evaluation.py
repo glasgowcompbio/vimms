@@ -108,6 +108,7 @@ def pick_aligned_peaks(input_files,
     new_xml = os.path.join(output_dir, f"{output_name}_template.xml")
     et.write(new_xml)
     if (not os.path.exists(output_path) or force):
+        print(f"Running MZMine for {output_path}")
         subprocess.run([mzmine_exe, new_xml])
 
     try:
@@ -205,6 +206,7 @@ class Evaluator(metaclass=ABCMeta):
         max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
         which_obtainable = max_coverage_intensities >= min_intensity
         max_obtainable = max_coverage_intensities[np.newaxis, which_obtainable]
+        max_obtainable[np.isclose(max_obtainable, 0.0)] = 1.0
         
         coverage_intensity_prop = np.mean(
             coverage_intensities[:, which_obtainable] / max_obtainable,

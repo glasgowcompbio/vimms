@@ -236,15 +236,23 @@ class MS2PlannerController(FixedScansController):
         print(f"NUM SCANS IN SCHEDULE FILE: {len(schedule)}")
         for ms2 in srted:
         
+            if(ms2["rt_start"] - time < scan_duration_dict[1]):
+                target = ms2["rt_start"] - time
+            else:
+                target = ms2["rt_start"] - scan_duration_dict[1] - time
+                
             num_ms1, num_ms2 = MS2PlannerController.minimise_distance(
-                ms2["rt_start"] - time, 
+                target, 
                 scan_duration_dict[1],
                 scan_duration_dict[2]
             )
             
-            print(f"filler_scans: {(num_ms1, num_ms2)}")
-            
+            if(ms2["rt_start"] - time >= scan_duration_dict[1]):
+                num_ms1 += 1
             num_ms2 += 1 #add the actual scan
+                
+            print(f"num_scans: {(num_ms1, num_ms2)}")
+            
             filler_diff = num_ms1 - num_ms2
             fillers = [
                 1 if filler_diff > 0 else 2

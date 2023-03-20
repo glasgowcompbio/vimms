@@ -189,7 +189,7 @@ class ExperimentCase:
                 with FileChems.from_path(chems[fs]) as dataset:
                     mass_spec = IndependentMassSpectrometer(
                         ionisation_mode, 
-                        dataset, 
+                        dataset,
                         None,
                         scan_duration=scan_duration_dict
                     )
@@ -573,8 +573,9 @@ class Experiment:
                 raise ValueError(
                     (check_mzmine, fs_names, aligned_path, mzmine_names)
                 )
-                
-        max_repeat = len(self.case_names) if max_repeat is None else max_repeat
+        
+        if(max_repeat is None):
+            max_repeat = max(len(v) for k, v in self.case_mzmls.items())
         zipped = zip(
             aligned_names,
             [self.case_mzmls[name][:max_repeat] for name in self.case_names],

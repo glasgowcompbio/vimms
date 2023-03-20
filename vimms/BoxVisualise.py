@@ -593,9 +593,22 @@ class PlotBox():
             and (max_mz is None or self.min_mz <= max_mz)
         )
 
-    def mpl_add_to_plot(self, ax):
-        x1, y1 = self.min_rt, self.min_mz
-        xlen, ylen = (self.max_rt - self.min_rt), (self.max_mz - self.min_mz)
+    def mpl_add_to_plot(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, crop=False):
+        if(not min_rt is None and self.max_rt < min_rt
+           or not max_rt is None and self.min_rt > max_rt
+           or not min_mz is None and self.max_mz < min_mz
+           or not max_mz is None and self.min_mz > max_mz):
+           return
+           
+        if(crop):
+            x1 = max(self.min_rt, min_rt)
+            y1 = max(self.min_mz, min_mz)
+            xlen = min(self.max_rt, max_rt) - x1
+            ylen = min(self.max_mz, max_mz) - y1
+        else:
+            x1, y1 = self.min_rt, self.min_mz
+            xlen, ylen = (self.max_rt - self.min_rt), (self.max_mz - self.min_mz)
+        
         ax.add_patch(
             patches.Rectangle(
                 (x1, y1), 

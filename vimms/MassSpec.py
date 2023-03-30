@@ -701,7 +701,7 @@ class IndependentMassSpectrometer():
     def _isolate_chems_for_fragmentation(self, chems, cdc, isolation_windows,
                                          scan_time):
 
-        _, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms2(
+        all_chems, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms2(
             chems, scan_time, cdc)
 
         if len(peaks) > 0:
@@ -715,8 +715,11 @@ class IndependentMassSpectrometer():
         assert len(isolation_windows[0]) == 1, 'Multiple isolation windows not supported'
         lower_bound, upper_bound = isolation_windows[0][0]
 
+        assert len(all_chems) == len(which_adducts)
+        assert len(all_chems) == len(which_isotopes)
+
         isolated = np.logical_and(mzs >= lower_bound, mzs <= upper_bound)
-        isolated_chems = chems[isolated]
+        isolated_chems = all_chems[isolated]
         isolated_which_adducts = which_adducts[isolated]
         isolated_which_isotopes = which_isotopes[isolated]
         return isolated_chems, isolated_which_adducts, isolated_which_isotopes

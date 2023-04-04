@@ -1,7 +1,6 @@
 import os
 import csv
 import copy
-import xml
 import math
 import re
 import itertools
@@ -26,6 +25,7 @@ from mass_spec_utils.data_import.mzmine import (
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import path_or_mzml
+from vimms.PeakPicking import pick_aligned_peaks, MZMineParams, XCMSParams
 from vimms.Box import (
     Point, Interval, GenericBox,
     LineSweeper
@@ -62,87 +62,6 @@ class EvaluationData():
     class DummyController():
         def __init__(self, controller):
             self.scans = controller.scans
-
-
-def count_boxes(box_filepath):
-    with open(box_filepath, "r") as f:
-        return sum(ln.strip() != "" for ln in f) - 1
-
-
-def pick_aligned_peaks(input_files,
-                       output_dir,
-                       output_name,
-                       mzmine_template,
-                       mzmine_exe,
-                       force=False):
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    input_files = list(set(input_files)) #filter duplicates
-    if (len(output_name.split(".")) > 1):
-        output_name = "".join(output_name.split(".")[:-1])
-    output_path = os.path.join(output_dir, f"{output_name}_aligned.csv")
-
-    et = xml.etree.ElementTree.parse(mzmine_template)
-    root = et.getroot()
-    for child in root:
-
-        if child.attrib["method"].endswith("RawDataImportModule"):
-            input_found = False
-            for e in child:
-                if (e.attrib["name"].strip().lower() == "raw data file names"):
-                    for f in e:
-                        e.remove(f)
-                    for i, fname in enumerate(input_files):
-                        new = xml.etree.ElementTree.SubElement(e, "file")
-                        new.text = os.path.abspath(fname)
-                        padding = " " * (0 if i == len(input_files) - 1 else 8)
-                        new.tail = e.tail + padding
-                    input_found = True
-            assert input_found, "Couldn't find a place to put the input files in the template!"
-
-        if child.attrib["method"].endswith("CSVExportModule"):
-            for e in child:
-                for f in e:
-                    if f.tag == "current_file":
-                        f.text = output_path
-
-    new_xml = os.path.join(output_dir, f"{output_name}_template.xml")
-    et.write(new_xml)
-    if (not os.path.exists(output_path) or force):
-        print(f"Running MZMine for {output_path}")
-        subprocess.run([mzmine_exe, new_xml])
-
-    try:
-        num_boxes = count_boxes(output_path)
-        print(f"{num_boxes} aligned boxes contained in file")
-    except FileNotFoundError:
-        raise FileNotFoundError("The box file doesn't seem to exist - did MZMine silently fail?")
-
-    return output_path
-
-
-def check_files_match_mzmine(fullscan_names, aligned_path, mode="subset"):
-    fs_names = {os.path.basename(fs) for fs in fullscan_names}
-    mzmine_names = set()
-    
-    with open(aligned_path, "r") as f:
-        headers = f.readline().split(",")
-        pattern = re.compile(r"(.*\.mzML).*")
-        
-        for h in headers:
-            for fs in fs_names:
-                m = pattern.match(h)
-                if(not m is None):
-                    mzmine_names.add(m.group(1))
-    
-    mode = mode.lower()
-    if(mode == "exact"):
-        passed = not fs_names ^ mzmine_names
-    elif(mode == "subset"):
-        passed = not fs_names - mzmine_names
-    else:
-        raise ValueError("Mode not recognised")
-        
-    return passed, fs_names, mzmine_names
                     
 
 class Evaluator(metaclass=ABCMeta):
@@ -397,6 +316,40 @@ class RealEvaluator(Evaluator):
 
         """
         return RealEvaluator.from_aligned_mzmine(aligned_file, min_box_ppm=min_box_ppm)
+        
+    @classmethod
+    def from_aligned_boxfile(cls, reader, aligned_file, min_box_ppm=10):
+        include = [
+            "status",
+            "RT start",
+            "RT end",
+            "m/z min",
+            "m/z max"
+        ]
+
+        chems = []
+        fs_names, line_ls = reader.read_aligned_csv(aligned_file)
+        for _, mzml_fields in line_ls:
+            row = []
+            for fname, inner in mzml_fields.items():
+                status = inner["status"].upper()
+                if(status == "DETECTED" or status == "ESTIMATED"):
+                    row.append(
+                        GenericBox(
+                            float(inner["RT start"]) * 60,
+                            float(inner["RT end"]) * 60,
+                            float(inner["m/z min"]),
+                            float(inner["m/z max"])
+                        ).apply_min_box_ppm(ywidth=min_box_ppm)
+                    )
+                else:
+                    row.append(None)
+            chems.append(row)
+
+        eva = cls(chems)
+        eva.fullscan_names = list(fs_names)
+        eva.geoms = [None for _ in eva.fullscan_names]
+        return eva
 
     @classmethod
     def from_aligned_mzmine(cls, aligned_file, min_box_ppm=10):
@@ -408,47 +361,9 @@ class RealEvaluator(Evaluator):
         Returns: an instance of this Evaluator
 
         """
-        include = [
-            "status",
-            "RT start",
-            "RT end",
-            "m/z min",
-            "m/z max"
-        ]
+        
+        return cls.from_aligned_boxfile(MZMineParams, aligned_file, min_box_ppm=min_box_ppm)
 
-        chems = []
-        with open(aligned_file, "r") as f:
-            headers = f.readline().split(",")
-            pattern = re.compile(r"(.*)\.mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
-
-            indices = defaultdict(dict)
-            for i, h in enumerate(headers):
-                m = pattern.match(h)
-                if (not m is None):
-                    indices[m.group(1)][m.group(2)] = i
-
-            for ln in f:
-                row = []
-                split = ln.split(",")
-                for fname, inner in indices.items():
-                    if (split[inner["status"]].upper() == "DETECTED"
-                            or split[inner["status"]].upper() == "ESTIMATED"):
-                        row.append(
-                            GenericBox(
-                                float(split[inner["RT start"]]) * 60,
-                                float(split[inner["RT end"]]) * 60,
-                                float(split[inner["m/z min"]]),
-                                float(split[inner["m/z max"]])
-                            ).apply_min_box_ppm(ywidth=min_box_ppm)
-                        )
-                    else:
-                        row.append(None)
-                chems.append(row)
-
-        eva = cls(chems)
-        eva.fullscan_names = list(indices.keys())
-        eva.geoms = [None for _ in eva.fullscan_names]
-        return eva
 
     @classmethod
     def from_aligned_msdial(cls, aligned_file, sample_col_name, matching_mz_tol=10):

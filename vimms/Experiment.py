@@ -26,7 +26,8 @@ from vimms.Matching import MatchingScan, MatchingChem, Matching
 from vimms.Controller.misc import DsDAController, MatchingController
 from vimms.Environment import Environment
 from vimms.BoxVisualise import EnvPlotPickler
-from vimms.Evaluation import pick_aligned_peaks, evaluate_real, check_files_match_mzmine
+from vimms.PeakPicking import MZMineParams, XCMSParams
+from vimms.Evaluation import pick_aligned_peaks, evaluate_real
 
 class Shareable:
     def __init__(self, name, split=False):
@@ -525,13 +526,13 @@ class Experiment:
         
     def _check_files_match_mzmine(self, fullscan_names, aligned_path, mode="none"):
         if(mode == "none"):
-            passed, fullscan_names, mzmine_names = check_files_match_mzmine(
+            passed, fullscan_names, mzmine_names = MZMineParams.check_files_match_mzmine(
                 fullscan_names, aligned_path, mode="subset"
             )
             return True, fullscan_names, mzmine_names
             
         else:
-            return check_files_match_mzmine(
+            return MZMineParams.check_files_match_mzmine(
                 fullscan_names, aligned_path, mode=mode
             )
     

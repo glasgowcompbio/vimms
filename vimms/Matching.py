@@ -28,6 +28,7 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.Common import (
     get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
 )
+from vimms.PeakPicking import MZMineParams, XCMSParams
 
 
 class MatchingScan():
@@ -182,9 +183,9 @@ class MatchingChem():
     
     def __hash__(self): 
         return self.id.__hash__()
-
+        
     @staticmethod
-    def mzmine2nodes(box_file_path, box_order):
+    def boxfile2nodes(reader, box_file_path, box_order):
         include = [
                 "status",
                 "RT start",
@@ -197,35 +198,29 @@ class MatchingChem():
             ".".join(os.path.basename(fname).split(".")[:-1]) for fname in box_order
         ]
         chems_list = [[] for _ in box_order]
-        
-        with open(box_file_path, "r") as f:
-            headers = f.readline().split(",")
-            pattern = re.compile(r"(.*)\.mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
-            
-            indices = defaultdict(dict)
-            for i, h in enumerate(headers):
-                m = pattern.match(h)
-                if(not m is None):
-                    indices[m.group(1)][m.group(2)] = i
-            
-            for i, ln in enumerate(f):
-                split = ln.split(",")
-                
-                for j, fname in enumerate(box_order):
-                    inner = indices[fname]
-                    status = split[inner["status"]].upper()
-                    if(status == "DETECTED" or status == "ESTIMATED"):
-                        chems_list[j].append(
-                            MatchingChem(
-                                i,
-                                float(split[inner["m/z min"]]),
-                                float(split[inner["m/z max"]]),
-                                60 * float(split[inner["RT start"]]),
-                                60 * float(split[inner["RT end"]])
-                            )
+                        
+        fs_names, line_ls = reader.read_aligned_csv(box_file_path)
+        for i, (_, mzml_fields) in enumerate(line_ls):
+            row = []
+            for j, fname in enumerate(box_order):
+                inner = mzml_fields[fname]
+                status = inner["status"].upper()
+                if(status == "DETECTED" or status == "ESTIMATED"):
+                    chems_list[j].append(
+                        MatchingChem(
+                            i,
+                            float(inner["m/z min"]),
+                            float(inner["m/z max"]),
+                            60 * float(inner["RT start"]),
+                            60 * float(inner["RT end"])
                         )
+                    )
             
         return chems_list
+
+    @staticmethod
+    def mzmine2nodes(box_file_path, box_order):
+        return MatchingChem.boxfile2nodes(MZMineParams, box_file_path, box_order)
 
     @staticmethod
     def env2nodes(env, isolation_width, chem_ids=None):

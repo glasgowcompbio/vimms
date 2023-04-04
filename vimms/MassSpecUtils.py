@@ -179,7 +179,7 @@ def generate_chem_ms1_peaks(chems, scan_time, cdc, with_intensity):
         which_adducts = all_data[:, WHICH_ADDUCTS_IDX].astype(int)
 
     assert row_count == len(peaks)
-    return all_chems, which_isotopes, which_adducts, peaks
+    return np.array(all_chems), which_isotopes, which_adducts, peaks
 
 
 class ChemDataCollector():

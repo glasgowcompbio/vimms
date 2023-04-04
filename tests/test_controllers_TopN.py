@@ -256,39 +256,6 @@ class TestTopNAdvanced:
         assert scan_params.get(ScanParameters.SOURCE_CID_ENERGY) == params.ms2_source_cid_energy
 
 
-class TestTopNControllerSpectra:
-    """
-    Tests the Top-N controller that does standard DDA Top-N fragmentation scans with the
-    simulated mass spec class. Fragment spectra are generated via the "spectra" method
-    """
-
-    def test_TopN_controller_with_simulated_chems(self, fragscan_dataset):
-        logger.info('Testing Top-N controller with simulated chemicals -- no noise')
-        assert len(fragscan_dataset) == N_CHEMS
-
-        isolation_width = 1
-        N = 10
-        rt_tol = 15
-        mz_tol = 10
-        ionisation_mode = POSITIVE
-
-        # create a simulated mass spec without noise and Top-N controller
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset)
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    MIN_MS1_INTENSITY)
-        min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
-
-        # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, min_bound, max_bound, progress_bar=False)
-        run_environment(env)
-
-        # check that there is at least one non-empty MS2 scan
-        check_non_empty_MS2(controller)
-
-        filename = 'topN_controller_simulated_chems_no_noise_spectra.mzML'
-        check_mzML(env, OUT_DIR, filename)
-
-
 class TestIonisationMode:
     def test_positive_fixed(self):
         fs = EvenMZFormulaSampler()

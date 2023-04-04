@@ -446,15 +446,17 @@ class DEWFilter(ScoreFilter):
         """
         self.rt_tol = rt_tol
 
-    def filter(self, current_rt, last_frag_rts):
+    def filter(self, current_rt, rois):
         """
         Check whether intensity values are above or below the threshold
         Args:
             current_rt: the current RT value
-            intensities (array): an array of last fragmented RT values
+            rois: a list of [vimms.Roi.Roi][] objects.
 
         Returns: an array of indicators for the filter
         """
+
+        last_frag_rts = [roi.last_frag_rt for roi in rois]
 
         # Handles None values by converting to NaN for which all
         # comparisons return 0
@@ -476,12 +478,11 @@ class WeightedDEWFilter(ScoreFilter):
         """
         self.exclusion = exclusion
 
-    def filter(self, current_rt, last_frag_rts, rois):
+    def filter(self, current_rt, rois):
         """
         Check whether ROIs are excluded or not based on weighted dynamic exclusion filter
         Args:
             current_rt: the current RT value
-            last_frag_rts: the last fragmented RT values of ROIs
             rois: a list of [vimms.Roi.Roi][] objects.
 
         Returns: a numpy array of weights for each ROI.

@@ -25,7 +25,8 @@ from mass_spec_utils.data_import.mzmine import (
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import path_or_mzml
-from vimms.PeakPicking import pick_aligned_peaks, MZMineParams, XCMSParams
+from vimms.PeakPicking import pick_aligned_peaks #backwards compatibility
+from vimms.PeakPicking import MZMineParams, XCMSParams
 from vimms.Box import (
     Point, Interval, GenericBox,
     LineSweeper
@@ -336,8 +337,8 @@ class RealEvaluator(Evaluator):
                 if(status == "DETECTED" or status == "ESTIMATED"):
                     row.append(
                         GenericBox(
-                            float(inner["RT start"]) * 60,
-                            float(inner["RT end"]) * 60,
+                            float(inner["RT start"]) * reader.RT_FACTOR,
+                            float(inner["RT end"]) * reader.RT_FACTOR,
                             float(inner["m/z min"]),
                             float(inner["m/z max"])
                         ).apply_min_box_ppm(ywidth=min_box_ppm)
@@ -588,7 +589,8 @@ class RealEvaluator(Evaluator):
 
 def evaluate_real(aligned_file,
                   mzml_pairs,
-                  isolation_width=None):
+                  isolation_width=None,
+                  pp_reader=None):
     """
     Produce combined evaluation report on real data stored in .mzmls.
     Args:
@@ -604,11 +606,15 @@ def evaluate_real(aligned_file,
                          within the box.
                          Otherwise, checks if an interval of the specified
                          length entirely covers the box on the m/z dimension.
+        pp_reader: vimms.PeakPicking param object with a read_aligned_csv
+                   method which handles the peak-picking output file format.
+                   Defaults to MZMine.
 
     Returns: A RealEvaluator object containing evaluation results.
     """
 
-    eva = RealEvaluator.from_aligned(aligned_file)
+    if(pp_reader is None): pp_reader = MZMineParams
+    eva = RealEvaluator.from_aligned_boxfile(pp_reader, aligned_file)
     for fullscan_path, mzml in mzml_pairs:
         fullscan_name = os.path.basename(fullscan_path)
         eva.add_info(fullscan_name, [mzml], isolation_width=isolation_width)

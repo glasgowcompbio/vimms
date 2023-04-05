@@ -211,8 +211,8 @@ class MatchingChem():
                             i,
                             float(inner["m/z min"]),
                             float(inner["m/z max"]),
-                            60 * float(inner["RT start"]),
-                            60 * float(inner["RT end"])
+                            reader.RT_FACTOR * float(inner["RT start"]),
+                            reader.RT_FACTOR * float(inner["RT end"])
                         )
                     )
             

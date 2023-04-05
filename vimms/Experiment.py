@@ -35,8 +35,8 @@ class Shareable:
         self.split = split
         
         self.shared = None
-        self.stored_controllers = []
-        self.params = {}
+        self.stored_controllers = [] #for storing pre-computed controllers
+        self.params = {} #passed to controllers when they are created dynamically
         
     def init_shareable(self, params, out_dir, fullscan_paths, grid_init=None):
         if(self.name == "agent"):
@@ -78,7 +78,11 @@ class Shareable:
                     )
                     scans_list.append(new_scans)
                 
-                chems_list = MatchingChem.mzmine2nodes(params["aligned_file"], fullscan_paths)
+                chems_list = MatchingChem.boxfile2nodes(
+                    params["aligned_reader"],
+                    params["aligned_file"], 
+                    fullscan_paths
+                )
                 
                 self.shared = Matching.multi_schedule2graph(
                     scans_list,
@@ -459,10 +463,9 @@ class Experiment:
         )
     
     def _pick_aligned_peaks(self,
+                            pp_ls,
                             aligned_dirs=None, 
                             aligned_names=None,
-                            mzmine_templates=None,
-                            mzmine_exe=None,
                             force=False):
                             
         fullscan_paths = [
@@ -494,64 +497,41 @@ class Experiment:
             except TypeError:
                 aligned_names = [aligned_names] * len(self.case_names)
         
-        try:
-            if(type(mzmine_templates) == type("")): raise TypeError
-            mzmine_templates = list(mzmine_templates)
-        except TypeError:
-            mzmine_templates = [mzmine_templates] * len(self.case_names)
-        
         aligned_paths = []
         forced = {os.path.join(dr, name) : False for dr, name in zip(aligned_dirs, aligned_names)}
-        zipped = zip(
-            aligned_dirs,
-            aligned_names,
-            mzmine_templates,
-            fullscan_paths
-        )
-        for dr, name, template, fses in zipped:
-            if(not template is None and not mzmine_exe is None):
-                path = pick_aligned_peaks(
-                    input_files = fses,
-                    output_dir = dr,
-                    output_name = name,
-                    mzmine_template = template,
-                    mzmine_exe = mzmine_exe,
-                    force = force and not forced[os.path.join(dr, name)]
-                )
+        zipped = zip(pp_ls, aligned_dirs, aligned_names, fullscan_paths)
+        for params, dr, name, fses in zipped:
+            path = params.pick_aligned_peaks(
+                input_files = fses,
+                output_dir = dr,
+                output_name = name,
+                force = force and not forced[os.path.join(dr, name)]
+            )
                 
-                forced[os.path.join(dr, name)] = True
-                aligned_paths.append(path)
+            forced[os.path.join(dr, name)] = True
+            aligned_paths.append(path)
                 
         return aligned_paths
-        
-    def _check_files_match_mzmine(self, fullscan_names, aligned_path, mode="none"):
-        if(mode == "none"):
-            passed, fullscan_names, mzmine_names = MZMineParams.check_files_match_mzmine(
-                fullscan_names, aligned_path, mode="subset"
-            )
-            return True, fullscan_names, mzmine_names
-            
-        else:
-            return MZMineParams.check_files_match_mzmine(
-                fullscan_names, aligned_path, mode=mode
-            )
-    
-    def evaluate(self, 
+      
+    def evaluate(self,
+                 pp_params,
                  num_workers=None,
                  isolation_widths=None,
-                 aligned_dirs=None, 
+                 aligned_dirs=None,
                  aligned_names=None,
                  max_repeat=None,
-                 mzmine_templates=None,
-                 mzmine_exe=None,
                  force_peak_picking=False,
-                 check_mzmine="none"):
-        
+                 check_files="none"):
+                 
+        try:
+            pp_ls = list(pp_params)
+        except TypeError:
+            pp_ls = [pp_params] * len(self.case_names)
+                 
         aligned_names = self._pick_aligned_peaks(
+            pp_ls=pp_ls,
             aligned_dirs=aligned_dirs, 
             aligned_names=aligned_names,
-            mzmine_templates=mzmine_templates,
-            mzmine_exe=mzmine_exe,
             force=force_peak_picking
         )
         print()
@@ -561,19 +541,20 @@ class Experiment:
         else:
             try:
                 isolation_widths = list(isolation_widths)
-            except:
+            except TypeError:
                 isolation_widths = [isolation_widths] * len(self.case_names)
-        
-        for name, aligned_path in zip(self.case_names, aligned_names):
-            fs_names = [fs for fs, _ in self.case_mzmls[name]]
-            passed, fs_names, mzmine_names = self._check_files_match_mzmine(
-                fs_names, aligned_path, mode=check_mzmine
-            )
-            
-            if(not passed):
-                raise ValueError(
-                    (check_mzmine, fs_names, aligned_path, mzmine_names)
+                
+        if(check_files.lower() != "none"):        
+            for name, aligned_path in zip(self.case_names, aligned_names):
+                fs_names = [fs for fs, _ in self.case_mzmls[name]]
+                passed, fs_names, mzmine_names = params.check_files_match(
+                    fs_names, aligned_path, mode=check_files
                 )
+                
+                if(not passed):
+                    raise ValueError(
+                        (check_mzmine, fs_names, aligned_path, mzmine_names)
+                    )
         
         if(max_repeat is None):
             max_repeat = max(len(v) for k, v in self.case_mzmls.items())
@@ -581,6 +562,7 @@ class Experiment:
             aligned_names,
             [self.case_mzmls[name][:max_repeat] for name in self.case_names],
             isolation_widths,
+            pp_ls
         )
 
         with multiprocessing.Pool(num_workers) as pool:

@@ -134,4 +134,4 @@ if(length(files) < 2){
 colnames(data_out) = c(
   'row ID', 'row m/z', 'row retention time', unlist(lapply(files, make_headers))
 )
-write.csv(data_out, file=output, row.names=FALSE)
+write.csv(data_out, file=output, row.names=FALSE, quote=FALSE)

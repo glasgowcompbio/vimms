@@ -33,6 +33,8 @@ def report_boxes(method_name, output_path):
 
 @dataclass
 class MZMineParams():
+    RT_FACTOR = 60 #minutes
+
     mzmine_template: str
     mzmine_exe: str
     
@@ -68,9 +70,9 @@ class MZMineParams():
     def pick_aligned_peaks(self, input_files, output_dir, output_name, force=False):
         input_files = list(set(input_files)) #filter duplicates
         output_path = format_output_path("MZMine", output_dir, output_name)
-        new_xml = self._make_batch_file(input_files, output_dir, output_name, output_path)
 
         if (not os.path.exists(output_path) or force):
+            new_xml = self._make_batch_file(input_files, output_dir, output_name, output_path)
             print(f"Running MZMine for {output_path}")
             subprocess.run([self.mzmine_exe, new_xml])
             
@@ -78,7 +80,7 @@ class MZMineParams():
         return output_path
         
     @staticmethod
-    def check_files_match_mzmine(fullscan_names, aligned_path, mode="subset"):
+    def check_files_match(fullscan_names, aligned_path, mode="subset"):
         fs_names = {os.path.basename(fs) for fs in fullscan_names}
         mzmine_names = set()
         
@@ -151,8 +153,11 @@ def pick_aligned_peaks(input_files,
 
 @dataclass
 class XCMSParams:
+    RT_FACTOR = 1 #seconds
+
     #file locations
-    rscript_exe: str = "Rscript"    
+    xcms_r_script: str
+    rscript_exe: str = "Rscript"
     
     #centwave params
     ppm: int = None
@@ -169,27 +174,31 @@ class XCMSParams:
     absrt: float = None
     kNN: int = None
     
-    def pick_aligned_peaks(self, input_files, output_dir, output_name, xcms_r_script, force=False):
+    def pick_aligned_peaks(self, input_files, output_dir, output_name, force=False):
         input_files = list(set(input_files)) #filter duplicates
         output_path = format_output_path("XCMS", output_dir, output_name)
         
         params = (
             (f"--{k}", str(v)) 
             for k, v in self.__dict__.items() 
-            if k != "rscript_exe" and not v is None
+            if k != "xcms_r_script" and k != "rscript_exe" and not v is None
         )
 
         if(not os.path.exists(output_path) or force):
             print(f"Running XCMS for {output_path}")
             subprocess.run(
                 [
-                    self.rscript_exe, xcms_r_script, output_path,
+                    self.rscript_exe, self. xcms_r_script, output_path,
                 ] 
                 + input_files + list(itertools.chain(*params))
             )
 
         report_boxes("XCMS", output_path)
         return output_path
+        
+    @staticmethod
+    def check_files_match(fullscan_names, aligned_path, mode="subset"):
+        return MZMineParams.check_files_match(fullscan_names, aligned_path, mode=mode)
         
     @staticmethod
     def read_aligned_csv(box_file):

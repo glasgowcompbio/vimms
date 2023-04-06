@@ -1145,7 +1145,7 @@ def make_roi(input_file, roi_params):
 
     Args:
         input_file: input mzML file
-        roi_params: an RoiParam object
+        roi_params: a RoiBuilderParams object
 
     Returns: the list of good ROI objects that have been filtered according to
              certain criteria.

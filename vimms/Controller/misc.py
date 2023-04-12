@@ -7,13 +7,17 @@ import itertools
 import math
 import os
 import subprocess
+from statistics import mean
 from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 from loguru import logger
 
-from vimms.Common import INITIAL_SCAN_ID, get_default_scan_params, \
+from vimms.Common import (
+    INITIAL_SCAN_ID, get_default_scan_params,
     get_dda_scan_param, DEFAULT_ISOLATION_WIDTH
+)
+from vimms.PeakPicking import MZMineParams, XCMSParams
 from vimms.Controller.base import Controller, WrapperController
 
 
@@ -108,49 +112,61 @@ class MS2PlannerController(FixedScansController):
     """
 
     @staticmethod
-    def mzmine2ms2planner(inpath, outpath):
+    def boxfile2ms2planner(reader, inpath, outpath):
         """
-        Transform mzmine2 box file to ms2planner default format.
+        Transform peak-picked box file to ms2planner default format.
 
         Args:
-            inpath:
-            outpath:
+            inpath: Path to input box file.
+            outpath: Path to output file used in MS2Planner input.
+
+        Returns: None
+        """
+        
+        out_headers = ["Mass [m/z]", "retention_time", "charge", "Blank", "Sample"]
+        
+        records = []
+        fs_names, line_ls = reader.read_aligned_csv(inpath)
+        for i, (row_fields, mzml_fields) in enumerate(line_ls):
+            row = []
+            if(len(list(mzml_fields.keys())) > 1):
+                raise NotImplementedError(
+                    "MS2Planner controller doesn't currently handle aligned experiment"
+                )
+            #not sure if it even makes sense to try and use an aligned file with
+            #MS2Planner
+            #but handle the file as if it was aligned in case this 
+            #more general code will be useful later
+            statuses = ((mzml, inner["status"].upper()) for mzml, inner in mzml_fields.items())
+            mzmls = [mzml for mzml, s in statuses if s == "DETECTED" or s == "ESTIMATED"]
+            if(mzmls != []):
+                records.append([
+                    row_fields["row m/z"],
+                    str(float(row_fields["row retention time"]) * 60),
+                    mzml_fields[mzmls[0]]["charge"],
+                    0.0,
+                    mean(float(mzml_fields[mzml]["height"]) for mzml in mzmls)
+                ])
+        
+        with open(outpath, "w+") as f:
+            f.write(",".join(out_headers) + "\n")
+            for r in records:
+                f.write(",".join(str(field) for field in r) + "\n")
+                
+    @staticmethod
+    def mzmine2ms2planner(inpath, outpath):
+        """
+        Transform MZMine2 box file to ms2planner default format.
+
+        Args:
+            inpath: Path to input MZMine2 file.
+            outpath: Path to output file used in MS2Planner input.
 
         Returns: None
 
         """
-
-        records = []
-        with open(inpath, "r") as f:
-            fields = {}
-            for i, name in enumerate(f.readline().split(",")):
-                if (name not in fields):
-                    fields[name] = list()
-                fields[name].append(i)
-
-            mz = fields["row m/z"][0]
-            rt = fields["row retention time"][0]
-            charges = next(idxes for fd, idxes in fields.items() if
-                           fd.strip().endswith("Peak charge"))
-            intensities = next(idxes for fd, idxes in fields.items() if
-                               fd.strip().endswith("Peak height"))
-
-            for ln in f:
-                sp = ln.split(",")
-                for charge, intensity in zip(charges, intensities):
-                    records.append([
-                        sp[mz],
-                        str(float(sp[rt]) * 60),
-                        sp[charge],
-                        "0.0",
-                        sp[intensity]
-                    ])
-
-        out_headers = ["Mass [m/z]", "retention_time", "charge", "Blank", "Sample"]
-        with open(outpath, "w+") as f:
-            f.write(",".join(out_headers) + "\n")
-            for r in records:
-                f.write(",".join(r) + "\n")
+        
+        return MS2PlannerController.boxfile2ms2planner(MZMineParams, inpath, outpath)
 
     @staticmethod
     def minimise_single(x, target):
@@ -186,14 +202,6 @@ class MS2PlannerController(FixedScansController):
             dist = abs(remainder)
             if (not math.isclose(dist, best_coefficients[0]) and dist < best_coefficients[0]):
                 best_coefficients = (dist, copy.copy(stack))
-            # if(dist < best_coefficients[0]): best_coefficients = (
-            #     dist, copy.copy(stack))
-            # if(dist < best_coefficients[0]):
-            #    if(math.isclose(dist, best_coefficients[0])):
-            #        print(f"IS CLOSE, DIST: {dist}, "
-            #              f"CHAMP DIST: {best_coefficients[0]}, "
-            #              f"STACK: {stack}, CHAMPION: {best_coefficients[1]}")
-            #    best_coefficients = (dist, copy.copy(stack))
             stack.pop()
             while (stack != [] and stack[-1] <= 0):
                 stack.pop()
@@ -202,15 +210,20 @@ class MS2PlannerController(FixedScansController):
         return best_coefficients[1]
 
     @staticmethod
-    def parse_ms2planner(fpath):
-        schedules = []
+    def parse_ms2planner(fpaths):
         fields = ["mz_centre", "mz_isolation", "duration", "rt_start",
                   "rt_end", "intensity", "apex_rt", "charge"]
-        with open(fpath, "r") as f:
-            for path in f:
-                schedules.append([])
-                for scan in path.strip().split("\t")[1:]:
-                    schedules[-1].append(dict(zip(fields, map(float, scan.split(" ")))))
+                 
+        schedules = []
+        for fpath in fpaths:
+            schedule = []
+            with open(fpath, "r") as f:
+                f.readline()
+                for ln in f:
+                    schedule.append(
+                        dict(zip(fields, (float(x) for x in ln.split(","))))
+                    )
+            schedules.append(schedule)
         return schedules
 
     @staticmethod
@@ -349,9 +362,13 @@ class MS2PlannerController(FixedScansController):
             raise ValueError("Only curve and apex are supported as modes!")
         
         subprocess.run(process_args)
+        out_files = [
+            f"{'.'.join(out_file.split('.')[:-1])}_{mode.lower()}_path_{i+1}.csv"
+            for i in range(num_injections)
+        ]
         schedules = [
             MS2PlannerController.sched_dict2params(sch, scan_duration_dict) 
-            for sch in MS2PlannerController.parse_ms2planner(out_file)
+            for sch in MS2PlannerController.parse_ms2planner(out_files)
         ]
         with open(os.path.join(os.path.dirname(out_file), "scan_params.txt"),
                   "w+") as f:

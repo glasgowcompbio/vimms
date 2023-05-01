@@ -142,11 +142,13 @@ class MS2PlannerController(FixedScansController):
             if(mzmls != []):
                 records.append([
                     row_fields["row m/z"],
-                    str(float(row_fields["row retention time"]) * 60),
+                    float(row_fields["row retention time"]) * 60,
                     mzml_fields[mzmls[0]]["charge"],
                     0.0,
                     mean(float(mzml_fields[mzml]["height"]) for mzml in mzmls)
                 ])
+                
+        records.sort(key=lambda r: r[1])
         
         with open(outpath, "w+") as f:
             f.write(",".join(out_headers) + "\n")

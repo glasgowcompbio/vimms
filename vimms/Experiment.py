@@ -547,7 +547,7 @@ class Experiment:
         if(check_files.lower() != "none"):        
             for name, aligned_path in zip(self.case_names, aligned_names):
                 fs_names = [fs for fs, _ in self.case_mzmls[name]]
-                passed, fs_names, mzmine_names = params.check_files_match(
+                passed, fs_names, mzmine_names = pp_params.check_files_match(
                     fs_names, aligned_path, mode=check_files
                 )
                 

@@ -113,7 +113,7 @@ pycparser==2.20
 pyDOE==0.3.8
 pyflakes==2.3.1
 Pygments==2.10.0
-pymdown-extensions==8.2
+pymdown-extensions==10.0
 pymzml==2.4.7
 pyparsing==2.4.7
 pyrsistent==0.18.0

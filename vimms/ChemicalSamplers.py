@@ -913,7 +913,7 @@ class MzMLScanTimeSampler(ScanTimeSampler):
     A scan time sampler that obtains its values from an existing MZML file.
     """
 
-    def __init__(self, mzml_file, use_mean=True):
+    def __init__(self, mzml_file, use_mean=True, use_ms1_count=False):
         """
         Initialises a MZML scan time sampler object.
 
@@ -925,6 +925,9 @@ class MzMLScanTimeSampler(ScanTimeSampler):
 
         self.mzml_file = str(mzml_file)
         self.use_mean = use_mean
+        self.use_ms1_count = use_ms1_count
+        self.total_ms1_scan = 0
+        self.last_ms1_rt = 0
 
         self.time_dict = self._extract_timing(self.mzml_file)
         self.is_frag_file = self._is_frag_file(self.time_dict)
@@ -983,8 +986,13 @@ class MzMLScanTimeSampler(ScanTimeSampler):
             current = s.ms_level
             next_ = seed_mzml.scans[i + 1].ms_level
             tup = (current, next_)
-            time_dict[tup].append(60 * seed_mzml.scans[
-                i + 1].rt_in_minutes - 60 * s.rt_in_minutes)
+            scan_rt_start = 60 * s.rt_in_minutes
+            scan_rt_end = 60 * seed_mzml.scans[i + 1].rt_in_minutes
+            time_dict[tup].append(scan_rt_end - scan_rt_start)
+
+            if current == 1:
+                self.total_ms1_scan += 1
+                self.last_ms1_rt = scan_rt_end
         return time_dict
 
     def _is_frag_file(self, time_dict):
@@ -1017,19 +1025,30 @@ class MzMLScanTimeSampler(ScanTimeSampler):
         """
         mean_time_dict = {}
         if is_frag_file:
+
             # extract ms1 and ms2 timing from fragmentation mzML
             for k, v in time_dict.items():
                 if k == (1, 2):
                     key = 1
+                    mean = sum(v) / len(v)
+                    if self.use_ms1_count:
+                        # for proteomics, it seems better to interpolate (1, 2) based on the
+                        # total number of MS1 scans, than taking the mean of scan times.
+                        logger.debug('old (1, 2) mean: %f' % mean)
+                        mean = self.last_ms1_rt / self.total_ms1_scan
+                        logger.debug('new (1, 2) mean: %f' % mean)
+
                 elif k == (2, 2):
                     key = 2
+                    mean = sum(v) / len(v)
+
                 else:
                     continue
 
-                mean = sum(v) / len(v)
                 mean_time_dict[key] = mean
                 logger.debug('%d: %f' % (key, mean))
             assert 1 in mean_time_dict and 2 in mean_time_dict
+
         else:
             # extract ms1 timing only from fullscan mzML
             key = 1

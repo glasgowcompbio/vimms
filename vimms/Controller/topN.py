@@ -5,6 +5,8 @@ from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
 from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
 
+from ms_deisotope.deconvolution.utils import prepare_peaklist
+from ms_deisotope.deconvolution import deconvolute_peaks
 
 class TopNController(Controller):
     """
@@ -16,7 +18,8 @@ class TopNController(Controller):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
-                 force_N=False, exclude_after_n_times=1, exclude_t0=0):
+                 force_N=False, exclude_after_n_times=1, exclude_t0=0,
+                 deisotope=False, charge_range=(1, 8)):
         """
         Initialise the Top-N controller
 
@@ -35,21 +38,31 @@ class TopNController(Controller):
             force_N: whether to always force N fragmentations
         """
         super().__init__(advanced_params=advanced_params)
+
         self.ionisation_mode = ionisation_mode
+
+        # the top N ions to fragment
         self.N = N
+
         # the isolation width (in Dalton) to select a precursor ion
         self.isolation_width = isolation_width
+
         # the m/z window (ppm) to prevent the same precursor ion to be
         # fragmented again
         self.mz_tol = mz_tol
+
         # the rt window to prevent the same precursor ion to be
         # fragmented again
         self.rt_tol = rt_tol
+
         # minimum ms1 intensity to fragment
         self.min_ms1_intensity = min_ms1_intensity
+
         # number of scans to move ms1 scan forward in list of new_tasks
         self.ms1_shift = ms1_shift
-        self.force_N = force_N  # force it to do N MS2 scans regardless
+
+        # force it to do N MS2 scans regardless
+        self.force_N = force_N
 
         if self.force_N and ms1_shift > 0:
             logger.warning(
@@ -61,15 +74,32 @@ class TopNController(Controller):
                                        exclude_t0=exclude_t0,
                                        initial_exclusion_list=initial_exclusion_list)
 
+        # for isotope filtering using ms_deisotope
+        self.deisotope = deisotope
+        self.charge_range = charge_range
+
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
         fragmented_count = 0
         if self.scan_to_process is not None:
+
+            # original scan data
             mzs = self.scan_to_process.mzs
             intensities = self.scan_to_process.intensities
             assert mzs.shape == intensities.shape
             rt = self.scan_to_process.rt
+
+            if self.deisotope:
+                pl = prepare_peaklist((mzs, intensities))
+                ps = deconvolute_peaks(pl, charge_range=self.charge_range)
+                mzs = []
+                intensities = []
+                for peak in ps.peak_set.peaks:
+                    mzs.append(peak.mz)
+                    intensities.append(peak.intensity)
+                mzs = np.array(mzs)
+                intensities = np.array(intensities)
 
             # loop over points in decreasing intensity
             idx = np.argsort(intensities)[::-1]

@@ -91,7 +91,7 @@ class FullScanAgent(AbstractAgent):
 
 class TopNDEWAgent(AbstractAgent):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                 min_ms1_intensity):
+                 min_ms1_intensity, exclude_after_n_times=1, exclude_t0=0):
         """Create a Top-N agent that performs the standard Top-N fragmentation typically seen
         in Data-Dependant Acquisition (DDA) process.
 
@@ -110,7 +110,11 @@ class TopNDEWAgent(AbstractAgent):
         self.min_ms1_intensity = min_ms1_intensity
         self.mz_tol = mz_tol
         self.rt_tol = rt_tol
-        self.exclusion = TopNExclusion()
+        self.exclude_after_n_times = exclude_after_n_times
+        self.exclude_t0 = exclude_t0
+        self.exclusion = TopNExclusion(self.mz_tol, self.rt_tol,
+                                       exclude_after_n_times=self.exclude_after_n_times,
+                                       exclude_t0=self.exclude_t0)
         self.seen_actions = collections.Counter()
 
     def next_tasks(self, scan_to_process, controller, current_task_id):
@@ -126,7 +130,9 @@ class TopNDEWAgent(AbstractAgent):
         pass
 
     def reset(self):
-        self.exclusion = TopNExclusion()
+        self.exclusion = TopNExclusion(self.mz_tol, self.rt_tol,
+                                       exclude_after_n_times=self.exclude_after_n_times,
+                                       exclude_t0=self.exclude_t0)
         self.seen_actions = collections.Counter()
 
     def _schedule_tasks(self, controller, current_task_id, scan_to_process):

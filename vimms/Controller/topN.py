@@ -16,7 +16,7 @@ class TopNController(Controller):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
-                 force_N=False):
+                 force_N=False, exclude_after_n_times=1, exclude_t0=0):
         """
         Initialise the Top-N controller
 
@@ -56,8 +56,10 @@ class TopNController(Controller):
                 "Setting force_N to True with non-zero shift can lead to "
                 "strange behaviour")
 
-        self.exclusion = TopNExclusion(
-            initial_exclusion_list=initial_exclusion_list)
+        self.exclusion = TopNExclusion(self.mz_tol, self.rt_tol,
+                                       exclude_after_n_times=exclude_after_n_times,
+                                       exclude_t0=exclude_t0,
+                                       initial_exclusion_list=initial_exclusion_list)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -185,7 +187,7 @@ class WeightedDEWController(TopNController):
                          min_ms1_intensity, ms1_shift=ms1_shift,
                          advanced_params=advanced_params)
         self.log_intensity = log_intensity
-        self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
+        self.exclusion = WeightedDEWExclusion(mz_tol, rt_tol, exclusion_t_0)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process

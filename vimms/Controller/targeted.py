@@ -234,7 +234,7 @@ class SimpleTargetController(Controller):
         # minimum ms1 intensity to fragment
         self.min_ms1_intensity = min_ms1_intensity
         self.targets = None
-        self.exclusion = TopNExclusion()
+        self.exclusion = TopNExclusion(self.mz_tol, self.rt_tol)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process

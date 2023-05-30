@@ -150,7 +150,7 @@ class TopNEXController(TopNEXtController):
         return exclude
 
     def after_injection_cleanup(self):
-        for ex in self.exclusion.exclusion_list:
+        for ex in self.exclusion.dynamic_exclusion:
             self.grid.register_box(
                 GenericBox(
                     ex.from_rt,

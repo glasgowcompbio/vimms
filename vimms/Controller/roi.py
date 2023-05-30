@@ -70,7 +70,7 @@ class RoiController(TopNController):
         if self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
             assert exclusion_t_0 is not None, 'Must be a number'
             assert exclusion_t_0 < rt_tol, 'Impossible combination'
-            self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
+            self.exclusion = WeightedDEWExclusion(mz_tol, rt_tol, exclusion_t_0)
 
         self.exclusion_t_0 = exclusion_t_0
 

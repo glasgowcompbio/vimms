@@ -424,7 +424,8 @@ class IndependentMassSpectrometer():
             next_scan_param = None
 
         current_level = scan.ms_level
-        current_scan_duration = self._increase_time(current_level,
+        current_rt = scan.rt
+        current_scan_duration = self._increase_time(current_level, current_rt,
                                                     next_scan_param)
         scan.scan_duration = current_scan_duration
 
@@ -531,7 +532,7 @@ class IndependentMassSpectrometer():
     # Private methods
     ###########################################################################
 
-    def _increase_time(self, current_level, next_scan_param):
+    def _increase_time(self, current_level, current_rt, next_scan_param):
         """
         Look into the queue, find out what the next scan ms_level is, and
         compute the scan duration.
@@ -540,6 +541,7 @@ class IndependentMassSpectrometer():
 
         Args:
             current_level:  the current MS level
+            current_rt: the current RT
             next_scan_param: the next scan parameter in the queue
 
         Returns: the scan duration of the current scan
@@ -562,7 +564,7 @@ class IndependentMassSpectrometer():
 
             # pass both current and next MS level when sampling scan duration
             current_scan_duration = scan_sampler.sample(current_level,
-                                                        next_level)
+                                                        next_level, current_rt)
 
         self.time += current_scan_duration
         return current_scan_duration

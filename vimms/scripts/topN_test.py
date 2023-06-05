@@ -30,6 +30,8 @@ def parse_args():
                         help='The minimum retention time for Top-N.')
     parser.add_argument('--max_rt', type=int, default=7700,
                         help='The maximum retention time for Top-N.')
+    parser.add_argument('--num_bins', type=int, default=20,
+                        help='The number of bins to sample scan durations from.')
     parser.add_argument('--isolation_window', type=int, default=1,
                         help='The isolation window for Top-N.')
     parser.add_argument('--N', type=int, default=15,
@@ -74,13 +76,13 @@ def get_input_filenames(at_least_one_point_above, base_dir):
     return chem_file, st_file
 
 
-def extract_scan_timing(mzml_file, st_file):
+def extract_scan_timing(mzml_file, st_file, num_bins):
     if os.path.isfile(st_file):
         st = load_obj(st_file)
     else:
         # extract timing from mzML file by taking the mean of MS1 scan durations
         logger.debug(f'Extracting scan timing from {mzml_file}')
-        st = MzMLScanTimeSampler(mzml_file, use_mean=True, use_ms1_count=True)
+        st = MzMLScanTimeSampler(mzml_file, num_bins=num_bins)
         save_obj(st, st_file)
     return st
 
@@ -154,7 +156,7 @@ def main(args):
 
     # extract chems and scan timing from mzml file
     dataset = extract_chems(args.in_mzml, chem_file, args.at_least_one_point_above)
-    st = extract_scan_timing(args.in_mzml, st_file)
+    st = extract_scan_timing(args.in_mzml, st_file, args.num_bins)
 
     # simulate Top-N
     run_simulation(args, dataset, st, out_dir)

@@ -1,14 +1,37 @@
 import sys
+
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
 import argparse
 import glob
 import os
-import sys
 
 import pylab as plt
 from mass_spec_utils.data_import.mzml import MZMLFile
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Create scan time plots')
+    parser.add_argument('file_or_folder', type=str)
+    parser.add_argument('--save_plots', dest='save_plots', action='store_true')
+    args = parser.parse_args()
+    return args
+
+
+def process_mzML_files(file_or_folder):
+    if os.path.isdir(file_or_folder):
+        print("Extracting mzml from folder")
+        file_list = glob.glob(os.path.join(file_or_folder, '*.mzML'))
+    else:
+        print("Processing", file_or_folder)
+        file_list = [file_or_folder]
+    mzml_file_objects = {}
+    timings = {}
+    for mzml_file in file_list:
+        mzml_file_objects[mzml_file] = MZMLFile(mzml_file)
+        timings[mzml_file] = get_times(mzml_file_objects[mzml_file])
+    return timings
 
 
 def get_times(mzml_object):
@@ -23,6 +46,7 @@ def get_times(mzml_object):
         next_level = next_scan.ms_level
         times[(current_level, next_level)].append(
             (current_scan.rt_in_seconds, delta_t))
+
     to_remove = set()
     for key in times:
         if len(times[key]) == 0:
@@ -32,25 +56,7 @@ def get_times(mzml_object):
     return times
 
 
-# flake8: noqa: C901
-def main():
-    global rt
-    parser = argparse.ArgumentParser(description='Create scan time plots')
-    parser.add_argument('file_or_folder', type=str)
-    parser.add_argument('--save_plots', dest='save_plots', action='store_true')
-    args = parser.parse_args()
-    if os.path.isdir(args.file_or_folder):
-        print("Extracting mzml from folder")
-        file_list = glob.glob(os.path.join(args.file_or_folder, '*.mzML'))
-    else:
-        print("Individual file")
-        file_list = [args.file_or_folder]
-    mzml_file_objects = {}
-    timings = {}
-    for mzml_file in file_list:
-        mzml_file_objects[mzml_file] = MZMLFile(mzml_file)
-        timings[mzml_file] = get_times(mzml_file_objects[mzml_file])
-    # plot
+def plot_timings(args, timings):
     for mo, t in timings.items():
         nsp = len(t)  # number of subplots
         plt.figure(figsize=(20, 8))
@@ -81,6 +87,12 @@ def main():
             plt.savefig(plot_filename)
         else:
             plt.show()
+
+
+def main():
+    args = parse_args()
+    timings = process_mzML_files(args.file_or_folder)
+    plot_timings(args, timings)
 
 
 if __name__ == '__main__':

@@ -309,6 +309,7 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
     A sampler to sample RT and intensity values from an existing mzML file.
     Useful to mimic the characteristics of actual experimental data.
     """
+
     def __init__(self, mzml_file_name, n_intensity_bins=10, min_rt=0,
                  max_rt=1600, min_log_intensity=np.log(1e4),
                  max_log_intensity=np.log(1e7), roi_params=None):
@@ -466,6 +467,7 @@ class MZMLChromatogramSampler(ChromatogramSampler):
     A sampler to return chromatograms extracted from an existing mzML file.
     Useful to mimic the characteristics of actual experimental data.
     """
+
     def __init__(self, mzml_file_name, roi_params=None):
         """
         Create an MZMLChromatogramSampler object.
@@ -574,7 +576,7 @@ class UniformMS2Sampler(MS2Sampler):
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         parent_proportion = np.random.rand() * (
-                    self.max_proportion - self.min_proportion) + self.min_proportion
+                self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -683,6 +685,7 @@ class MGFMS2Sampler(MS2Sampler):
     """
     A sampler that generates MS2 spectra from real ones defined in some MGF file.
     """
+
     def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8,
                  max_peaks=0, replace=False,
                  id_field="SPECTRUMID"):
@@ -752,7 +755,7 @@ class MGFMS2Sampler(MS2Sampler):
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
         parent_proportion = np.random.rand() * (
-                    self.max_proportion - self.min_proportion) + self.min_proportion
+                self.max_proportion - self.min_proportion) + self.min_proportion
 
         return mz_list, intensity_list, parent_proportion
 
@@ -764,6 +767,7 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
 
     TODO: not sure if this class is actually completed and fully tested.
     """
+
     def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8,
                  id_field="SPECTRUMID"):
         super().__init__(mgf_file, min_proportion=min_proportion,
@@ -782,7 +786,7 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)
         parent_proportion = np.random.rand() * (
-                    self.max_proportion - self.min_proportion) + self.min_proportion
+                self.max_proportion - self.min_proportion) + self.min_proportion
         return mz_list, intensity_list, parent_proportion
 
 
@@ -790,6 +794,7 @@ class MZMLMS2Sampler(MS2Sampler):
     """
     A sampler that sample MS2 spectra from an actual mzML file.
     """
+
     def __init__(self, mzml_file, min_n_peaks=1, min_total_intensity=1e3,
                  min_proportion=0.1, max_proportion=0.8,
                  with_replacement=False):
@@ -870,7 +875,7 @@ class ScanTimeSampler(ABC):
     """
 
     @abstractmethod
-    def sample(self, current_level, next_level):
+    def sample(self, current_level, next_level, current_rt):
         pass
 
 
@@ -895,12 +900,13 @@ class DefaultScanTimeSampler(ScanTimeSampler):
         self.scan_time_dict = scan_time_dict if scan_time_dict is not None \
             else DEFAULT_SCAN_TIME_DICT
 
-    def sample(self, current_level, next_level):
+    def sample(self, current_level, next_level, current_rt):
         """
         Sample a scan duration given the MS levels of current and next scans.
         Args:
             current_level: the MS level of the current scan
             next_level: the MS level of the next scan
+            current_rt: not used
 
         Returns: a sampled scan duration value
 
@@ -913,26 +919,19 @@ class MzMLScanTimeSampler(ScanTimeSampler):
     A scan time sampler that obtains its values from an existing MZML file.
     """
 
-    def __init__(self, mzml_file, use_mean=True, use_ms1_count=False):
+    def __init__(self, mzml_file, num_bins=1):
         """
         Initialises a MZML scan time sampler object.
 
         Args:
-            mzml_file: the source MZML file
-            use_mean: whether to store the scan times as distributions of values to sample
-                      from, or as a single mean value
+            num_bins: the number of bins to sample scan durations from
         """
 
         self.mzml_file = str(mzml_file)
-        self.use_mean = use_mean
-        self.use_ms1_count = use_ms1_count
-        self.total_ms1_scan = 0
-        self.last_ms1_rt = 0
-
-        self.time_dict = self._extract_timing(self.mzml_file)
+        self.num_bins = num_bins
+        self.time_dict, self.bin_edges = self._extract_timing(self.mzml_file)
         self.is_frag_file = self._is_frag_file(self.time_dict)
-        self.mean_time_dict = self._extract_mean_time(self.time_dict,
-                                                      self.is_frag_file)
+
         if self.is_frag_file and len(self.time_dict[(1, 1)]) == 0:
             # this could sometimes happen if there's not enough MS1 scan
             # followed by another MS1 scan
@@ -941,27 +940,6 @@ class MzMLScanTimeSampler(ScanTimeSampler):
                 'Not enough MS1 scans to compute (1, 1) scan duration. '
                 'The default of %f will be used' % default)
             self.time_dict[(1, 1)] = [default]
-
-    def sample(self, current_level, next_level):
-        """
-        Sample a scan duration given the MS levels of current and next scans.
-        Args:
-            current_level: the MS level of the current scan
-            next_level: the MS level of the next scan
-
-        Returns: a sampled scan duration value
-
-        """
-
-        if self.use_mean:
-            # return only the average time for current_level
-            return self.mean_time_dict[current_level]
-        else:
-            # sample a scan duration value extracted from the mzML based
-            # on the current and next level
-            values = self.time_dict[(current_level, next_level)]
-            sampled = np.random.choice(values, replace=False, size=1)
-            return sampled[0]
 
     def _extract_timing(self, seed_file):
         """
@@ -974,26 +952,46 @@ class MzMLScanTimeSampler(ScanTimeSampler):
                        If it's only a fullscan file (containing MS1 scans) then only MS1
                        timing will be extracted.
 
-        Returns: a dictionary of time information. Key should be the ms-level,
-                 1 or 2, and value is the average time of scans at that level
+        Returns: - A dictionary of time information. Key should be the ms-level,
+                 1 or 2, and value is the average time of scans at that level.
+                 - A numpy array of bin edges.
 
         """
         logger.debug('Extracting timing dictionary from seed file')
         seed_mzml = MZMLFile(seed_file)
 
-        time_dict = {(1, 1): [], (1, 2): [], (2, 1): [], (2, 2): []}
+        # Compute the minimum and maximum RTs
+        rts = [s.rt_in_seconds for s in seed_mzml.scans]
+        min_rt = min(rts)
+        max_rt = max(rts)
+
+        bin_edges = np.linspace(min_rt, max_rt, self.num_bins + 1)
+        time_dict = {edge: {(1, 1): [], (1, 2): [], (2, 1): [], (2, 2): []} for edge in
+                     bin_edges}
+
         for i, s in enumerate(seed_mzml.scans[:-1]):
+            # get current and next ms-levels
             current = s.ms_level
             next_ = seed_mzml.scans[i + 1].ms_level
             tup = (current, next_)
-            scan_rt_start = 60 * s.rt_in_minutes
-            scan_rt_end = 60 * seed_mzml.scans[i + 1].rt_in_minutes
-            time_dict[tup].append(scan_rt_end - scan_rt_start)
 
-            if current == 1:
-                self.total_ms1_scan += 1
-                self.last_ms1_rt = scan_rt_end
-        return time_dict
+            # compute scan duration
+            scan_rt_start = s.rt_in_seconds
+            scan_rt_end = seed_mzml.scans[i + 1].rt_in_seconds
+            scan_duration = scan_rt_end - scan_rt_start
+
+            # insert into the right bin
+            scan_bin = self._find_bin(scan_rt_start, bin_edges)
+            time_dict[scan_bin][tup].append(scan_duration)
+
+        return time_dict, bin_edges
+
+    def _find_bin(self, rt, bin_edges):
+        # Find the appropriate bin for a given RT
+        for edge in bin_edges:
+            if rt < edge:
+                return edge
+        return edge  # Return the last edge if RT is beyond all edges
 
     def _is_frag_file(self, time_dict):
         """
@@ -1012,49 +1010,28 @@ class MzMLScanTimeSampler(ScanTimeSampler):
             is_frag_file = True
         return is_frag_file
 
-    def _extract_mean_time(self, time_dict, is_frag_file):
+    def sample(self, current_level, next_level, current_rt):
         """
-        Construct mean timing dict in the right format for later use
-
+        Sample a scan duration given the MS levels of current and next scans.
         Args:
-            time_dict: a timing dictionary
-            is_frag_file: whether it's a fragmentation file or not
+            current_level: the MS level of the current scan
+            next_level: the MS level of the next scan
+            current_rt: the current retention time of the current scan
 
-        Returns: the mean time dictionary
+        Returns: a sampled scan duration value
 
         """
-        mean_time_dict = {}
-        if is_frag_file:
 
-            # extract ms1 and ms2 timing from fragmentation mzML
-            for k, v in time_dict.items():
-                if k == (1, 2):
-                    key = 1
-                    mean = sum(v) / len(v)
-                    if self.use_ms1_count:
-                        # for proteomics, it seems better to interpolate (1, 2) based on the
-                        # total number of MS1 scans, than taking the mean of scan times.
-                        logger.debug('old (1, 2) mean: %f' % mean)
-                        mean = self.last_ms1_rt / self.total_ms1_scan
-                        logger.debug('new (1, 2) mean: %f' % mean)
+        # Determine the appropriate bin based on the current RT
+        current_bin = self._find_bin(current_rt, self.bin_edges)
 
-                elif k == (2, 2):
-                    key = 2
-                    mean = sum(v) / len(v)
-
-                else:
-                    continue
-
-                mean_time_dict[key] = mean
-                logger.debug('%d: %f' % (key, mean))
-            assert 1 in mean_time_dict and 2 in mean_time_dict
-
-        else:
-            # extract ms1 timing only from fullscan mzML
-            key = 1
-            v = time_dict[(1, 1)]
-            mean = sum(v) / len(v)
-            mean_time_dict[key] = mean
-            logger.debug('%d: %f' % (key, mean))
-
-        return mean_time_dict
+        # sample a scan duration value extracted from the mzML based
+        # on the current and next level
+        # note: the same value could be selected again by np.random.choice next time
+        values = self.time_dict[current_bin][(current_level, next_level)]
+        try:
+            sampled = np.random.choice(values, replace=False, size=1)
+            return sampled[0]
+        except ValueError: # no value to sample, just return the default
+            default = DEFAULT_SCAN_TIME_DICT[current_level]
+            return default

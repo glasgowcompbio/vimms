@@ -7,6 +7,11 @@ import argparse
 import glob
 import os
 
+import numpy as np
+import seaborn as sns
+from loguru import logger
+import pymzml
+
 import pylab as plt
 from mass_spec_utils.data_import.mzml import MZMLFile
 
@@ -87,6 +92,126 @@ def plot_timings(args, timings):
             plt.savefig(plot_filename)
         else:
             plt.show()
+
+
+def get_data(file_timings, file_name, level, remove_outliers=False):
+    """Get data with potential outlier removal."""
+    flat_d = {k: v[k] for k, v in file_timings.items()}
+
+    try:
+        rts, deltas = zip(*flat_d[file_name][level])
+    except KeyError:
+        return np.array([]), np.array([])
+
+    rts = np.array(rts)
+    deltas = np.array(deltas)
+
+    if remove_outliers:
+        rts, deltas = remove_data_outliers(rts, deltas)
+
+    return rts, deltas
+
+
+def remove_data_outliers(rts, deltas):
+    """Remove outliers from the data based on IQR method."""
+    q1, q3 = np.percentile(deltas, [25, 75])
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    mask = (deltas >= lower_bound) & (deltas <= upper_bound)
+
+    return rts[mask], deltas[mask]
+
+
+def plot_deltas(file_timings, files, labels, plot_type='box', remove_outliers=False):
+    """Generate specified type of plot for each level of data."""
+    plot_types = ['box', 'violin', 'scatter']
+    if plot_type not in plot_types:
+        raise ValueError(f"Invalid plot_type. Expected one of: {plot_types}")
+
+    levels = [(1, 1), (1, 2), (2, 1), (2, 2)]
+    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+
+    for ax, level in zip(axs.flatten(), levels):
+        data = [get_data(file_timings, file, level, remove_outliers) for file in files]
+
+        if plot_type in ['box', 'violin']:
+            deltas = [deltas for rts, deltas in data]
+            plot_func = sns.boxplot if plot_type == 'box' else sns.violinplot
+            plot_func(ax=ax, data=deltas)
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels)
+        else:  # 'scatter'
+            for (rts, deltas), label in zip(data, labels):
+                ax.scatter(rts, deltas, alpha=0.25, label=label, s=5)
+            ax.legend()
+
+        ax.set_title(f"Level: {level}")
+
+    plt.tight_layout()
+    plt.show()
+
+
+def count_stuff(input_file, min_rt, max_rt):
+    run = pymzml.run.Reader(input_file, MS1_Precision=5e-6,
+                            extraAccessions=[('MS:1000016', ['value', 'unitName'])],
+                            obo_version='4.0.1')
+    mzs = []
+    rts = []
+    intensities = []
+    count_ms1_scans = 0
+    count_ms2_scans = 0
+    cumsum_ms1_scans = []
+    cumsum_ms2_scans = []
+    count_selected_precursors = 0
+    for spectrum in run:
+        ms_level = spectrum['ms level']
+        current_scan_rt, units = spectrum.scan_time
+        if units == 'minute':
+            current_scan_rt *= 60.0
+        if min_rt < current_scan_rt < max_rt:
+            if ms_level == 1:
+                count_ms1_scans += 1
+                cumsum_ms1_scans.append((current_scan_rt, count_ms1_scans,))
+            elif ms_level == 2:
+                try:
+                    selected_precursors = spectrum.selected_precursors
+                    count_selected_precursors += len(selected_precursors)
+                    mz = selected_precursors[0]['mz']
+                    intensity = selected_precursors[0]['i']
+
+                    count_ms2_scans += 1
+                    mzs.append(mz)
+                    rts.append(current_scan_rt)
+                    intensities.append(intensity)
+                    cumsum_ms2_scans.append((current_scan_rt, count_ms2_scans,))
+                except KeyError:
+                    # logger.debug(selected_precursors)
+                    pass
+
+    logger.debug('Number of ms1 scans = %d' % count_ms1_scans)
+    logger.debug('Number of ms2 scans = %d' % count_ms2_scans)
+    logger.debug('Total scans = %d' % (count_ms1_scans + count_ms2_scans))
+    logger.debug('Number of selected precursors = %d' % count_selected_precursors)
+    return np.array(mzs), np.array(rts), np.array(intensities), np.array(
+        cumsum_ms1_scans), np.array(cumsum_ms2_scans)
+
+
+def plot_num_scans(real_cumsum_ms1, real_cumsum_ms2, simulated_cumsum_ms1, simulated_cumsum_ms2,
+                   out_file=None):
+    plt.plot(real_cumsum_ms1[:, 0], real_cumsum_ms1[:, 1], 'r')
+    plt.plot(real_cumsum_ms2[:, 0], real_cumsum_ms2[:, 1], 'b')
+    plt.plot(simulated_cumsum_ms1[:, 0], simulated_cumsum_ms1[:, 1], 'r--')
+    plt.plot(simulated_cumsum_ms2[:, 0], simulated_cumsum_ms2[:, 1], 'b--')
+
+    plt.legend(['Actual MS1', 'Actual MS2', 'Simulated MS1', 'Simulated MS2'])
+    plt.xlabel('Retention Time (s)')
+    plt.ylabel('Cumulative sum')
+    plt.title('Cumulative number of MS1 and MS2 scans', fontsize=18)
+    plt.tight_layout()
+
+    if out_file is not None:
+        plt.savefig(out_file, dpi=300)
 
 
 def main():

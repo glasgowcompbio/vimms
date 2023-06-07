@@ -119,9 +119,9 @@ class Evaluator(metaclass=ABCMeta):
         cumulative_raw_intensities = np.fmax.accumulate(raw_intensities, axis=0)
         cumulative_coverage_intensities = np.fmax.accumulate(coverage_intensities, axis=0)
 
-        num_chems = np.sum(chem_appears)
-        coverage_prop = np.sum(coverage, axis=1) / num_chems
-        cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
+        num_appears = np.sum(chem_appears)
+        coverage_prop = np.sum(coverage, axis=1) / num_appears
+        cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_appears
 
         max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
         which_obtainable = max_coverage_intensities >= min_intensity
@@ -150,6 +150,7 @@ class Evaluator(metaclass=ABCMeta):
         report = {
             "num_runs": int(self.chem_info.shape[2]),
             "chem_appears": chem_appears,
+            "num_appears": num_appears,
             "coverage": coverage,
             "raw_intensity": raw_intensities,
             "intensity": coverage_intensities,
@@ -181,6 +182,7 @@ class Evaluator(metaclass=ABCMeta):
     def summarise(self, min_intensity=None):
         report = self.evaluation_report(min_intensity=min_intensity)
         fields = {
+            "Number of chems above min intensity": "num_appears",
             "Number of fragmentations": "num_frags",
             "Cumulative coverage": "sum_cumulative_coverage",
             "Cumulative coverage proportion": "cumulative_coverage_proportion",

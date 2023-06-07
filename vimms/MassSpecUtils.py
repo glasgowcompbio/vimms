@@ -42,36 +42,50 @@ def bisect_right(a: np.ndarray, x: float64) -> int32:
     so we can jit this in ViMMS for performance reason
     """
 
-    lo = 0
-    hi = None
-    key = None
+    #NB: if we want to edit in the parameterisation here later
+    #we will need the default cases from the original code
+    lo, hi = 0, len(a)
 
-    if lo < 0:
-        raise ValueError('lo must be non-negative')
-    if hi is None:
-        hi = len(a)
-    # Note, the comparison uses "<" to match the
-    # __lt__() logic in list.sort() and in heapq.
-    if key is None:
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if x < a[mid]:
-                hi = mid
-            else:
-                lo = mid + 1
-    else:
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if x < key(a[mid]):
-                hi = mid
-            else:
-                lo = mid + 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if x < a[mid]:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+
+
+@njit
+def bisect_left(a: np.ndarray, x: float64) -> int32:
+    """Return the index where to insert item x in list a, assuming a is sorted.
+
+    The return value i is such that all e in a[:i] have e < x, and all e in
+    a[i:] have e >= x.  So if x already appears in the list, a.insert(i, x) will
+    insert just before the leftmost x already there.
+
+    Optional args lo (default 0) and hi (default len(a)) bound the
+    slice of a to be searched.
+    
+    Copied from https://raw.githubusercontent.com/python/cpython/3.11/Lib/bisect.py
+    so we can jit this in ViMMS for performance reason
+    """
+
+    #NB: if we want to edit in the parameterisation here later
+    #we will need the default cases from the original code
+    lo, hi = 0, len(a)
+    
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if a[mid] < x:
+            lo = mid + 1
+        else:
+            hi = mid
     return lo
 
 
 @njit
 def rt_match(min_rt: float64, max_rt: float64, query_rt: float64) -> float64:
-    return min_rt < query_rt < max_rt
+    return min_rt <= query_rt <= max_rt
 
 
 @njit
@@ -102,7 +116,8 @@ def get_relative_mz_intensity_values(query_rt: float64,
                                      mz_arr: np.ndarray, rt_arr: np.ndarray,
                                      intensity_arr: np.ndarray,
                                      with_intensity: bool) -> float64:
-    which_above = bisect_right(rt_arr, query_rt)
+    
+    which_above = bisect_left(rt_arr, query_rt)
     which_below = which_above - 1
     rt_below = rt_arr[which_below]
     rt_above = rt_arr[which_above]
@@ -325,7 +340,9 @@ def calculate_chem_ms1_peaks(data,
             intensity_arr = all_chrom_intensity_arr[i]
 
             rel_mz, rel_int = get_relative_mz_intensity_values(
-                query_rt, mz_arr, rt_arr, intensity_arr, with_intensity)
+                query_rt, mz_arr, rt_arr, intensity_arr, with_intensity
+            )
+            
             rel_mzs[i] = rel_mz
             rel_ints[i] = rel_int
 

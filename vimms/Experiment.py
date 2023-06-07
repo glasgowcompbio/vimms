@@ -325,6 +325,7 @@ class Experiment:
                      chem_noise_threshold=0):
         
         all_fullscans = set(fs for case in self.cases for fs in case.fullscan_paths)
+        
         with multiprocessing.Pool(num_workers) as pool:
             zipped = zip(
                 all_fullscans,

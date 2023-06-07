@@ -869,6 +869,7 @@ def mpl_fragmentation_counts(evals,
     
     return fig, axes
 
+
 def mpl_fragmentation_events(exp_name, 
                              mzmls, 
                              colour_minm=None):
@@ -908,7 +909,7 @@ def mpl_fragmented_boxes(exp_name, eva, mode="max", min_intensity=0.0):
     partition = PlotBox.from_evaluator(eva, min_intensity=min_intensity)
     boxes = partition["fragmented"] + partition["unfragmented"]
     return mpl_fragmented_boxes_raw(exp_name, boxes)
-
+    
 
 def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
     num_chems = len(evals[0].chems)

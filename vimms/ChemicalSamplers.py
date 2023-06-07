@@ -961,11 +961,13 @@ class MzMLScanTimeSampler(ScanTimeSampler):
         seed_mzml = MZMLFile(seed_file)
 
         # Compute the minimum and maximum RTs
+        OFFSET = 1
         rts = [s.rt_in_seconds for s in seed_mzml.scans]
-        min_rt = min(rts)
-        max_rt = max(rts)
+        min_rt = 0
+        max_rt = max(rts) + OFFSET
 
         bin_edges = np.linspace(min_rt, max_rt, self.num_bins + 1)
+        bin_edges = np.delete(bin_edges, 0) # delete the first bin boundary as we don't need it
         time_dict = {edge: {(1, 1): [], (1, 2): [], (2, 1): [], (2, 2): []} for edge in
                      bin_edges}
 

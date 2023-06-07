@@ -418,9 +418,11 @@ class IndependentMassSpectrometer():
         self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
         # sample scan duration and increase internal time
-        try:
+        if self.task_manager.pending_size() > 0:
+            next_scan_param = self.task_manager.peek_pending()
+        elif self.task_manager.current_size() > 0:
             next_scan_param = self.task_manager.peek_current()
-        except IndexError:
+        else:
             next_scan_param = None
 
         current_level = scan.ms_level

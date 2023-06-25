@@ -19,7 +19,7 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(1, 8)):
+                 deisotope=False, charge_range=(1, 8), min_averagine_score=100):
         """
         Initialise the Top-N controller
 
@@ -77,6 +77,7 @@ class TopNController(Controller):
         # for isotope filtering using ms_deisotope
         self.deisotope = deisotope
         self.charge_range = charge_range
+        self.min_averagine_score = min_averagine_score
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -96,8 +97,9 @@ class TopNController(Controller):
                 mzs = []
                 intensities = []
                 for peak in ps.peak_set.peaks:
-                    mzs.append(peak.mz)
-                    intensities.append(peak.intensity)
+                    if peak.score > self.min_averagine_score:
+                        mzs.append(peak.mz)
+                        intensities.append(peak.intensity)
                 mzs = np.array(mzs)
                 intensities = np.array(intensities)
 

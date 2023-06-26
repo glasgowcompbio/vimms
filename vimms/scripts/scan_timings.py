@@ -199,6 +199,7 @@ def count_stuff(input_file, min_rt, max_rt):
 
 def plot_num_scans(real_cumsum_ms1, real_cumsum_ms2, simulated_cumsum_ms1, simulated_cumsum_ms2,
                    out_file=None):
+    plt.figure(figsize=(10, 10))
     plt.plot(real_cumsum_ms1[:, 0], real_cumsum_ms1[:, 1], 'r')
     plt.plot(real_cumsum_ms2[:, 0], real_cumsum_ms2[:, 1], 'b')
     plt.plot(simulated_cumsum_ms1[:, 0], simulated_cumsum_ms1[:, 1], 'r--')
@@ -213,6 +214,7 @@ def plot_num_scans(real_cumsum_ms1, real_cumsum_ms2, simulated_cumsum_ms1, simul
     if out_file is not None:
         plt.savefig(out_file, dpi=300)
 
+    plt.show()
 
 def main():
     args = parse_args()

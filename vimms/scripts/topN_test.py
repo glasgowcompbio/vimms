@@ -56,7 +56,7 @@ def parse_args():
                         help='The start of the charge range for filtering.')
     parser.add_argument('--charge_range_end', type=int, default=6,
                         help='The end of the charge range for filtering.')
-    parser.add_argument('--min-decon-score', type=int, default=160,
+    parser.add_argument('--min_decon_score', type=int, default=160,
                         help='The minimum deconvolution score from ms_deconvolve.')
     parser.add_argument('--out_dir', type=str, default='topN_test',
                         help='The directory where the output files will be stored.')

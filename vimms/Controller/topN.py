@@ -1,5 +1,6 @@
 import numpy as np
 from loguru import logger
+from ms_deisotope import MSDeconVFitter
 
 from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
@@ -19,7 +20,7 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(1, 8), min_averagine_score=100):
+                 deisotope=False, charge_range=(1, 8), min_decon_score=160):
         """
         Initialise the Top-N controller
 
@@ -77,12 +78,16 @@ class TopNController(Controller):
         # for isotope filtering using ms_deisotope
         self.deisotope = deisotope
         self.charge_range = charge_range
-        self.min_averagine_score = min_averagine_score
+        self.min_decon_score = min_decon_score
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
         fragmented_count = 0
+
+        scorer = MSDeconVFitter(minimum_score=self.min_decon_score, mass_error_tolerance=0.00002)
+        dc = {'scorer': scorer}
+
         if self.scan_to_process is not None:
 
             # original scan data
@@ -93,11 +98,11 @@ class TopNController(Controller):
 
             if self.deisotope:
                 pl = prepare_peaklist((mzs, intensities))
-                ps = deconvolute_peaks(pl, charge_range=self.charge_range)
+                ps = deconvolute_peaks(pl, decon_config=dc, charge_range=self.charge_range)
                 mzs = []
                 intensities = []
                 for peak in ps.peak_set.peaks:
-                    if peak.score > self.min_averagine_score:
+                    if peak.score >= self.min_decon_score:
                         mzs.append(peak.mz)
                         intensities.append(peak.intensity)
                 mzs = np.array(mzs)

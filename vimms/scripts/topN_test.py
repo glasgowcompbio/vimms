@@ -56,8 +56,8 @@ def parse_args():
                         help='The start of the charge range for filtering.')
     parser.add_argument('--charge_range_end', type=int, default=6,
                         help='The end of the charge range for filtering.')
-    parser.add_argument('--min_averagine_score', type=int, default=100,
-                        help='The minimum averagine score from ms_deconvolve.')
+    parser.add_argument('--min-decon-score', type=int, default=160,
+                        help='The minimum deconvolution score from ms_deconvolve.')
     parser.add_argument('--out_dir', type=str, default='topN_test',
                         help='The directory where the output files will be stored.')
     parser.add_argument('--pbar', type=bool, default=True,
@@ -175,7 +175,7 @@ def run_simulation(args, dataset, st, out_dir):
     rt_tol = args.rt_tol
     mz_tol = args.mz_tol
     min_ms1_intensity = args.min_ms1_intensity
-    min_averagine_score = args.min_averagine_score
+    min_decon_score = args.min_decon_score
     default_ms1_scan_window = (
         args.default_ms1_scan_window_start, args.default_ms1_scan_window_end)
 
@@ -192,7 +192,7 @@ def run_simulation(args, dataset, st, out_dir):
         POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
         advanced_params=params, exclude_after_n_times=exclude_after_n_times,
         exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
-        min_averagine_score=min_averagine_score)
+        min_decon_score=min_decon_score)
 
     # create an environment to run both the mass spec and controller
     env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=args.pbar)

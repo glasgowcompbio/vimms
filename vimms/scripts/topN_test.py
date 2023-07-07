@@ -1,4 +1,3 @@
-import pprint
 import sys
 
 sys.path.append('..')
@@ -149,7 +148,7 @@ def count_stuff(input_file, min_rt, max_rt):
 
 
 def main(args):
-    pprint.pprint(vars(args))
+    print('topN_test', vars(args))
 
     # check input and output paths
     assert os.path.isfile(args.in_mzml), 'Input mzML file %s is not found!' % args.in_mzml

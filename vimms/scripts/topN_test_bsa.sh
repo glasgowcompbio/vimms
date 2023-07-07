@@ -15,7 +15,7 @@ charge_range_end="6"
 min_fit_scores=( "20" "40" "60" "80" "100" "120" "140" "160" "180" "200" )
 
 # An array of penalty factors
-penalty_factors=( "0.25" "0.50" "1.0" "1.25" "1.50" "2.0" )
+penalty_factors=( "0.25" "0.50" "0.75" "1.0" "1.25" "1.50" "1.75" "2.0" )
 
 # Check if the parallel option is specified
 if [ "$1" == "--parallel" ]; then

@@ -4,25 +4,51 @@ in_mzml="/home/joewandy/data/BSA_100fmol__recon_1ul_1.mzML"
 at_least_one_point_above="1E4"
 source_dir="/home/joewandy/vimms/vimms/scripts/topN_timing_improvement_1E4"
 
-# An array of charge range start and end
-charge_range=( "2 6" )
+# Base directory for all output
+base_out_dir="results"
 
-# An array of min_averagine_scores
-min_decon_scores=( "50" "100" "150" "160" "170" "180" "190" "200" "250" "300" "350" "400" "450" "500" "550" )
+# Variables for charge range start and end
+charge_range_start="2"
+charge_range_end="6"
 
-# Loop through each combination of charge range and min_averagine_scores
-for range in "${charge_range[@]}"; do
-    IFS=' ' read -r -a tokens <<< "$range"
-    start=${tokens[0]}
-    end=${tokens[1]}
-    for score in "${min_decon_scores[@]}"; do
-        out_dir="topN_timing_improvement_${at_least_one_point_above}_${start}_${end}_${score}"
+# An array of min_fit_scores and penalty factors
+min_fit_scores=( "20" "40" "60" "80" "100" "120" "140" "160" "180" "200" )
+
+# An array of penalty factors
+penalty_factors=( "0.25" "0.50" "1.0" "1.25" "1.50" "2.0" )
+
+# Check if the parallel option is specified
+if [ "$1" == "--parallel" ]; then
+    parallel=true
+else
+    parallel=false
+fi
+
+# Check if base directory exists, if not create it
+if [ ! -d "$base_out_dir" ]; then
+  mkdir -p $base_out_dir
+fi
+
+# Loop through each combination of min_fit_scores and penalty_factors
+for score in "${min_fit_scores[@]}"; do
+    for penalty in "${penalty_factors[@]}"; do
+        out_dir="${base_out_dir}/topN_timing_improvement_${at_least_one_point_above}_${charge_range_start}_${charge_range_end}_${score}_${penalty}"
         # Check if directory exists, if not create it
         if [ ! -d "$out_dir" ]; then
           mkdir -p $out_dir
           # Copy contents of source directory to new directory
           cp -r $source_dir/* $out_dir/
         fi
-        python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $start --charge_range_end $end --out_dir $out_dir --min_decon_score $score
+        # Run the script in the background if --parallel is specified
+        if [ "$parallel" = true ]; then
+            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_decon_score $score --penalty_factor $penalty &
+        else
+            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_decon_score $score --penalty_factor $penalty
+        fi
     done
 done
+
+# If --parallel is specified, wait for all background jobs to finish
+if [ "$parallel" = true ]; then
+    wait
+fi

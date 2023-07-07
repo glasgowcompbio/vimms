@@ -220,6 +220,8 @@ def plot_num_scans(real_cumsum_ms1, real_cumsum_ms2, simulated_cumsum_ms1, simul
     if show_plot:
         plt.show()
 
+    plt.close()
+
 def compute_similarity(real_cumsum, simulated_cumsum):
     # Interpolate to a common grid
     common_grid = np.linspace(0, 7900, 1000)  # you can adjust the number of points

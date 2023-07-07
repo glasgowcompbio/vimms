@@ -64,6 +64,8 @@ def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvolute
     if show_plot:
         plt.show()
 
+    plt.close()
+
 
 def plot_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, labels,
                     bins=range(16), lo=0, hi=int(1E6), out_file=None, show_plot=True):
@@ -112,6 +114,8 @@ def plot_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, 
 
     if show_plot:
         plt.show()
+
+    plt.close()
 
 
 def extract_ms2_counts(block_deconvoluter, lo=0, hi=int(1E6)):

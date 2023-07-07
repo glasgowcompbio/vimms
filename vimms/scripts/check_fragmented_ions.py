@@ -13,8 +13,10 @@ ATOL = 0.01
 
 
 def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvoluter, labels,
-                       s=3, alpha=1.0, lo=0, hi=int(1E6)):
-    list_of_block_deconvoluters = [reference_block_deconvoluter, simulated_block_deconvoluter]
+                       s=3, alpha=1.0, lo=0, hi=int(1E6), out_file=None, show_plot=True):
+    list_of_block_deconvoluters = [reference_block_deconvoluter]
+    if simulated_block_deconvoluter is not None:
+        list_of_block_deconvoluters.append(simulated_block_deconvoluter)
 
     # Determine the layout of the subplots
     num_plots = len(list_of_block_deconvoluters)
@@ -22,8 +24,11 @@ def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvolute
     num_cols = int(np.ceil(num_plots / num_rows))
 
     # Create the subplots
-    fig, axs = plt.subplots(num_rows, num_cols, figsize=(10, 6), sharex=True, sharey=True)
-    axs = axs.ravel()  # Flatten the array of axes
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(20, 10), sharex=True, sharey=True)
+    try:
+        axs = axs.ravel()  # Flatten the array of axes
+    except AttributeError:
+        axs = [axs]
 
     # Iterate over each list of blocks
     for i, (bd, label) in enumerate(zip(list_of_block_deconvoluters, labels)):
@@ -52,8 +57,143 @@ def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvolute
 
     # Adjust the layout
     plt.tight_layout()
-    plt.show()
 
+    if out_file is not None:
+        plt.savefig(out_file, dpi=300)
+
+    if show_plot:
+        plt.show()
+
+
+def plot_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, labels,
+                    bins=range(16), lo=0, hi=int(1E6), out_file=None, show_plot=True):
+    list_of_block_deconvoluters = [reference_block_deconvoluter]
+    if simulated_block_deconvoluter is not None:
+        list_of_block_deconvoluters.append(simulated_block_deconvoluter)
+
+    # Determine the layout of the subplots
+    num_plots = len(list_of_block_deconvoluters)
+    num_rows = int(np.ceil(np.sqrt(num_plots)))
+    num_cols = int(np.ceil(num_plots / num_rows))
+
+    # Create the subplots
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(20, 10), sharex=True, sharey=True)
+    try:
+        axs = axs.ravel()  # Flatten the array of axes
+    except AttributeError:
+        axs = [axs]
+
+    # Iterate over each list of blocks
+    for i, (bd, label) in enumerate(zip(list_of_block_deconvoluters, labels)):
+        # Prepare an empty list for the y values of the plot
+        num_ms2_scans = []
+
+        for block_id, scans in bd.blocks:
+            if lo <= block_id <= hi:
+                ms2_scans = scans[1:]
+                num_ms2 = len(ms2_scans)
+
+                # Append the value to the list
+                num_ms2_scans.append(num_ms2)
+
+        sns.histplot(num_ms2_scans, bins=bins, ax=axs[i], kde=False)
+        axs[i].set_title(label)
+
+    # Set the labels for the x and y axes
+    for ax in axs:
+        ax.set_xlabel('Number of MS2 Scans')
+        ax.set_ylabel('Frequency')
+
+    # Adjust the layout
+    plt.tight_layout()
+
+    if out_file is not None:
+        plt.savefig(out_file, dpi=300)
+
+    if show_plot:
+        plt.show()
+
+
+def extract_ms2_counts(block_deconvoluter, lo=0, hi=int(1E6)):
+    """Extract MS2 counts from blocks within specified range."""
+    data = []
+    for block_id, scans in block_deconvoluter.blocks:
+        if lo <= block_id <= hi:
+            ms2_scans = scans[1:]
+            num_ms2 = len(ms2_scans)
+
+            # Append the value to the list
+            data.append(num_ms2)
+
+    return np.array(data)  # convert to numpy array here
+
+
+def compare_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, bins=range(16),
+                       lo=0, hi=int(1E6)):
+    # Extract MS2 counts from the real and simulated data
+    real_data = extract_ms2_counts(reference_block_deconvoluter, lo, hi)
+    simulated_data = extract_ms2_counts(simulated_block_deconvoluter, lo, hi)
+
+    # Compute histograms
+    real_hist, _ = np.histogram(real_data, bins=bins, density=True)
+    simulated_hist, _ = np.histogram(simulated_data, bins=bins, density=True)
+
+    # Compute sum of absolute differences
+    sum_of_abs_diff = np.sum(np.abs(real_hist - simulated_hist))
+
+    return sum_of_abs_diff
+
+
+def plot_heatmaps(rmse_ms1_array, rmse_ms2_array, sum_of_abs_diff_array, scores, penalty_factors,
+                  out_file=None, show_plot=True):
+    # Convert the scores and penalty factors to strings for labeling
+    scores_str = [str(s) for s in scores]
+    penalty_factors_str = [str(pf) for pf in penalty_factors]
+
+    # Create subplots
+    fig, axs = plt.subplots(1, 3, figsize=(18, 6))
+
+    # Create the first heatmap for rmse_ms1_array
+    img1 = axs[0].imshow(rmse_ms1_array, cmap='viridis', interpolation='none', aspect='auto')
+    fig.colorbar(img1, ax=axs[0], orientation='vertical')
+    axs[0].set_title('RMSE MS1')
+    axs[0].set_xticks(np.arange(len(penalty_factors)))
+    axs[0].set_yticks(np.arange(len(scores)))
+    axs[0].set_xticklabels(penalty_factors_str)
+    axs[0].set_yticklabels(scores_str)
+    axs[0].set_xlabel('Penalty Factor')
+    axs[0].set_ylabel('Score')
+
+    # Create the second heatmap for rmse_ms2_array
+    img2 = axs[1].imshow(rmse_ms2_array, cmap='viridis', interpolation='none', aspect='auto')
+    fig.colorbar(img2, ax=axs[1], orientation='vertical')
+    axs[1].set_title('RMSE MS2')
+    axs[1].set_xticks(np.arange(len(penalty_factors)))
+    axs[1].set_yticks(np.arange(len(scores)))
+    axs[1].set_xticklabels(penalty_factors_str)
+    axs[1].set_yticklabels(scores_str)
+    axs[1].set_xlabel('Penalty Factor')
+    axs[1].set_ylabel('Score')
+
+    # Create the third heatmap for sum_of_abs_diff_array
+    img3 = axs[2].imshow(sum_of_abs_diff_array, cmap='viridis', interpolation='none', aspect='auto')
+    fig.colorbar(img3, ax=axs[2], orientation='vertical')
+    axs[2].set_title('Sum of Abs Differences')
+    axs[2].set_xticks(np.arange(len(penalty_factors)))
+    axs[2].set_yticks(np.arange(len(scores)))
+    axs[2].set_xticklabels(penalty_factors_str)
+    axs[2].set_yticklabels(scores_str)
+    axs[2].set_xlabel('Penalty Factor')
+    axs[2].set_ylabel('Score')
+
+    # Show the plots
+    plt.tight_layout()
+
+    if out_file is not None:
+        plt.savefig(out_file, dpi=300)
+
+    if show_plot:
+        plt.show()
 
 class BlockDeconvoluter:
     def __init__(self, mz_file, max_blocks=ALL_BLOCKS, discard_first=False):

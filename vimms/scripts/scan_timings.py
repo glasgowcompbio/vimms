@@ -11,6 +11,9 @@ import numpy as np
 import seaborn as sns
 from loguru import logger
 import pymzml
+from scipy import interpolate
+from sklearn.metrics import mean_squared_error
+
 
 import pylab as plt
 from mass_spec_utils.data_import.mzml import MZMLFile
@@ -198,7 +201,7 @@ def count_stuff(input_file, min_rt, max_rt):
 
 
 def plot_num_scans(real_cumsum_ms1, real_cumsum_ms2, simulated_cumsum_ms1, simulated_cumsum_ms2,
-                   out_file=None):
+                   out_file=None, show_plot=True):
     plt.figure(figsize=(10, 10))
     plt.plot(real_cumsum_ms1[:, 0], real_cumsum_ms1[:, 1], 'r')
     plt.plot(real_cumsum_ms2[:, 0], real_cumsum_ms2[:, 1], 'b')
@@ -214,7 +217,26 @@ def plot_num_scans(real_cumsum_ms1, real_cumsum_ms2, simulated_cumsum_ms1, simul
     if out_file is not None:
         plt.savefig(out_file, dpi=300)
 
-    plt.show()
+    if show_plot:
+        plt.show()
+
+def compute_similarity(real_cumsum, simulated_cumsum):
+    # Interpolate to a common grid
+    common_grid = np.linspace(0, 7900, 1000)  # you can adjust the number of points
+
+    # Create the interpolation functions
+    real_interpolator = interpolate.interp1d(real_cumsum[:, 0], real_cumsum[:, 1], fill_value="extrapolate")
+    simulated_interpolator = interpolate.interp1d(simulated_cumsum[:, 0], simulated_cumsum[:, 1], fill_value="extrapolate")
+
+    # Interpolate the data
+    real_interpolated = real_interpolator(common_grid)
+    simulated_interpolated = simulated_interpolator(common_grid)
+
+    # Compute the mean squared error
+    mse = mean_squared_error(real_interpolated, simulated_interpolated)
+
+    return mse
+
 
 def main():
     args = parse_args()

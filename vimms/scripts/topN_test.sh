@@ -41,9 +41,9 @@ for score in "${min_fit_scores[@]}"; do
         fi
         # Run the script in the background if --parallel is specified
         if [ "$parallel" = true ]; then
-            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_decon_score $score --penalty_factor $penalty &
+            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty &
         else
-            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_decon_score $score --penalty_factor $penalty
+            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty
         fi
     done
 done

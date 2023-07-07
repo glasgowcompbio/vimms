@@ -30,6 +30,7 @@ if [ ! -d "$base_out_dir" ]; then
 fi
 
 # Loop through each combination of min_fit_scores and penalty_factors
+job_count=0
 for score in "${min_fit_scores[@]}"; do
     for penalty in "${penalty_factors[@]}"; do
         out_dir="${base_out_dir}/topN_timing_improvement_${at_least_one_point_above}_${charge_range_start}_${charge_range_end}_${score}_${penalty}"
@@ -42,6 +43,11 @@ for score in "${min_fit_scores[@]}"; do
         # Run the script in the background if --parallel is specified
         if [ "$parallel" = true ]; then
             python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty &
+            ((job_count++))
+            # If we've reached 10 jobs, wait for any job to complete
+            if (( job_count % 10 == 0 )); then
+                wait -n
+            fi
         else
             python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty
         fi

@@ -1,3 +1,4 @@
+import pprint
 import sys
 
 sys.path.append('..')
@@ -62,8 +63,6 @@ def parse_args():
                         help='Penalty factor for ms_deconvolve.')
     parser.add_argument('--out_dir', type=str, default='topN_test',
                         help='The directory where the output files will be stored.')
-    parser.add_argument('--pbar', type=bool, default=True,
-                        help='If true, progress bar will be shown.')
     parser.add_argument('--in_mzml', type=str, default='BSA_100fmol__recon_1ul_1.mzML',
                         help='The filename of the input mzML file.')
     parser.add_argument('--out_mzml', type=str, default='output.mzML',
@@ -150,6 +149,8 @@ def count_stuff(input_file, min_rt, max_rt):
 
 
 def main(args):
+    pprint.pprint(vars(args))
+
     # check input and output paths
     assert os.path.isfile(args.in_mzml), 'Input mzML file %s is not found!' % args.in_mzml
     out_dir = os.path.abspath(args.out_dir)
@@ -198,7 +199,7 @@ def run_simulation(args, dataset, st, out_dir):
         min_fit_score=min_fit_score, penalty_factor=penalty_factor)
 
     # create an environment to run both the mass spec and controller
-    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=args.pbar)
+    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
 
     # set the log level to WARNING so we don't see too many messages when environment is running
     set_log_level_warning()

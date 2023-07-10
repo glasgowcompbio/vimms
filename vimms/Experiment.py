@@ -61,8 +61,13 @@ class Shareable:
             }
             
         elif(self.name == "dsda"):
-            self.shared = DsDAState(**params, out_dir=out_dir)
+            for_controller = {"advanced_params", "task_filter"}
+            self.shared = DsDAState(
+                **{k: v for k, v in params.items() if not k in for_controller}, 
+                out_dir=out_dir
+            )
             self.params = {
+                **{k: v for k, v in params.items() if k in for_controller},
                 "dsda_state" : self.shared
             }
             
@@ -98,7 +103,11 @@ class Shareable:
             
             if(self.stored_controllers == []):
                 self.stored_controllers = list(reversed(
-                    MatchingController.from_matching(self.shared, params["isolation_width"])
+                    MatchingController.from_matching(
+                        self.shared, 
+                        params["isolation_width"],
+                        task_filter=params.get("task_filter", None)
+                    )
                 ))
             
         else:
@@ -303,7 +312,7 @@ class Experiment:
         ppath = os.path.join(out_dir, f"{basename}_temp.pkl")
         ChemSet.dump_chems(generated, ppath)
         
-        return ppath  
+        return ppath
 
     @staticmethod
     def _run_case(case, chems, out_dir, pbar, min_rt, max_rt, ionisation_mode, scan_duration_dict):

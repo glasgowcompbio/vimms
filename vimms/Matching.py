@@ -587,6 +587,7 @@ class Matching():
     def make_schedules(self, isolation_width):
         id_count, precursor_id = INITIAL_SCAN_ID, -1
         schedules_list = [[] for _ in self.scans_list]
+        rts_list = [[] for _ in self.scans_list]
         ms2_targets = itertools.chain(*self.full_assignment)
         
         for i, scans in enumerate(self.scans_list):
@@ -607,6 +608,7 @@ class Matching():
                             scan_id=id_count
                         )
                     )
+                rts_list[i].append(s.rt)
                 id_count += 1
         
-        return schedules_list
+        return schedules_list, rts_list

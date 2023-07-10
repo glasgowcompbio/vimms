@@ -216,6 +216,12 @@ class DsDAState():
         self.mzml_names = []
         self.schedule_names = []
         
+    @staticmethod
+    def get_scan_times(schedule_file):
+        with open(schedule_file, 'r') as f:
+            rt_idx = f.readline().split(",").index("rt")
+            return [float(ln.split(",")[rt_idx]) for ln in f]
+        
     def create_dsda_schedule(self, scan_duration_dict, N, min_rt, max_rt):
         pathlib.Path(os.path.join(self.out_dir, "dsda")).mkdir(parents=True, exist_ok=True)
         fname = os.path.join(self.out_dir, "dsda", "DsDA_Timing_schedule.csv")
@@ -289,7 +295,9 @@ class DsDAState():
             self.base_controller.rt_tol
         )
         
-        return schedule_params
+        rts = self.get_scan_times(self.time_schedule)
+        
+        return schedule_params, rts
         
     def get_base_controller(self):
         return copy.deepcopy(self.base_controller)

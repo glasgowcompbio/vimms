@@ -15,11 +15,87 @@ from loguru import logger
 
 from vimms.Common import (
     INITIAL_SCAN_ID, get_default_scan_params,
-    get_dda_scan_param, DEFAULT_ISOLATION_WIDTH
+    get_dda_scan_param, DEFAULT_ISOLATION_WIDTH,
+    ScanParameters
 )
 from vimms.PeakPicking import MZMineParams, XCMSParams
 from vimms.Controller.base import Controller, WrapperController
 
+
+class TaskFilter():
+    '''
+        Default object that can be used with FixedScansController to update
+        schedule dynamically
+    '''
+    def __init__(self, ms1_length, ms2_length, skip_margin=0.5, add_margin=1.2):
+        self.ms1_length = ms1_length
+        self.ms2_length = ms2_length
+        self.min_length = min(ms1_length, ms2_length)
+        
+        self.skip_margin = skip_margin
+        self.add_margin = add_margin
+        
+    @staticmethod
+    def make_ms2(task_idx, tasks, precursor_id, scan_id):
+        dist = 1
+        max_dist = max(task_idx, len(tasks) - task_idx - 1)
+        while(dist <= max_dist):
+            
+            right_idx = task_idx + dist
+            if(right_idx < len(tasks) and tasks[right_idx].get(ScanParameters.MS_LEVEL) == 2):
+                task_idx = right_idx
+                break
+            
+            left_idx = task_idx - dist
+            if(left_idx > -1 and tasks[left_idx].get(ScanParameters.MS_LEVEL) == 2):
+                task_idx = left_idx
+                break
+            
+            dist += 1
+            
+        if(dist <= max_dist):
+            template_scan = tasks[task_idx]
+            precursor_mz = template_scan.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
+            isolation_width = template_scan.get(ScanParameters.ISOLATION_WIDTH)[0]
+        else:
+            precursor_mz = 100.0
+            isolation_width = 1.0
+    
+        return get_dda_scan_param(
+            precursor_mz, 
+            0.0, 
+            precursor_id,
+            isolation_width,
+            0.0, 
+            0.0,
+            scan_id=scan_id
+        )
+        
+    def get_task(self, scan, scan_id, precursor_id, task_idx, expected_rts, tasks):
+        actual_rt = scan.rt
+        expected_rt = expected_rts[task_idx]
+        rt_dist = expected_rt - actual_rt
+
+        if(rt_dist > self.add_margin * self.min_length):
+            if(self.ms1_length > self.ms2_length):
+                if(rt_dist > self.add_margin * self.ms1_length):
+                    new_task = get_default_scan_params(scan_id=precursor_id)
+                else:
+                    new_task = self.make_ms2(task_idx, tasks, precursor_id, scan_id)
+            else:
+                if(rt_dist > self.add_margin * self.ms1_length):
+                    new_task = self.make_ms2(task_idx, tasks, precursor_id, scan_id)
+                else:
+                    new_task = get_default_scan_params(scan_id=precursor_id)
+            return task_idx, new_task
+        else:
+            if(task_idx >= len(tasks) - 1): return task_idx, tasks[task_idx]
+            
+            while(actual_rt >= expected_rts[task_idx + 1] - self.skip_margin * self.ms2_length):
+                task_idx += 1
+                if(task_idx >= len(tasks) - 1): return task_idx, tasks[task_idx]
+            
+            return task_idx + 1, tasks[task_idx]
 
 class FixedScansController(Controller):
     """
@@ -27,19 +103,30 @@ class FixedScansController(Controller):
     tasks in queue
     """
 
-    def __init__(self, schedule=None, advanced_params=None):
+    def __init__(self, schedule=None, advanced_params=None, expected_rts=None, task_filter=None):
         """
         Creates a FixedScansController that accepts a list of schedule of
         scan parameters
         :param schedule: a list of ScanParameter objects
         :param advanced_params: mass spec advanced parameters, if any
+        :param expected_rts: gives times tasks are expected to appear at
+                             needed to update tasks dynamically with task_filter
+        :param task_filter: object that examines the task list and adds or deletes 
+                            tasks to ensure schedule remains in sync with the actual
+                            RT
         """
         super().__init__(advanced_params=advanced_params)
         self.tasks = None
         self.initial_task = None
+        self.task_idx = 0
+        self.expected_rts = expected_rts
+        self.task_filter = task_filter
+        
         if schedule is not None and len(schedule) > 0:
             # if schedule is provided, set it
             self.set_tasks(schedule)
+            self.scan_id = schedule[0].get(ScanParameters.SCAN_ID)
+            self.precursor_id = None
 
     def get_initial_tasks(self):
         """
@@ -49,7 +136,10 @@ class FixedScansController(Controller):
         """
         # the remaining scan parameters in the schedule must have been set
         assert self.tasks is not None
-        return self.tasks
+        if(self.task_filter is None):
+            return self.tasks
+        else:
+            return []
 
     def get_initial_scan_params(self):
         """
@@ -75,25 +165,45 @@ class FixedScansController(Controller):
         # simply record every scan that we've received, but return no new tasks
         logger.debug('Time %f Received %s' % (scan.rt, scan))
         self.scans[scan.ms_level].append(scan)
-        return []
+        return self._process_scan(scan)
 
     def update_state_after_scan(self, last_scan):
         pass
 
     def _process_scan(self, scan):
-        pass
+        if(self.task_filter is None):
+            return []
+        else:
+            self.task_idx, new_task = self.task_filter.get_task(
+                scan, 
+                self.scan_id, 
+                self.precursor_id, 
+                self.task_idx, 
+                self.expected_rts, 
+                self.tasks
+            )
+            self.scan_id += 1
+            if(new_task.get(ScanParameters.MS_LEVEL) == 1):
+                self.precursor_id = self.scan_id
+            return [new_task]
         
 
 class DsDAController(WrapperController):
-    def __init__(self, dsda_state, mzml_name):
+    def __init__(self, dsda_state, mzml_name, advanced_params=None, task_filter=None):
         self.dsda_state = dsda_state
         self.mzml_name = mzml_name
+        self.task_filter = task_filter
         
         if(dsda_state.file_num == 0):
             self.controller = self.dsda_state.get_base_controller()
         else:
-            schedule_params = self.dsda_state.get_scan_params()
-            self.controller = FixedScansController(schedule=schedule_params)
+            schedule_params, rts = self.dsda_state.get_scan_params()
+            self.controller = FixedScansController(
+                schedule=schedule_params,
+                advanced_params=advanced_params,
+                expected_rts=rts,
+                task_filter=task_filter
+            )
             
         print(self.controller)
         super().__init__()
@@ -391,10 +501,15 @@ class MatchingController(FixedScansController):
     coverage
     """
     @classmethod
-    def from_matching(cls, matching, isolation_width, advanced_params=None):
+    def from_matching(cls, matching, isolation_width, advanced_params=None, task_filter=None):
         return [
-            MatchingController(schedule=schedule, advanced_params=advanced_params) 
-            for schedule in matching.make_schedules(isolation_width)
+            MatchingController(
+                schedule=schedule, 
+                advanced_params=advanced_params,
+                expected_rts=rts,
+                task_filter=task_filter
+            ) 
+            for schedule, rts in zip(*matching.make_schedules(isolation_width))
         ]
 
 

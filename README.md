@@ -1,10 +1,10 @@
+![ViMMS Logo](images/logo.png?raw=true "ViMMS Logo")
+
 # About
 
 Liquid-Chromatography (LC) coupled with tandem mass spectrometry (MS/MS) is a prevalent technique for identifying small molecules in untargeted metabolomics. There are various strategies for acquiring MS/MS fragmentation spectra, but devising new methods is often challenging due to the absence of a structured environment where researchers can prototype, compare, and optimize strategies before testing on real equipment. 
 
 To solve this, we introduce the **V**irtual **M**etabolomics **M**ass **S**pectrometer (**VIMMS**), a flexible and modular framework designed to simulate fragmentation strategies in tandem mass spectrometry-based metabolomics. 
-
-![ViMMS Logo](images/logo.png?raw=true "ViMMS Logo")
 
 # Quick Start & Documentation
 

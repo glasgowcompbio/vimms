@@ -1,1 +1,5 @@
 remote_theme: just-the-docs/just-the-docs
+nav_external_links:
+  - title: Documentation
+    url: https://vimms.readthedocs.io
+    hide_icon: false # set to true to hide the external link icon - defaults to false

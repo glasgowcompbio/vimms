@@ -9,7 +9,7 @@ To solve this, we introduce the **V**irtual **M**etabolomics **M**ass **S**pectr
 # Quick Start & Documentation
 
 Eager to start using ViMMS? Take advantage of these resources:
-- [Installation guide](installation.md).
+- [Installation guide](pages/installation.md).
 - Visit our project documentation page: [![Documentation Status](https://readthedocs.org/projects/vimms/badge/?version=latest)](http://vimms.readthedocs.io/?badge=latest)
 - Our [Demo folder](https://github.com/glasgowcompbio/vimms/tree/master/demo) contains notebooks that demonstrate how to use the framework in a simulated environment.
 - For specific examples that accompany our publications, see the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples).
@@ -32,8 +32,8 @@ For instance, consider these examples of an MS1 (fullscan) controller and a Top-
 
 # Contributions
 
-As an open-source project licensed under MIT, ViMMS welcomes all forms of contributions, including bug fixes, new features, and more. You can find our community contribution guidelines [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).
+As an open-source project licensed under MIT, we welcomes all forms of contributions, including bug fixes, new features, and more. You can find our community contribution guidelines [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).
 
 # Publications 
 
-To cite ViMMS or see the list of publications that are built on top of ViMMS, please refer to [here](research.md).
+To cite ViMMS or see the list of publications that are built on top of ViMMS, please refer to the [Research](pages/research.md) page.

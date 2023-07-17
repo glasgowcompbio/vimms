@@ -18,7 +18,7 @@ The following publications have utilized ViMMS to develop or benchmark innovativ
 ViMMS is an actively developed framework that has been presented at various metabolomics and computational biology venues:
 
 - **16th Annual Conference of the Metabolomics Society 2020.**
-  - Presentation: [* Framework for the Rapid Development of New Data-Dependent Acquisition Strategies *](https://github.com/joewandy/joewandy/raw/main/presentations/Metabolomics_2020.pdf)
+  - Presentation: [*A Framework for the Rapid Development of New Data-Dependent Acquisition Strategies*](https://github.com/joewandy/joewandy/raw/main/presentations/Metabolomics_2020.pdf)
   - Type: Poster Presentation
 
 - **28th Conference on Intelligent Systems for Molecular Biology (ISMB) 2020.**

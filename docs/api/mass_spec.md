@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Documentation for `MassSpec.py`
 
 ::: vimms.MassSpec

@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Welcome to ViMMS
 
 Welcome to **V**irtual **M**etabolomics **M**ass **S**pectrometer 

@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Creating Chemicals
 
 Chemical objects are the input run through simulated LC-MS/MS process in ViMMS simulation. There are two types of

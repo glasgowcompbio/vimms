@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Running Controllers
 
 Chemicals that have been created can now be run through various fragmentation strategies, implemented as

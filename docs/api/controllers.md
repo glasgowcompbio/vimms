@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Documentation for `Controllers`
 
 A controller is an implementation of a fragmentation strategy, which decides how particular

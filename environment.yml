@@ -33,7 +33,7 @@ dependencies:
     - gpy
     - mkdocs
     - mkdocstrings
-    - mkdocstringspython
+    - mkdocstrings[python]
     - pymzml==2.4.7
     - psims
     - mass-spec-utils

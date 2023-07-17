@@ -42,7 +42,6 @@ twine = "*"
 build = "*"
 mkdocs = "*"
 mkdocstrings = "*"
-mkdocstringspython = "*"
 
 [requires]
 python_version = "3"

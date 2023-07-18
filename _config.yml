@@ -1,6 +1,6 @@
 remote_theme: just-the-docs/just-the-docs
 nav_external_links:
-  - title: Documentation
+  - title: API Documentation
     url: https://vimms.readthedocs.io
   - title: Demonstration codes
     url: https://github.com/glasgowcompbio/vimms/tree/master/demo

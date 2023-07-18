@@ -64,5 +64,5 @@ echo "Incorrect header lines removed."
 # Clean up temporary files
 echo
 echo "## Cleaning up temporary files"
-rm -f $temp_dir
+rm -rf $temp_dir
 echo "Temporary files removed. Process finished."

@@ -28,4 +28,5 @@ As an open-source project licensed under MIT, we welcomes all forms of contribut
 
 # Citing ViMMS 
 
-To cite ViMMS or read about the list of publications that are built on top of ViMMS, please refer to the [Research](pages/research.md) page.
+To cite ViMMS or read about the list of publications that are built on top of ViMMS, please refer to the [Publications](pages/publications.md) page.
+ViMMS is also actively [presented](pages/talks.md) in various computational biology venues.

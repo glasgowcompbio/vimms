@@ -20,20 +20,12 @@ ViMMS provides scan-level control simulation of the MS2 acquisition process in a
 
 Moreover, ViMMS serves as a platform for the development, optimization, and testing of new fragmentation strategies. These strategies can be implemented by extending a Controller class in ViMMS, and can be tested on both the simulator and actual mass spectrometry instruments that support compatible APIs.
 
-### 1. Simulate Fragmentation Strategies
-
-With ViMMS, you can implement and test widely used fragmentation strategies, such as Top-N, on various simulated data. This data can either be entirely generated in-silico, by sampling from a database of formulas, or produced to mirror the characteristics of real data. For an example, refer to [these notebooks](https://github.com/glasgowcompbio/vimms/tree/master/demo/01.%20Data).
-
-### 2. Develop New Fragmentation Strategies
-
-You can create new fragmentation strategies in ViMMS by extending from a base Controller class. These controllers can be run in both simulated and real-world settings, interfacing with actual mass spectrometry instruments. Currently, we only support the Thermo Fusion instrument via [IAPI](https://github.com/thermofisherlsms/iapi), but feel free to reach out if you want to add support for other instruments.
-
-For instance, consider these examples of an MS1 (fullscan) controller and a Top-N controller: [MS1 Controller](https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/fullscan.py) and [Top-N Controller](https://github.com/glasgowcompbio/vimms/blob/master/vimms/Controller/topN.py).
+To see a more thorough explanation of the use cases of ViMMS, please refer to the [Use Cases](pages/use_cases.md) section.
 
 # Contributions
 
 As an open-source project licensed under MIT, we welcomes all forms of contributions, including bug fixes, new features, and more. You can find our community contribution guidelines [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).
 
-# Publications 
+# Citing ViMMS 
 
-To cite ViMMS or see the list of publications that are built on top of ViMMS, please refer to the [Research](pages/research.md) page.
+To cite ViMMS or read about the list of publications that are built on top of ViMMS, please refer to the [Research](pages/research.md) page.

@@ -245,8 +245,8 @@ if __name__ == '__main__':
 
             coverage_prop = report['cumulative_coverage_proportion']
             intensity_prop = report['cumulative_intensity_proportion']
-            coverage_array[i, j] = coverage_prop
-            intensity_array[i, j] = intensity_prop
+            coverage_array[i, j] = coverage_prop[0]
+            intensity_array[i, j] = intensity_prop[0]
 
     save_obj(results, os.path.join(out_dir, 'topN_optimise_results.p'))
     save_obj(coverage_array, os.path.join(out_dir, 'topN_coverage_array.p'))

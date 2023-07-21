@@ -182,7 +182,7 @@ class Evaluator(metaclass=ABCMeta):
         raw_intensities = self.chem_info[:, self.MAX_FRAG_INTENSITY, :].T
 
         coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
-        coverage = np.array(coverage_intensities, dtype=np.bool)
+        coverage = np.array(coverage_intensities, dtype=bool)
 
         times_fragmented = np.sum(frag_counts, axis=0)
         times_fragmented_summary = {

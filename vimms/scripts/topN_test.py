@@ -28,11 +28,11 @@ def parse_args():
                         help='The minimum intensity value for ROI extraction.')
     parser.add_argument('--min_rt', type=int, default=0,
                         help='The minimum retention time for Top-N.')
-    parser.add_argument('--max_rt', type=int, default=7700,
+    parser.add_argument('--max_rt', type=int, default=7200,
                         help='The maximum retention time for Top-N.')
     parser.add_argument('--num_bins', type=int, default=20,
                         help='The number of bins to sample scan durations from.')
-    parser.add_argument('--isolation_window', type=int, default=1,
+    parser.add_argument('--isolation_window', type=int, default=0.7,
                         help='The isolation window for Top-N.')
     parser.add_argument('--N', type=int, default=15,
                         help='The Top N value.')
@@ -56,9 +56,9 @@ def parse_args():
                         help='The start of the charge range for filtering.')
     parser.add_argument('--charge_range_end', type=int, default=6,
                         help='The end of the charge range for filtering.')
-    parser.add_argument('--min_fit_score', type=int, default=160,
+    parser.add_argument('--min_fit_score', type=int, default=80,
                         help='The minimum fit score from ms_deconvolve.')
-    parser.add_argument('--penalty_factor', type=float, default=1.0,
+    parser.add_argument('--penalty_factor', type=float, default=1.5,
                         help='Penalty factor for ms_deconvolve.')
     parser.add_argument('--out_dir', type=str, default='topN_test',
                         help='The directory where the output files will be stored.')

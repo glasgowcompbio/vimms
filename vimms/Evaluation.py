@@ -564,9 +564,9 @@ class RealEvaluator(Evaluator):
             box = GenericBox(
                 rt_start,
                 rt_end,
-                mz - 0.001,
-                mz + 0.001
-            ).apply_min_box_ppm(ywidth=min_box_ppm)
+                mz - 0.01,
+                mz + 0.01
+            )#.apply_min_box_ppm(ywidth=min_box_ppm)
 
             chems.append([box])
 

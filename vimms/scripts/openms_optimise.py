@@ -236,8 +236,8 @@ if __name__ == '__main__':
 
             mzml_file = os.path.join(out_dir, out_file)
             logger.info(f'Now processing fragmentation file {mzml_file}')
-            eva = evaluate_fragmentation(csv_file, mzml_file, args.isolation_width)
-            report = eva.evaluation_report()
+            eva = evaluate_fragmentation(csv_file, mzml_file, params.ISOLATION_WINDOW)
+            report = eva.evaluation_report(min_intensity=params.MIN_MS1_INTENSITY)
 
             key = (n, rt_tol)
             results[key] = report

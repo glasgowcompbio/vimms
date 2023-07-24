@@ -246,7 +246,7 @@ if __name__ == '__main__':
     for i, n in enumerate(N_values):
         for j, rt_tol in enumerate(RT_TOL_values):
             # simulate and evaluate the combination of N and RT_TOL
-            report = simulate_evaluate_topN()
+            report = simulate_evaluate_topN(n, rt_tol)
             results[(n, rt_tol)] = report
 
             # store the results

@@ -324,7 +324,8 @@ if __name__ == '__main__':
     create_if_not_exist(out_dir)
 
     # Format output file names
-    chem_file, st_file = get_input_filenames(args.at_least_one_point_above, out_dir)
+    chem_file, st_file, study_name, study_file = get_input_filenames(
+        args.at_least_one_point_above, args.method, out_dir)
 
     # extract chems and scan timing from mzml file
     dataset = extract_chems(args.seed_file, chem_file, args.at_least_one_point_above)
@@ -332,7 +333,10 @@ if __name__ == '__main__':
 
     simulator = TopNSimulator(args, out_dir, pbar=args.pbar)
     if args.optuna_use:
-        study = optuna.create_study(direction='maximize')
+        db_name = os.path.abspath(study_file)
+        storage_name = f'sqlite:///{db_name}'
+        study = optuna.create_study(study_name=study_name, storage=storage_name,
+                                    load_if_exists=True, direction='maximize')
         study.optimize(simulator.objective, n_trials=args.optuna_n_trials)
         save_study(study, simulator.results, out_dir)
 

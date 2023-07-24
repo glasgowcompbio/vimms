@@ -70,12 +70,15 @@ def parse_args():
     return args
 
 
-def get_input_filenames(at_least_one_point_above, base_dir):
+def get_input_filenames(at_least_one_point_above, method, base_dir):
     formatted_number = '%.0e' % at_least_one_point_above
     formatted_number = formatted_number.replace('e', 'E').replace('+', '')
     chem_file = os.path.join(base_dir, f'chems_{formatted_number}.p')
     st_file = os.path.join(base_dir, f'scan_timing_{formatted_number}.p')
-    return chem_file, st_file
+
+    study_name = f'study_{method}_{formatted_number}'
+    study_file = os.path.join(base_dir, f'{study_name}.db')
+    return chem_file, st_file, study_name, study_file
 
 
 def extract_scan_timing(mzml_file, st_file, num_bins):

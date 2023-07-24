@@ -184,6 +184,25 @@ def plot_heatmaps(coverage_array, intensity_array, out_dir):
     fig.savefig(os.path.join(out_dir, 'heatmap.png'), dpi=300)
 
 
+def simulate_evaluate_topN(n, rt_tol):
+    params = (TopNParametersBuilder()
+              .set_N(n)
+              .set_RT_TOL(rt_tol)
+              .build())
+
+    # your simulation code here...
+    out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}.mzML'
+    run_simulation(params, dataset, st, out_dir, out_file, pbar)
+    mzml_file = os.path.join(out_dir, out_file)
+
+    logger.info(f'Now processing fragmentation file {mzml_file}')
+    eva = evaluate_fragmentation(csv_file, mzml_file, params.ISOLATION_WINDOW)
+    print(n, rt_tol, eva.summarise(min_intensity=params.MIN_MS1_INTENSITY))
+
+    report = eva.evaluation_report(min_intensity=params.MIN_MS1_INTENSITY)
+    return report
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Optimise controllers on proteomics data using ViMMS')
     parser.add_argument('seed_file', type=str)
@@ -215,41 +234,31 @@ if __name__ == '__main__':
     dataset = extract_chems(args.seed_file, chem_file, args.at_least_one_point_above)
     st = extract_scan_timing(args.seed_file, st_file, args.num_bins)
 
+    # different combinations of N and RT_TOl to check
     N_values = [5, 10, 15, 20, 25, 30]
     RT_TOL_values = [5, 10, 15, 30, 60, 120, 180, 240, 300]
     pbar = True
 
+    # grid search for N and RT_TOL
     results = {}
     coverage_array = np.zeros((len(N_values), len(RT_TOL_values)))
     intensity_array = np.zeros((len(N_values), len(RT_TOL_values)))
-
     for i, n in enumerate(N_values):
         for j, rt_tol in enumerate(RT_TOL_values):
-            params = (TopNParametersBuilder()
-                      .set_N(n)
-                      .set_RT_TOL(rt_tol)
-                      .build())
+            # simulate and evaluate the combination of N and RT_TOL
+            report = simulate_evaluate_topN()
+            results[(n, rt_tol)] = report
 
-            # your simulation code here...
-            out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}.mzML'
-            run_simulation(params, dataset, st, out_dir, out_file, pbar)
-
-            mzml_file = os.path.join(out_dir, out_file)
-            logger.info(f'Now processing fragmentation file {mzml_file}')
-            eva = evaluate_fragmentation(csv_file, mzml_file, params.ISOLATION_WINDOW)
-            report = eva.evaluation_report(min_intensity=params.MIN_MS1_INTENSITY)
-
-            key = (n, rt_tol)
-            results[key] = report
-            print(key, eva.summarise())
-
+            # store the results
             coverage_prop = report['cumulative_coverage_proportion']
             intensity_prop = report['cumulative_intensity_proportion']
             coverage_array[i, j] = coverage_prop[0]
             intensity_array[i, j] = intensity_prop[0]
 
+    # save pickled results
     save_obj(results, os.path.join(out_dir, 'topN_optimise_results.p'))
     save_obj(coverage_array, os.path.join(out_dir, 'topN_coverage_array.p'))
     save_obj(intensity_array, os.path.join(out_dir, 'topN_intensity_array.p'))
 
+    # save heatmap
     plot_heatmaps(coverage_array, intensity_array, out_dir)

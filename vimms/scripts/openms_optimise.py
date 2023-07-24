@@ -140,24 +140,26 @@ class TopNSimulator:
         # for grid search
         self.N_values = [5, 10, 15, 20, 25, 30]
         self.RT_TOL_values = [5, 10, 15, 30, 60, 120, 180, 240, 300]
+        self.EXCLUDE_T0_value = 15
         self.results = {}
         self.coverage_array = np.zeros((len(self.N_values), len(self.RT_TOL_values)))
         self.intensity_array = np.zeros((len(self.N_values), len(self.RT_TOL_values)))
 
-    def simulate(self, n, rt_tol):
+    def simulate(self, n, rt_tol, exclude_t0):
         params = (TopNParametersBuilder()
                   .set_N(n)
                   .set_RT_TOL(rt_tol)
+                  .set_EXCLUDE_T0(exclude_t0)
                   .build())
 
         # your simulation code here...
-        out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}.mzML'
+        out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}_exclude_t0_{params.EXCLUDE_T0}.mzML'
         self.run_simulation(params, dataset, st, self.out_dir, out_file)
         mzml_file = os.path.join(self.out_dir, out_file)
 
         logger.debug(f'Now processing fragmentation file {mzml_file}')
         eva = evaluate_fragmentation(csv_file, mzml_file, params.ISOLATION_WINDOW)
-        logger.debug(f'N={n} RT_TOL={rt_tol}')
+        logger.debug(f'N={n} RT_TOL={rt_tol} exclude_t0={exclude_t0}')
         logger.debug(eva.summarise(min_intensity=params.MIN_MS1_INTENSITY))
 
         report = eva.evaluation_report(min_intensity=params.MIN_MS1_INTENSITY)
@@ -206,11 +208,12 @@ class TopNSimulator:
 
     def grid_search(self):
         logger.debug(f'Performing grid search using N={self.N_values} and rt_tol={self.RT_TOL_values}')
+        exclude_t0 = self.EXCLUDE_T0_value
         for i, n in enumerate(self.N_values):
             for j, rt_tol in enumerate(self.RT_TOL_values):
                 # simulate and evaluate the combination of N and RT_TOL
-                report = self.simulate(n, rt_tol)
-                self.results[(n, rt_tol)] = report
+                report = self.simulate(n, rt_tol, exclude_t0)
+                self.results[(n, rt_tol, exclude_t0)] = report
 
                 # store the results
                 coverage_prop = report['cumulative_coverage_proportion']
@@ -251,10 +254,11 @@ class TopNSimulator:
         # define the space for hyperparameters
         n = trial.suggest_int('N', 5, 30, step=5)
         rt_tol = trial.suggest_int('RT_TOL', 5, 300, step=5)
+        exclude_t0 = trial.suggest_int('EXCLUDE_t0', 5, 60, step=5)
 
         # simulate and evaluate the combination of N and RT_TOL
-        report = self.simulate(n, rt_tol)
-        self.results[(n, rt_tol)] = report
+        report = self.simulate(n, rt_tol, exclude_t0)
+        self.results[(n, rt_tol, exclude_t0)] = report
 
         # Access args.optimize
         if self.args.optuna_optimise == 'coverage_prop':
@@ -266,13 +270,16 @@ class TopNSimulator:
                              f"Choose 'coverage_prop' or 'intensity_prop'.")
 
 
-def save_study(study, out_dir):
+def save_study(study, results, out_dir):
     trial = study.best_trial
     logger.info(f'Number of finished trials: {len(study.trials)}')
     logger.info(f'Best trial value: {trial.value}')
     logger.info('Best trial params: ')
     for key, value in trial.params.items():
         logger.info(f'    {key}: {value}')
+
+    # save pickled results
+    save_obj(results, os.path.join(out_dir, 'topN_optimise_results.p'))
 
     # Write report csv and plots
     study.trials_dataframe().to_csv(os.path.join(out_dir, f'study.csv'))
@@ -327,7 +334,7 @@ if __name__ == '__main__':
     if args.optuna_use:
         study = optuna.create_study(direction='maximize')
         study.optimize(simulator.objective, n_trials=args.optuna_n_trials)
-        save_study(study, out_dir)
+        save_study(study, simulator.results, out_dir)
 
     else:  # grid search
         simulator.grid_search()

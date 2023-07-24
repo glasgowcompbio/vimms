@@ -98,6 +98,6 @@ if __name__ == '__main__':
 
     csv_file = extract_boxes(args.seed_file, args.openms_dir, args.openms_ini_file)
 
-    logger.info(f'Now processing fragmentation file {args.mzml_file}')
+    logger.debug(f'Now processing fragmentation file {args.mzml_file}')
     eva = evaluate_fragmentation(csv_file, args.mzml_file, args.isolation_width)
     print(eva.summarise())

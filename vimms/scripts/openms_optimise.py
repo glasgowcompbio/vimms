@@ -8,7 +8,11 @@ import argparse
 
 import numpy as np
 import pylab as plt
+import seaborn as sns
 from loguru import logger
+import optuna
+
+from optuna.visualization import plot_optimization_history, plot_param_importances
 
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Controller import TopNController, AdvancedParams
@@ -127,99 +131,184 @@ class TopNParametersBuilder:
         return self.topNParameters
 
 
-def run_simulation(args, dataset, st, out_dir, out_file, pbar=False):
-    # Top-N parameters
-    rt_range = [(args.MIN_RT, args.MAX_RT)]
-    min_rt = rt_range[0][0]
-    max_rt = rt_range[0][1]
-    isolation_window = args.ISOLATION_WINDOW
-    N = args.N
-    rt_tol = args.RT_TOL
-    mz_tol = args.MZ_TOL
-    min_ms1_intensity = args.MIN_MS1_INTENSITY
-    min_fit_score = args.MIN_FIT_SCORE
-    penalty_factor = args.PENALTY_FACTOR
-    default_ms1_scan_window = (
-        args.DEFAULT_MS1_SCAN_WINDOW_START, args.DEFAULT_MS1_SCAN_WINDOW_END)
+class TopNSimulator:
+    def __init__(self, args, out_dir, pbar=False):
+        self.args = args
+        self.out_dir = out_dir
+        self.pbar = pbar
 
-    # DEW, isotope and charge filtering parameters
-    exclude_after_n_times = args.EXCLUDE_AFTER_N_TIMES
-    exclude_t0 = args.EXCLUDE_T0
-    deisotope = args.DEISOTOPE
-    charge_range = (args.CHARGE_RANGE_START, args.CHARGE_RANGE_END)
+        # for grid search
+        self.N_values = [5, 10, 15, 20, 25, 30]
+        self.RT_TOL_values = [5, 10, 15, 30, 60, 120, 180, 240, 300]
+        self.results = {}
+        self.coverage_array = np.zeros((len(self.N_values), len(self.RT_TOL_values)))
+        self.intensity_array = np.zeros((len(self.N_values), len(self.RT_TOL_values)))
 
-    # create controller and mass spec objects
-    params = AdvancedParams(default_ms1_scan_window=default_ms1_scan_window)
-    mass_spec = IndependentMassSpectrometer(POSITIVE, dataset, scan_duration=st)
-    controller = TopNController(
-        POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
-        advanced_params=params, exclude_after_n_times=exclude_after_n_times,
-        exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
-        min_fit_score=min_fit_score, penalty_factor=penalty_factor)
+    def simulate(self, n, rt_tol):
+        params = (TopNParametersBuilder()
+                  .set_N(n)
+                  .set_RT_TOL(rt_tol)
+                  .build())
 
-    # create an environment to run both the mass spec and controller
-    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar)
+        # your simulation code here...
+        out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}.mzML'
+        self.run_simulation(params, dataset, st, self.out_dir, out_file)
+        mzml_file = os.path.join(self.out_dir, out_file)
 
-    # set the log level to WARNING so we don't see too many messages when environment is running
-    set_log_level_warning()
+        logger.debug(f'Now processing fragmentation file {mzml_file}')
+        eva = evaluate_fragmentation(csv_file, mzml_file, params.ISOLATION_WINDOW)
+        logger.debug(f'N={n} RT_TOL={rt_tol}')
+        logger.debug(eva.summarise(min_intensity=params.MIN_MS1_INTENSITY))
 
-    # run the simulation
-    env.run()
-    set_log_level_debug()
-    env.write_mzML(out_dir, out_file)
+        report = eva.evaluation_report(min_intensity=params.MIN_MS1_INTENSITY)
+        return report
+
+    def run_simulation(self, params, dataset, st, out_dir, out_file):
+        # Top-N parameters
+        rt_range = [(params.MIN_RT, params.MAX_RT)]
+        min_rt = rt_range[0][0]
+        max_rt = rt_range[0][1]
+        isolation_window = params.ISOLATION_WINDOW
+        N = params.N
+        rt_tol = params.RT_TOL
+        mz_tol = params.MZ_TOL
+        min_ms1_intensity = params.MIN_MS1_INTENSITY
+        min_fit_score = params.MIN_FIT_SCORE
+        penalty_factor = params.PENALTY_FACTOR
+        default_ms1_scan_window = (
+            params.DEFAULT_MS1_SCAN_WINDOW_START, params.DEFAULT_MS1_SCAN_WINDOW_END)
+
+        # DEW, isotope and charge filtering parameters
+        exclude_after_n_times = params.EXCLUDE_AFTER_N_TIMES
+        exclude_t0 = params.EXCLUDE_T0
+        deisotope = params.DEISOTOPE
+        charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
+
+        # create controller and mass spec objects
+        params = AdvancedParams(default_ms1_scan_window=default_ms1_scan_window)
+        mass_spec = IndependentMassSpectrometer(POSITIVE, dataset, scan_duration=st)
+        controller = TopNController(
+            POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
+            advanced_params=params, exclude_after_n_times=exclude_after_n_times,
+            exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
+            min_fit_score=min_fit_score, penalty_factor=penalty_factor)
+
+        # create an environment to run both the mass spec and controller
+        env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=self.pbar)
+
+        # set the log level to WARNING so we don't see too many messages when environment is running
+        set_log_level_warning()
+
+        # run the simulation
+        env.run()
+        set_log_level_debug()
+        env.write_mzML(out_dir, out_file)
+
+    def grid_search(self):
+        logger.debug(f'Performing grid search using N={self.N_values} and rt_tol={self.RT_TOL_values}')
+        for i, n in enumerate(self.N_values):
+            for j, rt_tol in enumerate(self.RT_TOL_values):
+                # simulate and evaluate the combination of N and RT_TOL
+                report = self.simulate(n, rt_tol)
+                self.results[(n, rt_tol)] = report
+
+                # store the results
+                coverage_prop = report['cumulative_coverage_proportion']
+                intensity_prop = report['cumulative_intensity_proportion']
+                self.coverage_array[i, j] = coverage_prop[0]
+                self.intensity_array[i, j] = intensity_prop[0]
+
+    def save_grid_search_results(self):
+        logger.debug(f'Saving grid search results to {self.out_dir}')
+
+        # save pickled results
+        data = {
+            'topN_optimise_results.p': self.results,
+            'topN_coverage_array.p': self.coverage_array,
+            'topN_intensity_array.p': self.intensity_array
+        }
+        for filename, data_obj in data.items():
+            save_obj(data_obj, os.path.join(self.out_dir, filename))
+
+        # save heatmap
+        fig, axs = plt.subplots(2, 1, figsize=(10, 10))
+        data = [
+            (self.coverage_array, 'Coverage Proportion'),
+            (self.intensity_array, 'Intensity Proportion')
+        ]
+        for i, (array, title) in enumerate(data):
+            sns.heatmap(array, ax=axs[i], cbar_ax=axs[i].inset_axes([1.05, 0.1, 0.05, 0.8]))
+            axs[i].set_title(title)
+            axs[i].set_xticklabels(self.RT_TOL_values)
+            axs[i].set_yticklabels(self.N_values)
+            axs[i].set_xlabel('RT TOL')
+            axs[i].set_ylabel('N')
+
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.out_dir, 'heatmap.png'), dpi=300)
+
+    def objective(self, trial):
+        # define the space for hyperparameters
+        n = trial.suggest_int('N', 5, 30, step=5)
+        rt_tol = trial.suggest_int('RT_TOL', 5, 300, step=5)
+
+        # simulate and evaluate the combination of N and RT_TOL
+        report = self.simulate(n, rt_tol)
+        self.results[(n, rt_tol)] = report
+
+        # Access args.optimize
+        if self.args.optuna_optimise == 'coverage_prop':
+            return report['cumulative_coverage_proportion'][0]  # Optuna minimizes by default
+        elif self.args.optuna_optimise == 'intensity_prop':
+            return report['cumulative_intensity_proportion'][0]  # Optuna minimizes by default
+        else:
+            raise ValueError(f"Invalid optimisation choice: {self.args.optuna_optimise}. "
+                             f"Choose 'coverage_prop' or 'intensity_prop'.")
 
 
-def plot_heatmaps(coverage_array, intensity_array, out_dir):
-    fig, axs = plt.subplots(2, 1, figsize=(10, 10))
+def save_study(study, out_dir):
+    trial = study.best_trial
+    logger.info(f'Number of finished trials: {len(study.trials)}')
+    logger.info(f'Best trial value: {trial.value}')
+    logger.info('Best trial params: ')
+    for key, value in trial.params.items():
+        logger.info(f'    {key}: {value}')
 
-    cax1 = axs[0].imshow(coverage_array, cmap='hot', interpolation='nearest')
-    axs[0].set_title('Coverage Proportion')
-    fig.colorbar(cax1, ax=axs[0])
-
-    cax2 = axs[1].imshow(intensity_array, cmap='hot', interpolation='nearest')
-    axs[1].set_title('Intensity Proportion')
-    fig.colorbar(cax2, ax=axs[1])
-
-    # Save the figure
-    fig.savefig(os.path.join(out_dir, 'heatmap.png'), dpi=300)
-
-
-def simulate_evaluate_topN(n, rt_tol):
-    params = (TopNParametersBuilder()
-              .set_N(n)
-              .set_RT_TOL(rt_tol)
-              .build())
-
-    # your simulation code here...
-    out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}.mzML'
-    run_simulation(params, dataset, st, out_dir, out_file, pbar)
-    mzml_file = os.path.join(out_dir, out_file)
-
-    logger.info(f'Now processing fragmentation file {mzml_file}')
-    eva = evaluate_fragmentation(csv_file, mzml_file, params.ISOLATION_WINDOW)
-    print(n, rt_tol, eva.summarise(min_intensity=params.MIN_MS1_INTENSITY))
-
-    report = eva.evaluation_report(min_intensity=params.MIN_MS1_INTENSITY)
-    return report
+    # Write report csv and plots
+    study.trials_dataframe().to_csv(os.path.join(out_dir, f'study.csv'))
+    fig1 = plot_optimization_history(study)
+    fig1.write_image(os.path.join(out_dir, f'study_optimisation_history.png'))
+    fig2 = plot_param_importances(study)
+    fig2.write_image(os.path.join(out_dir, f'study_param_importances.png'))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Optimise controllers on proteomics data using ViMMS')
-    parser.add_argument('seed_file', type=str)
-    parser.add_argument('--method', type=str, default='topN')
 
+    # chemical extraction and simulation parameters
+    parser.add_argument('seed_file', type=str)
+    parser.add_argument('--method', type=str, default='topN')  # valid choices are 'topN', 'SmartROI' or 'WeightedDEW'
     parser.add_argument('--at_least_one_point_above', type=float, default=1E5,
                         help='The minimum intensity value for ROI extraction.')
     parser.add_argument('--num_bins', type=int, default=20,
                         help='The number of bins to sample scan durations from.')
+    parser.add_argument('--pbar', type=bool, default=True, help='Show progress bar during simulation.')
 
+    # evaluation parameters
     parser.add_argument('--out_dir', type=str, default='topN_optimise',
                         help='The directory where the output files will be stored.')
     parser.add_argument('--openms_dir', type=str, default=None)
     parser.add_argument('--openms_ini_file', type=str, default=None)
     parser.add_argument('--isolation_width', type=float, default=0.7, help="Isolation width for fragmentation.")
-    args = parser.parse_args()
 
+    # optimisation parameters
+    parser.add_argument('--optuna_use', type=bool, default=False, help='Use Optuna for optimisation.')
+    parser.add_argument('--optuna_optimise', type=str, default='intensity_prop',
+                        help="For optuna, optimise for either 'coverage_prop' or 'intensity_prop'.")
+    parser.add_argument('--optuna_n_trials', type=int, default=100,
+                        help='For optuna, the number of trials.')
+
+    args = parser.parse_args()
     csv_file = extract_boxes(args.seed_file, args.openms_dir, args.openms_ini_file)
 
     # check input and output paths
@@ -234,31 +323,12 @@ if __name__ == '__main__':
     dataset = extract_chems(args.seed_file, chem_file, args.at_least_one_point_above)
     st = extract_scan_timing(args.seed_file, st_file, args.num_bins)
 
-    # different combinations of N and RT_TOl to check
-    N_values = [5, 10, 15, 20, 25, 30]
-    RT_TOL_values = [5, 10, 15, 30, 60, 120, 180, 240, 300]
-    pbar = True
+    simulator = TopNSimulator(args, out_dir, pbar=args.pbar)
+    if args.optuna_use:
+        study = optuna.create_study(direction='maximize')
+        study.optimize(simulator.objective, n_trials=args.optuna_n_trials)
+        save_study(study, out_dir)
 
-    # grid search for N and RT_TOL
-    results = {}
-    coverage_array = np.zeros((len(N_values), len(RT_TOL_values)))
-    intensity_array = np.zeros((len(N_values), len(RT_TOL_values)))
-    for i, n in enumerate(N_values):
-        for j, rt_tol in enumerate(RT_TOL_values):
-            # simulate and evaluate the combination of N and RT_TOL
-            report = simulate_evaluate_topN(n, rt_tol)
-            results[(n, rt_tol)] = report
-
-            # store the results
-            coverage_prop = report['cumulative_coverage_proportion']
-            intensity_prop = report['cumulative_intensity_proportion']
-            coverage_array[i, j] = coverage_prop[0]
-            intensity_array[i, j] = intensity_prop[0]
-
-    # save pickled results
-    save_obj(results, os.path.join(out_dir, 'topN_optimise_results.p'))
-    save_obj(coverage_array, os.path.join(out_dir, 'topN_coverage_array.p'))
-    save_obj(intensity_array, os.path.join(out_dir, 'topN_intensity_array.p'))
-
-    # save heatmap
-    plot_heatmaps(coverage_array, intensity_array, out_dir)
+    else:  # grid search
+        simulator.grid_search()
+        simulator.save_grid_search_results()

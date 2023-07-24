@@ -41,3 +41,5 @@ dependencies:
     - brain-isotopic-distribution
     - ms_peak_picker
     - ms_deisotope
+    - optuna
+    - kaleido

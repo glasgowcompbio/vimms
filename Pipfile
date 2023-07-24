@@ -39,6 +39,7 @@ intervaltree = "*"
 jupyterlab = "*"
 ipywidgets = "*"
 gpy = "*"
+optuna = "*"
 
 [dev-packages]
 twine = "*"

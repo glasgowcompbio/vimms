@@ -31,11 +31,15 @@ class TopNParameters(CommonParameters):
 
 @dataclass
 class SmartROIParameters(CommonParameters):
-    IIF_VALUES: float = 1e3
-    DP_VALUES: float = 0.1
+    IIF: float = 10
+    DP: float = 0.1
     MIN_ROI_INTENSITY: int = 500
     MIN_ROI_LENGTH: int = 0
     MIN_ROI_LENGTH_FOR_FRAGMENTATION: int = 0
+
+@dataclass
+class WeightedDEWParameters(CommonParameters):
+    EXCLUDE_T0: int = 15
 
 class ParametersBuilder:
     def __init__(self, parameters_class):

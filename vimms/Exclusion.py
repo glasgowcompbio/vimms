@@ -385,7 +385,8 @@ class WeightedDEWExclusion(TopNExclusion):
         """
         super().__init__(mz_tol, rt_tol)
         self.exclusion_t_0 = exclusion_t_0
-        assert self.exclusion_t_0 <= self.rt_tol
+        if self.exclusion_t_0 > self.rt_tol:
+            raise ValueError('exclusion_t_0 must be lte rt_tol')
 
     def is_excluded(self, mz, rt):
         boxes = self.dynamic_exclusion.check_point(mz, rt)

@@ -9,7 +9,7 @@ from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
 from vimms.Common import load_obj, POSITIVE, ROI_TYPE_NORMAL, ROI_EXCLUSION_DEW
 from vimms.Controller import (
-    TopN_SmartRoiController, WeightedDEWController, TopN_RoiController, 
+    TopN_SmartRoiController, Controller, TopN_RoiController,
     NonOverlapController, IntensityNonOverlapController, TopNBoxRoiController,
     FlexibleNonOverlapController, FixedScansController, AgentBasedController, 
     TopNController

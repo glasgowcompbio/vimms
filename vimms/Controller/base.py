@@ -3,12 +3,10 @@ Contains the base abstract controller class, as well as other objects that are n
 controllers to function.
 """
 import time
+from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from abc import ABC, abstractmethod
-
 import pandas as pd
-from loguru import logger
 
 from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, \
     DEFAULT_MS1_MAXIT, \

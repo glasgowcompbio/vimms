@@ -1,8 +1,6 @@
 import os
 import sys
 
-from vimms.Roi import RoiBuilderParams, SmartRoiParams
-
 sys.path.append('..')
 sys.path.append('../..')  # if running in this folder
 
@@ -21,6 +19,7 @@ from vimms.Controller import TopNController, AdvancedParams, TopN_SmartRoiContro
 from vimms.Environment import Environment
 from vimms.Common import POSITIVE, create_if_not_exist, \
     set_log_level_warning, set_log_level_debug, save_obj
+from vimms.Roi import RoiBuilderParams, SmartRoiParams
 from vimms.scripts.openms_evaluate import extract_boxes, evaluate_fragmentation
 from vimms.scripts.topN_test import get_input_filenames, extract_chems, extract_scan_timing
 from vimms.scripts.openms_optimise_params import ParametersBuilder, TopNParameters, SmartROIParameters, \

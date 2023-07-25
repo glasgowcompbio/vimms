@@ -501,7 +501,7 @@ if __name__ == '__main__':
 
     # chemical extraction and simulation parameters
     parser.add_argument('seed_file', type=str)
-    parser.add_argument('--method', type=str, default='TopN')  # valid choices are 'topN', 'SmartROI' or 'WeightedDEW'
+    parser.add_argument('--method', type=str, default='topN')  # valid choices are 'topN', 'SmartROI' or 'WeightedDEW'
     parser.add_argument('--at_least_one_point_above', type=float, default=1E5,
                         help='The minimum intensity value for ROI extraction.')
     parser.add_argument('--num_bins', type=int, default=20,

@@ -21,114 +21,7 @@ from vimms.Common import POSITIVE, create_if_not_exist, \
     set_log_level_warning, set_log_level_debug, save_obj
 from vimms.scripts.openms_evaluate import extract_boxes, evaluate_fragmentation
 from vimms.scripts.topN_test import get_input_filenames, extract_chems, extract_scan_timing
-
-
-class TopNParameters:
-    def __init__(self):
-        # The minimum retention time for Top-N.
-        self.MIN_RT = 0
-        # The maximum retention time for Top-N.
-        self.MAX_RT = 7200
-        # The isolation window for Top-N.
-        self.ISOLATION_WINDOW = 0.7
-        # The Top N value.
-        self.N = 15
-        # The retention time tolerance for Top-N.
-        self.RT_TOL = 30
-        # The mass to charge ratio tolerance for Top-N.
-        self.MZ_TOL = 10
-        # The minimum MS1 intensity for Top-N.
-        self.MIN_MS1_INTENSITY = 5000
-        # The start of the default MS1 scan window.
-        self.DEFAULT_MS1_SCAN_WINDOW_START = 310.0
-        # The end of the default MS1 scan window.
-        self.DEFAULT_MS1_SCAN_WINDOW_END = 2000.0
-        # The number of times to exclude after in DEW parameters.
-        self.EXCLUDE_AFTER_N_TIMES = 2
-        # The exclude t0 value in DEW parameters.
-        self.EXCLUDE_T0 = 15
-        # Whether to perform deisotoping or not.
-        self.DEISOTOPE = True
-        # The start of the charge range for filtering.
-        self.CHARGE_RANGE_START = 2
-        # The end of the charge range for filtering.
-        self.CHARGE_RANGE_END = 6
-        # The minimum fit score from ms_deconvolve.
-        self.MIN_FIT_SCORE = 80
-        # Penalty factor for ms_deconvolve.
-        self.PENALTY_FACTOR = 1.5
-
-
-class TopNParametersBuilder:
-    def __init__(self):
-        self.topNParameters = TopNParameters()
-
-    def set_MIN_RT(self, value):
-        self.topNParameters.MIN_RT = value
-        return self
-
-    def set_MAX_RT(self, value):
-        self.topNParameters.MAX_RT = value
-        return self
-
-    def set_ISOLATION_WINDOW(self, value):
-        self.topNParameters.ISOLATION_WINDOW = value
-        return self
-
-    def set_N(self, value):
-        self.topNParameters.N = value
-        return self
-
-    def set_RT_TOL(self, value):
-        self.topNParameters.RT_TOL = value
-        return self
-
-    def set_MZ_TOL(self, value):
-        self.topNParameters.MZ_TOL = value
-        return self
-
-    def set_MIN_MS1_INTENSITY(self, value):
-        self.topNParameters.MIN_MS1_INTENSITY = value
-        return self
-
-    def set_DEFAULT_MS1_SCAN_WINDOW_START(self, value):
-        self.topNParameters.DEFAULT_MS1_SCAN_WINDOW_START = value
-        return self
-
-    def set_DEFAULT_MS1_SCAN_WINDOW_END(self, value):
-        self.topNParameters.DEFAULT_MS1_SCAN_WINDOW_END = value
-        return self
-
-    def set_EXCLUDE_AFTER_N_TIMES(self, value):
-        self.topNParameters.EXCLUDE_AFTER_N_TIMES = value
-        return self
-
-    def set_EXCLUDE_T0(self, value):
-        self.topNParameters.EXCLUDE_T0 = value
-        return self
-
-    def set_DEISOTOPE(self, value):
-        self.topNParameters.DEISOTOPE = value
-        return self
-
-    def set_CHARGE_RANGE_START(self, value):
-        self.topNParameters.CHARGE_RANGE_START = value
-        return self
-
-    def set_CHARGE_RANGE_END(self, value):
-        self.topNParameters.CHARGE_RANGE_END = value
-        return self
-
-    def set_MIN_FIT_SCORE(self, value):
-        self.topNParameters.MIN_FIT_SCORE = value
-        return self
-
-    def set_PENALTY_FACTOR(self, value):
-        self.topNParameters.PENALTY_FACTOR = value
-        return self
-
-    def build(self):
-        return self.topNParameters
+from vimms.scripts.openms_optimise_params import ParametersBuilder, TopNParameters
 
 
 class TopNSimulator:
@@ -146,11 +39,11 @@ class TopNSimulator:
         self.intensity_array = np.zeros((len(self.N_values), len(self.RT_TOL_values)))
 
     def simulate(self, n, rt_tol, exclude_t0):
-        params = (TopNParametersBuilder()
-                  .set_N(n)
-                  .set_RT_TOL(rt_tol)
-                  .set_EXCLUDE_T0(exclude_t0)
-                  .build())
+        params = (ParametersBuilder(TopNParameters.debug)
+                          .set('N', n)
+                          .set('RT_TOL', rt_tol)
+                          .set('EXCLUDE_T0', exclude_t0)
+                          .build())
 
         # your simulation code here...
         out_file = f'topN_N_{params.N}_DEW_{params.RT_TOL}_exclude_t0_{params.EXCLUDE_T0}.mzML'

@@ -172,8 +172,8 @@ class SmartROISimulator:
         self.pbar = pbar
 
         # for grid search
-        self.N_value = 15  # copy best value from TopN
-        self.RT_TOL_value = 5  # copy best value from TopN
+        self.N_value = 30  # copy best value from TopN
+        self.RT_TOL_value = 45  # copy best value from TopN
         self.IIF_values = [2, 3, 5, 10, 1e3, 1e6]
         self.DP_values = [0, 0.1, 0.5, 1, 5, 10]
 
@@ -356,7 +356,7 @@ class WeightedDEWSimulator:
         self.pbar = pbar
 
         # for grid search
-        self.N_value = 15  # copy best value from TopN
+        self.N_value = 30  # copy best value from TopN
         self.RT_TOL_values = [5, 10, 15, 30, 60, 120, 180, 240, 300]
         self.EXCLUDE_T0_values = [1, 3, 10, 15, 30, 60]
         self.results = {}

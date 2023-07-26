@@ -285,9 +285,9 @@ class SmartROISimulator:
 
         # save pickled results
         data = {
-            'topN_optimise_results.p': self.results,
-            'topN_coverage_array.p': self.coverage_array,
-            'topN_intensity_array.p': self.intensity_array
+            'SmartROI_optimise_results.p': self.results,
+            'SmartROI_coverage_array.p': self.coverage_array,
+            'SmartROI_intensity_array.p': self.intensity_array
         }
         for filename, data_obj in data.items():
             save_obj(data_obj, os.path.join(self.out_dir, filename))
@@ -453,9 +453,9 @@ class WeightedDEWSimulator:
 
         # save pickled results
         data = {
-            'topN_optimise_results.p': self.results,
-            'topN_coverage_array.p': self.coverage_array,
-            'topN_intensity_array.p': self.intensity_array
+            'WeightedDEW_optimise_results.p': self.results,
+            'WeightedDEW_coverage_array.p': self.coverage_array,
+            'WeightedDEW_intensity_array.p': self.intensity_array
         }
         for filename, data_obj in data.items():
             save_obj(data_obj, os.path.join(self.out_dir, filename))

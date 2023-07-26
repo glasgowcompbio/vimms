@@ -15,6 +15,7 @@ from vimms.Exclusion import (
     WeightedDEWExclusion, DEWFilter,
     WeightedDEWFilter
 )
+from vimms.MassSpec import Scan
 from vimms.Roi import RoiBuilder
 
 
@@ -147,9 +148,7 @@ class RoiController(TopNController):
                 intensities = self.scan_to_process.intensities
                 assert mzs.shape == intensities.shape
                 mzs, intensities = self._deisotope(mzs, intensities)
-                scan = copy.deepcopy(scan)
-                scan.mzs = mzs
-                scan.intensities = intensities
+                scan = Scan(scan.scan_id, mzs, intensities, scan.ms_level, scan.rt)
 
             # keep growing ROIs if we encounter a new ms1 scan
             self.roi_builder.update_roi(scan)

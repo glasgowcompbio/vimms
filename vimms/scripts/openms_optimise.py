@@ -33,8 +33,8 @@ class TopNSimulator:
         self.pbar = pbar
 
         # for grid search
-        self.N_values = [5, 10, 15, 20, 25, 30]
-        self.RT_TOL_values = [5, 10, 15, 30, 60, 120, 180, 240, 300]
+        self.N_values = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+        self.RT_TOL_values = [5, 10, 15, 30, 60, 120, 180]
         self.EXCLUDE_T0_value = 15
         self.results = {}
         self.coverage_array = np.zeros((len(self.N_values), len(self.RT_TOL_values)))
@@ -147,9 +147,9 @@ class TopNSimulator:
 
     def objective(self, trial):
         # define the space for hyperparameters
-        n = trial.suggest_int('N', 5, 30, step=5)
-        rt_tol = trial.suggest_int('RT_TOL', 5, 300, step=5)
-        exclude_t0 = trial.suggest_int('EXCLUDE_t0', 5, 60, step=5)
+        n = trial.suggest_categorical('N', [5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
+        rt_tol = trial.suggest_categorical('RT_TOL', [5, 10, 15, 30, 45, 60, 120, 180, 240, 300])
+        exclude_t0 = trial.suggest_categorical('EXCLUDE_t0', [5, 10, 15, 30, 45, 60])
 
         # simulate and evaluate the combination of N and RT_TOL
         report = self.simulate(n, rt_tol, exclude_t0)
@@ -311,8 +311,8 @@ class SmartROISimulator:
 
     def objective(self, trial):
         # define the space for hyperparameters
-        n = trial.suggest_int('N', 5, 30, step=5)
-        rt_tol = trial.suggest_int('RT_TOL', 5, 300, step=5)
+        n = trial.suggest_categorical('N', [5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
+        rt_tol = trial.suggest_categorical('RT_TOL', [5, 10, 15, 30, 45, 60, 120, 180, 240, 300])
         iif = trial.suggest_categorical('IIF', [2, 3, 5, 10, 1e2, 1e3, 1e6])
         dp = trial.suggest_categorical('DP', [0, 0.1, 0.5, 1, 5, 10])
 
@@ -479,9 +479,9 @@ class WeightedDEWSimulator:
 
     def objective(self, trial):
         # define the space for hyperparameters
-        n = trial.suggest_int('N', 5, 30, step=5)
-        rt_tol = trial.suggest_int('RT_TOL', 5, 300, step=5)
-        exclude_t0 = trial.suggest_int('EXCLUDE_t0', 5, 60, step=5)
+        n = trial.suggest_categorical('N', [5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
+        rt_tol = trial.suggest_categorical('RT_TOL', [5, 10, 15, 30, 45, 60, 120, 180, 240, 300])
+        exclude_t0 = trial.suggest_categorical('EXCLUDE_t0', [5, 10, 15, 30, 45, 60])
 
         # simulate and evaluate the combination of N and RT_TOL
         report = self.simulate(n, rt_tol, exclude_t0)

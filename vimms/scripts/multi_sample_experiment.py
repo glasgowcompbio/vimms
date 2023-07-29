@@ -9,8 +9,9 @@ from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import CONTROLLER_FULLSCAN, CONTROLLER_TOPN, CONTROLLER_TOPN_EXCLUSION, \
     CONTROLLER_SWATH, CONTROLLER_AIF, CONTROLLER_NON_OVERLAP, CONTROLLER_INTENSITY_NON_OVERLAP, \
-    CONTROLLER_INTENSITY_ROI_EXCLUSION, CONTROLLER_HARD_ROI_EXCLUSION
-from vimms.Controller import SimpleMs1Controller
+    CONTROLLER_INTENSITY_ROI_EXCLUSION, CONTROLLER_HARD_ROI_EXCLUSION, CONTROLLER_SMART_ROI, CONTROLLER_WEIGHTED_DEW, \
+    CONTROLLER_TOPN_ORIGINAL
+from vimms.Controller import SimpleMs1Controller, TopN_SmartRoiController, WeightedDEWController
 from vimms.Controller import TopNController, AIF, SWATH, AgentBasedController
 from vimms.Controller.box import NonOverlapController, IntensityNonOverlapController, \
     IntensityRoIExcludeController, HardRoIExcludeController
@@ -153,7 +154,23 @@ def select_controller(controller_name, experiment_params, agent, grid):
 
     elif controller_name == CONTROLLER_TOPN:
         topN_params = experiment_params['topN_params']
+        print(topN_params)
         controller = TopNController(**topN_params)
+
+    elif controller_name == CONTROLLER_TOPN_ORIGINAL: # hack to allow topN with different parameters
+        topN_params = experiment_params['topN_params_original']
+        print(topN_params)
+        controller = TopNController(**topN_params)
+
+    elif controller_name == CONTROLLER_SMART_ROI:
+        smartROI_params = experiment_params['smartroi_params']
+        print(smartROI_params)
+        controller = TopN_SmartRoiController(**smartROI_params)
+
+    elif controller_name == CONTROLLER_WEIGHTED_DEW:
+        weighed_dew_params = experiment_params['weighteddew_params']
+        print(weighed_dew_params)
+        controller = WeightedDEWController(**weighed_dew_params)
 
     elif controller_name == CONTROLLER_TOPN_EXCLUSION:
         controller = AgentBasedController(agent)

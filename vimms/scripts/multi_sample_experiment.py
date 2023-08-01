@@ -29,15 +29,17 @@ def extract_chemicals(seed_file, ionisation_mode):
 
 def run_batch(initial_runs, controller_repeat, experiment_params, samples,
               pbar, max_time, ionisation_mode, use_instrument, use_column,
-              ref_dir, dataset, out_dir):
+              ref_dir, dataset, out_dir, initial_run_max_time=None):
     scan_duration_dict = experiment_params['scan_duration_dict']
 
     # perform initial blank and QC runs here
     for sample in initial_runs:
+        initial_run_max_time = max_time if initial_run_max_time is None else initial_run_max_time
         controller = select_controller(CONTROLLER_FULLSCAN, experiment_params, None, None)
         out_file = get_out_file(CONTROLLER_FULLSCAN, sample, 0)
         run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                       pbar, max_time, ionisation_mode, use_column, controller, out_dir, out_file)
+                       pbar, initial_run_max_time, ionisation_mode, use_column,
+                       controller, out_dir, out_file)
 
     # loop through each controller
     for controller_name in controller_repeat:
@@ -77,15 +79,17 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
 # a variant of run_batch but for exhaustive fragmentation (experiment 3)
 def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, samples,
                          pbar, max_time, ionisation_mode, use_instrument, use_column,
-                         ref_dir, dataset, out_dir):
+                         ref_dir, dataset, out_dir, initial_run_max_time=None):
     scan_duration_dict = experiment_params['scan_duration_dict']
 
     # perform initial blank and QC runs here
     for sample in initial_runs:
+        initial_run_max_time = max_time if initial_run_max_time is None else initial_run_max_time
         controller = select_controller(CONTROLLER_FULLSCAN, experiment_params, None, None)
         out_file = get_out_file(CONTROLLER_FULLSCAN, sample, 0)
         run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                       pbar, max_time, ionisation_mode, use_column, controller, out_dir, out_file)
+                       pbar, initial_run_max_time, ionisation_mode,
+                       use_column, controller, out_dir, out_file)
 
     # loop through each controller
     for controller_name in controller_repeat:

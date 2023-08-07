@@ -29,7 +29,7 @@ def extract_chemicals(seed_file, ionisation_mode):
 
 def run_batch(initial_runs, controller_repeat, experiment_params, samples,
               pbar, max_time, ionisation_mode, use_instrument, use_column,
-              ref_dir, dataset, out_dir, initial_run_max_time=None):
+              ref_dir, dataset, out_dir, initial_run_max_time=None, debug_mzml=None):
     scan_duration_dict = experiment_params['scan_duration_dict']
 
     # perform initial blank and QC runs here
@@ -39,7 +39,7 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
         out_file = get_out_file(CONTROLLER_FULLSCAN, sample, 0)
         run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                        pbar, initial_run_max_time, ionisation_mode, use_column,
-                       controller, out_dir, out_file)
+                       controller, out_dir, out_file, debug_mzml=debug_mzml)
 
     # loop through each controller
     for controller_name in controller_repeat:
@@ -69,7 +69,7 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
                 out_file = get_out_file(controller_name, sample, i)
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
-                               out_file)
+                               out_file, debug_mzml=debug_mzml)
                 # fname = os.path.join(out_dir, out_file+'.controller')
                 # save_obj(controller, fname)
                 del controller
@@ -79,7 +79,7 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
 # a variant of run_batch but for exhaustive fragmentation (experiment 3)
 def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, samples,
                          pbar, max_time, ionisation_mode, use_instrument, use_column,
-                         ref_dir, dataset, out_dir, initial_run_max_time=None):
+                         ref_dir, dataset, out_dir, initial_run_max_time=None, debug_mzml=None):
     scan_duration_dict = experiment_params['scan_duration_dict']
 
     # perform initial blank and QC runs here
@@ -89,7 +89,7 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
         out_file = get_out_file(CONTROLLER_FULLSCAN, sample, 0)
         run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                        pbar, initial_run_max_time, ionisation_mode,
-                       use_column, controller, out_dir, out_file)
+                       use_column, controller, out_dir, out_file, debug_mzml=debug_mzml)
 
     # loop through each controller
     for controller_name in controller_repeat:
@@ -119,7 +119,7 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
                 out_file = get_out_file(controller_name, sample, i)
                 run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
                                pbar, max_time, ionisation_mode, use_column, controller, out_dir,
-                               out_file)
+                               out_file, debug_mzml=debug_mzml)
                 # fname = os.path.join(out_dir, out_file+'.controller')
                 # save_obj(controller, fname)
                 del controller
@@ -234,13 +234,14 @@ def get_non_overlap_params(experiment_params):
 
 
 def run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                   pbar, max_time, ionisation_mode, use_column, controller, out_dir, out_file):
+                   pbar, max_time, ionisation_mode, use_column, controller, out_dir, out_file,
+                   debug_mzml=None):
     logger.warning(out_file)
     if use_instrument:
         from vimms_fusion.MassSpec import IAPIMassSpectrometer
         from vimms_fusion.Environment import IAPIEnvironment
 
-        mass_spec = IAPIMassSpectrometer(ionisation_mode, ref_dir, filename=None,
+        mass_spec = IAPIMassSpectrometer(ionisation_mode, ref_dir, filename=debug_mzml,
                                          show_console_logs=False,
                                          use_column=use_column)
         with IAPIEnvironment(mass_spec, controller, max_time, progress_bar=pbar, out_dir=out_dir,

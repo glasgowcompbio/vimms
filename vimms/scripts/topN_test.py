@@ -5,6 +5,7 @@ sys.path.append('../..')  # if running in this folder
 
 import os
 import argparse
+import time
 
 import numpy as np
 
@@ -66,6 +67,8 @@ def parse_args():
                         help='The filename of the input mzML file.')
     parser.add_argument('--out_mzml', type=str, default='output.mzML',
                         help='The filename of the output mzML file.')
+    parser.add_argument('--show_progress', action='store_true',
+                        help='Show a progress bar during simulation.')
     args = parser.parse_args()
     return args
 
@@ -159,7 +162,8 @@ def main(args):
     create_if_not_exist(out_dir)
 
     # Format output file names
-    chem_file, st_file = get_input_filenames(args.at_least_one_point_above, out_dir)
+    chem_file, st_file, _, _ = get_input_filenames(args.at_least_one_point_above, None, out_dir)
+    print(chem_file, st_file)
 
     # extract chems and scan timing from mzml file
     dataset = extract_chems(args.in_mzml, chem_file, args.at_least_one_point_above)
@@ -200,8 +204,11 @@ def run_simulation(args, dataset, st, out_dir):
         exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
         min_fit_score=min_fit_score, penalty_factor=penalty_factor)
 
+    # record the starting time
+    start_time = time.time()
+
     # create an environment to run both the mass spec and controller
-    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=False)
+    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=args.show_progress)
 
     # set the log level to WARNING so we don't see too many messages when environment is running
     set_log_level_warning()
@@ -209,6 +216,11 @@ def run_simulation(args, dataset, st, out_dir):
     # run the simulation
     env.run()
     set_log_level_debug()
+
+    # compute and print the elapsed time
+    elapsed_time = time.time() - start_time
+    print(f"Simulation took {elapsed_time:.2f} seconds.")
+
     env.write_mzML(out_dir, args.out_mzml)
 
 

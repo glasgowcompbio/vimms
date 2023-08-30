@@ -272,8 +272,10 @@ class BlockDeconvoluter:
             intensities = np.array([peak[1] for peak in ms1_scan.peaks])
 
             charge_range = (2, 6)
+            use_quick_charge = True
             pl = prepare_peaklist((mzs, intensities))
-            ps = deconvolute_peaks(pl, decon_config=decon_config, charge_range=charge_range)
+            ps = deconvolute_peaks(pl, decon_config=decon_config, charge_range=charge_range,
+                                   use_quick_charge=use_quick_charge)
             df = self._peaks_to_dataframe(ps.peak_set.peaks, precursors=precursors)
 
             self.dfs.append(df)

@@ -31,8 +31,9 @@ hela_mzml_file = MZMLFile(real_input_file)
 hela_bd = BlockDeconvoluter(hela_mzml_file, max_blocks=max_blocks, discard_first=discard_first)
 
 # Check results mzML files
-result_dir = os.path.abspath('hela_results')
-plot_dir = os.path.abspath('hela_plots')
+base_dir = '/datastore/joewandy/check_score_threshold_1E4_hela'
+result_dir = os.path.abspath(os.path.join(base_dir, 'hela_results'))
+plot_dir = os.path.abspath(os.path.join(base_dir, 'hela_plots'))
 create_if_not_exist(plot_dir)
 
 sns.set_context('poster')

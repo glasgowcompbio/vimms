@@ -21,7 +21,8 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0):
+                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
+                 use_quick_charge=False):
         """
         Initialise the Top-N controller
 
@@ -87,6 +88,7 @@ class TopNController(Controller):
         self.charge_range = charge_range
         self.min_fit_score = min_fit_score
         self.penalty_factor = penalty_factor
+        self.use_quick_charge = use_quick_charge
 
         if self.deisotope:
             scorer = PenalizedMSDeconVFitter(
@@ -189,7 +191,8 @@ class TopNController(Controller):
 
     def _deisotope(self, mzs, intensities):
         pl = prepare_peaklist((mzs, intensities))
-        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range)
+        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range,
+                               use_quick_charge=self.use_quick_charge)
         mzs = np.array([peak.mz for peak in ps.peak_set.peaks])
         intensities = np.array([peak.intensity for peak in ps.peak_set.peaks])
         return mzs, intensities

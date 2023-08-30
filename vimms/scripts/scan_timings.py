@@ -143,7 +143,28 @@ def plot_deltas(file_timings, files, labels, plot_type='box', remove_outliers=Fa
             plot_func = sns.boxplot if plot_type == 'box' else sns.violinplot
             plot_func(ax=ax, data=deltas)
             ax.set_xticks(range(len(labels)))
-            ax.set_xticklabels(labels)
+            ax.set_xticklabels(labels, rotation=90)
+
+            if plot_type == 'violin':
+                for i, delta in enumerate(deltas):
+                    # Ensure that delta is not empty
+                    if delta.size > 0:
+                        median_val = np.median(delta)
+
+                        # Ensure that the median is not NaN
+                        if not np.isnan(median_val):
+                            ax.annotate(f"{median_val:.2f}",
+                                        (i, median_val),
+                                        xytext=(40, 40),  # move the annotation to the side
+                                        textcoords='offset points',
+                                        ha='center',
+                                        va='center',
+                                        fontsize=12,
+                                        color='red',
+                                        weight='bold',
+                                        arrowprops=dict(arrowstyle="->", color='red'),
+                                        bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.2'))
+
         else:  # 'scatter'
             for (rts, deltas), label in zip(data, labels):
                 ax.scatter(rts, deltas, alpha=0.25, label=label, s=5)

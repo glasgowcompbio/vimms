@@ -12,7 +12,7 @@ from loguru import logger
 
 from vimms.Evaluation import RealEvaluator
 
-DEFAULT_OPENMS_DIR = "/Applications/OpenMS-2.8.0/bin"
+DEFAULT_OPENMS_DIR = "/Applications/OpenMS-3.0.0/bin"
 DEFAULT_INI_FILE = "../../batch_files/FeatureFinderCentroided.ini"
 
 

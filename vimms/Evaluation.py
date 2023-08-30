@@ -602,21 +602,24 @@ class RealEvaluator(Evaluator):
                 if (s.ms_level == 1):
 
                     current_intensities = [[] for _ in self.chems]
-                    mzs, intensities = zip(*s.peaks)
+                    try:
+                        mzs, intensities = zip(*s.peaks)
 
-                    for b in geom.get_active_boxes():
-                        p_idx = bisect.bisect_left(mzs, b.pt1.y)
-                        for ch_idx in box2idxes[b]:
-                            max_intensity = 0
-                            for i in range(p_idx, len(mzs)):
-                                if (mzs[i] > b.pt2.y): break
-                                current_intensities[ch_idx].append((mzs[i], intensities[i]))
-                                max_intensity = max(max_intensity, intensities[i])
+                        for b in geom.get_active_boxes():
+                            p_idx = bisect.bisect_left(mzs, b.pt1.y)
+                            for ch_idx in box2idxes[b]:
+                                max_intensity = 0
+                                for i in range(p_idx, len(mzs)):
+                                    if (mzs[i] > b.pt2.y): break
+                                    current_intensities[ch_idx].append((mzs[i], intensities[i]))
+                                    max_intensity = max(max_intensity, intensities[i])
 
-                            new_info[ch_idx, self.MAX_INTENSITY, mzml_idx] = max(
-                                new_info[ch_idx, self.MAX_INTENSITY, mzml_idx],
-                                max_intensity
-                            )
+                                new_info[ch_idx, self.MAX_INTENSITY, mzml_idx] = max(
+                                    new_info[ch_idx, self.MAX_INTENSITY, mzml_idx],
+                                    max_intensity
+                                )
+                    except ValueError:
+                        pass
 
                 else:
                     mz = s.precursor_mz

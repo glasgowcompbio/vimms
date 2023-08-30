@@ -22,7 +22,7 @@ class TopNController(Controller):
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
                  deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
-                 use_quick_charge=False):
+                 use_quick_charge=True):
         """
         Initialise the Top-N controller
 

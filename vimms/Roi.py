@@ -653,7 +653,9 @@ class RoiBuilder():
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in
                                             self.live_roi]
-            self.current_roi_length = np.array([roi.n for roi in self.live_roi])
+            self.current_roi_length = np.array(
+                [roi.get_num_unique_scans() for roi in self.live_roi]
+            )
 
     # flake8: noqa: C901
     def _match(self, mz, roi_list, mz_tol):

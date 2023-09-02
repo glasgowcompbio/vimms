@@ -18,7 +18,7 @@ from vimms.Common import (
     get_dda_scan_param, DEFAULT_ISOLATION_WIDTH,
     ScanParameters
 )
-from vimms.PeakPicking import MZMineParams, XCMSParams
+from vimms.PeakPicking import MZMineParams
 from vimms.Controller.base import Controller, WrapperController
 
 

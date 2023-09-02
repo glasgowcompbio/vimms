@@ -152,7 +152,10 @@ def pick_aligned_peaks(input_files,
             
 
 @dataclass
-class XCMSParams:
+class XCMSScriptParams:
+    #TODO: It would be good to just call the R functions from Python
+    #instead of calling an external R script...
+    
     RT_FACTOR = 1 #seconds
 
     #file locations

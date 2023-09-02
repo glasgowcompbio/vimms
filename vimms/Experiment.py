@@ -22,11 +22,11 @@ from vimms.Controller.box import (
     NonOverlapController, IntensityNonOverlapController
 )
 from vimms.DsDA import DsDAState
-from vimms.Matching import MatchingScan, MatchingChem, Matching
+from vimms.Matching import Matching
 from vimms.Controller.misc import DsDAController, MatchingController
 from vimms.Environment import Environment
 from vimms.BoxVisualise import EnvPlotPickler
-from vimms.PeakPicking import MZMineParams, XCMSParams
+from vimms.PeakPicking import MZMineParams
 from vimms.Evaluation import pick_aligned_peaks, evaluate_real
 
 class Shareable:
@@ -38,7 +38,8 @@ class Shareable:
         self.stored_controllers = [] #for storing pre-computed controllers
         self.params = {} #passed to controllers when they are created dynamically
         
-    def init_shareable(self, params, out_dir, fullscan_paths, grid_init=None):
+    def init_shareable(self, params, out_dir, fullscan_paths, grid_base=None):
+        
         if(self.name == "agent"):
             self.shared = TopNDEWAgent(**params)
             self.params = {
@@ -46,14 +47,14 @@ class Shareable:
             }
             
         elif(self.name == "grid"):
-            if(grid_init is None):
+            if(grid_base is None):
                 self.shared = BoxManager(
                     box_geometry = BoxGrid(),
                     box_splitter = BoxSplitter(split=self.split),
                     delete_rois=True
                 )
             else:
-                self.shared = grid_init()
+                self.shared = copy.deepcopy(grid_base)
             
             self.params = {
                 **params,
@@ -70,34 +71,21 @@ class Shareable:
                 **{k: v for k, v in params.items() if k in for_controller},
                 "dsda_state" : self.shared
             }
-            
+        
         elif(self.name == "matching"):
             if(self.shared is None):
-                scans_list = []
-                for i, fs in enumerate(fullscan_paths):
-                    new_scans = MatchingScan.create_scan_intensities(
-                            fs,
-                            i,
-                            params["times_list"][i],
-                            params.get("mz_window", 1E-10)
-                    )
-                    scans_list.append(new_scans)
-                
-                chems_list = MatchingChem.boxfile2nodes(
+                self.shared = Matching.make_matching(
+                    fullscan_paths,
+                    params["times_list"],
                     params["aligned_reader"],
-                    params["aligned_file"], 
-                    fullscan_paths
-                )
-                
-                self.shared = Matching.multi_schedule2graph(
-                    scans_list,
-                    chems_list,
+                    params["aligned_file"],
                     params["intensity_threshold"],
+                    params.get("mz_window", 1E-10),
                     edge_limit=params.get("edge_limit", None),
                     weighted=params.get("weighted", Matching.TWOSTEP),
                     full_assignment_strategy=params.get(
-                        "full_assignment_strategy", 
-                        Matching.RECURSIVE_ASSIGNMENT
+                      "full_assignment_strategy", 
+                      Matching.RECURSIVE_ASSIGNMENT
                     )
                 )
             
@@ -155,14 +143,14 @@ class ExperimentCase:
                  fullscan_paths,
                  params,
                  name=None, 
-                 grid_init=None,
+                 grid_base=None,
                  pickle_env=False):
              
         self.name = name if not name is None else controller_type
         self.fullscan_paths = fullscan_paths
         self.datasets = []
         self.params = params
-        self.grid_init = grid_init
+        self.grid_base = grid_base
         self.injection_num = 0
         self.pickle_env = pickle_env
         c = controller_type.replace(" ", "_").lower()
@@ -191,7 +179,7 @@ class ExperimentCase:
             self.params, 
             out_dir, 
             self.fullscan_paths, 
-            grid_init=self.grid_init
+            grid_base=self.grid_base
         )
         
         #with ensures dsda process will be cleaned up - is there a cleaner way to do this?
@@ -267,7 +255,7 @@ class ExperimentCase:
             self.params,
             out_dir, 
             self.fullscan_paths,
-            grid_init=self.grid_init
+            grid_base=self.grid_base
         )
         try:
             self.shared.get_controller(self.controller, "")

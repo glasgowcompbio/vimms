@@ -26,7 +26,7 @@ from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import path_or_mzml
 from vimms.PeakPicking import pick_aligned_peaks #backwards compatibility
-from vimms.PeakPicking import MZMineParams, XCMSParams
+from vimms.PeakPicking import MZMineParams
 from vimms.Box import (
     Point, Interval, GenericBox,
     LineSweeper

@@ -132,8 +132,7 @@ class RoiController(TopNController):
             new_tasks, ms2_tasks = [], []
             rt = self.scan_to_process.rt
 
-            done_ms1, ms2s, scores = False, self.MS2Scheduler(
-                self), self._get_scores()
+            done_ms1, ms2s, scores = False, self.MS2Scheduler(self), self._get_scores()
             for i in np.argsort(scores)[::-1]:
                 # stopping criteria is done based on the scores
                 if scores[i] <= 0:

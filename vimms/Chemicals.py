@@ -430,7 +430,7 @@ class ChemSet():
 
 class MemoryChems(ChemSet):
     def __init__(self, local_chems):
-        logger.debug('MemoryChems initialised')
+        # logger.debug('MemoryChems initialised')
         key = Chemical.get_min_rt
         self.local_chems = sorted(local_chems, key=key)
         self.reset()
@@ -474,7 +474,7 @@ class MemoryChems(ChemSet):
 class FastMemoryChems(MemoryChems):
 
     def __init__(self, local_chems):
-        logger.debug('FastMemoryChems initialised')
+        # logger.debug('FastMemoryChems initialised')
         super().reset()
         self.local_chems = np.array(local_chems)
 
@@ -491,7 +491,7 @@ class FastMemoryChems(MemoryChems):
 
 class FileChems(ChemSet):
     def __init__(self, filepath):
-        logger.debug('FileChems initialised')
+        # logger.debug('FileChems initialised')
         self.filepath = filepath
         self.f = None
         self.reset()

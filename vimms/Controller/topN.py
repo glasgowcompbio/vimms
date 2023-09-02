@@ -1,9 +1,13 @@
 import numpy as np
 from loguru import logger
+from ms_deisotope import MSDeconVFitter, PenalizedMSDeconVFitter
 
 from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
 from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
+
+from ms_deisotope.deconvolution.utils import prepare_peaklist
+from ms_deisotope.deconvolution import deconvolute_peaks
 
 
 class TopNController(Controller):
@@ -16,7 +20,9 @@ class TopNController(Controller):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
-                 force_N=False):
+                 force_N=False, exclude_after_n_times=1, exclude_t0=0,
+                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
+                 use_quick_charge=False):
         """
         Initialise the Top-N controller
 
@@ -32,42 +38,83 @@ class TopNController(Controller):
             advanced_params: an [vimms.Controller.base.AdvancedParams][] object that contains
                              advanced parameters to control the mass spec. If left to None,
                              default values will be used.
-            force_N: whether to always force N fragmentations
+            force_N: whether to always force N fragmentations.
+            exclude_after_n_times; allow ions to NOT be excluded up to n_times.
+            exclude_t0: time for initial exclusion check.
+            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
+            charge_range: the charge state of ions to keep.
+            min_fit_score: minimum score to keep from doing isotope deconvolution.
+            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
         super().__init__(advanced_params=advanced_params)
+
         self.ionisation_mode = ionisation_mode
+
+        # the top N ions to fragment
         self.N = N
+
         # the isolation width (in Dalton) to select a precursor ion
         self.isolation_width = isolation_width
+
         # the m/z window (ppm) to prevent the same precursor ion to be
         # fragmented again
         self.mz_tol = mz_tol
+
         # the rt window to prevent the same precursor ion to be
         # fragmented again
         self.rt_tol = rt_tol
+
         # minimum ms1 intensity to fragment
         self.min_ms1_intensity = min_ms1_intensity
+
         # number of scans to move ms1 scan forward in list of new_tasks
         self.ms1_shift = ms1_shift
-        self.force_N = force_N  # force it to do N MS2 scans regardless
+
+        # force it to do N MS2 scans regardless
+        self.force_N = force_N
 
         if self.force_N and ms1_shift > 0:
             logger.warning(
                 "Setting force_N to True with non-zero shift can lead to "
                 "strange behaviour")
 
-        self.exclusion = TopNExclusion(
-            initial_exclusion_list=initial_exclusion_list)
+        self.exclusion = TopNExclusion(self.mz_tol, self.rt_tol,
+                                       exclude_after_n_times=exclude_after_n_times,
+                                       exclude_t0=exclude_t0,
+                                       initial_exclusion_list=initial_exclusion_list)
+
+        # for isotope filtering using ms_deisotope
+        self.deisotope = deisotope
+        self.charge_range = charge_range
+        self.min_fit_score = min_fit_score
+        self.penalty_factor = penalty_factor
+        self.use_quick_charge = use_quick_charge
+
+        if self.deisotope:
+            scorer = PenalizedMSDeconVFitter(
+                minimum_score=self.min_fit_score,
+                penalty_factor=self.penalty_factor,
+                mass_error_tolerance=0.00002
+            )
+            self.dc = {'scorer': scorer}
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
         new_tasks = []
         fragmented_count = 0
+
         if self.scan_to_process is not None:
+            assert self.scan_to_process == scan
+
+            # original scan data
             mzs = self.scan_to_process.mzs
             intensities = self.scan_to_process.intensities
             assert mzs.shape == intensities.shape
             rt = self.scan_to_process.rt
+
+            # perform isotope deconvolution, necessary for proteomics data
+            if self.deisotope:
+                mzs, intensities = self._deisotope(mzs, intensities)
 
             # loop over points in decreasing intensity
             idx = np.argsort(intensities)[::-1]
@@ -142,6 +189,14 @@ class TopNController(Controller):
             self.scan_to_process = None
         return new_tasks
 
+    def _deisotope(self, mzs, intensities):
+        pl = prepare_peaklist((mzs, intensities))
+        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range,
+                               use_quick_charge=self.use_quick_charge)
+        mzs = np.array([peak.mz for peak in ps.peak_set.peaks])
+        intensities = np.array([peak.intensity for peak in ps.peak_set.peaks])
+        return mzs, intensities
+
     def update_state_after_scan(self, scan):
         pass
 
@@ -180,12 +235,16 @@ class WeightedDEWController(TopNController):
 
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity, ms1_shift=0,
-                 exclusion_t_0=15, log_intensity=False, advanced_params=None):
+                 exclusion_t_0=15, log_intensity=False,
+                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
+                 advanced_params=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,
+                         deisotope=deisotope, charge_range=charge_range,
+                         min_fit_score=min_fit_score, penalty_factor=penalty_factor,
                          advanced_params=advanced_params)
         self.log_intensity = log_intensity
-        self.exclusion = WeightedDEWExclusion(rt_tol, exclusion_t_0)
+        self.exclusion = WeightedDEWExclusion(mz_tol, rt_tol, exclusion_t_0)
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -195,6 +254,10 @@ class WeightedDEWController(TopNController):
             mzs = self.scan_to_process.mzs
             intensities = self.scan_to_process.intensities
             rt = self.scan_to_process.rt
+
+            # perform isotope deconvolution, necessary for proteomics data
+            if self.deisotope:
+                mzs, intensities = self._deisotope(mzs, intensities)
 
             if not self.log_intensity:
                 mzi = [ScanItem(mz, intensities[i]) for i, mz in enumerate(mzs)

@@ -39,3 +39,8 @@ dependencies:
     - mass-spec-utils
     - pysmiles
     - numba-stats
+    - brain-isotopic-distribution
+    - ms_peak_picker
+    - ms_deisotope
+    - optuna
+    - kaleido

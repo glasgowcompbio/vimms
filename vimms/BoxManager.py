@@ -142,6 +142,7 @@ class BoxManager():
         self.box_geometry.register_boxes(split_boxes)
         
         if(self.injection_count + 1 < len(self.inclusion_boxes)):
+            #TODO: drift adjustments
             self.inclusion_geometry.register_boxes(self.inclusion_boxes[self.injection_count + 1])
 
     # TODO: later we could have arbitrary drift update points rather than after injection

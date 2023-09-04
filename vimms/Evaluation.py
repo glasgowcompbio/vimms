@@ -203,7 +203,9 @@ class Evaluator(metaclass=ABCMeta):
         cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
 
         max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
-        which_obtainable = max_coverage_intensities >= min_intensity
+        which_obtainable = (
+            (max_coverage_intensities >= min_intensity) * (max_coverage_intensities > 0.0)
+        )
         max_obtainable = max_coverage_intensities[np.newaxis, which_obtainable]
 
         coverage_intensity_prop = np.mean(

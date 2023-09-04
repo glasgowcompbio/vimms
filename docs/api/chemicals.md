@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Documentation for `Chemicals.py`
 
 ::: vimms.Chemicals

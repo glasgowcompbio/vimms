@@ -33,6 +33,7 @@ affiliations:
     index: 3
 date: 26 October 2021 
 bibliography: paper.bib
+nav_exclude: true
 ---
 
 # Summary

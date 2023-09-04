@@ -40,7 +40,11 @@ class TopNEXtController(RoiController):
                  register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
                  exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None):
+                 exclusion_t_0=None,
+                 deisotope=False,
+                 charge_range=(2, 6),
+                 min_fit_score=160,
+                 penalty_factor=1.0):
         """
         Create a grid controller.
 
@@ -68,6 +72,10 @@ class TopNEXtController(RoiController):
                               used to describe how to perform dynamic exclusion so that precursors
                               that have been fragmented are not fragmented again.
             exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
+            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
+            charge_range: the charge state of ions to keep.
+            min_fit_score: minimum score to keep from doing isotope deconvolution.
+            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
         super().__init__(ionisation_mode,
                          isolation_width,
@@ -81,7 +89,12 @@ class TopNEXtController(RoiController):
                          ms1_shift=ms1_shift,
                          advanced_params=advanced_params,
                          exclusion_method=exclusion_method,
-                         exclusion_t_0=exclusion_t_0)
+                         exclusion_t_0=exclusion_t_0,
+                         deisotope=deisotope,
+                         charge_range=charge_range,
+                         min_fit_score=min_fit_score,
+                         penalty_factor=penalty_factor
+        )
 
         self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params)
         self.grid = grid  # helps us understand previous RoIs

@@ -1,13 +1,19 @@
 import numpy as np
 from loguru import logger
-from ms_deisotope import MSDeconVFitter, PenalizedMSDeconVFitter
+from ms_deisotope import (
+    MSDeconVFitter,
+    PenalizedMSDeconVFitter,
+    AveraginePeakDependenceGraphDeconvoluter,
+    AveragineDeconvoluter,
+)
+from ms_deisotope.deconvolution.peak_retention_strategy import PeakRetentionStrategyBase
 
 from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
 from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
 
 from ms_deisotope.deconvolution.utils import prepare_peaklist
-from ms_deisotope.deconvolution import deconvolute_peaks
+from ms_deisotope.deconvolution import deconvolute_peaks, TopNRetentionStrategy
 
 
 class TopNController(Controller):
@@ -22,7 +28,7 @@ class TopNController(Controller):
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
                  deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
-                 use_quick_charge=True):
+                 use_quick_charge=False):
         """
         Initialise the Top-N controller
 
@@ -192,7 +198,10 @@ class TopNController(Controller):
     def _deisotope(self, mzs, intensities):
         pl = prepare_peaklist((mzs, intensities))
         ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range,
-                               use_quick_charge=self.use_quick_charge)
+                               deconvoluter_type=AveragineDeconvoluter,
+                               truncate_after=0.80,
+                               incremental_truncation=0.80,
+                               ignore_below=self.min_ms1_intensity)
         mzs = np.array([peak.mz for peak in ps.peak_set.peaks])
         intensities = np.array([peak.intensity for peak in ps.peak_set.peaks])
         return mzs, intensities

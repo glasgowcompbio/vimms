@@ -61,6 +61,8 @@ def parse_args():
                         help='The minimum fit score from ms_deconvolve.')
     parser.add_argument('--penalty_factor', type=float, default=1.5,
                         help='Penalty factor for ms_deconvolve.')
+    parser.add_argument('--use_quick_charge', action='store_true',
+                        help='Whether to use quick charge for deconvolution.')
     parser.add_argument('--out_dir', type=str, default='topN_test',
                         help='The directory where the output files will be stored.')
     parser.add_argument('--in_mzml', type=str, default='BSA_100fmol__recon_1ul_1.mzML',
@@ -202,7 +204,9 @@ def run_simulation(args, dataset, st, out_dir):
         POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
         advanced_params=params, exclude_after_n_times=exclude_after_n_times,
         exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
-        min_fit_score=min_fit_score, penalty_factor=penalty_factor)
+        min_fit_score=min_fit_score, penalty_factor=penalty_factor,
+        use_quick_charge=args.use_quick_charge
+    )
 
     # record the starting time
     start_time = time.time()

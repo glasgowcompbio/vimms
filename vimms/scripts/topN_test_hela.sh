@@ -12,7 +12,7 @@ charge_range_start="2"
 charge_range_end="6"
 
 # An array of min_fit_scores and penalty factors
-min_fit_scores=( "20" "40" "60" "80" "100" "120" "140" "160" "180" "200" )
+min_fit_scores=( "50" "100" "150" "200" "250" "300" "350" "400" )
 
 # An array of penalty factors
 penalty_factors=( "0.25" "0.50" "0.75" "1.0" "1.25" "1.50" "1.75" "2.0" )
@@ -42,14 +42,14 @@ for score in "${min_fit_scores[@]}"; do
         fi
         # Run the script in the background if --parallel is specified
         if [ "$parallel" = true ]; then
-            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty &
+            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty  --use_quick_charge &
             ((job_count++))
             # If we've reached 10 jobs, wait for any job to complete
             if (( job_count % 10 == 0 )); then
                 wait -n
             fi
         else
-            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty
+            python topN_test.py --in_mzml $in_mzml --at_least_one_point_above $at_least_one_point_above --charge_range_start $charge_range_start --charge_range_end $charge_range_end --out_dir $out_dir --min_fit_score $score --penalty_factor $penalty --use_quick_charge
         fi
     done
 done

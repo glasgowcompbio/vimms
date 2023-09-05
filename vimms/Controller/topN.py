@@ -27,8 +27,8 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
-                 use_quick_charge=False):
+                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=3.0,
+                 use_quick_charge=True):
         """
         Initialise the Top-N controller
 
@@ -201,7 +201,8 @@ class TopNController(Controller):
                                deconvoluter_type=AveragineDeconvoluter,
                                truncate_after=0.80,
                                incremental_truncation=0.80,
-                               ignore_below=self.min_ms1_intensity)
+                               ignore_below=self.min_ms1_intensity,
+                               use_quick_charge=self.use_quick_charge)
         mzs = np.array([peak.mz for peak in ps.peak_set.peaks])
         intensities = np.array([peak.intensity for peak in ps.peak_set.peaks])
         return mzs, intensities

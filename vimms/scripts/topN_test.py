@@ -71,6 +71,8 @@ def parse_args():
                         help='The filename of the output mzML file.')
     parser.add_argument('--show_progress', action='store_true',
                         help='Show a progress bar during simulation.')
+    parser.add_argument('--num_repeats', type=int, default=1,
+                        help='The number of times the simulation is repeated.')
     args = parser.parse_args()
     return args
 
@@ -171,9 +173,14 @@ def main(args):
     dataset = extract_chems(args.in_mzml, chem_file, args.at_least_one_point_above)
     st = extract_scan_timing(args.in_mzml, st_file, args.num_bins)
 
-    # simulate Top-N
-    run_simulation(args, dataset, st, out_dir)
+    # simulate Top-N multiple times
+    elapsed_times = []  # List to store elapsed time of each run
+    for i in range(args.num_repeats):
+        elapsed_time = run_simulation(args, dataset, st, out_dir)
+        elapsed_times.append(elapsed_time)
 
+    avg_elapsed_time = sum(elapsed_times) / len(elapsed_times)
+    print(f"On average, simulation took {avg_elapsed_time:.2f} seconds.")
 
 def run_simulation(args, dataset, st, out_dir):
 
@@ -223,9 +230,10 @@ def run_simulation(args, dataset, st, out_dir):
 
     # compute and print the elapsed time
     elapsed_time = time.time() - start_time
-    print(f"Simulation took {elapsed_time:.2f} seconds.")
+    print(f"Simulation run took {elapsed_time:.2f} seconds.")
 
     env.write_mzML(out_dir, args.out_mzml)
+    return elapsed_time
 
 
 if __name__ == '__main__':

@@ -197,12 +197,7 @@ class TopNController(Controller):
 
     def _deisotope(self, mzs, intensities):
         pl = prepare_peaklist((mzs, intensities))
-        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range,
-                               deconvoluter_type=AveragineDeconvoluter,
-                               truncate_after=0.80,
-                               incremental_truncation=0.80,
-                               ignore_below=self.min_ms1_intensity,
-                               use_quick_charge=self.use_quick_charge)
+        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range)
         mzs = np.array([peak.mz for peak in ps.peak_set.peaks])
         intensities = np.array([peak.intensity for peak in ps.peak_set.peaks])
         return mzs, intensities

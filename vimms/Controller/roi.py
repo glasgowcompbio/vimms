@@ -38,8 +38,9 @@ class RoiController(TopNController):
                  exclusion_t_0=None,
                  deisotope=False,
                  charge_range=(2, 6),
-                 min_fit_score=160,
-                 penalty_factor=1.0):
+                 min_fit_score=80,
+                 penalty_factor=1.5,
+                 use_quick_charge=False):
         """
         Initialise an ROI-based controller
         Args:
@@ -71,7 +72,7 @@ class RoiController(TopNController):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,
                          deisotope=deisotope, charge_range=charge_range,
-                         min_fit_score=min_fit_score, penalty_factor=penalty_factor,
+                         min_fit_score=min_fit_score, penalty_factor=penalty_factor, use_quick_charge=use_quick_charge,
                          advanced_params=advanced_params)
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation  # noqa
         self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params)
@@ -307,8 +308,9 @@ class TopN_SmartRoiController(RoiController):
                  exclusion_t_0=None,
                  deisotope=False,
                  charge_range=(2, 6),
-                 min_fit_score=160,
-                 penalty_factor=1.0):
+                 min_fit_score=80,
+                 penalty_factor=1.5,
+                 use_quick_charge=False):
         """
         Initialise the Top-N SmartROI controller.
 
@@ -353,7 +355,8 @@ class TopN_SmartRoiController(RoiController):
                          deisotope=deisotope,
                          charge_range=charge_range,
                          min_fit_score=min_fit_score,
-                         penalty_factor=penalty_factor)
+                         penalty_factor=penalty_factor,
+                         use_quick_charge=use_quick_charge)
 
     def _get_dda_scores(self):
         return self._log_roi_intensities() * self._min_intensity_filter() * \
@@ -385,8 +388,9 @@ class TopN_RoiController(RoiController):
                  exclusion_t_0=None,
                  deisotope=False,
                  charge_range=(2, 6),
-                 min_fit_score=160,
-                 penalty_factor=1.0):
+                 min_fit_score=80,
+                 penalty_factor=1.5,
+                 use_quick_charge=False):
         """
         Initialise the Top-N SmartROI controller.
 
@@ -428,7 +432,8 @@ class TopN_RoiController(RoiController):
                          deisotope=deisotope,
                          charge_range=charge_range,
                          min_fit_score=min_fit_score,
-                         penalty_factor=penalty_factor)
+                         penalty_factor=penalty_factor,
+                         use_quick_charge=use_quick_charge)
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()

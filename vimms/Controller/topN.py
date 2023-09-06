@@ -27,8 +27,8 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=3.0,
-                 use_quick_charge=True):
+                 deisotope=False, charge_range=(2, 6), min_fit_score=80, penalty_factor=1.5,
+                 use_quick_charge=False):
         """
         Initialise the Top-N controller
 
@@ -241,12 +241,12 @@ class WeightedDEWController(TopNController):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity, ms1_shift=0,
                  exclusion_t_0=15, log_intensity=False,
-                 deisotope=False, charge_range=(2, 6), min_fit_score=160, penalty_factor=1.0,
+                 deisotope=False, charge_range=(2, 6), min_fit_score=80, penalty_factor=1.5, use_quick_charge=False,
                  advanced_params=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,
                          deisotope=deisotope, charge_range=charge_range,
-                         min_fit_score=min_fit_score, penalty_factor=penalty_factor,
+                         min_fit_score=min_fit_score, penalty_factor=penalty_factor, use_quick_charge=use_quick_charge,
                          advanced_params=advanced_params)
         self.log_intensity = log_intensity
         self.exclusion = WeightedDEWExclusion(mz_tol, rt_tol, exclusion_t_0)

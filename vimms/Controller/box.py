@@ -43,8 +43,9 @@ class TopNEXtController(RoiController):
                  exclusion_t_0=None,
                  deisotope=False,
                  charge_range=(2, 6),
-                 min_fit_score=160,
-                 penalty_factor=1.0):
+                 min_fit_score=80,
+                 penalty_factor=1.5,
+                 use_quick_charge=False):
         """
         Create a grid controller.
 
@@ -93,7 +94,8 @@ class TopNEXtController(RoiController):
                          deisotope=deisotope,
                          charge_range=charge_range,
                          min_fit_score=min_fit_score,
-                         penalty_factor=penalty_factor
+                         penalty_factor=penalty_factor,
+                         use_quick_charge=use_quick_charge
         )
 
         self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params)
@@ -104,7 +106,7 @@ class TopNEXtController(RoiController):
     def update_state_after_scan(self, scan):
         super().update_state_after_scan(scan)
         self.grid.send_training_data(scan)
-        
+
     def _set_fragmented(self, i, roi_id, rt, intensity):
         super()._set_fragmented(i, roi_id, rt, intensity)
         self.grid.register_roi(self.roi_builder.live_roi[i])
@@ -113,7 +115,7 @@ class TopNEXtController(RoiController):
         if(self.roi_builder.live_roi != []):
             rt = max(r.max_rt for r in self.roi_builder.live_roi)
             self.grid.set_active_boxes(rt)
-    
+
         non_overlaps = self._overlap_scores()
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
             smartroi_scores = self._smartroi_filter()
@@ -139,7 +141,7 @@ class IntensityTopNEXtController(TopNEXtController):
         if(self.roi_builder.live_roi != []):
             rt = max(r.max_rt for r in self.roi_builder.live_roi)
             self.grid.set_active_boxes(rt)
-            
+
         overlap_scores = self._overlap_scores()
         if self.roi_builder.roi_type == ROI_TYPE_SMART:
             smartroi_scores = self._smartroi_filter()
@@ -173,7 +175,7 @@ class TopNEXController(TopNEXtController):
                 )
             )
         super().after_injection_cleanup()
-        
+
 
 class HardRoIExcludeController(TopNEXtController):
     def _overlap_scores(self):
@@ -197,7 +199,7 @@ class IntensityRoIExcludeController(IntensityTopNEXtController):
             else:
                 new_intensities.append(log(r_intensity) - log(max(b.intensity for b in boxes)))
         return new_intensities
-        
+
 
 class NonOverlapController(TopNEXtController):
     """
@@ -221,11 +223,11 @@ class IntensityNonOverlapController(IntensityTopNEXtController):
                 r,
                 self.roi_builder.current_roi_intensities[i],
                 self.scoring_params
-            ) 
+            )
             for i, r in enumerate(self.roi_builder.live_roi)
         ])
         return new_intensities
-        
+
 
 class FlexibleNonOverlapController(TopNEXtController):
     """
@@ -275,7 +277,7 @@ class FlexibleNonOverlapController(TopNEXtController):
                 r,
                 self.roi_builder.current_roi_intensities[i],
                 self.scoring_params
-            ) 
+            )
             for i, r in enumerate(self.roi_builder.live_roi)
         ]
         return scores
@@ -326,10 +328,10 @@ class CaseControlNonOverlapController(TopNEXtController):
     def _get_scores(self):
         scores = [
             self.grid.case_control_non_overlap(
-                r, 
+                r,
                 self.current_roi_intensities[i],
                 self.scoring_params
-            ) 
+            )
             for i, r in enumerate(self.live_roi)
         ]
         return self._get_top_N_scores(scores * self._score_filters())

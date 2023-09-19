@@ -9,7 +9,7 @@ base_out_dir="results"
 
 # Variables for charge range start and end
 charge_range_start="2"
-charge_range_end="6"
+charge_range_end="3"
 
 # An array of min_fit_scores and penalty factors
 min_fit_scores=( "20" "40" "60" "80" "100" "120" "140" "160" "180" "200" )

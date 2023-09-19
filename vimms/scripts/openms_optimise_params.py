@@ -9,7 +9,7 @@ class BaseParameters:
     DEFAULT_MS1_SCAN_WINDOW_END: float = 2000.0
     DEISOTOPE: bool = True
     CHARGE_RANGE_START: int = 2
-    CHARGE_RANGE_END: int = 6
+    CHARGE_RANGE_END: int = 3
     MIN_FIT_SCORE: int = 80
     PENALTY_FACTOR: float = 1.5
 

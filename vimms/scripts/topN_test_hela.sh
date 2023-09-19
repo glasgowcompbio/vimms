@@ -9,10 +9,10 @@ base_out_dir="hela_results"
 
 # Variables for charge range start and end
 charge_range_start="2"
-charge_range_end="6"
+charge_range_end="3"
 
 # An array of min_fit_scores and penalty factors
-min_fit_scores=( "50" "100" "150" "200" "250" "300" "350" "400" )
+min_fit_scores=( "20" "40" "60" "80" "100" "120" "140" "160" "180" "200" )
 
 # An array of penalty factors
 penalty_factors=( "0.25" "0.50" "0.75" "1.0" "1.25" "1.50" "1.75" "2.0" )

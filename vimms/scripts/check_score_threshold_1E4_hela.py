@@ -43,7 +43,7 @@ charge = (2, 6)
 labels = ['HeLA (true)', 'HeLA (simulated)']
 show_plot = False
 
-scores = [50, 100, 150, 200, 250, 300, 350, 400]
+scores = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
 penalty_factors = ['0.25', '0.50', '0.75', '1.0', '1.25', '1.50', '1.75', '2.0']
 
 # scores = [120, 160]

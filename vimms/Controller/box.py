@@ -42,7 +42,7 @@ class TopNEXtController(RoiController):
                  exclusion_method=ROI_EXCLUSION_DEW,
                  exclusion_t_0=None,
                  deisotope=False,
-                 charge_range=(2, 6),
+                 charge_range=(2, 3),
                  min_fit_score=80,
                  penalty_factor=1.5,
                  use_quick_charge=False):

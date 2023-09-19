@@ -55,7 +55,7 @@ def parse_args():
                         help='Whether to perform deisotoping or not.')
     parser.add_argument('--charge_range_start', type=int, default=2,
                         help='The start of the charge range for filtering.')
-    parser.add_argument('--charge_range_end', type=int, default=6,
+    parser.add_argument('--charge_range_end', type=int, default=3,
                         help='The end of the charge range for filtering.')
     parser.add_argument('--min_fit_score', type=int, default=80,
                         help='The minimum fit score from ms_deconvolve.')

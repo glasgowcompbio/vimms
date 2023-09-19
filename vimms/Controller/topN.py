@@ -1,19 +1,15 @@
 import numpy as np
 from loguru import logger
 from ms_deisotope import (
-    MSDeconVFitter,
     PenalizedMSDeconVFitter,
-    AveraginePeakDependenceGraphDeconvoluter,
     AveragineDeconvoluter,
 )
-from ms_deisotope.deconvolution.peak_retention_strategy import PeakRetentionStrategyBase
+from ms_deisotope.deconvolution import deconvolute_peaks
+from ms_deisotope.deconvolution.utils import prepare_peaklist
 
 from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
 from vimms.Exclusion import TopNExclusion, WeightedDEWExclusion
-
-from ms_deisotope.deconvolution.utils import prepare_peaklist
-from ms_deisotope.deconvolution import deconvolute_peaks, TopNRetentionStrategy
 
 
 class TopNController(Controller):
@@ -27,7 +23,7 @@ class TopNController(Controller):
                  min_ms1_intensity,
                  ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
                  force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(2, 6), min_fit_score=80, penalty_factor=1.5,
+                 deisotope=False, charge_range=(2, 3), min_fit_score=80, penalty_factor=1.5,
                  use_quick_charge=False):
         """
         Initialise the Top-N controller
@@ -197,9 +193,13 @@ class TopNController(Controller):
 
     def _deisotope(self, mzs, intensities):
         pl = prepare_peaklist((mzs, intensities))
-        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range)
-        mzs = np.array([peak.mz for peak in ps.peak_set.peaks])
-        intensities = np.array([peak.intensity for peak in ps.peak_set.peaks])
+        dt = AveragineDeconvoluter
+        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range,
+                               deconvoluter_type=dt, use_quick_charge=self.use_quick_charge)
+
+        peaks = ps.peak_set.peaks
+        mzs = np.array([peak.mz for peak in peaks])
+        intensities = np.array([peak.intensity for peak in peaks])
         return mzs, intensities
 
     def update_state_after_scan(self, scan):
@@ -241,7 +241,7 @@ class WeightedDEWController(TopNController):
     def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                  min_ms1_intensity, ms1_shift=0,
                  exclusion_t_0=15, log_intensity=False,
-                 deisotope=False, charge_range=(2, 6), min_fit_score=80, penalty_factor=1.5, use_quick_charge=False,
+                 deisotope=False, charge_range=(2, 3), min_fit_score=80, penalty_factor=1.5, use_quick_charge=False,
                  advanced_params=None):
         super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
                          min_ms1_intensity, ms1_shift=ms1_shift,

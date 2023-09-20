@@ -1,1 +1,10 @@
-theme: jekyll-theme-cayman
+remote_theme: just-the-docs/just-the-docs
+nav_external_links:
+  - title: GitHub
+    url: https://github.com/glasgowcompbio/vimms
+  - title: Example Usage
+    url: https://github.com/glasgowcompbio/vimms/tree/master/demo
+  - title: Code for Papers
+    url: https://github.com/glasgowcompbio/vimms/tree/master/examples
+  - title: API Documentation
+    url: https://vimms.readthedocs.io

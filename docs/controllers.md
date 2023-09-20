@@ -1,7 +1,10 @@
+---
+nav_exclude: true
+---
 # Running Controllers
 
-Chemicals that have been created can now be run through various fragmentation strategies, implemented as
-controller classes in ViMMS. The following example demonstrates how to generate 100 chemicals and run them through a controller that implements the Top-N DDA strategy.
+After creating chemicals, you can apply various fragmentation strategies using controller classes in ViMMS. The following example demonstrates generating 100 chemicals and implementing a Top-N DDA strategy using a controller.
+
 ```python
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.ChemicalSamplers import UniformMZFormulaSampler
@@ -32,16 +35,15 @@ min_rt = rt_range[0][0]
 max_rt = rt_range[0][1]
 env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=True)
 
-# set the log level to WARNING so we don't see too many messages when environment is running
+# set the log level to WARNING to minimize message volume when the environment is running
 set_log_level_warning()
 
 # run the simulation
 env.run()
 ```
-For more examples, we provide [notebooks](https://github.com/glasgowcompbio/vimms/tree/master/demo/02.%20Methods) for 
-the four controllers described in our paper
-[Rapid Development of Improved Data-Dependent Acquisition Strategies](https://pubs.acs.org/doi/abs/10.1021/acs.analchem.0c03895).
+
+For additional examples, refer to our [notebooks](https://github.com/glasgowcompbio/vimms/tree/master/demo/02.%20Methods) corresponding to the four controllers described in our paper, [Rapid Development of Improved Data-Dependent Acquisition Strategies](https://pubs.acs.org/doi/abs/10.1021/acs.analchem.0c03895).
 
 ## Evaluation
 
-Simulated results can be evaluated in ViMMS using convenient methods in https://github.com/glasgowcompbio/vimms/blob/master/vimms/Evaluation.py.
+ViMMS allows evaluation of simulation results using methods provided [here](https://github.com/glasgowcompbio/vimms/blob/master/vimms/Evaluation.py). These tools offer a convenient way to assess the performance and outcomes of your simulations.

@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Documentation for `Box.py`
 
 ::: vimms.Box

@@ -1,3 +1,6 @@
+---
+nav_exclude: true
+---
 # Documentation for `MzmlWriter.py`
 
 ::: vimms.MzmlWriter

@@ -550,7 +550,7 @@ class Experiment:
                 
                 if(not passed):
                     raise ValueError(
-                        (check_mzmine, fs_names, aligned_path, mzmine_names)
+                        (check_files, fs_names, aligned_path, mzmine_names)
                     )
         
         if(max_repeat is None):

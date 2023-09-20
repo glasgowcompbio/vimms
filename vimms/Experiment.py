@@ -192,7 +192,6 @@ class ExperimentCase:
                     mass_spec = IndependentMassSpectrometer(
                         ionisation_mode, 
                         dataset,
-                        None,
                         scan_duration=scan_duration_dict
                     )
                     

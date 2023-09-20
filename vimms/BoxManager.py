@@ -2,7 +2,7 @@ from collections import deque
 from operator import attrgetter
 
 from vimms.Roi import Roi, RoiAligner
-from vimms.Box import BoxGrid, LineSweeper
+from vimms.Box import BoxIntervalTrees, BoxGrid, LineSweeper
 from vimms.DriftCorrection import IdentityDrift
 
 class BoxManager():

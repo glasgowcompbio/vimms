@@ -14,7 +14,7 @@
             <scan_definition/>
         </parameter>
         <parameter name="m/z">
-            <min>70.0</min>
+            <min>80.0</min>
             <max>1060.0</max>
         </parameter>
         <parameter name="Suffix">filtered</parameter>

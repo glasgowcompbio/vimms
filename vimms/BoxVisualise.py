@@ -431,7 +431,7 @@ class PlotPoints():
         if(not colour_minm is None):
             cmin = colour_minm
         elif(not abs_scaling is None):
-            cmin = min(np.log(self.ms2_points[:, 2]))
+            cmin = min(np.log(self.ms2s[:, 2]))
         else:
             cmin = None
         
@@ -471,7 +471,7 @@ class PlotPoints():
         if(not colour_minm is None):
             cmin = colour_minm
         elif(not abs_scaling is None):
-            cmin = min(np.log(self.ms2_points[:, 2]))
+            cmin = min(np.log(self.ms2s[:, 2]))
         else:
             cmin = None
         
@@ -1128,6 +1128,10 @@ def seaborn_uncovered_area_hist(eva,
 
 class BoxViewer():
     def _check_length(self):
+        '''
+            Make sure class lists are populated with the same number of objects
+            by filling with empty objects to ensure iteration behaves correctly. 
+        '''
         max_len = max(
             len(self.mzmls),
             max(len(boxset) for boxset in self.boxes)
@@ -1206,7 +1210,53 @@ class BoxViewer():
         
         return xbounds, ybounds
         
-    def summarise_box(self, box_index, boxset_index=0, rt_buffer=None, mz_buffer=None):
+    def box_has_points(self,
+                       box_index,
+                       boxset_index=0,
+                       rt_buffer=None,
+                       mz_buffer=None,
+                       ms_levels=None):
+                       
+        if(ms_levels is None):
+            ms_levels = [1, 2]         
+
+        self._check_length()
+        xbounds, ybounds = self._set_plot_bounds(
+            box_index, 
+            boxset_index=boxset_index, 
+            rt_buffer=rt_buffer, 
+            mz_buffer=mz_buffer
+        )
+        
+        ms_present = [[], []]
+        for i, mzml in enumerate(self.mzmls):
+            pts = self.plot_points[i]
+            
+            active_ms1, active_ms2 = pts.get_points_in_bounds(
+                    min_rt=xbounds[0], 
+                    max_rt=xbounds[1],
+                    min_mz=ybounds[0], 
+                    max_mz=ybounds[1]
+            )
+            
+            ms_present[0].append(np.any(active_ms1))
+            ms_present[1].append(np.any(active_ms2))
+        
+        for i in range(1, 3):
+            if(i in ms_levels):
+                locs = ", ".join(str(i) for i, b in enumerate(ms_present[i - 1]) if b)
+                print(f"MS{i} points are present in: {locs}")
+        
+    def summarise_box(self, 
+                      box_index, 
+                      boxset_index=0, 
+                      rt_buffer=None, 
+                      mz_buffer=None, 
+                      ms_levels=None):
+                      
+        if(ms_levels is None):
+            ms_levels = [1, 2]
+        
         self._check_length()
         xbounds, ybounds = self._set_plot_bounds(
             box_index, 
@@ -1230,19 +1280,21 @@ class BoxViewer():
             else:
                 print("No mzml")
             
-            print(
-                "MS1 Points:\n" + "\n".join(
-                    f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
-                    for rt, mz, intensity in pts.ms1_points[active_ms1]
+            if(1 in ms_levels):
+                print(
+                    "MS1 Points:\n" + "\n".join(
+                        f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
+                        for rt, mz, intensity in pts.ms1_points[active_ms1]
+                    )
                 )
-            )
             
-            print(
-                "MS2 Points:\n" + "\n".join(
-                    f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
-                    for rt, mz, intensity in pts.ms2s[active_ms2]
+            if(2 in ms_levels):
+                print(
+                    "MS2 Points:\n" + "\n".join(
+                        f"rt: {rt}, m/z: {mz}, intensity: {intensity}"
+                        for rt, mz, intensity in pts.ms2s[active_ms2]
+                    )
                 )
-            )
             
             for h, boxset in zip(self.headers, self.boxes):
                 print(h)

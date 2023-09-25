@@ -22,6 +22,8 @@ Moreover, ViMMS serves as a platform for the development, optimization, and test
 
 To see a more thorough explanation of the use cases of ViMMS, please refer to the [Use Cases](pages/use_cases.md) section.
 
+You can also find this [quick guide on how to get started using ViMMS](https://github.com/glasgowcompbio/vimms/blob/master/demo/guide_to_vimms.ipynb).
+
 # Contributions
 
 As an open-source project licensed under MIT, we welcomes all forms of contributions, including bug fixes, new features, and more. You can find our community contribution guidelines [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).

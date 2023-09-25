@@ -28,6 +28,8 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.Common import (
     get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
 )
+from vimms.PeakPicking import MZMineParams
+from vimms.Box import GenericBox
 
 
 class MatchingScan():
@@ -182,9 +184,9 @@ class MatchingChem():
     
     def __hash__(self): 
         return self.id.__hash__()
-
+        
     @staticmethod
-    def mzmine2nodes(box_file_path, box_order):
+    def boxfile2nodes(reader, box_file_path, box_order):
         include = [
                 "status",
                 "RT start",
@@ -197,35 +199,29 @@ class MatchingChem():
             ".".join(os.path.basename(fname).split(".")[:-1]) for fname in box_order
         ]
         chems_list = [[] for _ in box_order]
-        
-        with open(box_file_path, "r") as f:
-            headers = f.readline().split(",")
-            pattern = re.compile(r"(.*)\.mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
-            
-            indices = defaultdict(dict)
-            for i, h in enumerate(headers):
-                m = pattern.match(h)
-                if(not m is None):
-                    indices[m.group(1)][m.group(2)] = i
-            
-            for i, ln in enumerate(f):
-                split = ln.split(",")
-                
-                for j, fname in enumerate(box_order):
-                    inner = indices[fname]
-                    status = split[inner["status"]].upper()
-                    if(status == "DETECTED" or status == "ESTIMATED"):
-                        chems_list[j].append(
-                            MatchingChem(
-                                i,
-                                float(split[inner["m/z min"]]),
-                                float(split[inner["m/z max"]]),
-                                60 * float(split[inner["RT start"]]),
-                                60 * float(split[inner["RT end"]])
-                            )
+                        
+        fs_names, line_ls = reader.read_aligned_csv(box_file_path)
+        for i, (_, mzml_fields) in enumerate(line_ls):
+            row = []
+            for j, fname in enumerate(box_order):
+                inner = mzml_fields[fname]
+                status = inner["status"].upper()
+                if(status == "DETECTED" or status == "ESTIMATED"):
+                    chems_list[j].append(
+                        MatchingChem(
+                            i,
+                            float(inner["m/z min"]),
+                            float(inner["m/z max"]),
+                            reader.RT_FACTOR * float(inner["RT start"]),
+                            reader.RT_FACTOR * float(inner["RT end"])
                         )
+                    )
             
         return chems_list
+
+    @staticmethod
+    def mzmine2nodes(box_file_path, box_order):
+        return MatchingChem.boxfile2nodes(MZMineParams, box_file_path, box_order)
 
     @staticmethod
     def env2nodes(env, isolation_width, chem_ids=None):
@@ -588,10 +584,76 @@ class Matching():
             weighted=weighted,
             full_assignment_strategy=full_assignment_strategy
         )
+
+    @staticmethod
+    def make_matching(fullscan_paths,
+                      times_list,
+                      aligned_reader,
+                      aligned_file,
+                      intensity_threshold,
+                      mz_window=1E-10,
+                      edge_limit=None,
+                      weighted=1,
+                      full_assignment_strategy=1):
+        """
+            Convenience method to make a matching from provided scan times/levels
+            and an aligned file of inclusion boxes.
+            
+            Args:
+                fullscan_paths: List of paths to fullscan .mzMLs, one per injection,
+                  to seed scan data for that injection. The filename should match
+                  identifiers in the aligned file.
+                times_list: List of lists (scan_level, rt) pairs, one list per 
+                  injection, to generate new scan times.
+                aligned_reader: Reader object to read aligned_file.
+                aligned_file: File containing aligned inclusion boxes.
+                intensity_threshold: Minimum intensity for an edge to be retained
+                  in the constructed graph.
+                mz_window: m/z tolerance for determining whether two intensity 
+                  readings are at the same value when interpolating scan intensities.
+                edge_limit: If given a non-None integer value, each vertex in the
+                  constructed graph will be pruned to have degree of no more than
+                  edge_limit, for performance reasons. Prefers to keep highest
+                  intensity edges.
+                weighted: Choice of method to decide preferences between weighted
+                  edges.
+                full_assignment_strategy: Choice of method to assign leftover scans
+                  not in the matching.
+            
+            Returns: A Matching object.
+        """
+        
+        scans_list = []
+        for i, fs in enumerate(fullscan_paths):
+            new_scans = MatchingScan.create_scan_intensities(
+                    fs,
+                    i,
+                    times_list[i],
+                    mz_window
+            )
+            scans_list.append(new_scans)
+        
+        chems_list = MatchingChem.boxfile2nodes(
+            aligned_reader,
+            aligned_file,
+            fullscan_paths
+        )
+        
+        matching = Matching.multi_schedule2graph(
+            scans_list,
+            chems_list,
+            intensity_threshold,
+            edge_limit=edge_limit,
+            weighted=weighted,
+            full_assignment_strategy=full_assignment_strategy
+        )
+        
+        return matching
     
     def make_schedules(self, isolation_width):
         id_count, precursor_id = INITIAL_SCAN_ID, -1
         schedules_list = [[] for _ in self.scans_list]
+        rts_list = [[] for _ in self.scans_list]
         ms2_targets = itertools.chain(*self.full_assignment)
         
         for i, scans in enumerate(self.scans_list):
@@ -604,14 +666,51 @@ class Matching():
                     schedules_list[i].append(
                         get_dda_scan_param(
                             target_mz, 
-                            0.0, 
+                            0.0,
                             precursor_id, 
-                            isolation_width, 
+                            isolation_width,
                             0.0, 
                             0.0, 
                             scan_id=id_count
                         )
                     )
+                rts_list[i].append(s.rt)
                 id_count += 1
         
-        return schedules_list
+        return schedules_list, rts_list
+        
+    def make_inclusion_boxes(self, rt_width, mz_width):
+        """
+            Turn matching targets into inclusion boxes of a specified size that
+            can be used by a DDA controller.
+            
+            Args:
+                rt_width: inclusion box rt width in seconds.
+                m/z width: inclusion box m/z width in ppm.
+                
+            Returns: A list of lists of inclusion boxes, one list per injection.
+        """
+        current_rt = 0.0
+    
+        box_lists = []
+        for i, scans in enumerate(self.scans_list):
+            boxes = []
+            for s in scans:
+                if(s.ms_level == 1):
+                    current_rt = s.rt
+                elif(s.ms_level == 2):
+                    if(s in self.matching):
+                        ch = self.matching[s]
+                        mz = (ch.min_mz + ch.max_mz) / 2
+                        abs_width = (mz_width / 1e6) * mz
+                        boxes.append(
+                            GenericBox(
+                                current_rt - rt_width / 2,
+                                current_rt + rt_width / 2,
+                                mz - abs_width / 2,
+                                mz + abs_width / 2
+                            )
+                        )
+            box_lists.append(boxes)
+            
+        return box_lists

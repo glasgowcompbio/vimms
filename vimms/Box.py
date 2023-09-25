@@ -1045,11 +1045,3 @@ class BoxLineSweeper(BoxExact):
         
     def clear(self):
         self.__init__()
-    
-    #TODO:
-    #for evaluation
-    #for point matching, find which precursors lie in which boxes, then check if fragmentation scans are still in box and have any as parent 
-    #for window matching, find which precursors lie in which boxes, find which boxes are overlapped by which intervals, and use largest precursor (or sum of precursors?) in that box
-    
-    #for matching
-    #find which precursors lie in which boxes with points from a single scan, then create edge with intensity at that point

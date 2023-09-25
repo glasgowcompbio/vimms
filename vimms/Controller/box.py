@@ -58,7 +58,7 @@ class TopNEXtController(RoiController):
             min_ms1_intensity: the minimum intensity to fragment a precursor ion
             roi_params: an instance of [vimms.Roi.RoiBuilderParams][] that describes
                         how to build ROIs in real time based on incoming scans.
-            grid: an instance of grid object.
+            grid: an instance of BoxManager for exclusion/inclusion boxes.
             smartroi_params: an instance of [vimms.Roi.SmartRoiParams][]. If provided, then
                              the SmartROI rules (as described in the paper) will be used to select
                              which ROI to fragment. Otherwise set to None to use standard ROIs.
@@ -111,30 +111,45 @@ class TopNEXtController(RoiController):
         super()._set_fragmented(i, roi_id, rt, intensity)
         self.grid.register_roi(self.roi_builder.live_roi[i])
 
+    def _add_inclusion_scores(self, scores):
+        if(self.roi_builder.live_roi == []):
+            return scores
+
+        maxm = max(scores)
+        return scores + np.array([
+            (
+                maxm
+                if self.grid.point_in_box(Point(r[-1][0], r[-1][1]), idx=self.grid.IN_GEOM)
+                else 0.0
+            )
+            for r in self.roi_builder.live_roi
+        ])
+
     def _get_scores(self):
-        if(self.roi_builder.live_roi != []):
+        if (self.roi_builder.live_roi != []):
             rt = max(r.max_rt for r in self.roi_builder.live_roi)
             self.grid.set_active_boxes(rt)
 
-        non_overlaps = self._overlap_scores()
+        overlap_scores = self._overlap_scores()
+        overlap_scores = self._add_inclusion_scores(overlap_scores)
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
             smartroi_scores = self._smartroi_filter()
             dda_scores = self._log_roi_intensities() * self._min_intensity_filter()
 
             # multiply them, this might not work well because a lot of
             # the smartroi scores are 0s
-            final_scores = dda_scores * smartroi_scores * non_overlaps
+            final_scores = dda_scores * smartroi_scores * overlap_scores
 
         else:  # normal ROI
             dda_scores = self._get_dda_scores()
-            final_scores = dda_scores * non_overlaps
+            final_scores = dda_scores * overlap_scores
 
         # print(final_scores)
         return self._get_top_N_scores(final_scores)
 
     def after_injection_cleanup(self):
         self.grid.update_after_injection()
-
+        
 
 class IntensityTopNEXtController(TopNEXtController):
     def _get_scores(self):
@@ -143,6 +158,7 @@ class IntensityTopNEXtController(TopNEXtController):
             self.grid.set_active_boxes(rt)
 
         overlap_scores = self._overlap_scores()
+        overlap_scores = self._add_inclusion_scores(overlap_scores)
         if self.roi_builder.roi_type == ROI_TYPE_SMART:
             smartroi_scores = self._smartroi_filter()
             return self._get_top_N_scores(
@@ -152,6 +168,16 @@ class IntensityTopNEXtController(TopNEXtController):
             return self._get_top_N_scores(
                 overlap_scores * self._score_filters()
             )
+
+
+class ReTopNController(TopNEXtController):
+    '''
+        Reimplementation of the topN controller in the topNEXt framework,
+        allowing it to use features like inclusion boxes.
+    '''
+
+    def _overlap_scores(self):
+        return np.array([1 for r in self.roi_builder.live_roi])
 
 
 class TopNEXController(TopNEXtController):

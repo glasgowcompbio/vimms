@@ -14,7 +14,7 @@
             <scan_definition/>
         </parameter>
         <parameter name="m/z">
-            <min>70.0</min>
+            <min>80.0</min>
             <max>1060.0</max>
         </parameter>
         <parameter name="Suffix">filtered</parameter>
@@ -92,7 +92,7 @@
         <parameter name="Min highest intensity">5000.0</parameter>
         <parameter name="m/z tolerance">
             <absolutetolerance>1.0E-8</absolutetolerance>
-            <ppmtolerance>5.0</ppmtolerance>
+            <ppmtolerance>10.0</ppmtolerance>
         </parameter>
         <parameter name="Suffix">chromatograms</parameter>
     </batchstep>
@@ -139,7 +139,7 @@
                 <parameter name="S/N threshold">10.0</parameter>
                 <parameter name="Wavelet scales">
                     <min>0.25</min>
-                    <max>5.0</max>
+                    <max>10.0</max>
                 </parameter>
                 <parameter name="Peak duration range">
                     <min>0.0</min>
@@ -179,7 +179,7 @@
         <parameter name="Name suffix">deisotoped</parameter>
         <parameter name="m/z tolerance">
             <absolutetolerance>1.0E-8</absolutetolerance>
-            <ppmtolerance>5.0</ppmtolerance>
+            <ppmtolerance>10.0</ppmtolerance>
         </parameter>
         <parameter name="Retention time tolerance" type="absolute">0.1</parameter>
         <parameter name="Monotonic shape">false</parameter>
@@ -192,7 +192,7 @@
         <parameter name="Feature list name">Aligned feature list</parameter>
         <parameter name="m/z tolerance">
             <absolutetolerance>1.0E-8</absolutetolerance>
-            <ppmtolerance>5.0</ppmtolerance>
+            <ppmtolerance>10.0</ppmtolerance>
         </parameter>
         <parameter name="Weight for m/z">80.0</parameter>
         <parameter name="Retention time tolerance" type="absolute">0.5</parameter>

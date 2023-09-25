@@ -1,7 +1,6 @@
 import os
 import csv
 import copy
-import xml
 import math
 import re
 import itertools
@@ -26,6 +25,8 @@ from mass_spec_utils.data_import.mzmine import (
 from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
 
 from vimms.Common import path_or_mzml
+from vimms.PeakPicking import pick_aligned_peaks #backwards compatibility
+from vimms.PeakPicking import MZMineParams
 from vimms.Box import (
     Point, Interval, GenericBox,
     LineSweeper
@@ -62,87 +63,6 @@ class EvaluationData():
     class DummyController():
         def __init__(self, controller):
             self.scans = controller.scans
-
-
-def count_boxes(box_filepath):
-    with open(box_filepath, "r") as f:
-        return sum(ln.strip() != "" for ln in f) - 1
-
-
-def pick_aligned_peaks(input_files,
-                       output_dir,
-                       output_name,
-                       mzmine_template,
-                       mzmine_exe,
-                       force=False):
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    input_files = list(set(input_files))  # filter duplicates
-    if (len(output_name.split(".")) > 1):
-        output_name = "".join(output_name.split(".")[:-1])
-    output_path = os.path.join(output_dir, f"{output_name}_aligned.csv")
-
-    et = xml.etree.ElementTree.parse(mzmine_template)
-    root = et.getroot()
-    for child in root:
-
-        if child.attrib["method"].endswith("RawDataImportModule"):
-            input_found = False
-            for e in child:
-                if (e.attrib["name"].strip().lower() == "raw data file names"):
-                    for f in e:
-                        e.remove(f)
-                    for i, fname in enumerate(input_files):
-                        new = xml.etree.ElementTree.SubElement(e, "file")
-                        new.text = os.path.abspath(fname)
-                        padding = " " * (0 if i == len(input_files) - 1 else 8)
-                        new.tail = e.tail + padding
-                    input_found = True
-            assert input_found, "Couldn't find a place to put the input files in the template!"
-
-        if child.attrib["method"].endswith("CSVExportModule"):
-            for e in child:
-                for f in e:
-                    if f.tag == "current_file":
-                        f.text = output_path
-
-    new_xml = os.path.join(output_dir, f"{output_name}_template.xml")
-    et.write(new_xml)
-    if (not os.path.exists(output_path) or force):
-        subprocess.run([mzmine_exe, new_xml])
-
-    try:
-        num_boxes = count_boxes(output_path)
-        print(f"{num_boxes} aligned boxes contained in file")
-    except FileNotFoundError:
-        raise FileNotFoundError("The box file doesn't seem to exist - did MZMine silently fail?")
-
-    return output_path
-
-
-def check_files_match_mzmine(fullscan_names, aligned_path, mode="subset"):
-    fs_names = {os.path.basename(fs) for fs in fullscan_names}
-    mzmine_names = set()
-
-    with open(aligned_path, "r") as f:
-        headers = f.readline().split(",")
-        pattern = re.compile(r"(.*\.mzML).*")
-
-        for h in headers:
-            for fs in fs_names:
-                m = pattern.match(h)
-                if (not m is None):
-                    mzmine_names.add(m.group(1))
-
-    mode = mode.lower()
-    if (mode == "exact"):
-        passed = not fs_names ^ mzmine_names
-    elif (mode == "subset"):
-        passed = not fs_names - mzmine_names
-    else:
-        raise ValueError("Mode not recognised")
-
-    return passed, fs_names, mzmine_names
-
 
 class Evaluator(metaclass=ABCMeta):
     TIMES_FRAGMENTED = 0
@@ -198,15 +118,16 @@ class Evaluator(metaclass=ABCMeta):
         cumulative_raw_intensities = np.fmax.accumulate(raw_intensities, axis=0)
         cumulative_coverage_intensities = np.fmax.accumulate(coverage_intensities, axis=0)
 
-        num_chems = np.sum(chem_appears)
-        coverage_prop = np.sum(coverage, axis=1) / num_chems
-        cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_chems
+        num_appears = np.sum(chem_appears)
+        coverage_prop = np.sum(coverage, axis=1) / num_appears
+        cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_appears
 
         max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
         which_obtainable = (
             (max_coverage_intensities >= min_intensity) * (max_coverage_intensities > 0.0)
         )
         max_obtainable = max_coverage_intensities[np.newaxis, which_obtainable]
+        max_obtainable[np.isclose(max_obtainable, 0.0)] = 1.0
 
         coverage_intensity_prop = np.mean(
             coverage_intensities[:, which_obtainable] / max_obtainable,
@@ -230,6 +151,7 @@ class Evaluator(metaclass=ABCMeta):
         report = {
             "num_runs": int(self.chem_info.shape[2]),
             "chem_appears": chem_appears,
+            "num_appears": num_appears,
             "coverage": coverage,
             "raw_intensity": raw_intensities,
             "intensity": coverage_intensities,
@@ -261,6 +183,7 @@ class Evaluator(metaclass=ABCMeta):
     def summarise(self, min_intensity=None):
         report = self.evaluation_report(min_intensity=min_intensity)
         fields = {
+            "Number of chems above min intensity": "num_appears",
             "Number of fragmentations": "num_frags",
             "Cumulative coverage": "sum_cumulative_coverage",
             "Cumulative coverage proportion": "cumulative_coverage_proportion",
@@ -400,15 +323,7 @@ class RealEvaluator(Evaluator):
         return RealEvaluator.from_aligned_mzmine(aligned_file, min_box_ppm=min_box_ppm)
 
     @classmethod
-    def from_aligned_mzmine(cls, aligned_file, min_box_ppm=10):
-        """
-        Load aligned results from MzMine2 for evaluation
-        Args:
-            aligned_file: the aligned CSV file
-
-        Returns: an instance of this Evaluator
-
-        """
+    def from_aligned_boxfile(cls, reader, aligned_file, min_box_ppm=10):
         include = [
             "status",
             "RT start",
@@ -418,38 +333,42 @@ class RealEvaluator(Evaluator):
         ]
 
         chems = []
-        with open(aligned_file, "r") as f:
-            headers = f.readline().split(",")
-            pattern = re.compile(r"(.*)\.mzML filtered Peak ([a-zA-Z/]+( [a-zA-Z/]+)*)")
-
-            indices = defaultdict(dict)
-            for i, h in enumerate(headers):
-                m = pattern.match(h)
-                if (not m is None):
-                    indices[m.group(1)][m.group(2)] = i
-
-            for ln in f:
-                row = []
-                split = ln.split(",")
-                for fname, inner in indices.items():
-                    if (split[inner["status"]].upper() == "DETECTED"
-                            or split[inner["status"]].upper() == "ESTIMATED"):
-                        row.append(
-                            GenericBox(
-                                float(split[inner["RT start"]]) * 60,
-                                float(split[inner["RT end"]]) * 60,
-                                float(split[inner["m/z min"]]),
-                                float(split[inner["m/z max"]])
-                            ).apply_min_box_ppm(ywidth=min_box_ppm)
-                        )
-                    else:
-                        row.append(None)
-                chems.append(row)
+        fs_names, line_ls = reader.read_aligned_csv(aligned_file)
+        for _, mzml_fields in line_ls:
+            row = []
+            for fname, inner in mzml_fields.items():
+                status = inner["status"].upper()
+                if(status == "DETECTED" or status == "ESTIMATED"):
+                    row.append(
+                        GenericBox(
+                            float(inner["RT start"]) * reader.RT_FACTOR,
+                            float(inner["RT end"]) * reader.RT_FACTOR,
+                            float(inner["m/z min"]),
+                            float(inner["m/z max"])
+                        ).apply_min_box_ppm(ywidth=min_box_ppm)
+                    )
+                else:
+                    row.append(None)
+            chems.append(row)
 
         eva = cls(chems)
-        eva.fullscan_names = list(indices.keys())
+        eva.fullscan_names = list(fs_names)
         eva.geoms = [None for _ in eva.fullscan_names]
         return eva
+
+    @classmethod
+    def from_aligned_mzmine(cls, aligned_file, min_box_ppm=10):
+        """
+        Load aligned results from MzMine2 for evaluation
+        Args:
+            aligned_file: the aligned CSV file
+
+        Returns: an instance of this Evaluator
+
+        """
+
+        return cls.from_aligned_boxfile(MZMineParams, aligned_file, min_box_ppm=min_box_ppm)
+
 
     @classmethod
     def from_aligned_msdial(cls, aligned_file, sample_col_name, matching_mz_tol=10):
@@ -712,15 +631,16 @@ class RealEvaluator(Evaluator):
 
 def evaluate_real(aligned_file,
                   mzml_pairs,
-                  isolation_width=None):
+                  isolation_width=None,
+                  pp_reader=None):
     """
     Produce combined evaluation report on real data stored in .mzmls.
     Args:
         aligned_file: Filepath of an MZMine peak-picking output file.
         mzml_pairs: List of pairs mapping filepaths of fullscans which have been
-                    peak-picked, to .mzmls which should be evaluated using their 
-                    parent fullscan's picked peaks. 
-                    .mzmls can be specified as either a filepath or an MZMLFile 
+                    peak-picked, to .mzmls which should be evaluated using their
+                    parent fullscan's picked peaks.
+                    .mzmls can be specified as either a filepath or an MZMLFile
                     object.
         isolation_width: isolation width to use for evaluating whether a
                          fragmentation event is a hit.
@@ -728,11 +648,15 @@ def evaluate_real(aligned_file,
                          within the box.
                          Otherwise, checks if an interval of the specified
                          length entirely covers the box on the m/z dimension.
+        pp_reader: vimms.PeakPicking param object with a read_aligned_csv
+                   method which handles the peak-picking output file format.
+                   Defaults to MZMine.
 
     Returns: A RealEvaluator object containing evaluation results.
     """
 
-    eva = RealEvaluator.from_aligned(aligned_file)
+    if(pp_reader is None): pp_reader = MZMineParams
+    eva = RealEvaluator.from_aligned_boxfile(pp_reader, aligned_file)
     for fullscan_path, mzml in mzml_pairs:
         fullscan_name = os.path.basename(fullscan_path)
         eva.add_info(fullscan_name, [mzml], isolation_width=isolation_width)

@@ -104,6 +104,9 @@ class Roi():
         Computes auto-correlation of this ROI intensity signal
         """
         return pd.Series(self.intensity_list).autocorr(lag=lag)
+        
+    def get_num_unique_scans(self):
+        return np.unique(self.rt_list).shape[0]
 
     def estimate_apex(self):
         """
@@ -633,7 +636,7 @@ class RoiBuilder():
                 if self.skipped_roi_count[roi] > self.roi_params.max_gaps_allowed:
 
                     # then set the roi to either dead or junk (depending on length)
-                    if roi.n >= self.roi_params.min_roi_length:
+                    if roi.get_num_unique_scans() >= self.roi_params.min_roi_length:
                         self.dead_roi.append(roi)
                     else:
                         self.junk_roi.append(roi)
@@ -650,7 +653,9 @@ class RoiBuilder():
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
             self.current_roi_intensities = [roi.intensity_list[-1] for roi in
                                             self.live_roi]
-            self.current_roi_length = np.array([roi.n for roi in self.live_roi])
+            self.current_roi_length = np.array(
+                [roi.get_num_unique_scans() for roi in self.live_roi]
+            )
 
     # flake8: noqa: C901
     def _match(self, mz, roi_list, mz_tol):
@@ -809,7 +814,7 @@ class RoiBuilder():
         """
         # length check
         filtered_roi = [roi for roi in self.live_roi if
-                        roi.n >= self.roi_params.min_roi_length]
+                        roi.get_num_unique_scans() >= self.roi_params.min_roi_length]
 
         # intensity check:
         # Keep only the ROIs that can be fragmented above
@@ -1145,7 +1150,7 @@ def make_roi(input_file, roi_params):
 
     Args:
         input_file: input mzML file
-        roi_params: an RoiParam object
+        roi_params: a RoiBuilderParams object
 
     Returns: the list of good ROI objects that have been filtered according to
              certain criteria.

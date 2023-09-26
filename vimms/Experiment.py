@@ -80,7 +80,7 @@ class Shareable:
                     params["aligned_reader"],
                     params["aligned_file"],
                     params["intensity_threshold"],
-                    params.get("mz_window", 1E-10),
+                    params.get("mz_window", 10),
                     edge_limit=params.get("edge_limit", None),
                     weighted=params.get("weighted", Matching.TWOSTEP),
                     full_assignment_strategy=params.get(

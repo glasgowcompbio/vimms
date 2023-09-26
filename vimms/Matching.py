@@ -62,69 +62,65 @@ class MatchingScan():
     def interpolate_scan(left, right, mz_window):
         left_mzs, left_intensities = zip(*left.peaks)
         right_mzs, right_intensities = zip(*right.peaks)
-        left_rt, right_rt = left.rt_in_seconds, right.rt_in_seconds
-
-        mzs = np.array(left_mzs + right_mzs)
-        idxes = np.argsort(mzs)
-        mzs = mzs[idxes]
-        intensities = np.array(left_intensities + right_intensities)[idxes]
-        owner = (np.arange(0, mzs.shape[0]) >= len(left_mzs))[idxes]
-
-        in_window = []
-        left_bound, right_bound = 0, 1
-        for i, intensity in enumerate(intensities):
-            while(mzs[i] - mzs[left_bound] > mz_window): 
-                left_bound += 1
-            while(right_bound + 1 < mzs.shape[0] and mzs[right_bound + 1] - mzs[i] < mz_window): 
-                right_bound += 1
-            in_window.append((left_bound, right_bound + 1))
         
-        return left_rt, right_rt, mzs, intensities, owner, in_window
+        i = 0
+        new_mzs, paired_intensities = [], []
+        for left_idx, mz in enumerate(left_mzs):
+            abs_mz_window = mz * mz_window / 1e-6
+            lower, upper = mz - abs_mz_window, mz + abs_mz_window
+            
+            while(i < len(right_mzs) and right_mzs[i] < lower): i += 1    
+            if(i == len(right_mzs)): break
+            
+            j = i
+            while(j < len(right_mzs) and right_mzs[j] < upper): j += 1
+            
+            if(i != j):
+                new_mzs.append(mz)
+                paired_intensities.append(
+                    (left_intensities[left_idx], max(right_intensities[i:j]))
+                )
+                
+        return new_mzs, paired_intensities
 
     @staticmethod
     def create_scan_intensities(mzml_path, injection_num, schedule, mz_window):
+        ms1_idx = 0 #which scans to interpolate between
+        ms1s = [s for s in MZMLFile(mzml_path).scans if s.ms_level == 1]
+        ms1s.sort(key=attrgetter("rt_in_seconds"))
+        
         new_scans = []
-        
-        ms1s = (s for s in MZMLFile(mzml_path).scans if s.ms_level == 1)
-        original_scans = sorted(ms1s, key=lambda s: s.rt_in_seconds, reverse=True)
-            
-        left_rt, right_rt, mzs, intensities, owner, in_window = (
-            MatchingScan.interpolate_scan(original_scans[-1], original_scans[-2], mz_window)
-        )
-        
+        mzs, intensities = None, None
         for s_idx, s in enumerate(schedule):
-            try: ms_level, rt = s.ms_level, s.rt
-            except AttributeError: ms_level, rt = s
+            ms_level, rt = s
+            if(rt < ms1s[0].rt_in_seconds): continue
             
-            if(len(original_scans) > 1 and original_scans[-2].rt_in_seconds < rt): 
-                while(len(original_scans) > 1 and original_scans[-2].rt_in_seconds < rt): 
-                    original_scans.pop()
-                if(len(original_scans) > 1): 
-                    left_rt, right_rt, mzs, intensities, owner, in_window = (
-                        MatchingScan.interpolate_scan(original_scans[-1], 
-                                                      original_scans[-2], 
-                                                      mz_window
-                                                     )
-                        )
+            while(ms1_idx < len(ms1s) - 1 and rt > ms1s[ms1_idx + 1].rt_in_seconds):
+                ms1_idx += 1
+                mzs, paired_intensities = None, None
                 
-            if(ms_level > 1 or len(original_scans) < 2):
+            if(ms_level > 1 or ms1_idx >= len(ms1s) - 1):
                 new_scans.append(
                     MatchingScan(s_idx, injection_num, ms_level, rt, [], [])
                 )
             else:
-                w = (rt - left_rt) / (right_rt - left_rt)
-                weighted_intensities = (owner * (1 - w) * intensities
-                                        + (1 - owner) * w * intensities)
-
-                new_intensities = []
-                new_intensities = [
-                    np.max(weighted_intensities[left_bound:right_bound]) 
-                    for (left_bound, right_bound) in in_window
+                left_s, right_s = ms1s[ms1_idx], ms1s[ms1_idx+1]
+                if(mzs is None): #only interpolate scans when we need to
+                    mzs, paired_intensities = MatchingScan.interpolate_scan(
+                        left_s, right_s, mz_window
+                    )
+                
+                #linearly interpolate based on rt distance
+                left_rt, right_rt = left_s.rt_in_seconds, right_s.rt_in_seconds
+                w = (rt - left_rt) / (right_rt - left_rt)             
+                intensities = [
+                    (left * (1-w)) + (right * w) for left, right in paired_intensities
                 ]
+                
                 new_scans.append(
-                    MatchingScan(s_idx, injection_num, ms_level, rt, mzs, new_intensities)
+                    MatchingScan(s_idx, injection_num, ms_level, rt, mzs, intensities)
                 )
-        
+                
         return new_scans
 
     @staticmethod
@@ -270,10 +266,9 @@ class MatchingChem():
     def update_chem_intensity(self, mzs, intensities):
         left = bisect.bisect_left(mzs, self.min_mz) 
         right = bisect.bisect_right(mzs, self.max_mz)
-        self.intensity = max(
-            intensities[i] 
-            for i in range(left, right)
-        ) if right - left > 0 else 0
+        self.intensity = (
+            max(intensities[i] for i in range(left, right)) if (right - left > 0) else 0
+        )
 
 
 class Matching():
@@ -329,15 +324,15 @@ class Matching():
                     key=attrgetter("max_rt"), reverse=True
                 )
                 seen_intersected |= set(intersected)
+                
+                active_chems = []
                 for ch in intersected:
                     ch.update_chem_intensity(s.mzs, s.intensities)
                     seen_intensities[ch] = max(ch.intensity,
                                                seen_intensities.get(ch, 0)
                                                )
-                active_chems = [
-                    ch for ch in intersected 
-                    if ch.intensity >= intensity_threshold
-                ]
+                    if(ch.intensity >= intensity_threshold):
+                        active_chems.append(ch)
                 seen_active |= set(active_chems)
             
             elif (s.ms_level == 2):
@@ -591,7 +586,7 @@ class Matching():
                       aligned_reader,
                       aligned_file,
                       intensity_threshold,
-                      mz_window=1E-10,
+                      mz_window=10,
                       edge_limit=None,
                       weighted=1,
                       full_assignment_strategy=1):
@@ -609,7 +604,7 @@ class Matching():
                 aligned_file: File containing aligned inclusion boxes.
                 intensity_threshold: Minimum intensity for an edge to be retained
                   in the constructed graph.
-                mz_window: m/z tolerance for determining whether two intensity 
+                mz_window: m/z tolerance in ppm for determining whether two intensity 
                   readings are at the same value when interpolating scan intensities.
                 edge_limit: If given a non-None integer value, each vertex in the
                   constructed graph will be pruned to have degree of no more than

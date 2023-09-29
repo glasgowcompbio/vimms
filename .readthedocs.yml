@@ -15,4 +15,4 @@ formats: all
 
 # Specify the Conda environment file
 conda:
-  environment: environment.yml
+  environment: environment_readthedocs.yml

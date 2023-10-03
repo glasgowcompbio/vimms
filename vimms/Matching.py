@@ -26,10 +26,12 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 #  a slightly more accurate view of simulated chemicals
 # TODO: MatchingChem.env2nodes could also work on non-RoI controllers
 from vimms.Common import (
-    get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
+    POSITIVE, get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
 )
-from vimms.PeakPicking import MZMineParams
+from vimms.Roi import RoiBuilderParams
+from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Box import GenericBox
+from vimms.PeakPicking import MZMineParams
 
 
 class MatchingScan():
@@ -57,77 +59,57 @@ class MatchingScan():
         
     def __hash__(self): 
         return (self.injection_num, self.ms_level, self.rt).__hash__()
-    
-    @staticmethod
-    def interpolate_scan(left, right, mz_window):
-        left_mzs, left_intensities = zip(*left.peaks)
-        right_mzs, right_intensities = zip(*right.peaks)
-        
-        i = 0
-        new_mzs, paired_intensities = [], []
-        for left_idx, mz in enumerate(left_mzs):
-            abs_mz_window = mz * mz_window / 1e-6
-            lower, upper = mz - abs_mz_window, mz + abs_mz_window
-            
-            while(i < len(right_mzs) and right_mzs[i] < lower): i += 1    
-            if(i == len(right_mzs)): break
-            
-            j = i
-            while(j < len(right_mzs) and right_mzs[j] < upper): j += 1
-            
-            if(i != j):
-                new_mzs.append(mz)
-                paired_intensities.append(
-                    (left_intensities[left_idx], max(right_intensities[i:j]))
-                )
-                
-        return new_mzs, paired_intensities
 
     @staticmethod
-    def create_scan_intensities(mzml_path, injection_num, schedule, mz_window):
-        ms1_idx = 0 #which scans to interpolate between
-        ms1s = [s for s in MZMLFile(mzml_path).scans if s.ms_level == 1]
-        ms1s.sort(key=attrgetter("rt_in_seconds"))
+    def create_scan_intensities(mzml_path,
+                                injection_num,
+                                schedule,
+                                ionisation_mode,
+                                mz_window):
+        
+        rp = RoiBuilderParams(
+            min_roi_intensity=0,
+            at_least_one_point_above=0,
+            min_roi_length=2
+        )
+        cm = ChemicalMixtureFromMZML(mzml_path, roi_params=rp)
+        chems = cm.sample(None, 1, source_polarity=ionisation_mode)
+        rt_intervals = intervaltree.IntervalTree()
+        for ch in chems:
+            rt_intervals.addi(ch.rt, ch.chromatogram.raw_max_rt + 1E-12, ch)
         
         new_scans = []
-        mzs, intensities = None, None
         for s_idx, s in enumerate(schedule):
             ms_level, rt = s
-            if(rt < ms1s[0].rt_in_seconds): continue
             
-            while(ms1_idx < len(ms1s) - 1 and rt > ms1s[ms1_idx + 1].rt_in_seconds):
-                ms1_idx += 1
-                mzs, paired_intensities = None, None
-                
-            if(ms_level > 1 or ms1_idx >= len(ms1s) - 1):
-                new_scans.append(
-                    MatchingScan(s_idx, injection_num, ms_level, rt, [], [])
-                )
+            if(ms_level > 1):
+                new_scans.append(MatchingScan(s_idx, injection_num, ms_level, rt, [], []))
             else:
-                left_s, right_s = ms1s[ms1_idx], ms1s[ms1_idx+1]
-                if(mzs is None): #only interpolate scans when we need to
-                    mzs, paired_intensities = MatchingScan.interpolate_scan(
-                        left_s, right_s, mz_window
+                mzs, intensities = [], []
+                for inv in rt_intervals.at(rt):
+                    ch = inv.data
+                    mzs.append(
+                        np.mean(ch.chromatogram.raw_mzs) +
+                        ch.chromatogram.get_relative_mz(rt - ch.rt)
                     )
+                    intensities.append(
+                        ch.max_intensity
+                        * ch.chromatogram.get_relative_intensity(rt - ch.rt)
+                    ) # could need isotopes ?
                 
-                #linearly interpolate based on rt distance
-                left_rt, right_rt = left_s.rt_in_seconds, right_s.rt_in_seconds
-                w = (rt - left_rt) / (right_rt - left_rt)             
-                intensities = [
-                    (left * (1-w)) + (right * w) for left, right in paired_intensities
-                ]
-                
+                mz_idxes = np.argsort(mzs)
+                mzs, intensities = np.array(mzs)[mz_idxes], np.array(intensities)[mz_idxes]
                 new_scans.append(
-                    MatchingScan(s_idx, injection_num, ms_level, rt, mzs, intensities)
-                )
-                
+                        MatchingScan(s_idx, injection_num, ms_level, rt, mzs, intensities)
+                    )
+        
         return new_scans
 
     @staticmethod
     def topN_times(N, max_rt, scan_duration_dict):
         ms_levels = itertools.cycle([1] + [2] * N)
         scan_times = itertools.accumulate(
-            (scan_duration_dict[ms_level] for ms_level in copy.deepcopy(ms_levels)), 
+            (scan_duration_dict[ms_level] for ms_level in copy.deepcopy(ms_levels)),
             initial=0
         )
         return zip(ms_levels, itertools.takewhile(lambda t: t < max_rt, scan_times))
@@ -146,13 +128,21 @@ class MatchingScan():
         ]
         
     @staticmethod
-    def topN_nodes(mzml_path, injection_num, N, max_rt, scan_duration_dict, mz_window=1E-10):
+    def topN_nodes(mzml_path,
+                   injection_num,
+                   N,
+                   max_rt,
+                   scan_duration_dict,
+                   ionisation_mode,
+                   mz_window=1E-10):
+        
         topN_times = MatchingScan.topN_times(N, max_rt, scan_duration_dict)
         return (
             MatchingScan.create_scan_intensities(
                 mzml_path, 
                 injection_num, 
-                topN_times, 
+                topN_times,
+                ionisation_mode,
                 mz_window
             )
         )
@@ -585,6 +575,7 @@ class Matching():
                       times_list,
                       aligned_reader,
                       aligned_file,
+                      ionisation_mode,
                       intensity_threshold,
                       mz_window=10,
                       edge_limit=None,
@@ -602,6 +593,8 @@ class Matching():
                   injection, to generate new scan times.
                 aligned_reader: Reader object to read aligned_file.
                 aligned_file: File containing aligned inclusion boxes.
+                ionisation_mode: Source polarity of instrument.
+                  Either Vimms.Common.POSITIVE or Vimms.Common.NEGATIVE.
                 intensity_threshold: Minimum intensity for an edge to be retained
                   in the constructed graph.
                 mz_window: m/z tolerance in ppm for determining whether two intensity 
@@ -624,6 +617,7 @@ class Matching():
                     fs,
                     i,
                     times_list[i],
+                    ionisation_mode,
                     mz_window
             )
             scans_list.append(new_scans)

@@ -1,0 +1,45 @@
+name: vimms
+channels:
+  - defaults
+dependencies:
+  - python>=3.9,<3.11
+  - numpy
+  - pandas
+  - numba
+  - scipy
+  - matplotlib
+  - seaborn
+  - plotly
+  - scikit-learn
+  - tqdm
+  - joblib
+  - ipyparallel
+  - requests
+  - loguru
+  - networkx
+  - jsonpickle
+  - statsmodels
+  - tabulate
+  - flake8
+  - autopep8
+  - pytest
+  - pytest-cov
+  - intervaltree
+  - jupyterlab
+  - ipywidgets
+  - pip
+  - pip:
+    - recommonmark
+    - mkdocs
+    - events
+    - gpy
+    - mkdocstrings
+    - mkdocstrings-python
+    - pymzml
+    - psims
+    - mass-spec-utils
+    - pysmiles
+    - numba-stats
+    - ms-deisotope
+    - optuna
+    - kaleido

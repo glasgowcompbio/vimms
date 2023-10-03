@@ -13,6 +13,7 @@ Eager to start using ViMMS? Take advantage of these resources:
 - Visit our project documentation page: [![Documentation Status](https://readthedocs.org/projects/vimms/badge/?version=latest)](http://vimms.readthedocs.io/?badge=latest)
 - Our [Demo folder](https://github.com/glasgowcompbio/vimms/tree/master/demo) contains notebooks that demonstrate how to use the framework in a simulated environment.
 - For specific examples that accompany our publications, see the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples).
+- You can also find this [quick guide on how to get started using ViMMS](https://github.com/glasgowcompbio/vimms/blob/master/demo/guide_to_vimms.ipynb).
 
 # Key Features
 
@@ -21,6 +22,7 @@ ViMMS provides scan-level control simulation of the MS2 acquisition process in a
 Moreover, ViMMS serves as a platform for the development, optimization, and testing of new fragmentation strategies. These strategies can be implemented by extending a Controller class in ViMMS, and can be tested on both the simulator and actual mass spectrometry instruments that support compatible APIs.
 
 To see a more thorough explanation of the use cases of ViMMS, please refer to the [Use Cases](pages/use_cases.md) section.
+
 
 # Contributions
 

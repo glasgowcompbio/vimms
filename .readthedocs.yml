@@ -5,6 +5,11 @@
 # Required
 version: 2
 
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "miniconda3-4.7"
+
 # Build documentation with MkDocs
 mkdocs:
   configuration: mkdocs.yml
@@ -15,4 +20,4 @@ formats: all
 
 # Specify the Conda environment file
 conda:
-  environment: environment.yml
+  environment: environment_readthedocs.yml

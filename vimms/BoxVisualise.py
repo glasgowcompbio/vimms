@@ -249,8 +249,8 @@ class PlotPoints():
     def __init__(self, ms1_points, ms2s=None, markers={}):
         self.ms1_points = np.array(ms1_points)
         self.ms2s = np.array(ms2s) if not ms2s is None else np.zeros((0, 3))
-        self.active_ms1 = np.ones((len(self.ms1_points)), dtype=np.bool)
-        self.active_ms2 = np.ones((len(self.ms2s)), dtype=np.bool)
+        self.active_ms1 = np.ones((len(self.ms1_points)), dtype=bool)
+        self.active_ms2 = np.ones((len(self.ms2s)), dtype=bool)
         self.markers = markers
 
     @classmethod
@@ -274,7 +274,7 @@ class PlotPoints():
         return cls(np.array(ms1_points), ms2s=np.array(ms2s))
 
     def bound_points(self, pts, min_rt=None, max_rt=None, min_mz=None, max_mz=None):
-        all_true = np.array(np.ones_like(pts[:, 0]), dtype=np.bool)
+        all_true = np.array(np.ones_like(pts[:, 0]), dtype=bool)
         select_rt = (
             (all_true if (min_rt is None) else (pts[:, 0] >= min_rt))
             & (all_true if (max_rt is None) else (pts[:, 0] <= max_rt))
@@ -293,7 +293,7 @@ class PlotPoints():
             max_rt=max_rt, 
             min_mz=min_mz,
             max_mz=max_mz
-        ) if len(self.ms1_points) > 0 else np.ones((0), dtype=np.bool)
+        ) if len(self.ms1_points) > 0 else np.ones((0), dtype=bool)
         
         active_ms2 = self.bound_points(
             self.ms2s, 
@@ -301,7 +301,7 @@ class PlotPoints():
             max_rt=max_rt,
             min_mz=min_mz, 
             max_mz=max_mz
-        ) if len(self.ms2s) > 0 else np.ones((0), dtype=np.bool)
+        ) if len(self.ms2s) > 0 else np.ones((0), dtype=bool)
         
         return active_ms1, active_ms2
 

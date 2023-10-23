@@ -2,7 +2,7 @@ name: vimms
 channels:
   - defaults
 dependencies:
-  - python>=3.9,<3.11
+  - python>=3.11
   - numpy
   - pandas
   - numba

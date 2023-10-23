@@ -2,7 +2,7 @@ name: vimms
 channels:
   - defaults
 dependencies:
-  - python>=3.9,<3.11
+  - python>=3.9,<3.12
   - numpy>=1.24.3
   - pandas>=2.0.3
   - numba>=0.57.1
@@ -30,7 +30,7 @@ dependencies:
   - pip
   - pip:
     - events>=0.5
-    - gpy>=1.10.0
+    - git+https://github.com/SheffieldML/GPy.git@devel#egg=GPy
     - mkdocs>=1.5.3
     - mkdocstrings>=0.23.0
     - mkdocstrings-python>=1.7.0
@@ -42,3 +42,4 @@ dependencies:
     - ms-deisotope>=0.0.52
     - optuna>=3.3.0
     - kaleido>=0.2.1
+    - cython==3.0.2

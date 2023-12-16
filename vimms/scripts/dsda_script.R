@@ -5,36 +5,41 @@ library(mzR)
 library(optparse)
 
 parser <- OptionParser()
-parser <- add_option(parser, c("--ppm"), type="integer", default=20, help="Centwave Parts-Per-Million", metavar="number")
-parser <- add_option(parser, c("--pwlower"), type="integer", default=3, help="Centwave lower bound for peakwidth", metavar="number")
-parser <- add_option(parser, c("--pwupper"), type="integer", default=30, help="Centwave upper bound for peakwidth", metavar="number")
-parser <- add_option(parser, c("--snthresh"), type="integer", default=20, help="Centwave snthresh", metavar="number")
-parser <- add_option(parser, c("--noise"), type="integer", default=0, help="Centwave noise", metavar="number")
-parser <- add_option(parser, c("--prefilterlower"), type="integer", default=20, help="Centwave lower bound for prefilter", metavar="number")
-parser <- add_option(parser, c("--prefilterupper"), type="integer", default=80, help="Centwave upper bound for prefilter", metavar="number")
+parser <- add_option(parser, c("--ppm"), type="integer", default=20, help="Centwave Parts-Per-Million")
+parser <- add_option(parser, c("--pwlower"), type="integer", default=3, help="Centwave lower bound for peakwidth")
+parser <- add_option(parser, c("--pwupper"), type="integer", default=30, help="Centwave upper bound for peakwidth")
+parser <- add_option(parser, c("--snthresh"), type="integer", default=20, help="Centwave snthresh")
+parser <- add_option(parser, c("--noise"), type="integer", default=0, help="Centwave noise")
+parser <- add_option(parser, c("--prefilterlower"), type="integer", default=20, help="Centwave lower bound for prefilter")
+parser <- add_option(parser, c("--prefilterupper"), type="integer", default=80, help="Centwave upper bound for prefilter")
+parser <- add_option(parser, c("--mzdiff"), type="double", default=0.001, help="Centwave min RT separation before merging peaks")
 
-#some more parameters set to default values - can make configurable if necessary
-#unused parameters commented out
+parser <- add_option(parser, c("--repeatmsmsfill"), type="integer", default=4, help="DsDA num. iterations to repeat schedule-filling")
+parser <- add_option(parser, c("--ms2ltprecursor"), type="logical", default=TRUE, help="DsDA exclude MS2 fragments with m/z greater than precursor")
+parser <- add_option(parser, c("--minabsintensity"), type="double", default=NULL, help="DsDA exclude MS2 fragments with intensity less than factor of biggest fragment")
+parser <- add_option(parser, c("--minrelintensity"), type="double", default=NULL, help="DsDA exclude MS2 fragments with intensity less abs threshold")
+parser <- add_option(parser, c("--maxdepth"), type="integer", default=NULL, help="DsDA: every nth injection ignore peaks that have spectra already")
+
 args <- parse_args(parser, positional_arguments=TRUE)
 negmode <- FALSE
 mzppm <- args$options$ppm
 pw <- c(args$options$pwlower, args$options$pwupper)
 sn <- args$options$snthresh
 noise <- args$options$noise
-prefilter = c(3,100)
 prefilter <- c(args$options$prefilterlower, args$options$prefilterupper)
-msCE <- 6
+mzdiff <- args$options$mzdiff
+
+repeatMSMSfill <- args$options$repeatmsmsfill
+ionsLessThanPrecursorOnly <- args$options$ms2ltprecursor #these three are for filtering out MS2 spectra (affects scores)
+min.abs.fragment.int <- args$options$minabsintensity
+min.rel.fragment.int <- args$options$minrelintensity
+maximal.depth <- args$options$maxdepth
+
+msCE <- 6 #all these CE params are used in the (missing?) polynomial fit bit and altCE is sampled to write "SOURCE_BIAS_SETTING"
 initCE <- 22
 altCE <- seq(60, 120, 20)
-tofMult <- 16.625
-repeatMSMSfill <- 4
-minPeaks <- 100
-min.rel.fragment.int <- 0.001
-min.abs.fragment.int <- NULL
 init.CE.opt <- 10
-ionsLessThanPrecursorOnly <- TRUE
-maximal.depth <- NULL
-mzdiff <- 0.001
+tofMult <- 16.625 #used with m/z for MS1_MASS_DAC_SETTING
 
 port <- args$args[1]
 dsda_dir <- args$args[2]
@@ -129,6 +134,7 @@ repeat {
     close(con)
 		break
 	}
+  inj.number <- inj.number + 1
   
   # Use XCMS Centwave algorithm to detect peaks
   xsraw <- xcmsRaw(mzmlPath, includeMSn=TRUE)
@@ -137,11 +143,6 @@ repeat {
                 mzdiff=mzdiff)
   rname <-gsub(".mzML", ".Rdata", basename(mzmlPath))
   save(xset, file=file.path(dsda_dir, "xset", rname))
-  
-  #if(nrow(xset@peaks) < minPeaks) {
-  #  cat("file found with fewer than", minPeaks, "peaks", '\n')
-  #  break
-  #}
   
   if(!any(ls()=="allPeaks")) {  # if allPeaks does not exist, make an empty version of it.
     
@@ -452,9 +453,6 @@ repeat {
   write(outtxt, file=file.path("settings", "active.txt"))
   write(outtxt, file=txtpath)
 
-  #if(nrow(xset@peaks) < minPeaks) {
-  #  next
-  #}
   b<-Sys.time() 
   
   perMSMS<-length(which(allPeaks$ctmsms>0))/length(allPeaks$ctmsms)

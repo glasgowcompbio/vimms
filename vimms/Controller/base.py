@@ -121,6 +121,9 @@ class Controller(ABC):
         self.current_task_id = self.initial_scan_id
         self.processing_times = []
         self.last_ms1_rt = 0.0
+        
+    def __repr__(self):
+        return f"{type(self)}({','.join(f'{k}={v}' for k, v in self.__dict__.items())})"
 
     def get_ms1_scan_params(self, metadata=None):
         """

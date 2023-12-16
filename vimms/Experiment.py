@@ -39,7 +39,8 @@ class Shareable:
         self.params = {} #passed to controllers when they are created dynamically
         
     def init_shareable(self, params, out_dir, fullscan_paths, grid_base=None):
-        
+        #TODO: should "grid_init" be a more general "shared_init"?
+        #then we can override defaults on other shareables?
         if(self.name == "agent"):
             self.shared = TopNDEWAgent(**params)
             self.params = {

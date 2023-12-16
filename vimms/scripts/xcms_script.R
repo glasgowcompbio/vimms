@@ -5,19 +5,20 @@ library(optparse)
 parser <- OptionParser()
 
 #centwave params
-parser <- add_option(parser, c("--ppm"), type="integer", default=15, help="Centwave Parts-Per-Million", metavar="number")
-parser <- add_option(parser, c("--pwlower"), type="integer", default=15, help="Centwave lower bound for peakwidth", metavar="number")
-parser <- add_option(parser, c("--pwupper"), type="integer", default=80, help="Centwave upper bound for peakwidth", metavar="number")
-parser <- add_option(parser, c("--snthresh"), type="integer", default=5, help="Centwave snthresh", metavar="number")
-parser <- add_option(parser, c("--noise"), type="integer", default=1000, help="Centwave noise", metavar="number")
-parser <- add_option(parser, c("--prefilterlower"), type="integer", default=3, help="Centwave lower bound for prefilter", metavar="number")
-parser <- add_option(parser, c("--prefilterupper"), type="integer", default=500, help="Centwave upper bound for prefilter", metavar="number")
+parser <- add_option(parser, c("--ppm"), type="integer", default=15, help="Centwave Parts-Per-Million")
+parser <- add_option(parser, c("--pwlower"), type="integer", default=15, help="Centwave lower bound for peakwidth")
+parser <- add_option(parser, c("--pwupper"), type="integer", default=80, help="Centwave upper bound for peakwidth")
+parser <- add_option(parser, c("--snthresh"), type="integer", default=5, help="Centwave snthresh")
+parser <- add_option(parser, c("--noise"), type="integer", default=1000, help="Centwave noise")
+parser <- add_option(parser, c("--prefilterlower"), type="integer", default=3, help="Centwave lower bound for prefilter")
+parser <- add_option(parser, c("--prefilterupper"), type="integer", default=500, help="Centwave upper bound for prefilter")
+parser <- add_option(parser, c("--mzdiff"), type="double", default=0.001, help="Centwave min RT separation before merging peaks")
 
 #groupPeaksNearest params
-parser <- add_option(parser, c("--mzvsrtbalance"), type="integer", default=10, help="Group peaks nearest m/z vs RT distance weighting", metavar="number")
-parser <- add_option(parser, c("--absmz"), type="double", default=0.2, help="Group peaks nearest max m/z tolerance", metavar="number")
-parser <- add_option(parser, c("--absrt"), type="double", default=15, help="Group peaks nearest max RT tolerance", metavar="number")
-parser <- add_option(parser, c("--kNN"), type="integer", default=10, help="Group peaks nearest max number of neighbours checked", metavar="number")
+parser <- add_option(parser, c("--mzvsrtbalance"), type="integer", default=10, help="Group peaks nearest m/z vs RT distance weighting")
+parser <- add_option(parser, c("--absmz"), type="double", default=0.2, help="Group peaks nearest max m/z tolerance")
+parser <- add_option(parser, c("--absrt"), type="double", default=15, help="Group peaks nearest max RT tolerance")
+parser <- add_option(parser, c("--kNN"), type="integer", default=10, help="Group peaks nearest max number of neighbours checked")
 
 args <- parse_args(parser, positional_arguments=TRUE)
 output = args$args[1]
@@ -28,7 +29,8 @@ cwp <- CentWaveParam(
   peakwidth = c(args$options$pwlower, args$options$pwupper), 
   snthresh = args$options$snthresh, 
   noise = args$options$noise, 
-  prefilter = c(args$options$prefilterlower, args$options$prefilterupper)
+  prefilter = c(args$options$prefilterlower, args$options$prefilterupper),
+  mzdiff = args$options$mzdiff
 )
 
 owp <- ObiwarpParam(binSize = 0.6)

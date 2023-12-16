@@ -4,6 +4,7 @@ import copy
 import itertools
 import math
 import re
+import datetime
 from statistics import mean
 from collections import defaultdict
 from operator import attrgetter
@@ -65,14 +66,17 @@ class MatchingScan():
                                 injection_num,
                                 schedule,
                                 ionisation_mode,
-                                mz_window):
+                                mz_window,
+                                roi_params=None):
         
-        rp = RoiBuilderParams(
-            min_roi_intensity=0,
-            at_least_one_point_above=0,
-            min_roi_length=2
-        )
-        cm = ChemicalMixtureFromMZML(mzml_path, roi_params=rp)
+        if(roi_params is None):
+            roi_params = RoiBuilderParams(
+                min_roi_intensity=0,
+                at_least_one_point_above=0,
+                min_roi_length=2
+            )
+        
+        cm = ChemicalMixtureFromMZML(mzml_path, roi_params=roi_params)
         chems = cm.sample(None, 1, source_polarity=ionisation_mode)
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
@@ -336,19 +340,11 @@ class Matching():
             ch.intensity = None  # clear temporary value
 
         print(f"|chems| BEFORE COLLAPSE: {len(chems)}")
-        print(f"num chems without edges:"
-              f" {sum(1 for _, ls in edges.items() if ls == [])}")
-        print(f"chems without edges:"
-              f" {[ch for ch, ls in edges.items() if ls == []][:10]}")
-        print(
-            f"|E| BEFORE COLLAPSE: {sum(len(ls) for _, ls in edges.items())}")
+        print(f"num chems without edges: {sum(1 for _, ls in edges.items() if ls == [])}")
+        print(f"|E| BEFORE COLLAPSE: {sum(len(ls) for _, ls in edges.items())}")
         print(f"num intersected: {len(seen_intersected)}")
         print(f"min intensity: {min(v for _, v in seen_intensities.items())}")
-        # from collections import Counter
-        # print(f"intensity counts:"
-        #       f" {Counter(v for _, v in seen_intensities.items())}")
-        print(f"zero intensity count:"
-              f" {sum(v == 0 for _, v in seen_intensities.items())}")
+        print(f"zero intensity count: {sum(v == 0 for _, v in seen_intensities.items())}")
         print(
             f"< 5000 intensity count: {sum(v < 5000 for _, v in seen_intensities.items())}"
         )
@@ -381,10 +377,9 @@ class Matching():
             if any(ch in E for E in edges_list)
         }
         
-        print(print(f"|scans| AFTER COLLAPSE: {len(scans)}"))
+        print(f"|scans| AFTER COLLAPSE: {len(scans)}")
         print(f"|chems| AFTER COLLAPSE: {len(chems)}")
-        print(f"chems without edges"
-              f": {sum(1 for ch, E in edges.items() if E == [])}")
+        print(f"num chems without edges {sum(1 for ch, E in edges.items() if E == [])}")
         print(f"|E| AFTER COLLAPSE: {sum(len(ls) for _, ls in edges.items())}")
         return scans, chems, edges
 
@@ -578,6 +573,7 @@ class Matching():
                       ionisation_mode,
                       intensity_threshold,
                       mz_window=10,
+                      roi_params=None,
                       edge_limit=None,
                       weighted=1,
                       full_assignment_strategy=1):
@@ -599,6 +595,8 @@ class Matching():
                   in the constructed graph.
                 mz_window: m/z tolerance in ppm for determining whether two intensity 
                   readings are at the same value when interpolating scan intensities.
+                roi_params: A RoiBuilderParams object to use when interpolating scan
+                intensities.
                 edge_limit: If given a non-None integer value, each vertex in the
                   constructed graph will be pruned to have degree of no more than
                   edge_limit, for performance reasons. Prefers to keep highest
@@ -612,22 +610,26 @@ class Matching():
         """
         
         scans_list = []
+        print(f"MAKING MATCHING SCANS [{datetime.datetime.now()}]")
         for i, fs in enumerate(fullscan_paths):
             new_scans = MatchingScan.create_scan_intensities(
                     fs,
                     i,
                     times_list[i],
                     ionisation_mode,
-                    mz_window
+                    mz_window,
+                    roi_params=roi_params
             )
             scans_list.append(new_scans)
         
+        print(f"MAKING MATCHING CHEMS [{datetime.datetime.now()}]")
         chems_list = MatchingChem.boxfile2nodes(
             aligned_reader,
             aligned_file,
             fullscan_paths
         )
         
+        print(f"MAKING MATCHING [{datetime.datetime.now()}]")
         matching = Matching.multi_schedule2graph(
             scans_list,
             chems_list,

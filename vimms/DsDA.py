@@ -223,8 +223,8 @@ class DsDAState():
             return [float(ln.split(",")[rt_idx]) for ln in f]
         
     def create_dsda_schedule(self, scan_duration_dict, N, min_rt, max_rt):
-        pathlib.Path(os.path.join(self.out_dir, "dsda")).mkdir(parents=True, exist_ok=True)
-        fname = os.path.join(self.out_dir, "dsda", "DsDA_Timing_schedule.csv")
+        pathlib.Path(os.path.join(self.out_dir, f"dsda_{self.port}")).mkdir(parents=True, exist_ok=True)
+        fname = os.path.join(self.out_dir, f"dsda_{self.port}", "DsDA_Timing_schedule.csv")
         
         with open(fname, "w") as f:
             f.write("rt,f,type\n")
@@ -254,12 +254,15 @@ class DsDAState():
                 self.rscript_loc, 
                 self.dsda_loc
             ] + [
-                arg for arg in itertools.chain(*(
-                                    (f"--{k}", str(v)) for k, v in self.dsda_params.items()
-                                ))
+                arg for arg in itertools.chain(
+                    *(
+                        (f"--{k}", str(v)) for k, v in self.dsda_params.items()
+                        if not v is None
+                    )
+                )
             ] + [
                 f"{self.port}",
-                os.path.join(self.out_dir, "dsda"),
+                os.path.join(self.out_dir, f"dsda_{self.port}"),
                 self.time_schedule
             ],
             stdin=subprocess.PIPE
@@ -289,7 +292,7 @@ class DsDAState():
         
         schedule_params = dsda_get_scan_params(
             schedule_path,
-            os.path.join(self.out_dir, "dsda", "DsDA_Timing_schedule.csv"),
+            os.path.join(self.out_dir, f"dsda_{self.port}", "DsDA_Timing_schedule.csv"),
             self.base_controller.isolation_width, 
             self.base_controller.mz_tol,
             self.base_controller.rt_tol

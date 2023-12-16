@@ -170,6 +170,7 @@ class XCMSScriptParams:
     noise: int = None
     prefilterlower: int = None
     prefilterupper: int = None
+    mzdiff: float = None
         
     #groupPeaksNearest params
     mzvsrtbalance: int = None

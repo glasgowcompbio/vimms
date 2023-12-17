@@ -120,6 +120,12 @@ class Shareable:
         if(self.name == "dsda"):
             self.shared.__exit__(type, value, traceback)
         self.stored_controllers = []
+        
+    def get_log(self):
+        """Fetch some controller-specific logging information."""
+        
+        if(self.name == "matching"):
+            return self.shared.log
 
 class ExperimentCase:
 
@@ -155,6 +161,7 @@ class ExperimentCase:
         self.grid_base = grid_base
         self.injection_num = 0
         self.pickle_env = pickle_env
+        self.log = None
         c = controller_type.replace(" ", "_").lower()
         
         try:
@@ -241,7 +248,7 @@ class ExperimentCase:
                     del env
                     del mass_spec
             
-        return {self.name : mzml_names}
+        return {self.name : mzml_names}, self.shared.get_log()
         
     def valid_controller(self, out_dir=""):
         """
@@ -375,10 +382,13 @@ class Experiment:
                     )
                     for case in self.cases
                 ]
-                case_mzmls = pool.starmap(self._run_case, case_iterable)
+                case_results = pool.starmap(self._run_case, case_iterable)
             self.case_mzmls = {}
-            for mapping in case_mzmls: 
+            for mapping, log in case_results: 
                 self.case_mzmls.update(mapping)
+                for k in mapping:
+                    self.cases[self.case_names.index(k)].log = log
+                
             self.write_json(overwrite=overwrite_keyfile)
         
         finally:

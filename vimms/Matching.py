@@ -56,15 +56,15 @@ class MatchingLog():
         
     def __repr__(self):
         return (
-            f"Size of matching: {len(matching)}"
-            + f"Start scans: {matching.timer.start_scan}"
-            + f"End scans: {matching.timer.end_scan}"
-            + f"Start chems: {matching.timer.start_scan}"
-            + f"End chems: {matching.timer.end_scan}"
-            + f"Start matching: {matching.timer.start_scan}"
-            + f"End matching: {matching.timer.end_scan}"
-            + f"Start assignment: {matching.timer.start_scan}"
-            + f"End assignment: {matching.timer.end_scan}"
+            f"Size of matching: {self.matching_size}\n"
+            + f"Start scans: {self.start_scan}\n"
+            + f"End scans: {self.end_scan}\n"
+            + f"Start chems: {self.start_chem}\n"
+            + f"End chems: {self.end_chem}\n"
+            + f"Start matching: {self.start_matching}\n"
+            + f"End matching: {self.end_matching}\n"
+            + f"Start assignment: {self.start_assign}\n"
+            + f"End assignment: {self.end_assign}\n"
         )
 
 class MatchingScan():

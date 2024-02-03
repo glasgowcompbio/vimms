@@ -1,7 +1,7 @@
 import os
 import itertools
 import re
-import xml
+from xml.etree import ElementTree
 import pathlib
 import subprocess
 from collections import defaultdict
@@ -11,8 +11,7 @@ from dataclasses import dataclass
 def count_boxes(box_filepath):
     with open(box_filepath, "r") as f:
         return sum(ln.strip() != "" for ln in f) - 1
-
-
+        
 def format_output_path(method_name, output_dir, output_name):
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     
@@ -20,7 +19,6 @@ def format_output_path(method_name, output_dir, output_name):
         output_name = "".join(output_name.split(".")[:-1])
     return os.path.join(output_dir, f"{output_name}_{method_name.lower()}_aligned.csv")
 
- 
 def report_boxes(method_name, output_path):
     try:
         num_boxes = count_boxes(output_path)
@@ -30,16 +28,28 @@ def report_boxes(method_name, output_path):
             f"The box file doesn't seem to exist - did {method_name} silently fail?"
         )
 
+class AbstractParams():
+    method_name = None
+    
+    @classmethod
+    def format_output_path(cls, output_dir, output_name):
+        return format_output_path(cls.method_name, output_dir, output_name)
+
+    @classmethod
+    def report_boxes(cls, output_path):
+        return report_boxes(cls.method_name, output_path)
 
 @dataclass
-class MZMineParams():
+class MZMineParams(AbstractParams):
+    method_name = "MZMine"
+
     RT_FACTOR = 60 #minutes
 
     mzmine_template: str
     mzmine_exe: str
     
     def _make_batch_file(self, input_files, output_dir, output_name, output_path):
-        et = xml.etree.ElementTree.parse(self.mzmine_template)
+        et = ElementTree.parse(self.mzmine_template)
         root = et.getroot()
         for child in root:
 
@@ -50,7 +60,7 @@ class MZMineParams():
                         for f in e:
                             e.remove(f)
                         for i, fname in enumerate(input_files):
-                            new = xml.etree.ElementTree.SubElement(e, "file")
+                            new = ElementTree.SubElement(e, "file")
                             new.text = os.path.abspath(fname)
                             padding = " " * (0 if i == len(input_files) - 1 else 8)
                             new.tail = e.tail + padding
@@ -69,7 +79,7 @@ class MZMineParams():
     
     def pick_aligned_peaks(self, input_files, output_dir, output_name, force=False):
         input_files = list(set(input_files)) #filter duplicates
-        output_path = format_output_path("MZMine", output_dir, output_name)
+        output_path = self.format_output_path(output_dir, output_name)
 
         if (not os.path.exists(output_path) or force):
             new_xml = self._make_batch_file(input_files, output_dir, output_name, output_path)
@@ -152,9 +162,11 @@ def pick_aligned_peaks(input_files,
             
 
 @dataclass
-class XCMSScriptParams:
+class XCMSScriptParams(AbstractParams):
     #TODO: It would be good to just call the R functions from Python
     #instead of calling an external R script...
+    
+    method_name = "xcms"
     
     RT_FACTOR = 1 #seconds
 
@@ -180,7 +192,7 @@ class XCMSScriptParams:
     
     def pick_aligned_peaks(self, input_files, output_dir, output_name, force=False):
         input_files = list(set(input_files)) #filter duplicates
-        output_path = format_output_path("XCMS", output_dir, output_name)
+        output_path = self.format_output_path(output_dir, output_name)
         
         params = (
             (f"--{k}", str(v)) 

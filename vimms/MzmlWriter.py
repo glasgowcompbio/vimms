@@ -114,6 +114,19 @@ class MzmlWriter():
         Returns: the list of filtered scans
 
         """
+        
+        new_scans = []
+        for s in all_scans:
+            if(s.scan_id >= min_scan_id):
+                if(s.num_peaks == 0): #scans can't be empty, but we can't just remove either...
+                    s.mzs = np.array([70.0])
+                    s.intensities = np.array([1.0])
+                    s.num_peaks = 1
+                new_scans.append(s)
+                
+        new_scans.sort(key=lambda s: s.rt)
+        return new_scans
+        
         all_scans = sorted(all_scans, key=lambda x: x.rt)
         all_scans = [x for x in all_scans if x.num_peaks > 0]
         all_scans = list(filter(lambda x: x.scan_id >= min_scan_id, all_scans))

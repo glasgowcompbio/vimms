@@ -145,6 +145,20 @@ def multi_sample_fragmentation_performance_aligned(params):
 
 
 def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, rt_tol):
+    """
+        Reads output files from the DsDA R process and turns them into
+        a list of scans for a ViMMS controller.
+        
+        Args:
+            schedule_file: Path to DsDA output file to be read.
+            template_file: Path to file containing chedule of scan times for the 
+                DsDA series.
+            isolation_width: Isolation width for scans to use.
+            mz_tol: m/z tolerance for scans to use.
+            rt_tol: RT tolerance for scans to use.
+            
+        Returns: A list of [vimms.Common.ScanParameters][].
+    """
     scan_list = []
     schedule = pd.read_csv(schedule_file)
     template = pd.read_csv(template_file)
@@ -188,6 +202,16 @@ def create_dsda_schedule(mass_spec, N, min_rt, max_rt, base_dir):
 
 
 class DsDAState():
+    """
+        An object which provides a wrapper over a live DsDA process. DsDA is
+        run using subprocess from a version of the original R script modified 
+        to accept command-line input. 
+        
+        DsDA requires the names of .mzMLs produced by the method (to process the 
+        next item in the series) and outputs a .csv schedule file. A socket 
+        connection is therefore established between this Python process and the 
+        R subprocess, to pass names of input and output files. 
+    """
     def __init__(self,
                  out_dir,
                  dsda_loc, 
@@ -198,48 +222,97 @@ class DsDAState():
                  rscript_loc="RScript", 
                  port=6011, 
                  dsda_params={}):
+        """
+            Initialise a DsDAState.
+            
+            Args:
+                out_dir: Directory for DsDA to write .mzMLs to. A subdirectory
+                    suffixed with the port name will be created for this
+                    DsDAState to use as a working directory.
+                dsda_loc: Location of the R script containing DsDA.
+                base_controller: Controller class used to run the first injection
+                    in order to start the DsDA sequence.
+                min_rt: RT to start creating schedule from.
+                max_rt: RT which terminates schedule creation once it is passed.
+                scan_duration_dict: Indexable object where [n] will return the
+                    length of an MSn scan - scan lengths are used for schedule
+                    creation.
+                rscript_loc: Path to the "Rscript" utility packaged with R. By
+                    default assumes it can be found via the "Rscript" environment
+                    variable.
+                port: Port to use for the socket connection. Must not conflict
+                    with other services running on that port (e.g. another 
+                    DsDAState).
+                dsda_params: Dictionary of keyword parameters to pass to the
+                    DsDA R script via subprocess.
+        """
                  
         self.out_dir = os.path.abspath(out_dir)
         self.dsda_loc = dsda_loc
         self.base_controller = base_controller
+        self.min_rt, self.max_rt = min_rt, max_rt
+        self.scan_duration_dict = scan_duration_dict
         self.rscript_loc = rscript_loc
         self.port = port
         self.dsda_params = dsda_params
         
         self.file_num = 0
-        self.time_schedule = self.create_dsda_schedule(
-            scan_duration_dict, 
-            self.base_controller.N,
-            min_rt,
-            max_rt
-        )
+        self.time_schedule = self.create_dsda_schedule(self.base_controller.N)
         self.mzml_names = []
         self.schedule_names = []
         
     @staticmethod
     def get_scan_times(schedule_file):
+        """
+            Read all the RT values out of a DsDA schedule file.
+        
+            Args:
+                schedule_file: Path to the DsDA schedule file.
+            
+            Returns: List of RTs for each scan.
+        """
         with open(schedule_file, 'r') as f:
             rt_idx = f.readline().split(",").index("rt")
             return [float(ln.split(",")[rt_idx]) for ln in f]
         
-    def create_dsda_schedule(self, scan_duration_dict, N, min_rt, max_rt):
-        pathlib.Path(os.path.join(self.out_dir, f"dsda_{self.port}")).mkdir(parents=True, exist_ok=True)
+    def create_dsda_schedule(self, N):
+        """
+            Create a schedule file for the whole DsDA sequence with
+            rt, index of scan in the current duty cycle and type of scan
+            ("ms" or "msms").
+        
+            Args:
+                N: Number of MS2 scans following each MS1.
+        
+            Returns: Path to the created schedule file.
+        """
+        
+        pathlib.Path(
+            os.path.join(self.out_dir, f"dsda_{self.port}")
+        ).mkdir(parents=True, exist_ok=True)
         fname = os.path.join(self.out_dir, f"dsda_{self.port}", "DsDA_Timing_schedule.csv")
         
         with open(fname, "w") as f:
             f.write("rt,f,type\n")
             f.write(f"0.0,{N+2},lm\n")
             
-            scan_no, rt = 0, scan_duration_dict[1]
-            while(rt < max_rt):
+            scan_no, rt = 0, max(self.min_rt, self.scan_duration_dict[1])
+            while(rt < self.max_rt):
                 pos = scan_no % (N + 1)
                 f.write(f"{rt},{pos + 1},{'msms' if pos > 0 else 'ms'}\n")
                 scan_no += 1
-                rt += scan_duration_dict[2 if pos > 0 else 1]
+                rt += self.scan_duration_dict[2 if pos > 0 else 1]
         
         return fname
         
     def __enter__(self):
+        """
+            On DsDAState creation, ensure:
+                * A concurrent R process for DsDAState to wrap is created.
+                * A socket connection is established between the DsDAState 
+                    instance and the R process.
+        """
+    
         #R will silently fail if we don't do this - there may be better way to return errors?
         if(not os.path.exists(self.dsda_loc)):
             raise FileNotFoundError("DsDA R script not found")    
@@ -271,6 +344,11 @@ class DsDAState():
         return self
         
     def __exit__(self, type, value, traceback):
+        """
+            On DsDAState deletion, ensure:
+                * DsDA R process is terminated.
+                * Socket is destroyed.  
+        """
         try:
             self.child_socket.send(b"q\r\n")
         except:
@@ -279,13 +357,28 @@ class DsDAState():
             self.socket.close()
         
     def register_mzml(self, mzml_name):
+        """
+            Register the name of the next .mzML in the DsDA sequence
+            after it has been written.
+            
+            Args:
+                mzml_name: Name of .mzML file to register.
+        """
         self.mzml_names.append(mzml_name)
         self.file_num += 1
 
     def get_scan_params(self):
+        """
+            Sends the DsDA process the latest .mzML to process. Then, from
+            the file output by DsDA creates a list of scans for a ViMMS
+            controller to use.
+            
+            Returns: A tuple of a list of [vimms.Common.ScanParameters][] and
+                a list of RTs for the scans.
+        """
         mzml_path = os.path.join(self.out_dir, self.mzml_names[self.file_num - 1])
         self.child_socket.send((mzml_path + "\r\n").encode("utf-8"))
-        schedule_path = self.child_socket.recv(4096).decode('utf-8').strip()
+        schedule_path = self.child_socket.recv(4096).decode("utf-8").strip()
         self.schedule_names.append(
             os.path.basename(schedule_path)
         )
@@ -303,4 +396,10 @@ class DsDAState():
         return schedule_params, rts
         
     def get_base_controller(self):
+        """
+            Returns the first controller to use in the DsDA sequence
+            (in a way that respects mutable state).
+        
+            Returns: Deep copy of controller object.
+        """
         return copy.deepcopy(self.base_controller)

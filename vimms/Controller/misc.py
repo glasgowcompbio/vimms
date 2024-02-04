@@ -189,7 +189,31 @@ class FixedScansController(Controller):
         
 
 class DsDAController(WrapperController):
+    """
+        A controller which allows running the DsDA  (Dataset-Dependent Acquisition) 
+        method.
+        
+        See the original publication for a description of DsDA:
+        
+        Broeckling, Hoyes, et al. "Comprehensive Tandem-Mass-Spectrometry coverage 
+        of complex samples enabled by Data-Set-Dependent acquisition." 
+        Analytical Chemistry. 90, 8020–8027 (2018).
+    """
+
     def __init__(self, dsda_state, mzml_name, advanced_params=None, task_filter=None):
+        """
+            Initialise a new DsDAController instance.
+            
+            Args:
+                dsda_state: An instance of [vimms.DsDA.DsDAState][], wrapping a 
+                live R process running DsDA.
+                mzml_name: The name of the .mzML file to write for this injection.
+                advanced_params: a [vimms.Controller.base.AdvancedParams][] object 
+                    that contains advanced parameters to control the mass spec. 
+                    See [vimms.Controller.base.AdvancedParams][] for defaults.
+                task_filter: Object that examines the task list and adds or deletes 
+                    tasks to ensure schedule remains in sync with the actual RT.
+        """
         self.dsda_state = dsda_state
         self.mzml_name = mzml_name
         self.task_filter = task_filter

@@ -122,7 +122,7 @@ con <- socketConnection(
   host="localhost", 
   port=port, 
   blocking=TRUE, 
-  server=FALSE, 
+  server=FALSE,
   open="r+", 
   timeout=400000 #should time out after a few days
 )

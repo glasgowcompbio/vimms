@@ -23,11 +23,27 @@ from vimms.Controller.base import Controller, WrapperController
 
 
 class TaskFilter():
-    '''
-        Default object that can be used with FixedScansController to update
-        schedule dynamically
-    '''
+    """
+        Can be used with [vimms.Controller.misc.FixedScansController][] and its
+        subclasses to resynchronise scan RTs if they don't go according to
+        schedule. New scans are dynamically added or deleted if the current RT
+        is before or after the planned RT by a certain threshold (scaled to scan
+        lengths).
+    """
     def __init__(self, ms1_length, ms2_length, skip_margin=0.5, add_margin=1.2):
+        """
+            Create a new TaskFilter.
+            
+            Args:
+                ms1_length: Expected length of MS1 scans.
+                ms2_length: Expected length of MS2 scans.
+                skip_margin: Cancel the current task if current RT is closer
+                    to expected RT of the following task than skip_margin *
+                    current_task_length.
+                add_margin: Add a filler scan if current RT is further away
+                    from expected RT of the current task than add_margin *
+                    min_task_length.
+        """
         self.ms1_length = ms1_length
         self.ms2_length = ms2_length
         self.min_length = min(ms1_length, ms2_length)
@@ -36,42 +52,83 @@ class TaskFilter():
         self.add_margin = add_margin
         
     @staticmethod
-    def make_ms2(task_idx, tasks, precursor_id, scan_id):
-        dist = 1
-        max_dist = max(task_idx, len(tasks) - task_idx - 1)
-        while(dist <= max_dist):
+    def _find_nearest_ms2(task_idx, tasks):
+        max_dist = max(task_idx + 1, len(tasks) - task_idx)
+        for dist in range(1, max_dist):
             
             right_idx = task_idx + dist
             if(right_idx < len(tasks) and tasks[right_idx].get(ScanParameters.MS_LEVEL) == 2):
-                task_idx = right_idx
-                break
+                return tasks[right_idx]
             
             left_idx = task_idx - dist
             if(left_idx > -1 and tasks[left_idx].get(ScanParameters.MS_LEVEL) == 2):
-                task_idx = left_idx
-                break
+                return tasks[left_idx]
             
-            dist += 1
-            
-        if(dist <= max_dist):
-            template_scan = tasks[task_idx]
-            precursor_mz = template_scan.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
-            isolation_width = template_scan.get(ScanParameters.ISOLATION_WIDTH)[0]
-        else:
+        return None
+        
+    @staticmethod
+    def _make_ms2(task_idx, tasks, scan_id, precursor_id):
+        template_scan = TaskFilter._find_nearest_ms2(task_idx, tasks)
+        
+        if(template_scan is None):
             precursor_mz = 100.0
             isolation_width = 1.0
+        else:
+            precursor_mz = template_scan.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz
+            isolation_width = template_scan.get(ScanParameters.ISOLATION_WIDTH)[0]
     
         return get_dda_scan_param(
-            precursor_mz, 
-            0.0, 
+            precursor_mz,
+            0.0,
             precursor_id,
             isolation_width,
-            0.0, 
+            0.0,
             0.0,
             scan_id=scan_id
         )
         
+    @staticmethod
+    def _make_scan(task, scan_id, precursor_id):
+        if(task.get(ScanParameters.MS_LEVEL) == 1):
+            return get_default_scan_params(scan_id=scan_id)
+        elif(task.get(ScanParameters.MS_LEVEL) == 2):
+            #note that some input arguments for ScanParameters get coerced to a list
+            #so when we "copy" objects with a new constructor we have to undo that
+            return get_dda_scan_param(
+                task.get(ScanParameters.PRECURSOR_MZ)[0].precursor_mz,
+                0.0,
+                precursor_id,
+                task.get(ScanParameters.ISOLATION_WIDTH)[0],
+                0.0,
+                0.0,
+                scan_id=scan_id
+            )
+        
+        raise NotImplementedError(f"MS_LEVEL: {task.get(ScanParameters.MS_LEVEL)}")
+        
+    def _get_task_length(self, task):
+        if(task.get(ScanParameters.MS_LEVEL) == 1):
+            return self.ms1_length
+        elif(task.get(ScanParameters.MS_LEVEL) == 2):
+            return self.ms2_length
+        
+        raise NotImplementedError(f"MS_LEVEL: {task.get(ScanParameters.MS_LEVEL)}")
+        
     def get_task(self, scan, scan_id, precursor_id, task_idx, expected_rts, tasks):
+        """
+            Gets the next task and updates the current task index for the
+            parent controller.
+            
+            Args:
+                scan: Current scan from parent.
+                scan_id: ID of scan.
+                precursor_id: ID of last MS1.
+                task_idx: Current index in task queue.
+                expected_rts: Queue of expected RTs corresponding to tasks.
+                tasks: Full task queue.
+                
+            Returns: Tuple of new task index and next task.
+        """
         actual_rt = scan.rt
         expected_rt = expected_rts[task_idx]
         rt_dist = expected_rt - actual_rt
@@ -79,23 +136,28 @@ class TaskFilter():
         if(rt_dist > self.add_margin * self.min_length):
             if(self.ms1_length > self.ms2_length):
                 if(rt_dist > self.add_margin * self.ms1_length):
-                    new_task = get_default_scan_params(scan_id=precursor_id)
+                    new_task = get_default_scan_params(scan_id=scan_id)
                 else:
-                    new_task = self.make_ms2(task_idx, tasks, precursor_id, scan_id)
+                    new_task = self._make_ms2(task_idx, tasks, scan_id, precursor_id)
             else:
                 if(rt_dist > self.add_margin * self.ms1_length):
-                    new_task = self.make_ms2(task_idx, tasks, precursor_id, scan_id)
+                    new_task = self._make_ms2(task_idx, tasks, scan_id, precursor_id)
                 else:
-                    new_task = get_default_scan_params(scan_id=precursor_id)
+                    new_task = get_default_scan_params(scan_id=scan_id)
             return task_idx, new_task
         else:
-            if(task_idx >= len(tasks) - 1): return task_idx, tasks[task_idx]
+            if(task_idx >= len(tasks) - 1): 
+                return task_idx, self._make_scan(tasks[task_idx], scan_id, precursor_id)
             
-            while(actual_rt >= expected_rts[task_idx + 1] - self.skip_margin * self.ms2_length):
+            while(
+                actual_rt >= expected_rts[task_idx + 1] 
+                             - self.skip_margin * self._get_task_length(tasks[task_idx])
+            ):
                 task_idx += 1
-                if(task_idx >= len(tasks) - 1): return task_idx, tasks[task_idx]
+                if(task_idx >= len(tasks) - 1):
+                    return task_idx, self._make_scan(tasks[task_idx], scan_id, precursor_id)
             
-            return task_idx + 1, tasks[task_idx]
+            return task_idx + 1, self._make_scan(tasks[task_idx], scan_id, precursor_id)
 
 class FixedScansController(Controller):
     """
@@ -125,8 +187,8 @@ class FixedScansController(Controller):
         if schedule is not None and len(schedule) > 0:
             # if schedule is provided, set it
             self.set_tasks(schedule)
-            self.scan_id = schedule[0].get(ScanParameters.SCAN_ID)
-            self.precursor_id = None
+            self.scan_id = INITIAL_SCAN_ID + 1 # MS obj. always starts with an MS1 
+            self.precursor_id = INITIAL_SCAN_ID
 
     def get_initial_tasks(self):
         """
@@ -182,9 +244,9 @@ class FixedScansController(Controller):
                 self.expected_rts, 
                 self.tasks
             )
-            self.scan_id += 1
             if(new_task.get(ScanParameters.MS_LEVEL) == 1):
                 self.precursor_id = self.scan_id
+            self.scan_id += 1
             return [new_task]
         
 

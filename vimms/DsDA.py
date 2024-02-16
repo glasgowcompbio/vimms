@@ -171,7 +171,7 @@ def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, 
             precursor_scan_id = scan_id
             scan_params = get_default_scan_params(scan_id=precursor_scan_id)
         else:
-            assert precursor_scan_id is not None
+            assert not precursor_scan_id is None
             mz = 100 if np.isnan(masses[i]) else masses[i]
             scan_params = get_dda_scan_param(mz, 0.0, precursor_scan_id,
                                              isolation_width, mz_tol, rt_tol,
@@ -351,6 +351,7 @@ class DsDAState():
         """
         try:
             self.child_socket.send(b"q\r\n")
+            self.child_socket.shutdown(socket.SHUT_RDWR)
         except:
             raise
         finally:
@@ -377,8 +378,17 @@ class DsDAState():
                 a list of RTs for the scans.
         """
         mzml_path = os.path.join(self.out_dir, self.mzml_names[self.file_num - 1])
-        self.child_socket.send((mzml_path + "\r\n").encode("utf-8"))
-        schedule_path = self.child_socket.recv(4096).decode("utf-8").strip()
+        
+        try:
+            self.child_socket.send((mzml_path + "\r\n").encode("utf-8"))
+            schedule_path = self.child_socket.recv(4096).decode("utf-8").strip()
+        except ConnectionError as err:
+            raise type(err)(
+                """An unexpected issue was encountered with the connection
+                   to the DsDA process. Perhaps it crashed and has written
+                   an error log?"""
+            )
+        
         self.schedule_names.append(
             os.path.basename(schedule_path)
         )

@@ -66,7 +66,7 @@ class Scan():
             mzs: an array of mz values
             intensities: an array of intensity values
             ms_level: the ms level of this scan
-            rt: the retention time of this scan
+            rt: the starting retention time of this scan
             scan_duration: how long this scan takes, if known.
             scan_params: the parameters used to generate this scan, if known
             parent: parent precursor peak, if known
@@ -397,6 +397,7 @@ class IndependentMassSpectrometer():
             # likely won't happen immediately after the param is sent.
             new_scan = self._get_scan(self.time, params)
 
+            new_scan.scan_duration = self._increase_time(new_scan.ms_level, new_scan.rt, None)
             # dispatch the generated scan to controller
             if call_controller:
                 self.dispatch_scan(new_scan)
@@ -418,18 +419,18 @@ class IndependentMassSpectrometer():
         self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
         # sample scan duration and increase internal time
-        if self.task_manager.pending_size() > 0:
-            next_scan_param = self.task_manager.peek_pending()
-        elif self.task_manager.current_size() > 0:
-            next_scan_param = self.task_manager.peek_current()
-        else:
-            next_scan_param = None
+        #if self.task_manager.pending_size() > 0:
+        #    next_scan_param = self.task_manager.peek_pending()
+        #elif self.task_manager.current_size() > 0:
+        #    next_scan_param = self.task_manager.peek_current()
+        #else:
+        #    next_scan_param = None
 
-        current_level = scan.ms_level
-        current_rt = scan.rt
-        current_scan_duration = self._increase_time(current_level, current_rt,
-                                                    next_scan_param)
-        scan.scan_duration = current_scan_duration
+        #current_level = scan.ms_level
+        #current_rt = scan.rt
+        #current_scan_duration = self._increase_time(current_level, current_rt,
+        #                                            next_scan_param)
+        #scan.scan_duration = current_scan_duration
 
     def get_params(self):
         """

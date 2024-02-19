@@ -151,7 +151,7 @@ def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, 
         
         Args:
             schedule_file: Path to DsDA output file to be read.
-            template_file: Path to file containing chedule of scan times for the 
+            template_file: Path to file containing schedule of scan times for the 
                 DsDA series.
             isolation_width: Isolation width for scans to use.
             mz_tol: m/z tolerance for scans to use.
@@ -169,10 +169,11 @@ def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, 
     for i in range(schedule.shape[0]):
         if types[i] != 'msms':
             precursor_scan_id = scan_id
-            scan_params = get_default_scan_params(scan_id=precursor_scan_id)
+            scan_params = get_default_scan_params(scan_id=scan_id)
         else:
             assert not precursor_scan_id is None
             mz = 100 if np.isnan(masses[i]) else masses[i]
+            #TODO: Should mz_tol and rt_tol be here???
             scan_params = get_dda_scan_param(mz, 0.0, precursor_scan_id,
                                              isolation_width, mz_tol, rt_tol,
                                              scan_id=scan_id)

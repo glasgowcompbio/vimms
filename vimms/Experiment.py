@@ -39,8 +39,6 @@ class Shareable:
         self.params = {} #passed to controllers when they are created dynamically
         
     def init_shareable(self, params, out_dir, fullscan_paths, shareable_base=None):
-        #TODO: should "grid_init" be a more general "shared_init"?
-        #then we can override defaults on other shareables?
         if(self.name == "agent"):
             self.shared = TopNDEWAgent(**params)
             self.params = {
@@ -75,21 +73,24 @@ class Shareable:
         
         elif(self.name == "matching"):
             if(self.shared is None):
-                self.shared = Matching.make_matching(
-                    fullscan_paths,
-                    params["times_list"],
-                    params["aligned_reader"],
-                    params["aligned_file"],
-                    params["ionisation_mode"],
-                    params["intensity_threshold"],
-                    params.get("mz_window", 10),
-                    edge_limit=params.get("edge_limit", None),
-                    weighted=params.get("weighted", Matching.TWOSTEP),
-                    full_assignment_strategy=params.get(
-                      "full_assignment_strategy", 
-                      Matching.RECURSIVE_ASSIGNMENT
+                if(shareable_base is None):
+                    self.shared = Matching.make_matching(
+                        fullscan_paths,
+                        params["times_list"],
+                        params["aligned_reader"],
+                        params["aligned_file"],
+                        params["ionisation_mode"],
+                        params["intensity_threshold"],
+                        params.get("mz_window", 10),
+                        edge_limit=params.get("edge_limit", None),
+                        weighted=params.get("weighted", Matching.TWOSTEP),
+                        full_assignment_strategy=params.get(
+                          "full_assignment_strategy", 
+                          Matching.RECURSIVE_ASSIGNMENT
+                        )
                     )
-                )
+                else:
+                    self.shared = copy.deepcopy(shareable_base)
             
             if(self.stored_controllers == []):
                 self.stored_controllers = list(reversed(

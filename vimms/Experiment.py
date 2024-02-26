@@ -38,7 +38,7 @@ class Shareable:
         self.stored_controllers = [] #for storing pre-computed controllers
         self.params = {} #passed to controllers when they are created dynamically
         
-    def init_shareable(self, params, out_dir, fullscan_paths, grid_base=None):
+    def init_shareable(self, params, out_dir, fullscan_paths, shareable_base=None):
         #TODO: should "grid_init" be a more general "shared_init"?
         #then we can override defaults on other shareables?
         if(self.name == "agent"):
@@ -48,14 +48,14 @@ class Shareable:
             }
             
         elif(self.name == "grid"):
-            if(grid_base is None):
+            if(shareable_base is None):
                 self.shared = BoxManager(
                     box_geometry = BoxGrid(),
                     box_splitter = BoxSplitter(split=self.split),
                     delete_rois=True
                 )
             else:
-                self.shared = copy.deepcopy(grid_base)
+                self.shared = copy.deepcopy(shareable_base)
             
             self.params = {
                 **params,
@@ -151,14 +151,14 @@ class ExperimentCase:
                  fullscan_paths,
                  params,
                  name=None, 
-                 grid_base=None,
+                 shareable_base=None,
                  pickle_env=False):
              
         self.name = name if not name is None else controller_type
         self.fullscan_paths = fullscan_paths
         self.datasets = []
         self.params = params
-        self.grid_base = grid_base
+        self.shareable_base = shareable_base
         self.injection_num = 0
         self.pickle_env = pickle_env
         self.log = None
@@ -188,7 +188,7 @@ class ExperimentCase:
             self.params, 
             out_dir, 
             self.fullscan_paths, 
-            grid_base=self.grid_base
+            shareable_base=self.shareable_base
         )
         
         #with ensures dsda process will be cleaned up - is there a cleaner way to do this?
@@ -263,7 +263,7 @@ class ExperimentCase:
             self.params,
             out_dir, 
             self.fullscan_paths,
-            grid_base=self.grid_base
+            shareable_base=self.shareable_base
         )
         try:
             self.shared.get_controller(self.controller, "")

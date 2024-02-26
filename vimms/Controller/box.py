@@ -115,7 +115,7 @@ class TopNEXtController(RoiController):
         if(self.roi_builder.live_roi == []):
             return scores
 
-        maxm = max(scores)
+        maxm = np.max(scores)
         return scores + np.array([
             (
                 maxm
@@ -130,21 +130,16 @@ class TopNEXtController(RoiController):
             rt = max(r.max_rt for r in self.roi_builder.live_roi)
             self.grid.set_active_boxes(rt)
 
-        overlap_scores = self._overlap_scores()
-        overlap_scores = self._add_inclusion_scores(overlap_scores)
+        dda_scores = self._log_roi_intensities() * self._overlap_scores()
+        inclusion_scores = self._add_inclusion_scores(dda_scores)
+        
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
-            smartroi_scores = self._smartroi_filter()
-            dda_scores = self._log_roi_intensities() * self._min_intensity_filter()
-
-            # multiply them, this might not work well because a lot of
-            # the smartroi scores are 0s
-            final_scores = dda_scores * smartroi_scores * overlap_scores
-
-        else:  # normal ROI
-            dda_scores = self._get_dda_scores()
-            final_scores = dda_scores * overlap_scores
-
-        # print(final_scores)
+            final_scores = (
+                inclusion_scores * self._smartroi_filter() * self._min_intensity_filter()
+            )
+        else: # normal ROI
+            final_scores = inclusion_scores * self._score_filters()
+        
         return self._get_top_N_scores(final_scores)
 
     def after_injection_cleanup(self):

@@ -532,33 +532,23 @@ class Matching():
                 
         elif(self.full_assignment_strategy == self.NEAREST_ASSIGNMENT):
             for scans in self.full_assignment:
-                left_i = right_i = last_i = 0
+                last_i = -1
             
                 for i in range(len(scans)):
                     if(not math.isclose(scans[i], DEFAULT_VAL)):
-                        for j in range(i):
-                            scans[j] = scans[i]
-                        left_i = last_i = i
+                        for j in range(i): scans[j] = scans[i]
+                        last_i = i
                         break
                         
-                for i in range(len(scans) - 1, -1, -1):
-                    if(not math.isclose(scans[i], DEFAULT_VAL)):
-                        for j in range(i+1, len(scans)):
-                            scans[j] = scans[i]
-                        right_i = i
-                        break
-                
-                for i in range(left_i + 1, right_i):
+                for i in range(last_i + 1, len(scans)):
                     if(not math.isclose(scans[i], DEFAULT_VAL)):
                         mid = 1 + (last_i + i) // 2
-                        
-                        for j in range(last_i + 1, mid):
-                            scans[j] = scans[last_i] 
-                        
-                        for j in range(mid, i):
-                            scans[j] = scans[i] 
-                        
+                        for j in range(last_i + 1, mid): scans[j] = scans[last_i] 
+                        for j in range(mid, i): scans[j] = scans[i]
                         last_i = i
+                        
+                for i in range(last_i + 1, len(scans)):
+                    scans[i] = scans[last_i]
 
     @staticmethod
     def multi_schedule2graph(scans_list, 

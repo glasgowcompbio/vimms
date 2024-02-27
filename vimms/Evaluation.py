@@ -324,14 +324,6 @@ class RealEvaluator(Evaluator):
 
     @classmethod
     def from_aligned_boxfile(cls, reader, aligned_file, min_box_ppm=10):
-        include = [
-            "status",
-            "RT start",
-            "RT end",
-            "m/z min",
-            "m/z max"
-        ]
-
         chems = []
         fs_names, line_ls = reader.read_aligned_csv(aligned_file)
         for _, mzml_fields in line_ls:

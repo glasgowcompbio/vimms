@@ -225,14 +225,6 @@ class MatchingChem():
     def boxfile2nodes(reader, box_file_path, box_order, log=None):
         if(not log is None):
             log.start_chem = datetime.datetime.now()
-        
-        include = [
-                "status",
-                "RT start",
-                "RT end",
-                "m/z min",
-                "m/z max"
-        ]
     
         box_order = [
             ".".join(os.path.basename(fname).split(".")[:-1]) for fname in box_order
@@ -622,7 +614,7 @@ class Matching():
                 if(appears):
                     report["uncollapsed_chems_appearing"][i] += 1
         
-        chems2edges_ls = [{ch: [] for ch in inj} for ls in chems_list]
+        chems2edges_ls = [{ch: [] for ch in ls} for ls in chems_list]
         for edge in (g.edges):
             ch = edge[1] if type(edge[1]) is MatchingChem else edge[0]
             for inj in chems2edges_ls:

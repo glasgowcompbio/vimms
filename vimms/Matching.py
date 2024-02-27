@@ -14,11 +14,7 @@ import networkx as nx
 import numpy as np
 from mass_spec_utils.data_import.mzml import MZMLFile
 
-# TODO: intensities seem to be a bit wonky, many zero values
-# TODO: graph extensions in slack
 # TODO: scans from mzml function
-# TODO: fullscan info should be usable to more precisely give intensity at
-#  particular MS2 time than using precursor
 # TODO: bin sort version
 # TODO: constraint programming/stable marriage versions??
 # TODO: could chemical collapse with arbitrary exclusion condition, for when
@@ -41,31 +37,42 @@ class MatchingLog():
         track of like time elapsed for different parts of the process.
     """
 
-    def __init__(self,
-                 start_scan=None, end_scan=None, 
-                 start_chem=None, end_chem=None, 
-                 start_matching=None, end_matching=None,
-                 start_assign=None, end_assign=None,
-                 matching_size=None):
-        
-        self.start_scan, self.end_scan = start_scan, end_scan
-        self.start_chem, self.end_chem = start_chem, end_chem
-        self.start_matching, self.end_matching = start_matching, end_matching
-        self.start_assign, self.end_assign = start_assign, end_assign
-        self.matching_size = matching_size
-        
+    def __init__(self):
+        self.start_scan, self.end_scan = None, None
+        self.start_chem, self.end_chem = None, None
+        self.start_matching, self.end_matching = None, None
+        self.start_assign, self.end_assign = None, None
+        self.recursive_scan_counts = None
+        self.matching_report = {}
+    
     def __repr__(self):
-        return (
-            f"Size of matching: {self.matching_size}\n"
-            + f"Start scans: {self.start_scan}\n"
-            + f"End scans: {self.end_scan}\n"
-            + f"Start chems: {self.start_chem}\n"
-            + f"End chems: {self.end_chem}\n"
-            + f"Start matching: {self.start_matching}\n"
-            + f"End matching: {self.end_matching}\n"
-            + f"Start assignment: {self.start_assign}\n"
-            + f"End assignment: {self.end_assign}\n"
-        )
+        return "\n".join(f"{k}: {v}" for k, v in self.get_report().items())
+        
+    def get_report(self, keys=None):
+        if(keys is None):
+            keys = [
+                "matching_size", "chem_count", "scan_count", "edge_count",
+                "chems_above_threshold", "start_scan", "end_scan", 
+                "start_chem", "end_chem", "start_matching", "end_matching",
+                "start_assignment", "end_assignment"
+            ]
+            
+        report = {}
+        for k in keys:
+            if(hasattr(self, k)):
+                report[k] = getattr(self, k)
+            elif(k in self.matching_report):
+                report[k] = self.matching_report[k]
+            else:
+                raise KeyError(
+                    f"{k} not found in logger. Maybe you forgot to run matching_report?"
+                )
+                
+        return report
+
+    def summarise(self, keys=None):
+        for k, v in get_report(keys=keys).items():
+            print(f"{k}: {v}")
 
 class MatchingScan():
     def __init__(self, scan_idx, injection_num, ms_level, rt, mzs, intensities):
@@ -305,9 +312,15 @@ class MatchingChem():
     def update_chem_intensity(self, mzs, intensities):
         left = bisect.bisect_left(mzs, self.min_mz) 
         right = bisect.bisect_right(mzs, self.max_mz)
+        
         self.intensity = (
-            max(intensities[i] for i in range(left, right)) if (right - left > 0) else 0
+            max(intensities[i] for i in range(left, right)) 
+            if (right - left > 0) 
+            else 0
         )
+        
+    def reset(self):
+        self.intensity = 0
 
 
 class Matching():
@@ -315,7 +328,7 @@ class Matching():
     UNWEIGHTED = 0
     TWOSTEP = 1
     
-    #full_assignment_strategy modes
+    #Full_assignment_strategy modes
     MATCHING_ONLY = 0
     RECURSIVE_ASSIGNMENT = 1
     NEAREST_ASSIGNMENT = 2
@@ -330,6 +343,7 @@ class Matching():
                  full_assignment_strategy=1):
                  
         self.scans_list, self.chems_list = scans_list, chems_list
+        self.intensity_threshold = intensity_threshold
         self.matching = matching
         self.weighted = weighted
         self.nx_graph = nx_graph
@@ -349,12 +363,8 @@ class Matching():
         active_chems, edges = [], {ch: [] for ch in chems}
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
+            ch.reset() #Clear temporary value
             rt_intervals.addi(ch.min_rt, ch.max_rt + 1E-12, ch)
-
-        seen_intersected = set()
-        seen_intensities = {}
-        seen_active = set()
-        seen_edges = set()
 
         for s in scans:
             
@@ -363,50 +373,26 @@ class Matching():
                     (interval.data for interval in rt_intervals.at(s.rt)), 
                     key=attrgetter("max_rt"), reverse=True
                 )
-                seen_intersected |= set(intersected)
                 
                 active_chems = []
                 for ch in intersected:
                     ch.update_chem_intensity(s.mzs, s.intensities)
-                    seen_intensities[ch] = max(ch.intensity,
-                                               seen_intensities.get(ch, 0)
-                                               )
                     if(ch.intensity >= intensity_threshold):
                         active_chems.append(ch)
-                seen_active |= set(active_chems)
             
             elif (s.ms_level == 2):
                 while (len(active_chems) > 0 and active_chems[-1].max_rt < s.rt):
                     active_chems.pop()
                 for ch in active_chems:
                     edges[ch].append((s, ch.intensity))
-                    seen_edges.add(ch)
         
-        for ch in chems:
-            ch.intensity = None  # clear temporary value
-
-        print(f"|chems| BEFORE COLLAPSE: {len(chems)}")
-        print(f"num chems without edges: {sum(1 for _, ls in edges.items() if ls == [])}")
-        print(f"|E| BEFORE COLLAPSE: {sum(len(ls) for _, ls in edges.items())}")
-        print(f"num intersected: {len(seen_intersected)}")
-        print(f"min intensity: {min(v for _, v in seen_intensities.items())}")
-        print(f"zero intensity count: {sum(v == 0 for _, v in seen_intensities.items())}")
-        print(
-            f"< 5000 intensity count: {sum(v < 5000 for _, v in seen_intensities.items())}"
-        )
-        print(f"num active: {len(seen_active)}")
-        print(f"num with edges: {len(seen_edges)}")
-
-        print()
-
+        self.intensity_threshold = intensity_threshold
         return edges
 
     @staticmethod
     def collapse_chems(scans_list, chems_list, edges_list, edge_limit=None):
         scans = set(s for ls in scans_list for s in ls)
         chems = set(ch for ls in chems_list for ch in ls)
-        
-        print(f"EDGE_LIMIT: {edge_limit}")
         
         if(not edge_limit is None):
             edges_list = [
@@ -423,10 +409,6 @@ class Matching():
             if any(ch in E for E in edges_list)
         }
         
-        print(f"|scans| AFTER COLLAPSE: {len(scans)}")
-        print(f"|chems| AFTER COLLAPSE: {len(chems)}")
-        print(f"num chems without edges {sum(1 for ch, E in edges.items() if E == [])}")
-        print(f"|E| AFTER COLLAPSE: {sum(len(ls) for _, ls in edges.items())}")
         return scans, chems, edges
 
     @staticmethod
@@ -471,7 +453,6 @@ class Matching():
         
         aux_G = copy.copy(G)
         chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
-        print(f"len(CHEMS): {len(chems)}")
         for ch in chems:
             if(not ch in new_chems):
                 aux_G.remove_node(ch)
@@ -514,10 +495,14 @@ class Matching():
                     
             remove = [n for n, degree in aux_G.degree() if degree < 1]
             for n in remove: aux_G.remove_node(n)
-        
+            
+            if(not self.log is None):
+                self.log.recursive_scan_counts = []
+            
             scans = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
             while(len(scans) > 0):
-                print(f"NUM SCANS IN GRAPH: {len(scans)}")
+                if(not self.log is None):
+                    self.log.recursive_scan_counts.append(len(scans))
                 
                 for s in matching:
                     if(type(s) == MatchingScan):
@@ -587,7 +572,6 @@ class Matching():
         
         if(not log is None):
             log.end_matching = datetime.datetime.now()
-            log.matching_size = len(matching)
             log.start_assign = datetime.datetime.now()
 
         matching._assign_remaining_scans()
@@ -614,6 +598,68 @@ class Matching():
             weighted=weighted,
             full_assignment_strategy=full_assignment_strategy
         )
+        
+    def matching_report(self):
+        # "bipartite" is 0 if scan, 1 if chem
+        G = self.nx_graph
+        all_scans = [n for n, d in G.nodes(data=True) if d["bipartite"] == 0]
+        all_chems = [n for n, d in G.nodes(data=True) if d["bipartite"] == 1]
+        
+        report = {}
+        report["matching_size"] = len(self)
+        report["scan_count"] = len(all_scans)
+        report["chem_count"] = len(all_chems)
+        report["edge_count"] = len(G.edges)
+        report["uncollapsed_chem_count"] = [len(ls) for ls in self.chems_list]
+        
+        report["uncollapsed_chems_appearing"] = [0] * len(chems_list)
+        for i, ls in enumerate(chems_list):
+            for ch in ls:
+                appears = any(
+                    s.ms_level == 1 and ch.min_rt < s.rt and s.rt < ch.max_rt
+                    for s in all_scans
+                )
+                if(appears):
+                    report["uncollapsed_chems_appearing"][i] += 1
+        
+        chems2edges_ls = [{ch: [] for ch in inj} for ls in chems_list]
+        for edge in (g.edges):
+            ch = edge[1] if type(edge[1]) is MatchingChem else edge[0]
+            for inj in chems2edges_ls:
+                if(ch in inj):
+                    inj[ch].append(edge.weight)
+         
+        report["uncollapsed_chems_with_edges"] = [
+            sum(len(w_ls) > 0 for _, w_ls in inj.items())
+            for inj in chems2edges_ls
+        ]
+        report["uncollapsed_chems_above_zero"] = [
+            sum(any(w > 0 for w in w_ls) for _, w_ls in inj.items())
+            for inj in chems2edges_ls
+        ]
+        report["uncollapsed_chems_above_threshold"] = [
+            sum(any(w > self.intensity_threshold for w in w_ls) for _, w_ls in inj.items())
+            for inj in chems2edges_ls
+        ]
+        
+        chems2edges = {ch : [] for ch in all_chems}
+        for ch, e_ls in chems2edges.items():
+            for inj in chems2edges_ls:
+                e_ls.extend(inj.get(ch, []))
+        
+        report["chems_with_edges"] = sum(
+            len(w_ls) > 0 for ch, w_ls in chems2edges.items()
+        )
+        report["chems_above_zero"] = sum(
+            any(w > 0 for w in w_ls) for ch, w_ls in chems2edges.items()
+        )
+        report["chems_above_threshold"] = sum(
+            any(w > self.intensity_threshold for w in w_ls) for ch, w_ls in chems2edges.items()
+        )
+        
+        if(not self.log is None):
+            self.log.matching_report = report
+        return report    
 
     @staticmethod
     def make_matching(fullscan_paths,
@@ -626,7 +672,8 @@ class Matching():
                       roi_params=None,
                       edge_limit=None,
                       weighted=1,
-                      full_assignment_strategy=1):
+                      full_assignment_strategy=1,
+                      logging=True):
         """
             Convenience method to make a matching from provided scan times/levels
             and an aligned file of inclusion boxes.
@@ -655,11 +702,12 @@ class Matching():
                   edges.
                 full_assignment_strategy: Choice of method to assign leftover scans
                   not in the matching.
+                logging: Bool for whether to enable logging.
             
             Returns: A Matching object.
         """
         
-        log = MatchingLog()
+        log = MatchingLog() if logging else None
         
         scans_list = []
         for i, fs in enumerate(fullscan_paths):
@@ -690,6 +738,8 @@ class Matching():
             full_assignment_strategy=full_assignment_strategy,
             log=log
         )
+        
+        if(logging): matching.matching_report()
         
         return matching
     

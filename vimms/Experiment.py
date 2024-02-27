@@ -87,7 +87,8 @@ class Shareable:
                         full_assignment_strategy=params.get(
                           "full_assignment_strategy", 
                           Matching.RECURSIVE_ASSIGNMENT
-                        )
+                        ),
+                        logging=params.get("logging", True)
                     )
                 else:
                     self.shared = copy.deepcopy(shareable_base)

@@ -54,7 +54,7 @@ class MatchingLog():
                 "matching_size", "chem_count", "scan_count", "edge_count",
                 "chems_above_threshold", "start_scan", "end_scan", 
                 "start_chem", "end_chem", "start_matching", "end_matching",
-                "start_assignment", "end_assignment"
+                "start_assign", "end_assign"
             ]
             
         report = {}
@@ -330,14 +330,15 @@ class Matching():
                  chems_list, 
                  matching,
                  weighted,
+                 intensity_threshold,
                  nx_graph=None, 
                  aux_graph=None,
                  full_assignment_strategy=1):
                  
         self.scans_list, self.chems_list = scans_list, chems_list
-        self.intensity_threshold = intensity_threshold
         self.matching = matching
         self.weighted = weighted
+        self.intensity_threshold = intensity_threshold
         self.nx_graph = nx_graph
         self.aux_graph = aux_graph
         self.full_assignment_strategy = full_assignment_strategy
@@ -378,7 +379,6 @@ class Matching():
                 for ch in active_chems:
                     edges[ch].append((s, ch.intensity))
         
-        self.intensity_threshold = intensity_threshold
         return edges
 
     @staticmethod
@@ -478,7 +478,7 @@ class Matching():
                 self.full_assignment[s.injection_num][s.scan_idx] = (ch.min_mz + ch.max_mz) / 2
                 
         if(self.full_assignment_strategy == self.RECURSIVE_ASSIGNMENT):
-            aux_G = copy.copy(G)
+            aux_G = copy.deepcopy(G)
             chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
             matching = self.matching
             for ch in chems:
@@ -527,6 +527,12 @@ class Matching():
                 for i in range(last_i + 1, len(scans)):
                     scans[i] = scans[last_i]
 
+    def full_assignment(self, full_assignment_strategy=None):
+        if(not full_assignment_strategy is None): 
+            self.full_assignment_strategy = full_assignment_strategy
+            
+        self._assign_remaining_scans()
+
     @staticmethod
     def multi_schedule2graph(scans_list, 
                              chems_list, 
@@ -557,6 +563,7 @@ class Matching():
             chems_list, 
             matching,
             weighted,
+            intensity_threshold,
             nx_graph=G,
             aux_graph=aux_graph,
             full_assignment_strategy=full_assignment_strategy
@@ -604,8 +611,8 @@ class Matching():
         report["edge_count"] = len(G.edges)
         report["uncollapsed_chem_count"] = [len(ls) for ls in self.chems_list]
         
-        report["uncollapsed_chems_appearing"] = [0] * len(chems_list)
-        for i, ls in enumerate(chems_list):
+        report["uncollapsed_chems_appearing"] = [0] * len(self.chems_list)
+        for i, ls in enumerate(self.chems_list):
             for ch in ls:
                 appears = any(
                     s.ms_level == 1 and ch.min_rt < s.rt and s.rt < ch.max_rt
@@ -614,12 +621,12 @@ class Matching():
                 if(appears):
                     report["uncollapsed_chems_appearing"][i] += 1
         
-        chems2edges_ls = [{ch: [] for ch in ls} for ls in chems_list]
-        for edge in (g.edges):
-            ch = edge[1] if type(edge[1]) is MatchingChem else edge[0]
+        chems2edges_ls = [{ch: [] for ch in ls} for ls in self.chems_list]
+        for e0, e1, edgedata in G.edges(data=True):
+            ch = e1 if type(e1) is MatchingChem else e0
             for inj in chems2edges_ls:
                 if(ch in inj):
-                    inj[ch].append(edge.weight)
+                    inj[ch].append(edgedata["weight"])
          
         report["uncollapsed_chems_with_edges"] = [
             sum(len(w_ls) > 0 for _, w_ls in inj.items())

@@ -158,10 +158,8 @@ class ExperimentCase:
              
         self.name = name if not name is None else controller_type
         self.fullscan_paths = fullscan_paths
-        self.datasets = []
         self.params = params
         self.shareable_base = shareable_base
-        self.injection_num = 0
         self.pickle_env = pickle_env
         self.log = None
         c = controller_type.replace(" ", "_").lower()

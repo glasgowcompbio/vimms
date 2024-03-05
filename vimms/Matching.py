@@ -71,7 +71,7 @@ class MatchingLog():
         return report
 
     def summarise(self, keys=None):
-        for k, v in get_report(keys=keys).items():
+        for k, v in self.get_report(keys=keys).items():
             print(f"{k}: {v}")
 
 class MatchingScan():
@@ -205,6 +205,7 @@ class MatchingChem():
         self.min_mz, self.max_mz = min_mz, max_mz
         self.min_rt, self.max_rt = min_rt, max_rt
         self.intensity = intensity
+        self.max_intensity = intensity
         
     def __repr__(self): 
         return (
@@ -305,14 +306,17 @@ class MatchingChem():
         left = bisect.bisect_left(mzs, self.min_mz) 
         right = bisect.bisect_right(mzs, self.max_mz)
         
-        self.intensity = (
+        new_intensity = (
             max(intensities[i] for i in range(left, right)) 
             if (right - left > 0) 
             else 0
         )
         
+        self.max_intensity = max(new_intensity, self.max_intensity)
+        self.intensity = new_intensity
+        
     def reset(self):
-        self.intensity = 0
+        self.max_intensity = self.intensity = 0
 
 
 class Matching():
@@ -356,7 +360,7 @@ class Matching():
         active_chems, edges = [], {ch: [] for ch in chems}
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
-            ch.reset() #Clear temporary value
+            ch.reset() # Clear intensities
             rt_intervals.addi(ch.min_rt, ch.max_rt + 1E-12, ch)
 
         for s in scans:
@@ -385,6 +389,16 @@ class Matching():
     def collapse_chems(scans_list, chems_list, edges_list, edge_limit=None):
         scans = set(s for ls in scans_list for s in ls)
         chems = set(ch for ls in chems_list for ch in ls)
+        
+        # Need to merge max intensities
+        chems = {ch: copy.deepcopy(ch) for ch in chems}
+        for chem_ls in chems_list:
+            for ch in chem_ls:
+                chems[ch].max_intensity = max(
+                        chems[ch].max_intensity, 
+                        ch.max_intensity
+                    )
+        chems = set(v for _, v in chems.items())
         
         if(not edge_limit is None):
             edges_list = [
@@ -443,7 +457,7 @@ class Matching():
         if(len(new_chems) < 1):
             return {}, None
         
-        aux_G = copy.copy(G)
+        aux_G = copy.deepcopy(G)
         chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
         for ch in chems:
             if(not ch in new_chems):
@@ -527,10 +541,8 @@ class Matching():
                 for i in range(last_i + 1, len(scans)):
                     scans[i] = scans[last_i]
 
-    def full_assignment(self, full_assignment_strategy=None):
-        if(not full_assignment_strategy is None): 
-            self.full_assignment_strategy = full_assignment_strategy
-            
+    def full_assignment(self, full_assignment_strategy):
+        self.full_assignment_strategy = full_assignment_strategy    
         self._assign_remaining_scans()
 
     @staticmethod
@@ -609,36 +621,36 @@ class Matching():
         report["scan_count"] = len(all_scans)
         report["chem_count"] = len(all_chems)
         report["edge_count"] = len(G.edges)
-        report["uncollapsed_chem_count"] = [len(ls) for ls in self.chems_list]
+        report["uncollapsed_chem_count"] = [len(chems) for chems in self.chems_list]
         
         report["uncollapsed_chems_appearing"] = [0] * len(self.chems_list)
-        for i, ls in enumerate(self.chems_list):
-            for ch in ls:
+        for i, (scans, chems) in enumerate(zip(self.scans_list, self.chems_list)):
+            for ch in chems:
                 appears = any(
                     s.ms_level == 1 and ch.min_rt < s.rt and s.rt < ch.max_rt
-                    for s in all_scans
+                    for s in scans
                 )
                 if(appears):
                     report["uncollapsed_chems_appearing"][i] += 1
         
-        chems2edges_ls = [{ch: [] for ch in ls} for ls in self.chems_list]
-        for e0, e1, edgedata in G.edges(data=True):
-            ch = e1 if type(e1) is MatchingChem else e0
-            for inj in chems2edges_ls:
-                if(ch in inj):
-                    inj[ch].append(edgedata["weight"])
+        chems2edges_ls = [{ch: [] for ch in chems} for chems in self.chems_list]
+        for v0, v1, edgedata in G.edges(data=True):
+            s, ch = (v0, v1) if type(v1) is MatchingChem else (v1, v0)
+            for i, inj in enumerate(chems2edges_ls):
+                if(s.injection_num == i):
+                    inj[ch].append(-edgedata["weight"])
          
         report["uncollapsed_chems_with_edges"] = [
             sum(len(w_ls) > 0 for _, w_ls in inj.items())
             for inj in chems2edges_ls
         ]
         report["uncollapsed_chems_above_zero"] = [
-            sum(any(w > 0 for w in w_ls) for _, w_ls in inj.items())
-            for inj in chems2edges_ls
+            sum(ch.max_intensity > 0 for ch in chems)
+            for chems in self.chems_list
         ]
         report["uncollapsed_chems_above_threshold"] = [
-            sum(any(w > self.intensity_threshold for w in w_ls) for _, w_ls in inj.items())
-            for inj in chems2edges_ls
+            sum(ch.max_intensity >= self.intensity_threshold for ch in chems)
+            for chems in self.chems_list
         ]
         
         chems2edges = {ch : [] for ch in all_chems}
@@ -650,10 +662,10 @@ class Matching():
             len(w_ls) > 0 for ch, w_ls in chems2edges.items()
         )
         report["chems_above_zero"] = sum(
-            any(w > 0 for w in w_ls) for ch, w_ls in chems2edges.items()
+            ch.max_intensity > 0 for ch in all_chems
         )
         report["chems_above_threshold"] = sum(
-            any(w > self.intensity_threshold for w in w_ls) for ch, w_ls in chems2edges.items()
+            ch.max_intensity >= self.intensity_threshold for ch in all_chems
         )
         
         if(not self.log is None):

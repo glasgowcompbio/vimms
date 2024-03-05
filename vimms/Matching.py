@@ -493,7 +493,7 @@ class Matching():
                 
         if(self.full_assignment_strategy == self.RECURSIVE_ASSIGNMENT):
             aux_G = copy.deepcopy(G)
-            chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
+            chems = {n for n in aux_G.nodes if type(n) == MatchingChem}
             matching = self.matching
             for ch in chems:
                 if(not ch in matching):
@@ -505,7 +505,7 @@ class Matching():
             if(not self.log is None):
                 self.log.recursive_scan_counts = []
             
-            scans = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
+            scans = {n for n in aux_G.nodes if type(n) == MatchingScan}
             while(len(scans) > 0):
                 if(not self.log is None):
                     self.log.recursive_scan_counts.append(len(scans))
@@ -518,7 +518,7 @@ class Matching():
                         )
                         aux_G.remove_node(s)
                 
-                scans = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
+                scans = {n for n in aux_G.nodes if type(n) == MatchingScan}
                 matching = matching_f(aux_G)
                 
         elif(self.full_assignment_strategy == self.NEAREST_ASSIGNMENT):
@@ -611,10 +611,9 @@ class Matching():
         )
         
     def matching_report(self):
-        # "bipartite" is 0 if scan, 1 if chem
         G = self.nx_graph
-        all_scans = [n for n, d in G.nodes(data=True) if d["bipartite"] == 0]
-        all_chems = [n for n, d in G.nodes(data=True) if d["bipartite"] == 1]
+        all_scans = {n for n in G.nodes if type(n) == MatchingScan}
+        all_chems = {n for n in G.nodes if type(n) == MatchingChem}
         
         report = {}
         report["matching_size"] = len(self)

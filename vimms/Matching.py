@@ -19,9 +19,6 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 # TODO: constraint programming/stable marriage versions??
 # TODO: could chemical collapse with arbitrary exclusion condition, for when
 #  chems_list doesn't have same items e.g. with aligner
-# TODO: MatchingChem.env2nodes could split chemicals on RoI bounds to have
-#  a slightly more accurate view of simulated chemicals
-# TODO: MatchingChem.env2nodes could also work on non-RoI controllers
 from vimms.Common import (
     POSITIVE, get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
 )
@@ -33,8 +30,9 @@ from vimms.PeakPicking import MZMineParams
 
 class MatchingLog():
     """
-        Holds perishable bits of matching logging information useful to keep
-        track of like time elapsed for different parts of the process.
+    Holds perishable [vimms.Matching.Matching][] logging information which are
+    useful to keep track of e.g. times elapsed for different parts of the process
+    of constructing a matching.
     """
 
     def __init__(self):
@@ -49,6 +47,14 @@ class MatchingLog():
         return "\n".join(f"{k}: {v}" for k, v in self.get_report().items())
         
     def get_report(self, keys=None):
+        """
+        Return a dict of logging information.
+        
+        Args:
+            keys: Names of fields the dict should be populated with.
+            
+        Returns: Dict of log_info_name: log_info_value pairs. 
+        """
         if(keys is None):
             keys = [
                 "matching_size", "chem_count", "scan_count", "edge_count",
@@ -71,10 +77,19 @@ class MatchingLog():
         return report
 
     def summarise(self, keys=None):
+        """
+        Print out logging information.
+        
+        Args:
+            keys: Names of fields the dict should be populated with.
+        """
         for k, v in self.get_report(keys=keys).items():
             print(f"{k}: {v}")
 
 class MatchingScan():
+    """
+    Represents a scan for a scan-chem matching in [vimms.Matching.Matching][].
+    """
     def __init__(self, scan_idx, injection_num, ms_level, rt, mzs, intensities):
         self.scan_idx = scan_idx
         self.injection_num = injection_num
@@ -105,9 +120,26 @@ class MatchingScan():
                                 injection_num,
                                 schedule,
                                 ionisation_mode,
-                                mz_window,
                                 roi_params=None,
                                 log=None):
+        """
+        Construct an interpolated set of MatchingScans from an .mzML and
+        a new time schedule using an RoI-based interpolation defined in
+        [vimms.Chemicals.ChemicalMixtureFromMZML][].
+        
+        Args:
+            mzml_path: Filepath to .mzML.
+            injection_num: Integer number indicating which injection this
+                is so MatchingScans can be labelled with it.
+            schedule: Times of new scans.
+            ionisation_mode: Source polarity of instrument.
+                Either Vimms.Common.POSITIVE or Vimms.Common.NEGATIVE.
+            roi_params: Instance of [vimms.Roi.RoiBuilderParams][] to interpolate
+                intensities of new scans with.
+            log: Optional instance of [vimms.Matching.MatchingLog].
+            
+        Returns: A list of MatchingScans.
+        """
         
         if(not log is None):
             log.start_scan = datetime.datetime.now()
@@ -157,6 +189,17 @@ class MatchingScan():
 
     @staticmethod
     def topN_times(N, max_rt, scan_duration_dict):
+        """
+        Generate a series of scan times and levels in a topN-like duty cycle.
+        
+        Args:
+            N: Number of MS2s following an MS1.
+            max_rt: Maximum RT to generate times up to.
+            scan_duration_dict: Dictionary where keys are scan levels
+                and values are times to use for that scan level.
+                
+        Returns: An iterator containing pairs of scan MS-levels and RTs.
+        """
         ms_levels = itertools.cycle([1] + [2] * N)
         scan_times = itertools.accumulate(
             (scan_duration_dict[ms_level] for ms_level in copy.deepcopy(ms_levels)),
@@ -164,42 +207,11 @@ class MatchingScan():
         )
         return zip(ms_levels, itertools.takewhile(lambda t: t < max_rt, scan_times))
 
-    @staticmethod
-    def env2nodes(env, injection_num):
-        scans = (
-            sorted(
-                itertools.chain(*(s for _, s in env.controller.scans.items())), 
-                key=lambda s: s.rt
-            )
-        )
-        return [
-            MatchingScan(s_idx, injection_num, s.ms_level, s.rt, s.mzs, s.intensities) 
-            for s_idx, s in enumerate(scans)
-        ]
-        
-    @staticmethod
-    def topN_nodes(mzml_path,
-                   injection_num,
-                   N,
-                   max_rt,
-                   scan_duration_dict,
-                   ionisation_mode,
-                   mz_window=1E-10):
-        
-        topN_times = MatchingScan.topN_times(N, max_rt, scan_duration_dict)
-        return (
-            MatchingScan.create_scan_intensities(
-                mzml_path, 
-                injection_num, 
-                topN_times,
-                ionisation_mode,
-                mz_window
-            )
-        )
-
-        
 
 class MatchingChem():
+    """
+    Represents a chem for a scan-chem matching in [vimms.Matching.Matching][].
+    """
     def __init__(self, chem_id, min_mz, max_mz, min_rt, max_rt, intensity=None):
         self.id = chem_id
         self.min_mz, self.max_mz = min_mz, max_mz
@@ -224,6 +236,19 @@ class MatchingChem():
         
     @staticmethod
     def boxfile2nodes(reader, box_file_path, box_order, log=None):
+        """
+        Convert an aligned box file into a list of lists of MatchingChems.
+        
+        Args:
+            reader: An instance of [vimms.PeakPicking.AbstractParams] which
+                knows how to read the specific box file type.
+            box_file_path: Path to the aligned box file.
+            box_order: A list giving the order .mzMLs were injected in.
+            log: Optional instance of [vimms.Matching.MatchingLog].
+            
+        Returns: A list of lists of MatchingChems.
+        """
+        
         if(not log is None):
             log.start_chem = datetime.datetime.now()
     
@@ -255,71 +280,51 @@ class MatchingChem():
         return chems_list
 
     @staticmethod
-    def mzmine2nodes(box_file_path, box_order):
-        return MatchingChem.boxfile2nodes(MZMineParams, box_file_path, box_order)
-
-    @staticmethod
-    def env2nodes(env, isolation_width, chem_ids=None):
-        """Assumes chem_ids (if provided) will tell you when chemicals are identical
-           based on the hash."""
-        print(f"Num chems in MS: {len(env.mass_spec.chemicals)}")
-        print(f"First ten chems in MS: {env.mass_spec.chemicals[:10]}")
-        if(chem_ids is None): chem_ids = {}
-        min_id = max(v for _, v in chem_ids.items())
+    def mzmine2nodes(box_file_path, box_order, log=None):
+        """
+        Convert an aligned MZMine 2 box file into a list of lists of MatchingChems.
         
-        controller = env.controller
-        try:
-            roi_builder = controller.roi_builder
-        except AttributeError:
-            errmsg = (
-                "Currently only supports converting runs of RoI-based controllers, "
-                "should manually build RoIs on other envs later"
-            )
-            raise NotImplementedError(errmsg)
+        Args:
+            box_file_path: Path to the aligned box file.
+            box_order: A list giving the order .mzMLs were injected in.
+            log: Optional instance of [vimms.Matching.MatchingLog].
             
-        live_roi, dead_roi, junk_roi = (
-            roi_builder.live_roi, roi_builder.dead_roi, roi_builder.junk_roi
-        )
-        print(f"roi lengths: {len(live_roi), len(dead_roi), len(junk_roi)}")
-        
-        chems = []
-        for roi in itertools.chain(live_roi, dead_roi):
-            if(roi in chem_ids):
-                chem_id = chem_ids[roi]
-            else:
-                chem_id = min_id
-                min_id += 1
-            
-            chems.append(
-                MatchingChem(
-                    chem_id,
-                    min(roi.mz_list), 
-                    max(roi.mz_list), 
-                    min(roi.rt_list), 
-                    max(roi.rt_list)
-                )
-            )
-        
-        return chems, chem_ids
+        Returns: A list of lists of MatchingChems.
+        """
+        return MatchingChem.boxfile2nodes(MZMineParams, box_file_path, box_order, log=log)
 
     def update_chem_intensity(self, mzs, intensities):
+        """
+        Update the MatchingChem's current intensity at a given scan.
+        
+        Args:
+            mzs: Sorted list of scan mzs.
+            intensities: Sorted list of scan intensities.
+        """
         left = bisect.bisect_left(mzs, self.min_mz) 
         right = bisect.bisect_right(mzs, self.max_mz)
         
-        new_intensity = (
+        self.intensity = (
             max(intensities[i] for i in range(left, right)) 
             if (right - left > 0) 
             else 0
         )
         
-        self.max_intensity = max(new_intensity, self.max_intensity)
-        self.intensity = new_intensity
+        self.max_intensity = max(self.intensity, self.max_intensity)
         
     def reset(self):
+        """
+        Undo any modifications to the MatchingChem's state.
+        """
         self.max_intensity = self.intensity = 0
 
 
 class Matching():
+    """
+    Represents a scan-chem bipartite graph on which we can perform a maximum
+    bipartite matching to optimally assign scans to chems over a series of
+    injections.
+    """
     #Matching weight modes
     UNWEIGHTED = 0
     TWOSTEP = 1
@@ -337,7 +342,28 @@ class Matching():
                  intensity_threshold,
                  nx_graph=None, 
                  aux_graph=None,
-                 full_assignment_strategy=1):
+                 full_assignment_strategy=1,
+                 log=None):
+        """
+        Construct a new Matching.
+        
+        Args:
+            scans_list: List of lists of [vimms.Matching.MatchingScan][]s,
+                one list per injection to plan for.
+            chems_list: List of lists of [vimms.Matching.MatchingChem][]s,
+                one list per injection to plan for.
+            matching: A matching returned by a solver.
+            weighted: Choice of whether solver should solve a weighted matching 
+                and how it should do so.
+            intensity_threshold: Threshold above which an edge should be
+                created between a scan and chem.
+            nx_graph: NetworkX graph.
+            aux_graph: Secondary graph used to solve weighted matching
+                in the "two-step" matching mode.
+            full_assignment_strategy: Choice of method 
+                to assign leftover scans not assigned in the matching.
+            log: Optional instance of [vimms.Matching.MatchingLog].
+        """
                  
         self.scans_list, self.chems_list = scans_list, chems_list
         self.matching = matching
@@ -347,7 +373,7 @@ class Matching():
         self.aux_graph = aux_graph
         self.full_assignment_strategy = full_assignment_strategy
         self.full_assignment = []
-        self.log = None
+        self.log = log
         
     def __len__(self): 
         return sum(type(k) == MatchingChem for k in self.matching.keys())
@@ -357,6 +383,17 @@ class Matching():
 
     @staticmethod
     def make_edges(scans, chems, intensity_threshold):
+        """
+        Constructs edges for list of scans and chemicals.
+        
+        Args:
+            scans: List of scans.
+            chems: List of chems.
+            intensity_threshold: Threshold above which an edge should be
+                created between a scan and chem.
+                
+        Returns: List of new edges.
+        """
         active_chems, edges = [], {ch: [] for ch in chems}
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
@@ -387,6 +424,21 @@ class Matching():
 
     @staticmethod
     def collapse_chems(scans_list, chems_list, edges_list, edge_limit=None):
+        """
+        Combines separate sets of scans, chems and edges into one (in preparation
+        to solve a single matching for them as a unit).
+        
+        Args:
+            scans_list: List of lists of [vimms.Matching.MatchingScan][]s.
+            chems_list: List of lists of [vimms.Matching.MatchingChem][]s.
+            edge_list: List of lists of edges, as (scan, chem) pairs.
+            edge_limit: If given a non-None integer value, each chem in the
+                constructed graph will be pruned to have degree of no more than
+                edge_limit, for performance reasons. Prefers to keep highest
+                intensity edges.
+        
+        Returns: Tuple of (scans, chems, edges) lists.
+        """
         scans = set(s for ls in scans_list for s in ls)
         chems = set(ch for ls in chems_list for ch in ls)
         
@@ -419,6 +471,16 @@ class Matching():
 
     @staticmethod
     def build_nx_graph(scans, chems, edges):
+        """
+        Constructs a NetworkX graph.
+        
+        Args:
+            scans: List of scans.
+            chems: List of chems.
+            edges: List of edges.
+        
+        Returns: The NetworkX graph.
+        """
         G = nx.Graph()
         for s in scans:
             if (s.ms_level > 1):
@@ -432,6 +494,22 @@ class Matching():
     
     @staticmethod
     def _make_graph(scans_list, chems_list, intensity_threshold, edge_limit=None):
+        """
+        Construct a single bipartite graph between the scans and chemicals
+        of multiple injections.
+        
+        Args:
+            scans_list: List of lists of [vimms.Matching.MatchingScan][]s.
+            chems_list: List of lists of [vimms.Matching.MatchingChem][]s.
+            intensity_threshold: Threshold above which an edge should be
+                created between a scan and chem.
+            edge_limit: If given a non-None integer value, each chem in the
+                constructed graph will be pruned to have degree of no more than
+                edge_limit, for performance reasons. Prefers to keep highest
+                intensity edges.
+                
+        Returns: The new graph.
+        """
         edges_list = [
             Matching.make_edges(scans, chems, intensity_threshold) 
             for scans, chems in zip(scans_list, chems_list)
@@ -446,12 +524,30 @@ class Matching():
 
     @staticmethod
     def unweighted_matching(G):
+        """
+        Perform an unweighted bipartite matching on a scan-chem graph.
+        
+        Args:
+            G: Input graph.
+            
+        Returns: An unweighted matching.
+        """
         top_nodes = {n for n, d in G.nodes(data=True) if d["bipartite"] == 0}
         return nx.bipartite.matching.hopcroft_karp_matching(G, top_nodes)
 
     @staticmethod
     def two_step_weighted_matching(G):
-
+        """
+        Perform a weighted bipartite matching on a scan-chem graph, first by 
+        solving an unweighted maximum matching, then maximising the weights
+        assigned to the chems selected in the first matching in a second
+        step.
+        
+        Args:
+            G: Input graph.
+            
+        Returns: A weighted matching.
+        """
         first_match = Matching.unweighted_matching(G)
         new_chems = set(v for v in first_match.keys() if type(v) == MatchingChem)
         if(len(new_chems) < 1):
@@ -470,9 +566,18 @@ class Matching():
         )
         
     def _assign_remaining_scans(self):
-        '''
-        Turn matching into a total assignment of scans.
-        '''
+        """
+        Redundantly assigns all scans not included in the matching according
+        to the strategy given in self.full_assignment_strategy.
+        
+        These include:
+        MATCHING_ONLY: Excess scans are assigned to a default value.
+        RECURSIVE_ASSIGNMENT: Excess scans are assigned by recursively removing
+        any previously assigned scans from the graph and then solving a new
+        matching on this auxiliary graph.
+        NEAREST_ASSIGNMENT: Excess scans are assigned to the same target as
+        the nearest scan (in scan index terms) included in the matching.
+        """
         
         if(self.weighted == Matching.TWOSTEP):
             G = self.aux_graph
@@ -541,7 +646,23 @@ class Matching():
                 for i in range(last_i + 1, len(scans)):
                     scans[i] = scans[last_i]
 
-    def full_assignment(self, full_assignment_strategy):
+    def assign_remaining_scans(self, full_assignment_strategy):
+        """
+        Redundantly assigns all scans not included in the matching according
+        to the strategy given in full_assignment_strategy.
+        
+        These include:
+        MATCHING_ONLY: Excess scans are assigned to a default value.
+        RECURSIVE_ASSIGNMENT: Excess scans are assigned by recursively removing
+        any previously assigned scans from the graph and then solving a new
+        matching on this auxiliary graph.
+        NEAREST_ASSIGNMENT: Excess scans are assigned to the same target as
+        the nearest scan (in scan index terms) included in the matching.
+        
+        Args:
+            full_assignment_strategy: Strategy for assigning excess scans.
+        """
+    
         self.full_assignment_strategy = full_assignment_strategy    
         self._assign_remaining_scans()
 
@@ -553,6 +674,29 @@ class Matching():
                              weighted=1,
                              full_assignment_strategy=1,
                              log=None):
+                             
+        """
+        Main constructor for Matching.
+        
+        Args:
+            scans_list: List of lists of [vimms.Matching.MatchingScan][]s,
+                one list per injection to plan for.
+            chems_list: List of lists of [vimms.Matching.MatchingChem][]s,
+                one list per injection to plan for.
+            intensity_threshold: Threshold above which an edge should be
+                created between a scan and chem.
+            edge_limit: If given a non-None integer value, each chem in the
+                constructed graph will be pruned to have degree of no more than
+                edge_limit, for performance reasons. Prefers to keep highest
+                intensity edges.
+            weighted: Choice of whether solver should solve a weighted matching 
+                and how it should do so.
+            full_assignment_strategy: Choice of method to assign leftover scans 
+                not assigned in the matching.
+            log: Optional instance of [vimms.Matching.MatchingLog].
+            
+        Returns: A new Matching.
+        """
                              
         if(not log is None):
             log.start_matching = datetime.datetime.now()
@@ -599,7 +743,28 @@ class Matching():
                        intensity_threshold, 
                        edge_limit=None, 
                        weighted=1,
-                       full_assignment_strategy=1):
+                       full_assignment_strategy=1,
+                       log=None):
+        """
+        Construct a matching for only one injection.
+        
+        Args:
+            scans: List of [vimms.Matching.MatchingScan][]s.
+            chems_list: List of [vimms.Matching.MatchingChem][]s.
+            intensity_threshold: Threshold above which an edge should be
+                created between a scan and chem.
+            edge_limit: If given a non-None integer value, each chem in the
+                constructed graph will be pruned to have degree of no more than
+                edge_limit, for performance reasons. Prefers to keep highest
+                intensity edges.
+            weighted: Choice of whether solver should solve a weighted matching 
+                and how it should do so.
+            full_assignment_strategy: Choice of method to assign leftover scans 
+                not assigned in the matching.
+            log: Optional instance of [vimms.Matching.MatchingLog].
+            
+        Returns: A new Matching.
+        """
         
         return Matching.multi_schedule2graph(
             [scans], 
@@ -611,6 +776,12 @@ class Matching():
         )
         
     def matching_report(self):
+        """
+        Collect various information about the final matching into a dict.
+        (This information is also passed to the log, if applicable).
+        
+        Returns: Info dict.
+        """
         G = self.nx_graph
         all_scans = {n for n in G.nodes if type(n) == MatchingScan}
         all_chems = {n for n in G.nodes if type(n) == MatchingChem}
@@ -678,43 +849,40 @@ class Matching():
                       aligned_file,
                       ionisation_mode,
                       intensity_threshold,
-                      mz_window=10,
                       roi_params=None,
                       edge_limit=None,
                       weighted=1,
                       full_assignment_strategy=1,
                       logging=True):
         """
-            Convenience method to make a matching from provided scan times/levels
-            and an aligned file of inclusion boxes.
-            
-            Args:
-                fullscan_paths: List of paths to fullscan .mzMLs, one per injection,
-                  to seed scan data for that injection. The filename should match
-                  identifiers in the aligned file.
-                times_list: List of lists (scan_level, rt) pairs, one list per 
-                  injection, to generate new scan times.
-                aligned_reader: Reader object to read aligned_file.
-                aligned_file: File containing aligned inclusion boxes.
-                ionisation_mode: Source polarity of instrument.
-                  Either Vimms.Common.POSITIVE or Vimms.Common.NEGATIVE.
-                intensity_threshold: Minimum intensity for an edge to be retained
-                  in the constructed graph.
-                mz_window: m/z tolerance in ppm for determining whether two intensity 
-                  readings are at the same value when interpolating scan intensities.
-                roi_params: A RoiBuilderParams object to use when interpolating scan
-                intensities.
-                edge_limit: If given a non-None integer value, each vertex in the
-                  constructed graph will be pruned to have degree of no more than
-                  edge_limit, for performance reasons. Prefers to keep highest
-                  intensity edges.
-                weighted: Choice of method to decide preferences between weighted
-                  edges.
-                full_assignment_strategy: Choice of method to assign leftover scans
-                  not in the matching.
-                logging: Bool for whether to enable logging.
-            
-            Returns: A Matching object.
+        Convenience method to make a matching from provided scan times/levels
+        and an aligned file of inclusion boxes.
+        
+        Args:
+            fullscan_paths: List of paths to fullscan .mzMLs, one per injection,
+                to seed scan data for that injection. The filename should match
+                identifiers in the aligned file.
+            times_list: List of lists of (scan_level, rt) pairs, one list per 
+                injection, to create new expected scans according to.
+            aligned_reader: Reader object to read aligned_file.
+            aligned_file: File containing aligned inclusion boxes.
+            ionisation_mode: Source polarity of instrument.
+                Either Vimms.Common.POSITIVE or Vimms.Common.NEGATIVE.
+            intensity_threshold: Threshold above which an edge should be
+                created between a scan and chem.
+            roi_params: Instance of [vimms.Roi.RoiBuilderParams][] to interpolate
+                intensities of new scans with.
+            edge_limit: If given a non-None integer value, each chem in the
+                constructed graph will be pruned to have degree of no more than
+                edge_limit, for performance reasons. Prefers to keep highest
+                intensity edges.
+            weighted: Choice of whether solver should solve a weighted matching 
+                and how it should do so.
+            full_assignment_strategy: Choice of method to assign leftover scans 
+                not assigned in the matching.
+            logging: Bool for whether to enable logging.
+        
+        Returns: A Matching object.
         """
         
         log = MatchingLog() if logging else None
@@ -726,7 +894,6 @@ class Matching():
                     i,
                     times_list[i],
                     ionisation_mode,
-                    mz_window,
                     roi_params=roi_params,
                     log=log
             )
@@ -754,6 +921,17 @@ class Matching():
         return matching
     
     def make_schedules(self, isolation_width):
+        """
+        Turns the scans included in the Matching into a list of
+        [vimms.Common.ScanParameters][].
+        
+        Args:
+            isolation_width: Width of isolation width to use in scan
+                params.
+                
+        Returns: A tuple of lists of scan parameters and the RT the matching
+            expects them to appear at.
+        """
         id_count, precursor_id = INITIAL_SCAN_ID, -1
         schedules_list = [[] for _ in self.scans_list]
         rts_list = [[] for _ in self.scans_list]
@@ -784,14 +962,14 @@ class Matching():
         
     def make_inclusion_boxes(self, rt_width, mz_width):
         """
-            Turn matching targets into inclusion boxes of a specified size that
-            can be used by a DDA controller.
+        Turn matching targets into inclusion boxes of a specified size that
+        can be used by a DDA controller.
+        
+        Args:
+            rt_width: inclusion box rt width in seconds.
+            m/z width: inclusion box m/z width in ppm.
             
-            Args:
-                rt_width: inclusion box rt width in seconds.
-                m/z width: inclusion box m/z width in ppm.
-                
-            Returns: A list of lists of inclusion boxes, one list per injection.
+        Returns: A list of lists of inclusion boxes, one list per injection.
         """
         current_rt = 0.0
     

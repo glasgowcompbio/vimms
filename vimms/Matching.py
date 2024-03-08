@@ -579,6 +579,9 @@ class Matching():
         the nearest scan (in scan index terms) included in the matching.
         """
         
+        if(not self.log is None):
+            self.log.start_assign = datetime.datetime.now()
+        
         if(self.weighted == Matching.TWOSTEP):
             G = self.aux_graph
             matching_f = lambda G: Matching.two_step_weighted_matching(G)[0]
@@ -645,6 +648,9 @@ class Matching():
                         
                 for i in range(last_i + 1, len(scans)):
                     scans[i] = scans[last_i]
+                    
+        if(not self.log is None):
+            self.log.end_assign = datetime.datetime.now()
 
     def assign_remaining_scans(self, full_assignment_strategy):
         """
@@ -727,13 +733,9 @@ class Matching():
         
         if(not log is None):
             log.end_matching = datetime.datetime.now()
-            log.start_assign = datetime.datetime.now()
+            matching.log = log
 
         matching._assign_remaining_scans()
-        
-        if(not log is None):
-            log.end_assign = datetime.datetime.now()
-            matching.log = log
         
         return matching
 
@@ -782,6 +784,7 @@ class Matching():
         
         Returns: Info dict.
         """
+        
         G = self.nx_graph
         all_scans = {n for n in G.nodes if type(n) == MatchingScan}
         all_chems = {n for n in G.nodes if type(n) == MatchingChem}

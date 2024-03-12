@@ -116,43 +116,21 @@ class MatchingScan():
         return (self.injection_num, self.ms_level, self.rt).__hash__()
 
     @staticmethod
-    def create_scan_intensities(mzml_path,
-                                injection_num,
-                                schedule,
-                                ionisation_mode,
-                                roi_params=None,
-                                log=None):
+    def _create_scan_intensities(chems, injection_num, schedule):
         """
-        Construct an interpolated set of MatchingScans from an .mzML and
-        a new time schedule using an RoI-based interpolation defined in
-        [vimms.Chemicals.ChemicalMixtureFromMZML][].
+        Interpolate scans for a single injection according to the new scan times
+        in a given schedule.
         
         Args:
-            mzml_path: Filepath to .mzML.
+            chems: List of [vimms.Chemicals.Chemical][] objects.
             injection_num: Integer number indicating which injection this
                 is so MatchingScans can be labelled with it.
-            schedule: Times of new scans.
-            ionisation_mode: Source polarity of instrument.
-                Either Vimms.Common.POSITIVE or Vimms.Common.NEGATIVE.
-            roi_params: Instance of [vimms.Roi.RoiBuilderParams][] to interpolate
-                intensities of new scans with.
-            log: Optional instance of [vimms.Matching.MatchingLog].
+            schedule: List of (scan_level, rt) pairs to create new 
+                expected scans according to.
             
         Returns: A list of MatchingScans.
         """
         
-        if(not log is None):
-            log.start_scan = datetime.datetime.now()
-        
-        if(roi_params is None):
-            roi_params = RoiBuilderParams(
-                min_roi_intensity=0,
-                at_least_one_point_above=0,
-                min_roi_length=2
-            )
-        
-        cm = ChemicalMixtureFromMZML(mzml_path, roi_params=roi_params)
-        chems = cm.sample(None, 1, source_polarity=ionisation_mode)
         rt_intervals = intervaltree.IntervalTree()
         for ch in chems:
             rt_intervals.addi(ch.rt, ch.chromatogram.raw_max_rt + 1E-12, ch)
@@ -180,12 +158,59 @@ class MatchingScan():
                 mzs, intensities = np.array(mzs)[mz_idxes], np.array(intensities)[mz_idxes]
                 new_scans.append(
                         MatchingScan(s_idx, injection_num, ms_level, rt, mzs, intensities)
-                    )
-                    
-        if(not log is None):
-            log.end_scan = datetime.datetime.now()            
+                    )          
         
         return new_scans
+        
+    @staticmethod
+    def mzmls2scans(mzml_paths, schedules, ionisation_mode, roi_params=None, log=None):
+        """
+        Construct a list of lists of interpolated MatchingScans from a list 
+        of .mzMLs and a new time schedule using an RoI-based interpolation 
+        defined in [vimms.Chemicals.ChemicalMixtureFromMZML][].
+        
+        Args:
+            mzml_paths: List of filepaths to .mzMLs.
+            schedules: List of lists of (scan_level, rt) pairs, one list per 
+                injection, to create new expected scans according to.
+            ionisation_mode: Source polarity of instrument.
+                Either Vimms.Common.POSITIVE or Vimms.Common.NEGATIVE.
+            roi_params: Instance of [vimms.Roi.RoiBuilderParams][] to interpolate
+                intensities of new scans with.
+            log: Optional instance of [vimms.Matching.MatchingLog].
+            
+        Returns: A list of lists of MatchingScans, one list per injection.
+        """
+        
+        if(not log is None):
+            log.start_scan = datetime.datetime.now()
+            
+        if(roi_params is None):
+            roi_params = RoiBuilderParams(
+                min_roi_intensity=0,
+                at_least_one_point_above=0,
+                min_roi_length=2
+            )
+            
+        mzml2chems = {mzml: None for mzml in mzml_paths} # Filter to unique
+        for mzml_path in mzml2chems.keys():
+            cm = ChemicalMixtureFromMZML(mzml_path, roi_params=roi_params)
+            mzml2chems[mzml_path] = cm.sample(None, 1, source_polarity=ionisation_mode)
+            
+        scans_list = []
+        for i, (mzml_path, schedule) in enumerate(zip(mzml_paths, schedules)):
+            scans_list.append(
+                MatchingScan._create_scan_intensities(
+                    mzml2chems[mzml_path],
+                    i,
+                    schedule
+                )
+            )
+            
+        if(not log is None):
+            log.end_scan = datetime.datetime.now()
+
+        return scans_list
 
     @staticmethod
     def topN_times(N, max_rt, scan_duration_dict):
@@ -843,7 +868,17 @@ class Matching():
         
         if(not self.log is None):
             self.log.matching_report = report
-        return report    
+        return report
+        
+    def strip(self):
+        """
+        Delete all references to stored intermediate data, like the graph used
+        to compute the matching. This will free up space when using e.g. large 
+        graphs to compute a matching, but will prevent further operations like 
+        generating a matching report or new full assignment.
+        """
+        self.nx_graph = None
+        self.aux_graph = None
 
     @staticmethod
     def make_matching(fullscan_paths,
@@ -888,19 +923,13 @@ class Matching():
         Returns: A Matching object.
         """
         
+        assert len(fullscan_paths) == len(times_list), "len(fullscan_paths) != len(times_list)"
+        
         log = MatchingLog() if logging else None
         
-        scans_list = []
-        for i, fs in enumerate(fullscan_paths):
-            new_scans = MatchingScan.create_scan_intensities(
-                    fs,
-                    i,
-                    times_list[i],
-                    ionisation_mode,
-                    roi_params=roi_params,
-                    log=log
-            )
-            scans_list.append(new_scans)
+        scans_list = MatchingScan.mzmls2scans(
+            fullscan_paths, times_list, ionisation_mode, roi_params=roi_params, log=log
+        )
         
         chems_list = MatchingChem.boxfile2nodes(
             aligned_reader,

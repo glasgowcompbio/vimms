@@ -243,6 +243,7 @@ class MatchingChem():
         self.min_rt, self.max_rt = min_rt, max_rt
         self.intensity = intensity
         self.max_intensity = intensity
+        self.chem_by_inj = []
         
     def __repr__(self): 
         return (
@@ -342,7 +343,11 @@ class MatchingChem():
         Undo any modifications to the MatchingChem's state.
         """
         self.max_intensity = self.intensity = 0
-
+        self.chem_by_inj = None
+        
+    def get_target(self, injection_num):
+        ch = self.chem_by_inj[injection_num]
+        return (ch.min_mz + ch.max_mz) / 2
 
 class Matching():
     """
@@ -465,17 +470,21 @@ class Matching():
         Returns: Tuple of (scans, chems, edges) lists.
         """
         scans = set(s for ls in scans_list for s in ls)
-        chems = set(ch for ls in chems_list for ch in ls)
         
-        # Need to merge max intensities
-        chems = {ch: copy.deepcopy(ch) for ch in chems}
-        for chem_ls in chems_list:
+        chem_map = dict()
+        for i, chem_ls in enumerate(chems_list):
             for ch in chem_ls:
-                chems[ch].max_intensity = max(
-                        chems[ch].max_intensity, 
+                if(not ch.id in chem_map):
+                    ch.chem_by_inj = {}
+                    chem_map[ch.id] = ch
+                else:
+                    chem_map[ch.id].max_intensity = max(
+                        chem_map[ch.id].max_intensity, 
                         ch.max_intensity
                     )
-        chems = set(v for _, v in chems.items())
+                chem_map[ch.id].chem_by_inj[i] = ch
+
+        chems = set(v for k, v in chem_map.items())
         
         if(not edge_limit is None):
             edges_list = [
@@ -622,7 +631,7 @@ class Matching():
         for s in self.matching:
             if(type(s) == MatchingScan):
                 ch = self.matching[s]
-                self.full_assignment[s.injection_num][s.scan_idx] = (ch.min_mz + ch.max_mz) / 2
+                self.full_assignment[s.injection_num][s.scan_idx] = ch.get_target(s.injection_num)
                 
         if(self.full_assignment_strategy == self.RECURSIVE_ASSIGNMENT):
             aux_G = copy.deepcopy(G)
@@ -647,7 +656,7 @@ class Matching():
                     if(type(s) == MatchingScan):
                         ch = matching[s]
                         self.full_assignment[s.injection_num][s.scan_idx] = (
-                            (ch.min_mz + ch.max_mz) / 2
+                            ch.get_target(s.injection_num)
                         )
                         aux_G.remove_node(s)
                 

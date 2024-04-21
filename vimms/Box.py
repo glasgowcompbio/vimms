@@ -117,8 +117,9 @@ class Box():
         return (self.pt1, self.pt2).__hash__()
         
     def round(self, ndigits=8):
-        self.pt1.round(ndigits=ndigits)
-        self.pt2.round(ndigits=ndigits)
+        if(not ndigits is None):
+            self.pt1.round(ndigits=ndigits)
+            self.pt2.round(ndigits=ndigits)
         
     def serialise_info(self, minutes=False):
         timescale = 60 if minutes else 1

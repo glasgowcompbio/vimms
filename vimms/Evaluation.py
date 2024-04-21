@@ -95,11 +95,15 @@ class Evaluator(metaclass=ABCMeta):
         if (not self.report is None and math.isclose(min_intensity, self.report_min_intensity)):
             return self.report
 
-        chem_appears = np.any(self.chem_info[:, self.MAX_INTENSITY, :] > min_intensity, axis=1)
-
         frag_counts = self.chem_info[:, self.TIMES_FRAGMENTED, :].T
         max_possible_intensities = self.chem_info[:, self.MAX_INTENSITY, :].T
         raw_intensities = self.chem_info[:, self.MAX_FRAG_INTENSITY, :].T
+        
+        max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
+        chem_appears = (
+            (max_coverage_intensities >= min_intensity)
+            * np.logical_not(np.isclose(max_coverage_intensities, 0.0))
+        )
 
         coverage_intensities = raw_intensities * (raw_intensities >= min_intensity)
         coverage = np.array(coverage_intensities, dtype=bool)
@@ -120,25 +124,20 @@ class Evaluator(metaclass=ABCMeta):
 
         num_appears = np.sum(chem_appears)
         coverage_prop = np.sum(coverage, axis=1) / num_appears
-        cumulative_coverage_prop = np.sum(cumulative_coverage, axis=1) / num_appears
+        cumulative_coverage_prop = sum_cumulative_coverage / num_appears
 
-        max_coverage_intensities = np.amax(max_possible_intensities, axis=0)
-        which_obtainable = (
-            (max_coverage_intensities >= min_intensity) * (max_coverage_intensities > 0.0)
-        )
-        max_obtainable = max_coverage_intensities[np.newaxis, which_obtainable]
-        max_obtainable[np.isclose(max_obtainable, 0.0)] = 1.0
+        max_appears = max_coverage_intensities[np.newaxis, chem_appears]
 
         coverage_intensity_prop = np.mean(
-            coverage_intensities[:, which_obtainable] / max_obtainable,
+            coverage_intensities[:, chem_appears] / max_appears,
             axis=1
         )
         cumulative_raw_intensities_prop = np.mean(
-            cumulative_raw_intensities[:, which_obtainable] / max_obtainable,
+            cumulative_raw_intensities[:, chem_appears] / max_appears,
             axis=1
         )
         cumulative_coverage_intensities_prop = np.mean(
-            cumulative_coverage_intensities[:, which_obtainable] / max_obtainable,
+            cumulative_coverage_intensities[:, chem_appears] / max_appears,
             axis=1
         )
 
@@ -162,10 +161,10 @@ class Evaluator(metaclass=ABCMeta):
             "times_covered": times_covered,
             "times_covered_summary": times_covered_summary,
 
-            "cumulative_coverage": cumulative_coverage.tolist(),
+            "cumulative_coverage": cumulative_coverage,
             "sum_cumulative_coverage": sum_cumulative_coverage.tolist(),
-            "cumulative_raw_intensity": cumulative_raw_intensities.tolist(),
-            "cumulative_intensity": cumulative_coverage_intensities.tolist(),
+            "cumulative_raw_intensity": cumulative_raw_intensities,
+            "cumulative_intensity": cumulative_coverage_intensities,
 
             "coverage_proportion": coverage_prop.tolist(),
             "intensity_proportion": coverage_intensity_prop.tolist(),
@@ -323,7 +322,7 @@ class RealEvaluator(Evaluator):
         return RealEvaluator.from_aligned_mzmine(aligned_file, min_box_ppm=min_box_ppm)
 
     @classmethod
-    def from_aligned_boxfile(cls, reader, aligned_file, min_box_ppm=10):
+    def from_aligned_boxfile(cls, reader, aligned_file, min_box_ppm=None):
         chems = []
         fs_names, line_ls = reader.read_aligned_csv(aligned_file)
         for _, mzml_fields in line_ls:
@@ -336,8 +335,9 @@ class RealEvaluator(Evaluator):
                             float(inner["RT start"]) * reader.RT_FACTOR,
                             float(inner["RT end"]) * reader.RT_FACTOR,
                             float(inner["m/z min"]),
-                            float(inner["m/z max"])
-                        ).apply_min_box_ppm(ywidth=min_box_ppm)
+                            float(inner["m/z max"],
+                            round_digits=None)
+                        ).apply_min_box_ppm(ywidth=min_box_ppm, round_digits=None)
                     )
                 else:
                     row.append(None)
@@ -478,7 +478,8 @@ class RealEvaluator(Evaluator):
                 rt_start,
                 rt_end,
                 mz - 0.01,
-                mz + 0.01
+                mz + 0.01,
+                round_digits=None
             )#.apply_min_box_ppm(ywidth=min_box_ppm)
 
             chems.append([box])

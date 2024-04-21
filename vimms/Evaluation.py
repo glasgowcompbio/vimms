@@ -335,7 +335,7 @@ class RealEvaluator(Evaluator):
                             float(inner["RT start"]) * reader.RT_FACTOR,
                             float(inner["RT end"]) * reader.RT_FACTOR,
                             float(inner["m/z min"]),
-                            float(inner["m/z max"],
+                            float(inner["m/z max"]),
                             round_digits=None)
                         ).apply_min_box_ppm(ywidth=min_box_ppm, round_digits=None)
                     )

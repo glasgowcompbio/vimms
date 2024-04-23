@@ -6,6 +6,7 @@ import pathlib
 import inspect
 import multiprocessing
 import json
+import uuid
 
 from vimms.Common import POSITIVE, save_obj, load_obj
 from vimms.Roi import RoiBuilderParams
@@ -304,7 +305,7 @@ class Experiment:
         generated = cm.sample(None, 2, source_polarity=ionisation_mode)
         
         basename = ".".join(os.path.basename(fs).split(".")[:-1])
-        ppath = os.path.join(out_dir, f"{basename}_temp.pkl")
+        ppath = os.path.join(out_dir, f"{basename}_temp_{uuid.uuid4()}.pkl")
         ChemSet.dump_chems(generated, ppath)
         
         return ppath

@@ -137,6 +137,6 @@ examples/01. vimms (Wandy et al 2019)/supporting_files/
 demo/01. Data/hmdb_metabolites.zip
 demo/01. Data/results/
 demo/02. Methods/results/
-demo/guide_to_vimms/tests/results/*
+demo/guide_to_vimms/results/*
 test_animation.mzML
 vimms/scripts/debug_chems

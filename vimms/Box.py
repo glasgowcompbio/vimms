@@ -20,11 +20,12 @@ class Point():
     __slots__ = ("x", "y")
 
     def round(self, ndigits=8):
-        self.x, self.y = round(self.x, ndigits), round(self.y, ndigits)
+        if(not ndigits is None):
+            self.x, self.y = round(self.x, ndigits), round(self.y, ndigits)
 
-    def __init__(self, x, y): 
+    def __init__(self, x, y, round_digits=None): 
         self.x, self.y = float(x), float(y)
-        self.round()
+        self.round(ndigits=round_digits)
         
     def __iter__(self):
         return iter((self.x, self.y))
@@ -73,7 +74,7 @@ class Interval():
 
 
 class Box():
-    __slots__ = ("id", "roi", "pt1", "pt2", "parents", "intensity")
+    __slots__ = ("id", "roi", "pt1", "pt2", "parents", "intensity", "round_digits")
 
     def __init__(self, x1, x2, y1, y2, 
                     parents=None, 
@@ -83,13 +84,14 @@ class Box():
                     id=None, 
                     roi=None,
                     round_digits=8):
-                
+        
         self.id = id
         self.roi = roi
-        self.pt1 = Point(min(x1, x2), min(y1, y2))
-        self.pt2 = Point(max(x1, x2), max(y1, y2))
+        self.pt1 = Point(min(x1, x2), min(y1, y2), round_digits)
+        self.pt2 = Point(max(x1, x2), max(y1, y2), round_digits)
         self.parents = [self] if parents is None else parents
         self.intensity = intensity
+        self.round_digits = round_digits
 
         if (self.pt2.x - self.pt1.x < min_xwidth):
             midpoint = self.pt1.x + (self.pt2.x - self.pt1.x) / 2
@@ -100,8 +102,6 @@ class Box():
             midpoint = self.pt1.y + (self.pt2.y - self.pt1.y) / 2
             self.pt1.y = midpoint - min_ywidth / 2 
             self.pt2.y = midpoint + min_ywidth / 2
-            
-        self.round(ndigits=round_digits)
 
     def __repr__(self):
         return "Box({}, {})".format(self.pt1, self.pt2)
@@ -117,9 +117,9 @@ class Box():
         return (self.pt1, self.pt2).__hash__()
         
     def round(self, ndigits=8):
-        if(not ndigits is None):
-            self.pt1.round(ndigits=ndigits)
-            self.pt2.round(ndigits=ndigits)
+        self.round_digits = ndigits
+        self.pt1.round(ndigits=ndigits)
+        self.pt2.round(ndigits=ndigits)
         
     def serialise_info(self, minutes=False):
         timescale = 60 if minutes else 1
@@ -143,7 +143,8 @@ class Box():
                 parents=self.parents, 
                 intensity=self.intensity, 
                 id=self.id, 
-                roi=self.roi
+                roi=self.roi,
+                round_digits=self.round_digits
                )
 
     def shift(self, xshift=0, yshift=0, round_digits=8):

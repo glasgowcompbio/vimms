@@ -2,7 +2,7 @@ import random
 from abc import abstractmethod
 
 import numpy as np
-import GPy
+# import GPy
 
 from mass_spec_utils.library_matching.spectral_scoring_functions import cosine_similarity
 from mass_spec_utils.library_matching.spectrum import Spectrum
@@ -58,7 +58,7 @@ class OraclePointMatcher():
         else:
             self.chem_rts_by_injection = chem_rts_by_injection
         self.chem_to_idx = {
-            chem if chem.base_chemical is None else chem.base_chemical : idx 
+            chem if chem.base_chemical is None else chem.base_chemical : idx
             for chem, idx in zip(chemicals, range(len(chem_rts_by_injection[0])))
         }
         self.not_sent = [True] * len(self.chem_rts_by_injection[0])
@@ -87,14 +87,14 @@ class OraclePointMatcher():
                             model.send_training_pair(self.chem_rts_by_injection[inj_num][i],
                                                      self.chem_rts_by_injection[0][i])
                             self.not_sent[i] = False
-        
+
         else:
             if (self.mode == OraclePointMatcher.MODE_RTENABLED):
                 enable = lambda y: scan.rt > y
             else:
                 enable = lambda y: True
 
-            for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num], 
+            for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num],
                                             self.chem_rts_by_injection[0])
                                        ):
                 if (self.not_sent[i] and enable(y)):
@@ -120,9 +120,9 @@ class MS2PointMatcher():
             if(len(self.ms2s[0]) > 0):
                 original_idx, original_spectrum, score = -1, None, -1
                 for i, (_, s, __) in enumerate(self.ms2s[0]):
-                    current_score, _ = cosine_similarity(spectrum, 
-                                                         s, 
-                                                         self.mass_tol, 
+                    current_score, _ = cosine_similarity(spectrum,
+                                                         s,
+                                                         self.mass_tol,
                                                          self.min_match
                                                         )
                     if (current_score > score):
@@ -137,56 +137,56 @@ class MS2PointMatcher():
             self.ms2s[0].append((rt, spectrum, None))
 
 
-class GPDrift(DriftModel):
-    '''Drift model that uses a Gaussian Process and known training points to learn a drift function with reference to points in the first injection.'''
-
-    def __init__(self, kernel, point_matcher, max_points=None):
-        self.kernel = kernel
-        self.point_matcher = point_matcher
-        self.Y, self.X = [], []
-        self.model = None
-        self.max_points = max_points
-
-    # TODO: Ideally this would use _online_ learning rather than retraining the whole model every time...
-    def get_estimator(self, injection_number):
-        if (injection_number == 0 or self.Y == []):
-            return lambda roi, inj_num: (0, {})
-        else:
-            if (self.model is None):
-                if (self.max_points is None or self.max_points >= len(self.Y)):
-                    Y, X = self.Y, self.X
-                else:
-                    Y, X = self.Y[-self.max_points:], self.X[-self.max_points:]
-                self.model = GPy.models.GPRegression(
-                    np.array(Y).reshape((len(Y), 1)), 
-                    np.array(X).reshape((len(X), 1)),
-                    kernel=self.kernel
-                )
-                self.model.optimize()
-
-            def predict(roi, inj_num):
-                mean, variance = self.model.predict(np.array(roi[0][0]).reshape((1, 1)))
-                return roi[0][0] - mean[0, 0], {"variance" : variance[0, 0]}
-            return predict
-
-    def _next_model(self, **kwargs):
-        Y, X = kwargs.get("Y", []), kwargs.get("X", [])
-        new_model = GPDrift(self.kernel.copy(), self.point_matcher, max_points=self.max_points)
-        self.point_matcher._next_model()
-        new_model.Y, new_model.X = Y, X
-        return new_model
-
-    def send_training_data(self, scan, roi, inj_num):
-        self.point_matcher.send_training_data(self, scan, roi, inj_num)
-
-    # TODO: update to allow updating points: search for point with matching x point then change corresponding y value
-    def send_training_pair(self, y, x):
-        self.Y.append(y)
-        self.X.append(x)
-        self.model = None
-
-    def observed_points(self):
-        return self.Y
-
-    def update(self, **kwargs):
-        Y, X = kwargs.get("Y", []), kwargs.get("X", [])
+# class GPDrift(DriftModel):
+#     '''Drift model that uses a Gaussian Process and known training points to learn a drift function with reference to points in the first injection.'''
+#
+#     def __init__(self, kernel, point_matcher, max_points=None):
+#         self.kernel = kernel
+#         self.point_matcher = point_matcher
+#         self.Y, self.X = [], []
+#         self.model = None
+#         self.max_points = max_points
+#
+#     # TODO: Ideally this would use _online_ learning rather than retraining the whole model every time...
+#     def get_estimator(self, injection_number):
+#         if (injection_number == 0 or self.Y == []):
+#             return lambda roi, inj_num: (0, {})
+#         else:
+#             if (self.model is None):
+#                 if (self.max_points is None or self.max_points >= len(self.Y)):
+#                     Y, X = self.Y, self.X
+#                 else:
+#                     Y, X = self.Y[-self.max_points:], self.X[-self.max_points:]
+#                 self.model = GPy.models.GPRegression(
+#                     np.array(Y).reshape((len(Y), 1)),
+#                     np.array(X).reshape((len(X), 1)),
+#                     kernel=self.kernel
+#                 )
+#                 self.model.optimize()
+#
+#             def predict(roi, inj_num):
+#                 mean, variance = self.model.predict(np.array(roi[0][0]).reshape((1, 1)))
+#                 return roi[0][0] - mean[0, 0], {"variance" : variance[0, 0]}
+#             return predict
+#
+#     def _next_model(self, **kwargs):
+#         Y, X = kwargs.get("Y", []), kwargs.get("X", [])
+#         new_model = GPDrift(self.kernel.copy(), self.point_matcher, max_points=self.max_points)
+#         self.point_matcher._next_model()
+#         new_model.Y, new_model.X = Y, X
+#         return new_model
+#
+#     def send_training_data(self, scan, roi, inj_num):
+#         self.point_matcher.send_training_data(self, scan, roi, inj_num)
+#
+#     # TODO: update to allow updating points: search for point with matching x point then change corresponding y value
+#     def send_training_pair(self, y, x):
+#         self.Y.append(y)
+#         self.X.append(x)
+#         self.model = None
+#
+#     def observed_points(self):
+#         return self.Y
+#
+#     def update(self, **kwargs):
+#         Y, X = kwargs.get("Y", []), kwargs.get("X", [])

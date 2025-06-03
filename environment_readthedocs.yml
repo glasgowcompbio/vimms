@@ -40,6 +40,5 @@ dependencies:
     - mass-spec-utils
     - pysmiles
     - numba-stats
-    - ms-deisotope
     - optuna
     - kaleido

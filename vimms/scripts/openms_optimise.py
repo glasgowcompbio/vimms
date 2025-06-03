@@ -78,7 +78,6 @@ class TopNSimulator:
         # DEW, isotope and charge filtering parameters
         exclude_after_n_times = params.EXCLUDE_AFTER_N_TIMES
         exclude_t0 = params.EXCLUDE_T0
-        deisotope = params.DEISOTOPE
         charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
 
         # create controller and mass spec objects
@@ -87,8 +86,7 @@ class TopNSimulator:
         controller = TopNController(
             POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
             advanced_params=params, exclude_after_n_times=exclude_after_n_times,
-            exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
-            min_fit_score=min_fit_score, penalty_factor=penalty_factor)
+            exclude_t0=exclude_t0)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=self.pbar)
@@ -218,7 +216,6 @@ class SmartROISimulator:
             params.DEFAULT_MS1_SCAN_WINDOW_START, params.DEFAULT_MS1_SCAN_WINDOW_END)
 
         # DEW, isotope and charge filtering parameters
-        deisotope = params.DEISOTOPE
         charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
 
         intensity_increase_factor = params.IIF  # fragment ROI again if intensity increases iif fold
@@ -247,11 +244,7 @@ class SmartROISimulator:
             smartroi_params,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
             ms1_shift=0,
-            advanced_params=None,
-            deisotope=deisotope,
-            charge_range=charge_range,
-            min_fit_score=min_fit_score,
-            penalty_factor=penalty_factor)
+            advanced_params=None)
 
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=self.pbar)
@@ -408,7 +401,6 @@ class WeightedDEWSimulator:
 
         # DEW, isotope and charge filtering parameters
         exclude_t0 = params.EXCLUDE_T0
-        deisotope = params.DEISOTOPE
         charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
 
         # create controller and mass spec objects
@@ -417,8 +409,6 @@ class WeightedDEWSimulator:
         controller = WeightedDEWController(
             POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
             exclusion_t_0=exclude_t0, log_intensity=True,
-            deisotope=deisotope, charge_range=charge_range,
-            min_fit_score=min_fit_score, penalty_factor=penalty_factor,
             advanced_params=params)
 
         # create an environment to run both the mass spec and controller

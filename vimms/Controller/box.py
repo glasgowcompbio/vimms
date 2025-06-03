@@ -40,12 +40,7 @@ class TopNEXtController(RoiController):
                  register_all_roi=False,
                  scoring_params=GRID_CONTROLLER_SCORING_PARAMS,
                  exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None,
-                 deisotope=False,
-                 charge_range=(2, 3),
-                 min_fit_score=80,
-                 penalty_factor=1.5,
-                 use_quick_charge=False):
+                 exclusion_t_0=None):
         """
         Create a grid controller.
 
@@ -73,10 +68,6 @@ class TopNEXtController(RoiController):
                               used to describe how to perform dynamic exclusion so that precursors
                               that have been fragmented are not fragmented again.
             exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
-            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
-            charge_range: the charge state of ions to keep.
-            min_fit_score: minimum score to keep from doing isotope deconvolution.
-            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
         super().__init__(ionisation_mode,
                          isolation_width,
@@ -90,12 +81,7 @@ class TopNEXtController(RoiController):
                          ms1_shift=ms1_shift,
                          advanced_params=advanced_params,
                          exclusion_method=exclusion_method,
-                         exclusion_t_0=exclusion_t_0,
-                         deisotope=deisotope,
-                         charge_range=charge_range,
-                         min_fit_score=min_fit_score,
-                         penalty_factor=penalty_factor,
-                         use_quick_charge=use_quick_charge
+                         exclusion_t_0=exclusion_t_0
         )
 
         self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params)
@@ -132,19 +118,19 @@ class TopNEXtController(RoiController):
 
         dda_scores = self._log_roi_intensities() * self._overlap_scores()
         inclusion_scores = self._add_inclusion_scores(dda_scores)
-        
+
         if self.roi_builder.roi_type == ROI_TYPE_SMART:  # smart ROI scoring
             final_scores = (
                 inclusion_scores * self._smartroi_filter() * self._min_intensity_filter()
             )
         else: # normal ROI
             final_scores = inclusion_scores * self._score_filters()
-        
+
         return self._get_top_N_scores(final_scores)
 
     def after_injection_cleanup(self):
         self.grid.update_after_injection()
-        
+
 
 class IntensityTopNEXtController(TopNEXtController):
     def _get_scores(self):

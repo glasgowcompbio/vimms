@@ -51,18 +51,10 @@ def parse_args():
                         help='The number of times to exclude after in DEW parameters.')
     parser.add_argument('--exclude_t0', type=int, default=15,
                         help='The exclude t0 value in DEW parameters.')
-    parser.add_argument('--deisotope', type=bool, default=True,
-                        help='Whether to perform deisotoping or not.')
     parser.add_argument('--charge_range_start', type=int, default=2,
                         help='The start of the charge range for filtering.')
     parser.add_argument('--charge_range_end', type=int, default=3,
                         help='The end of the charge range for filtering.')
-    parser.add_argument('--min_fit_score', type=int, default=80,
-                        help='The minimum fit score from ms_deconvolve.')
-    parser.add_argument('--penalty_factor', type=float, default=1.5,
-                        help='Penalty factor for ms_deconvolve.')
-    parser.add_argument('--use_quick_charge', action='store_true',
-                        help='Whether to use quick charge for deconvolution.')
     parser.add_argument('--out_dir', type=str, default='topN_test',
                         help='The directory where the output files will be stored.')
     parser.add_argument('--in_mzml', type=str, default='BSA_100fmol__recon_1ul_1.mzML',
@@ -201,7 +193,6 @@ def run_simulation(args, dataset, st, out_dir):
     # DEW, isotope and charge filtering parameters
     exclude_after_n_times = args.exclude_after_n_times
     exclude_t0 = args.exclude_t0
-    deisotope = args.deisotope
     charge_range = (args.charge_range_start, args.charge_range_end)
 
     # create controller and mass spec objects
@@ -210,9 +201,7 @@ def run_simulation(args, dataset, st, out_dir):
     controller = TopNController(
         POSITIVE, N, isolation_window, mz_tol, rt_tol, min_ms1_intensity,
         advanced_params=params, exclude_after_n_times=exclude_after_n_times,
-        exclude_t0=exclude_t0, deisotope=deisotope, charge_range=charge_range,
-        min_fit_score=min_fit_score, penalty_factor=penalty_factor,
-        use_quick_charge=args.use_quick_charge
+        exclude_t0=exclude_t0
     )
 
     # record the starting time

@@ -39,6 +39,5 @@ dependencies:
     - mass-spec-utils>=0.0.12
     - pysmiles>=1.1.2
     - numba-stats>=1.3.0
-    - ms-deisotope>=0.0.52
     - optuna>=3.3.0
     - kaleido>=0.2.1

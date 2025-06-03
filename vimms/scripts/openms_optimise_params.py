@@ -7,7 +7,6 @@ class BaseParameters:
     ISOLATION_WINDOW: float = 0.7
     DEFAULT_MS1_SCAN_WINDOW_START: float = 310.0
     DEFAULT_MS1_SCAN_WINDOW_END: float = 2000.0
-    DEISOTOPE: bool = True
     CHARGE_RANGE_START: int = 2
     CHARGE_RANGE_END: int = 3
     MIN_FIT_SCORE: int = 80

@@ -64,3 +64,16 @@ Additional usage notes and installation instructions are available in our
 [Installation guide](https://github.com/glasgowcompbio/vimms/blob/master/pages/installation.md),
 while example notebooks can be found in the
 [demo directory](https://github.com/glasgowcompbio/vimms/tree/master/demo).
+
+## Running on a Real Instrument
+
+Controllers written for ViMMS are compatible with the Thermo Orbitrap Fusion Tribrid when used with the `vimms_fusion` extension. You must have a licensed copy of Thermo Fisher's IAPI installed. See [Running on a Real Instrument](real_instrument.md) for a minimal example.
+
+## Where to Go Next
+
+* The [Simulation Overview](simulation_overview.md) provides a step by step walkthrough of a typical run.
+* Detailed information about built in controllers is available in [Running Controllers](controllers.md).
+* Evaluation of simulation output is described in [Evaluating Simulations](evaluation.md).
+* [Adding Noise](noise.md) explains how to inject peak, baseline and RT noise into spectra.
+* [Chromatographic Models](chromatography.md) covers column offsets and drift.
+* Utility scripts are summarised under [Command Line Utilities](cli_tools.md).

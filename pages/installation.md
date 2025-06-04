@@ -21,35 +21,14 @@ To get the latest features and fixes (still under development), clone the reposi
 
 ```$ git clone https://github.com/glasgowcompbio/vimms.git```
 
-You can then set up the environment using [Anaconda Python](https://www.anaconda.com) or [Poetry](https://python-poetry.org).
-We recommend using Conda.
+Set up the development environment using [Poetry](https://python-poetry.org):
 
-There is also support for using [Pipenv](https://pipenv.pypa.io/en/latest/) through the included Pipfile in the repo, but 
-going forward that will not be maintained anymore.
-
-***Setting up with Anaconda:***
-```
-$ cd vimms
-$ conda env create --file environment.yml
-$ conda activate vimms
-$ jupyter lab (to test notebooks)
-```
-
-***Setting up with Poetry:***
 ```
 $ cd vimms
 $ pip install poetry (if you don't have it)
 $ poetry install
 $ poetry shell
-$ jupyter lab (to test notebooks)
-```
-
-***Setting up with Pipenv:***
-```
-$ cd vimms
-$ pip install pipenv (if you don't have it)
-$ pipenv install
-$ pipenv shell
+$ jupyter lab  # to test notebooks
 ```
 
 # 🧪 Testing ViMMS

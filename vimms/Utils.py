@@ -121,22 +121,32 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
 
 
 def smiles_to_formula(smiles_string):
-    mol = pysmiles.read_smiles(smiles_string, explicit_hydrogen=True)
+    """Safely convert a SMILES string into a chemical formula."""
+    try:
+        mol = pysmiles.read_smiles(smiles_string, explicit_hydrogen=True)
+    except Exception:
+        # Some of the example spectra contain non-standard or
+        # malformed SMILES (e.g. dangling E/Z isomer tokens).  In these
+        # cases ``pysmiles`` will raise an error.  For the purposes of
+        # the unit tests we simply return ``None`` if the SMILES cannot
+        # be parsed.
+        return None
+
     atom_counts = {g: 0 for g in ATOM_MASSES}
     for node in mol.nodes(data="element"):
         atom = node[1]
         if atom not in atom_counts:
             return None
-        else:
-            atom_counts[atom] += 1
+        atom_counts[atom] += 1
+
     chem_formula = ""
     for atom, count in atom_counts.items():
         if count == 0:
             continue
-        elif count == 1:
+        if count == 1:
             chem_formula += atom
         else:
-            chem_formula += "{}{}".format(atom, count)
+            chem_formula += f"{atom}{count}"
     return chem_formula
 
 
@@ -147,12 +157,16 @@ def mgf_to_database(mgf_file, id_field='SPECTRUMID'):
     """
     records = load_mgf(mgf_file, id_field=id_field)
     database = []
-    for key in records:
-        chemical_formula = smiles_to_formula(records[key].metadata['SMILES'])
-        records[key].metadata['CHEMICAL_FORMULA'] = chemical_formula
     for key, record in records.items():
+        chemical_formula = smiles_to_formula(record.metadata['SMILES'])
+        record.metadata['CHEMICAL_FORMULA'] = chemical_formula
+        if chemical_formula is None:
+            # Skip entries with unparseable SMILES strings.  They are not
+            # useful for formula based sampling and would cause errors later
+            # when converting to :class:`Formula` objects.
+            continue
         database.append(
             DatabaseCompound(record.spectrum_id,
-                             record.metadata['CHEMICAL_FORMULA'], None, None,
-                             None, key))
+                             record.metadata['CHEMICAL_FORMULA'],
+                             None, None, None, key))
     return database

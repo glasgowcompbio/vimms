@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vimms"
-version = "2.1.4"
+version = "2.1.5"
 description = "A framework to develop, test and optimise fragmentation strategies in LC-MS metabolomics."
 authors = ["Joe Wandy <joe.wandy@glasgow.ac.uk>", "Vinny Davies", "Ross McBride", "Justin J.J. van der Hooft", "Stefan Weidt", "Ronan Daly", "Simon Rogers"]
 license = "MIT"

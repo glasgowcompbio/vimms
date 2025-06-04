@@ -1,11 +1,20 @@
 from loguru import logger
 
 from tests.conftest import OUT_DIR
-from vimms.ChemicalSamplers import EvenMZFormulaSampler, UniformRTAndIntensitySampler, \
-    ConstantChromatogramSampler, FixedMS2Sampler
+from vimms.ChemicalSamplers import (
+    EvenMZFormulaSampler,
+    UniformRTAndIntensitySampler,
+    ConstantChromatogramSampler,
+    FixedMS2Sampler,
+)
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.Common import DEFAULT_ISOLATION_WIDTH, POSITIVE, set_log_level_warning, \
-    get_default_scan_params, get_dda_scan_param
+from vimms.Common import (
+    DEFAULT_ISOLATION_WIDTH,
+    POSITIVE,
+    set_log_level_warning,
+    get_default_scan_params,
+    get_dda_scan_param,
+)
 from vimms.Controller import FixedScansController, MultiIsolationController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -66,7 +75,7 @@ class TestFixedScansController:
     """
 
     def test_FixedScansController(self, two_fixed_chems):
-        logger.info('Testing FixedScansController')
+        logger.info("Testing FixedScansController")
         mz_to_target = [chem.mass + 1.0 for chem in two_fixed_chems]
         isolation_width = DEFAULT_ISOLATION_WIDTH
         mz_tol = 0.1
@@ -80,12 +89,15 @@ class TestFixedScansController:
         env = Environment(mass_spec, controller, min_rt, max_rt)
 
         ms1_scan = get_default_scan_params(polarity=ionisation_mode)
-        ms2_scan_1 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width,
-                                        mz_tol, rt_tol, polarity=ionisation_mode)
-        ms2_scan_2 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width,
-                                        mz_tol, rt_tol, polarity=ionisation_mode)
-        ms2_scan_3 = get_dda_scan_param(mz_to_target[0], 0.0, None, isolation_width,
-                                        mz_tol, rt_tol, polarity=ionisation_mode)
+        ms2_scan_1 = get_dda_scan_param(
+            mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode
+        )
+        ms2_scan_2 = get_dda_scan_param(
+            mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode
+        )
+        ms2_scan_3 = get_dda_scan_param(
+            mz_to_target[0], 0.0, None, isolation_width, mz_tol, rt_tol, polarity=ionisation_mode
+        )
         schedule = [ms1_scan, ms2_scan_1, ms2_scan_2, ms2_scan_3]
         controller.set_tasks(schedule)
         set_log_level_warning()
@@ -95,7 +107,7 @@ class TestFixedScansController:
         assert len(controller.scans[2]) == 3
         for scan in controller.scans[2]:
             assert scan.num_peaks > 0
-        env.write_mzML(OUT_DIR, 'fixedScansController.mzML')
+        env.write_mzML(OUT_DIR, "fixedScansController.mzML")
 
 
 # FIXME: Disabled because multiple isolation windows are no longer supported in simulator

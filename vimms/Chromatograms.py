@@ -4,10 +4,17 @@ import numpy as np
 import scipy.stats
 from numba_stats import norm
 
-from vimms.Common import MAX_POSSIBLE_RT, CHROM_TYPE_EMPIRICAL, CHROM_TYPE_CONSTANT, \
-    CHROM_TYPE_FUNCTIONAL
-from vimms.MassSpecUtils import rt_match, get_relative_value, \
-    get_relative_intensity_functional_normal
+from vimms.Common import (
+    MAX_POSSIBLE_RT,
+    CHROM_TYPE_EMPIRICAL,
+    CHROM_TYPE_CONSTANT,
+    CHROM_TYPE_FUNCTIONAL,
+)
+from vimms.MassSpecUtils import (
+    rt_match,
+    get_relative_value,
+    get_relative_intensity_functional_normal,
+)
 
 
 class Chromatogram(metaclass=ABCMeta):
@@ -49,7 +56,7 @@ class EmpiricalChromatogram(Chromatogram):
         "min_rt",
         "max_rt",
         "raw_min_rt",
-        "raw_max_rt"
+        "raw_max_rt",
     )
 
     def __init__(self, rts, mzs, intensities, single_point_length=0.9):
@@ -67,8 +74,9 @@ class EmpiricalChromatogram(Chromatogram):
             mzs = mzs[p]
             intensities = intensities[p]
         else:
-            rts = np.array([rts[0] - 0.5 * single_point_length,
-                            rts[0] + 0.5 * single_point_length])
+            rts = np.array(
+                [rts[0] - 0.5 * single_point_length, rts[0] + 0.5 * single_point_length]
+            )
             mzs = np.array([mzs[0], mzs[0]])
             intensities = np.array([intensities[0], intensities[0]])
         # normalise arrays
@@ -102,9 +110,11 @@ class EmpiricalChromatogram(Chromatogram):
         if not isinstance(other, EmpiricalChromatogram):
             # don't attempt to compare against unrelated types
             return NotImplemented
-        res = np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs)) and \
-              np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts)) and \
-              np.array_equal(sorted(self.raw_intensities), sorted(other.raw_intensities))
+        res = (
+            np.array_equal(sorted(self.raw_mzs), sorted(other.raw_mzs))
+            and np.array_equal(sorted(self.raw_rts), sorted(other.raw_rts))
+            and np.array_equal(sorted(self.raw_intensities), sorted(other.raw_intensities))
+        )
         return res
 
     def get_chrom_type(self):
@@ -149,8 +159,7 @@ class FunctionalChromatogram(Chromatogram):
         if distribution == "normal":
             self.distrib = scipy.stats.norm(parameters[0], parameters[1])
         elif distribution == "gamma":
-            self.distrib = scipy.stats.gamma(parameters[0], parameters[1],
-                                             parameters[2])
+            self.distrib = scipy.stats.gamma(parameters[0], parameters[1], parameters[2])
         elif distribution == "uniform":
             self.distrib = scipy.stats.uniform(parameters[0], parameters[1])
         else:
@@ -158,26 +167,25 @@ class FunctionalChromatogram(Chromatogram):
 
         self.min_rt = 0
 
-        if self.distribution_name == 'normal':
+        if self.distribution_name == "normal":
             loc, scale = self.parameters
             x1 = np.array([1 - (self.cutoff / 2)])
             x2 = np.array([self.cutoff / 2])
             self.max_rt = (norm._ppf(x1, loc, scale) - norm._ppf(x2, loc, scale))[0]
         else:
-            self.max_rt = (
-                    self.distrib.ppf(1 - (self.cutoff / 2)) - self.distrib.ppf(self.cutoff / 2)
+            self.max_rt = self.distrib.ppf(1 - (self.cutoff / 2)) - self.distrib.ppf(
+                self.cutoff / 2
             )
 
     def get_relative_intensity(self, query_rt):
         if not self._rt_match(query_rt):
             return None
-        elif self.distribution_name == 'normal':
-            return get_relative_intensity_functional_normal(
-                query_rt, self.cutoff, self.parameters)
+        elif self.distribution_name == "normal":
+            return get_relative_intensity_functional_normal(query_rt, self.cutoff, self.parameters)
         else:
-            return (self.distrib.pdf(query_rt + self.distrib.ppf(self.cutoff / 2)) * (
-                        1 / (1 - self.cutoff)))
-
+            return self.distrib.pdf(query_rt + self.distrib.ppf(self.cutoff / 2)) * (
+                1 / (1 - self.cutoff)
+            )
 
     def get_relative_mz(self, query_rt):
         if not self._rt_match(query_rt):
@@ -189,9 +197,9 @@ class FunctionalChromatogram(Chromatogram):
         return rt_match(self.min_rt, self.max_rt, query_rt)
 
     def get_apex_rt(self):
-        if self.distribution_name == 'uniform':
+        if self.distribution_name == "uniform":
             return (self.max_rt - self.min_rt) / 2
-        elif self.distribution_name == 'normal':
+        elif self.distribution_name == "normal":
             return (self.max_rt - self.min_rt) / 2
         else:
             raise NotImplementedError()

@@ -2,18 +2,24 @@
 This file provides a class for writing mzML output from simulation.
 For the actual generating of mzML file, the psims library is used.
 """
+
 import os
 
 import numpy as np
 from loguru import logger
 from psims.mzml.writer import MzMLWriter as PsimsMzMLWriter
 
-from vimms.Common import INITIAL_SCAN_ID, create_if_not_exist, \
-    DEFAULT_MS1_SCAN_WINDOW, POSITIVE, NEGATIVE, \
-    ScanParameters
+from vimms.Common import (
+    INITIAL_SCAN_ID,
+    create_if_not_exist,
+    DEFAULT_MS1_SCAN_WINDOW,
+    POSITIVE,
+    NEGATIVE,
+    ScanParameters,
+)
 
 
-class MzmlWriter():
+class MzmlWriter:
     """
     A class to write peak data to mzML file, typically called after running simulation.
     """
@@ -44,7 +50,7 @@ class MzmlWriter():
         create_if_not_exist(out_dir)
 
         # start writing mzML here
-        with PsimsMzMLWriter(open(out_file, 'wb')) as writer:
+        with PsimsMzMLWriter(open(out_file, "wb")) as writer:
             # add default controlled vocabularies
             writer.controlled_vocabularies()
 
@@ -57,12 +63,14 @@ class MzmlWriter():
 
                 # open chromatogram list sections
                 with writer.chromatogram_list(count=1):
-                    tic_rts, tic_intensities = self._get_tic_chromatogram(
-                        self.scans)
+                    tic_rts, tic_intensities = self._get_tic_chromatogram(self.scans)
                     writer.write_chromatogram(
-                        tic_rts, tic_intensities, id='tic',
-                        chromatogram_type='total ion current chromatogram',
-                        time_unit='second')
+                        tic_rts,
+                        tic_intensities,
+                        id="tic",
+                        chromatogram_type="total ion current chromatogram",
+                        time_unit="second",
+                    )
 
         writer.close()
 
@@ -78,28 +86,19 @@ class MzmlWriter():
         # check file contains what kind of spectra
         has_ms1_spectrum = 1 in self.scans
         has_msn_spectrum = 1 in self.scans and len(self.scans) > 1
-        file_contents = [
-            'centroid spectrum'
-        ]
+        file_contents = ["centroid spectrum"]
         if has_ms1_spectrum:
-            file_contents.append('MS1 spectrum')
+            file_contents.append("MS1 spectrum")
         if has_msn_spectrum:
-            file_contents.append('MSn spectrum')
-        out.file_description(
-            file_contents=file_contents,
-            source_files=[]
-        )
+            file_contents.append("MSn spectrum")
+        out.file_description(file_contents=file_contents, source_files=[])
         out.sample_list(samples=[])
-        out.software_list(software_list={
-            'id': 'VMS',
-            'version': '1.0.0'
-        })
+        out.software_list(software_list={"id": "VMS", "version": "1.0.0"})
         out.scan_settings_list(scan_settings=[])
-        out.instrument_configuration_list(instrument_configurations={
-            'id': 'VMS',
-            'component_list': []
-        })
-        out.data_processing_list({'id': 'VMS'})
+        out.instrument_configuration_list(
+            instrument_configurations={"id": "VMS", "component_list": []}
+        )
+        out.data_processing_list({"id": "VMS"})
 
     def sort_filter(self, all_scans, min_scan_id):
         """
@@ -114,19 +113,19 @@ class MzmlWriter():
         Returns: the list of filtered scans
 
         """
-        
+
         new_scans = []
         for s in all_scans:
-            if(s.scan_id >= min_scan_id):
-                if(s.num_peaks == 0): #scans can't be empty, but we can't just remove either...
+            if s.scan_id >= min_scan_id:
+                if s.num_peaks == 0:  # scans can't be empty, but we can't just remove either...
                     s.mzs = np.array([70.0])
                     s.intensities = np.array([1.0])
                     s.num_peaks = 1
                 new_scans.append(s)
-                
+
         new_scans.sort(key=lambda s: s.rt)
         return new_scans
-        
+
         all_scans = sorted(all_scans, key=lambda x: x.rt)
         all_scans = [x for x in all_scans if x.num_peaks > 0]
         all_scans = list(filter(lambda x: x.scan_id >= min_scan_id, all_scans))
@@ -177,24 +176,23 @@ class MzmlWriter():
 
         """
         assert scan.num_peaks > 0
-        label = 'MS1 Spectrum' if scan.ms_level == 1 else 'MSn Spectrum'
+        label = "MS1 Spectrum" if scan.ms_level == 1 else "MSn Spectrum"
         precursor_information = None
         if scan.ms_level == 2:
-            collision_energy = scan.scan_params.get(
-                ScanParameters.COLLISION_ENERGY)
-            activation_type = scan.scan_params.get(
-                ScanParameters.ACTIVATION_TYPE)
+            collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
+            activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
 
             precursor_information = []
             for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
-                precursor_information.append({
-                    "mz": precursor.precursor_mz,
-                    "intensity": precursor.precursor_intensity,
-                    "charge": precursor.precursor_charge,
-                    "spectrum_reference": precursor.precursor_scan_id,
-                    "activation": [activation_type,
-                                   {"collision energy": collision_energy}]
-                })
+                precursor_information.append(
+                    {
+                        "mz": precursor.precursor_mz,
+                        "intensity": precursor.precursor_intensity,
+                        "charge": precursor.precursor_charge,
+                        "spectrum_reference": precursor.precursor_scan_id,
+                        "activation": [activation_type, {"collision energy": collision_energy}],
+                    }
+                )
 
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)
@@ -218,26 +216,26 @@ class MzmlWriter():
             int_polarity = -1
         else:
             int_polarity = 1
-            logger.warning(
-                "Unknown polarity in mzml writer: {}".format(polarity))
+            logger.warning("Unknown polarity in mzml writer: {}".format(polarity))
 
         out.write_spectrum(
-            scan.mzs, scan.intensities,
+            scan.mzs,
+            scan.intensities,
             id=scan_id,
             polarity=int_polarity,
             centroided=True,
             scan_start_time=scan.rt / 60.0,
             scan_window_list=[(first_mz, last_mz)],
             params=[
-                {label: ''},
-                {'ms level': scan.ms_level},
-                {'total ion current': np.sum(scan.intensities)},
-                {'lowest observed m/z': lowest_observed_mz},
-                {'highest observed m/z': highest_observed_mz},
+                {label: ""},
+                {"ms level": scan.ms_level},
+                {"total ion current": np.sum(scan.intensities)},
+                {"lowest observed m/z": lowest_observed_mz},
+                {"highest observed m/z": highest_observed_mz},
                 # {'base peak m/z', bp_mz},
                 # {'base peak intensity', bp_intensity}
             ],
-            precursor_information=precursor_information
+            precursor_information=precursor_information,
         )
 
     def _get_tic_chromatogram(self, scans):

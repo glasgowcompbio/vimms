@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-class Column():
+class Column:
     """
     Defines a base Column class that operates on a dataset and having some noise parameter
     """
+
     def __init__(self, dataset, noise_sd):
         """
         Create a column object
@@ -23,8 +24,7 @@ class Column():
         """
         self.dataset = dataset
         self.dataset_rts = np.array([chem.rt for chem in self.dataset])
-        self.dataset_apex_rts = np.array(
-            [chem.get_apex_rt() for chem in self.dataset])
+        self.dataset_apex_rts = np.array([chem.get_apex_rt() for chem in self.dataset])
         self.noise_sd = noise_sd
         self.offsets, self.true_drift_function = self._get_offsets()
 
@@ -36,8 +36,7 @@ class Column():
 
         """
         true_offset_function = np.array([0.0 for chem in self.dataset])
-        offsets = true_offset_function + np.random.normal(0, self.noise_sd,
-                                                          len(self.dataset))
+        offsets = true_offset_function + np.random.normal(0, self.noise_sd, len(self.dataset))
         return offsets, true_offset_function
 
     def get_dataset(self):
@@ -73,14 +72,16 @@ class Column():
         """
         order = np.argsort(self.dataset_rts)
         plt.figure(figsize=(12, 8))
-        plt.plot(self.dataset_rts[order], self.true_drift_function[order], 'b')
-        plt.plot(self.dataset_rts[order],
-                 self.true_drift_function[order] + 1.95 * self.noise_sd, 'b--')
-        plt.plot(self.dataset_rts[order],
-                 self.true_drift_function[order] - 1.95 * self.noise_sd, 'b--')
-        plt.plot(self.dataset_rts, self.offsets, 'ro')
-        plt.ylabel('Drift Amount')
-        plt.xlabel('Base RT')
+        plt.plot(self.dataset_rts[order], self.true_drift_function[order], "b")
+        plt.plot(
+            self.dataset_rts[order], self.true_drift_function[order] + 1.95 * self.noise_sd, "b--"
+        )
+        plt.plot(
+            self.dataset_rts[order], self.true_drift_function[order] - 1.95 * self.noise_sd, "b--"
+        )
+        plt.plot(self.dataset_rts, self.offsets, "ro")
+        plt.ylabel("Drift Amount")
+        plt.xlabel("Base RT")
         plt.show()
 
     def plot_drift_distribution(self):
@@ -95,8 +96,8 @@ class Column():
         for i in range(100):
             offsets, true_drift_function = self._get_offsets()
             plt.plot(self.dataset_rts[order], true_drift_function[order])
-        plt.ylabel('Drift Amount')
-        plt.xlabel('Base RT')
+        plt.ylabel("Drift Amount")
+        plt.xlabel("Base RT")
         plt.show()
 
 
@@ -104,6 +105,7 @@ class CleanColumn(Column):
     """
     A clean column with no RT noise
     """
+
     def __init__(self, dataset):
         """
         Create a clean column object
@@ -117,6 +119,7 @@ class LinearColumn(Column):
     """
     A column with linear drift in the RT
     """
+
     def __init__(self, dataset, noise_sd, intercept_params, linear_params):
         """
         Create a linear drift column
@@ -128,10 +131,8 @@ class LinearColumn(Column):
         """
         self.intercept_params = intercept_params
         self.linear_params = linear_params
-        self.intercept_term = np.random.normal(self.intercept_params[0],
-                                               self.intercept_params[1])
-        self.linear_term = np.random.normal(self.linear_params[0],
-                                            self.linear_params[1])
+        self.intercept_term = np.random.normal(self.intercept_params[0], self.intercept_params[1])
+        self.linear_term = np.random.normal(self.linear_params[0], self.linear_params[1])
         super().__init__(dataset, noise_sd)
 
     @staticmethod
@@ -160,10 +161,8 @@ class LinearColumn(Column):
         Returns: ???
 
         """
-        true_offset_function = self.intercept_term + \
-            self.linear_term * self.dataset_apex_rts
-        offsets = true_offset_function + np.random.normal(0, self.noise_sd,
-                                                          len(self.dataset))
+        true_offset_function = self.intercept_term + self.linear_term * self.dataset_apex_rts
+        offsets = true_offset_function + np.random.normal(0, self.noise_sd, len(self.dataset))
         return offsets, true_offset_function
 
     def drift_fn(self, roi, injection_number):
@@ -182,16 +181,18 @@ class LinearColumn(Column):
         rt(1 + m) = f(rt) - c
         rt = (f(rt) - c) / (1 + m)"""
         rt = roi.estimate_apex()
-        return rt - (rt - self.intercept_term) / (
-            1 + self.linear_term), {}  # this doesn't account for noise?
+        return (
+            rt - (rt - self.intercept_term) / (1 + self.linear_term),
+            {},
+        )  # this doesn't account for noise?
 
 
 class GaussianProcessColumn(Column):
     """
     A gaussian-process based column
     """
-    def __init__(self, dataset, noise_sd, rbf_params, intercept_params,
-                 linear_params):
+
+    def __init__(self, dataset, noise_sd, rbf_params, intercept_params, linear_params):
         """
         Create a gaussian process drift column
         Args:
@@ -213,10 +214,8 @@ class GaussianProcessColumn(Column):
         Returns: ???
 
         """
-        intercept_term = np.random.normal(self.intercept_params[0],
-                                          self.intercept_params[1])
-        linear_term = np.random.normal(self.linear_params[0],
-                                       self.linear_params[1])
+        intercept_term = np.random.normal(self.intercept_params[0], self.intercept_params[1])
+        linear_term = np.random.normal(self.linear_params[0], self.linear_params[1])
         mean = intercept_term + linear_term * self.dataset_apex_rts
         return self._draw_offset(mean)
 
@@ -235,9 +234,9 @@ class GaussianProcessColumn(Column):
         for n in range(N):
             for m in range(N):
                 K[n, m] = self.rbf_params[0] * np.exp(
-                    -(1. / self.rbf_params[1]) * (self.dataset_apex_rts[n] -
-                                                  self.dataset_apex_rts[
-                                                      m]) ** 2)
+                    -(1.0 / self.rbf_params[1])
+                    * (self.dataset_apex_rts[n] - self.dataset_apex_rts[m]) ** 2
+                )
         true_offset_function = np.random.multivariate_normal(mean, K)
         offsets = true_offset_function + np.random.normal(0, self.noise_sd, N)
         return offsets, true_offset_function

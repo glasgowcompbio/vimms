@@ -7,13 +7,26 @@ import pytest
 from mass_spec_utils.library_matching.gnps import load_mgf
 
 from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check_non_empty_MS2
-from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, DatabaseFormulaSampler, \
-    UniformMZFormulaSampler, CRPMS2Sampler, MGFMS2Sampler, MZMLMS2Sampler, ExactMatchMS2Sampler, \
-    MZMLRTandIntensitySampler, MZMLFormulaSampler, MZMLChromatogramSampler, MzMLScanTimeSampler
-from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, \
-    ChemicalMixtureFromMZML
-from vimms.Common import ADDUCT_DICT_POS_MH, POSITIVE, set_log_level_warning, \
-    DEFAULT_SCAN_TIME_DICT
+from vimms.ChemicalSamplers import (
+    UniformRTAndIntensitySampler,
+    DatabaseFormulaSampler,
+    UniformMZFormulaSampler,
+    CRPMS2Sampler,
+    MGFMS2Sampler,
+    MZMLMS2Sampler,
+    ExactMatchMS2Sampler,
+    MZMLRTandIntensitySampler,
+    MZMLFormulaSampler,
+    MZMLChromatogramSampler,
+    MzMLScanTimeSampler,
+)
+from vimms.Chemicals import ChemicalMixtureCreator, MultipleMixtureCreator, ChemicalMixtureFromMZML
+from vimms.Common import (
+    ADDUCT_DICT_POS_MH,
+    POSITIVE,
+    set_log_level_warning,
+    DEFAULT_SCAN_TIME_DICT,
+)
 from vimms.Controller import SimpleMs1Controller, TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
@@ -32,8 +45,9 @@ N_CHEMS = 10
 def simple_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
     hf = DatabaseFormulaSampler(HMDB)
-    cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri,
-                                adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    cc = ChemicalMixtureCreator(
+        hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH
+    )
     d = cc.sample(N_CHEMS, 2)
     return d
 
@@ -42,8 +56,9 @@ def simple_dataset():
 def simple_no_database_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=RT_RANGE[0][0], max_rt=RT_RANGE[0][1])
     hf = UniformMZFormulaSampler()
-    cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri,
-                                adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    cc = ChemicalMixtureCreator(
+        hf, rt_and_intensity_sampler=ri, adduct_prior_dict=ADDUCT_DICT_POS_MH
+    )
     d = cc.sample(N_CHEMS, 2)
     return d
 
@@ -98,9 +113,8 @@ class TestDatabaseCreation:
         cc = ChemicalMixtureCreator(hf, rt_and_intensity_sampler=ri)
         d = cc.sample(N_CHEMS, 2)
 
-        group_list = ['control', 'control', 'case', 'case']
-        group_dict = {'case': {'missing_probability': 0,
-                               'changing_probability': 0}}
+        group_list = ["control", "control", "case", "case"]
+        group_dict = {"case": {"missing_probability": 0, "changing_probability": 0}}
 
         # missing noise
         peak_noise = NoPeakNoise()
@@ -117,33 +131,33 @@ class TestDatabaseCreation:
             for f in c:
                 assert f.max_intensity == f.base_chemical.max_intensity
 
-        group_dict = {'case': {'missing_probability': 1., 'changing_probability': 0}}
+        group_dict = {"case": {"missing_probability": 1.0, "changing_probability": 0}}
 
         mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
 
         cl = mm.generate_chemical_lists()
         for i, c in enumerate(cl):
-            if group_list[i] == 'case':
+            if group_list[i] == "case":
                 assert len(c) == 0
 
         # test the case that if the missing probability is 1 all are missing
-        group_dict = {'case': {'missing_probability': 1., 'changing_probability': 0}}
+        group_dict = {"case": {"missing_probability": 1.0, "changing_probability": 0}}
 
         mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
 
         cl = mm.generate_chemical_lists()
         for i, c in enumerate(cl):
-            if group_list[i] == 'case':
+            if group_list[i] == "case":
                 assert len(c) == 0
 
         # test the case that changing probablity is 1 changes everything
-        group_dict = {'case': {'missing_probability': 0., 'changing_probability': 1.}}
+        group_dict = {"case": {"missing_probability": 0.0, "changing_probability": 1.0}}
 
         mm = MultipleMixtureCreator(d, group_list, group_dict, intensity_noise=peak_noise)
 
         cl = mm.generate_chemical_lists()
         for i, c in enumerate(cl):
-            if group_list[i] == 'case':
+            if group_list[i] == "case":
                 for f in c:
                     assert not f.max_intensity == f.base_chemical.max_intensity
 
@@ -163,14 +177,14 @@ class TestMS2Sampling:
 class TestMSPWriting:
 
     def test_msp_writer_known_formula(self, simple_dataset):
-        out_file = 'simple_known_dataset.msp'
+        out_file = "simple_known_dataset.msp"
         write_msp(simple_dataset, out_file, out_dir=OUT_DIR)
-        assert (os.path.exists(Path(OUT_DIR, out_file)))
+        assert os.path.exists(Path(OUT_DIR, out_file))
 
     def test_msp_writer_unknown_formula(self, simple_no_database_dataset):
-        out_file = 'simple_unknown_dataset.msp'
+        out_file = "simple_unknown_dataset.msp"
         write_msp(simple_no_database_dataset, out_file, out_dir=OUT_DIR)
-        assert (os.path.exists(Path(OUT_DIR, out_file)))
+        assert os.path.exists(Path(OUT_DIR, out_file))
 
 
 class TestLinkedCreation:
@@ -193,7 +207,7 @@ class TestLinkedCreation:
             assert len(orig_spec.peaks) == len(chem.children)
 
 
-class TestChemicalsFromMZML():
+class TestChemicalsFromMZML:
     def test_chemical_mixture_from_mzml(self):
         roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
         cm = ChemicalMixtureFromMZML(MZML_FILE, roi_params=roi_params)
@@ -214,7 +228,7 @@ class TestChemicalsFromMZML():
         env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
-        filename = 'fullscan_from_mzml.mzML'
+        filename = "fullscan_from_mzml.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_topn_from_mzml(self, chems_from_mzml):
@@ -224,14 +238,15 @@ class TestChemicalsFromMZML():
         mz_tol = 0.01
         rt_tol = 15
         min_ms1_intensity = 10
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    min_ms1_intensity)
+        controller = TopNController(
+            ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity
+        )
         ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml)
         env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
         check_non_empty_MS2(controller)
-        filename = 'topn_from_mzml.mzML'
+        filename = "topn_from_mzml.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_mz_rt_i_from_mzml(self, chem_mz_rt_i_from_mzml):
@@ -241,11 +256,11 @@ class TestChemicalsFromMZML():
         env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
-        filename = 'fullscan_mz_rt_i_from_mzml.mzML'
+        filename = "fullscan_mz_rt_i_from_mzml.mzML"
         check_mzML(env, OUT_DIR, filename)
 
 
-class TestScanTiming():
+class TestScanTiming:
     def test_default_scan_time(self, chems_from_mzml):
         ionisation_mode = POSITIVE
         N = 10
@@ -253,16 +268,18 @@ class TestScanTiming():
         mz_tol = 0.01
         rt_tol = 15
         min_ms1_intensity = 10
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    min_ms1_intensity)
+        controller = TopNController(
+            ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity
+        )
 
         # run simulation using default scan times
-        ms = IndependentMassSpectrometer(ionisation_mode, chems_from_mzml,
-                                         scan_duration=DEFAULT_SCAN_TIME_DICT)
+        ms = IndependentMassSpectrometer(
+            ionisation_mode, chems_from_mzml, scan_duration=DEFAULT_SCAN_TIME_DICT
+        )
         env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
-        filename = 'test_scan_time_default.mzML'
+        filename = "test_scan_time_default.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_scan_time_from_mzml(self):
@@ -272,8 +289,9 @@ class TestScanTiming():
         mz_tol = 0.01
         rt_tol = 15
         min_ms1_intensity = 10
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    min_ms1_intensity)
+        controller = TopNController(
+            ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity
+        )
 
         # extract chemicals from mzML
         roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
@@ -288,7 +306,7 @@ class TestScanTiming():
         env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
-        filename = 'test_scan_time_from_mzml.mzML'
+        filename = "test_scan_time_from_mzml.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_binned_scan_time_from_mzml(self):
@@ -298,8 +316,9 @@ class TestScanTiming():
         mz_tol = 0.01
         rt_tol = 15
         min_ms1_intensity = 10
-        controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                    min_ms1_intensity)
+        controller = TopNController(
+            ionisation_mode, N, isolation_width, mz_tol, rt_tol, min_ms1_intensity
+        )
 
         # extract chemicals from mzML
         roi_params = RoiBuilderParams(min_roi_intensity=10, min_roi_length=5)
@@ -314,5 +333,5 @@ class TestScanTiming():
         env = Environment(ms, controller, 500, 600, progress_bar=False)
         set_log_level_warning()
         env.run()
-        filename = 'test_scan_time_mean_from_mzml.mzML'
+        filename = "test_scan_time_mean_from_mzml.mzML"
         check_mzML(env, OUT_DIR, filename)

@@ -7,14 +7,28 @@ from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid
 from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.Chemicals import ChemicalMixtureFromMZML
-from vimms.Common import CONTROLLER_FULLSCAN, CONTROLLER_TOPN, CONTROLLER_TOPN_EXCLUSION, \
-    CONTROLLER_SWATH, CONTROLLER_AIF, CONTROLLER_NON_OVERLAP, CONTROLLER_INTENSITY_NON_OVERLAP, \
-    CONTROLLER_INTENSITY_ROI_EXCLUSION, CONTROLLER_HARD_ROI_EXCLUSION, CONTROLLER_SMART_ROI, CONTROLLER_WEIGHTED_DEW, \
-    CONTROLLER_TOPN_ORIGINAL
+from vimms.Common import (
+    CONTROLLER_FULLSCAN,
+    CONTROLLER_TOPN,
+    CONTROLLER_TOPN_EXCLUSION,
+    CONTROLLER_SWATH,
+    CONTROLLER_AIF,
+    CONTROLLER_NON_OVERLAP,
+    CONTROLLER_INTENSITY_NON_OVERLAP,
+    CONTROLLER_INTENSITY_ROI_EXCLUSION,
+    CONTROLLER_HARD_ROI_EXCLUSION,
+    CONTROLLER_SMART_ROI,
+    CONTROLLER_WEIGHTED_DEW,
+    CONTROLLER_TOPN_ORIGINAL,
+)
 from vimms.Controller import SimpleMs1Controller, TopN_SmartRoiController, WeightedDEWController
 from vimms.Controller import TopNController, AIF, SWATH, AgentBasedController
-from vimms.Controller.box import NonOverlapController, IntensityNonOverlapController, \
-    IntensityRoIExcludeController, HardRoIExcludeController
+from vimms.Controller.box import (
+    NonOverlapController,
+    IntensityNonOverlapController,
+    IntensityRoIExcludeController,
+    HardRoIExcludeController,
+)
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Roi import RoiBuilderParams
@@ -27,19 +41,43 @@ def extract_chemicals(seed_file, ionisation_mode):
     return dataset
 
 
-def run_batch(initial_runs, controller_repeat, experiment_params, samples,
-              pbar, max_time, ionisation_mode, use_instrument, use_column,
-              ref_dir, dataset, out_dir, initial_run_max_time=None, debug_mzml=None):
-    scan_duration_dict = experiment_params['scan_duration_dict']
+def run_batch(
+    initial_runs,
+    controller_repeat,
+    experiment_params,
+    samples,
+    pbar,
+    max_time,
+    ionisation_mode,
+    use_instrument,
+    use_column,
+    ref_dir,
+    dataset,
+    out_dir,
+    initial_run_max_time=None,
+    debug_mzml=None,
+):
+    scan_duration_dict = experiment_params["scan_duration_dict"]
 
     # perform initial blank and QC runs here
     for sample in initial_runs:
         initial_run_max_time = max_time if initial_run_max_time is None else initial_run_max_time
         controller = select_controller(CONTROLLER_FULLSCAN, experiment_params, None, None)
         out_file = get_out_file(CONTROLLER_FULLSCAN, sample, 0)
-        run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                       pbar, initial_run_max_time, ionisation_mode, use_column,
-                       controller, out_dir, out_file, debug_mzml=debug_mzml)
+        run_controller(
+            use_instrument,
+            ref_dir,
+            dataset,
+            scan_duration_dict,
+            pbar,
+            initial_run_max_time,
+            ionisation_mode,
+            use_column,
+            controller,
+            out_dir,
+            out_file,
+            debug_mzml=debug_mzml,
+        )
 
     # loop through each controller
     for controller_name in controller_repeat:
@@ -51,8 +89,10 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
             agent = make_agent(experiment_params)
         elif controller_name in [CONTROLLER_NON_OVERLAP, CONTROLLER_HARD_ROI_EXCLUSION]:
             grid = make_grid(experiment_params, False)
-        elif controller_name in [CONTROLLER_INTENSITY_NON_OVERLAP,
-                                 CONTROLLER_INTENSITY_ROI_EXCLUSION]:
+        elif controller_name in [
+            CONTROLLER_INTENSITY_NON_OVERLAP,
+            CONTROLLER_INTENSITY_ROI_EXCLUSION,
+        ]:
             grid = make_grid(experiment_params, True)
 
         # find how many replicates have been specified
@@ -67,9 +107,20 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
                 # if yes, run the controller
                 controller = select_controller(controller_name, experiment_params, agent, grid)
                 out_file = get_out_file(controller_name, sample, i)
-                run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                               pbar, max_time, ionisation_mode, use_column, controller, out_dir,
-                               out_file, debug_mzml=debug_mzml)
+                run_controller(
+                    use_instrument,
+                    ref_dir,
+                    dataset,
+                    scan_duration_dict,
+                    pbar,
+                    max_time,
+                    ionisation_mode,
+                    use_column,
+                    controller,
+                    out_dir,
+                    out_file,
+                    debug_mzml=debug_mzml,
+                )
                 # fname = os.path.join(out_dir, out_file+'.controller')
                 # save_obj(controller, fname)
                 del controller
@@ -77,19 +128,43 @@ def run_batch(initial_runs, controller_repeat, experiment_params, samples,
 
 
 # a variant of run_batch but for exhaustive fragmentation (experiment 3)
-def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, samples,
-                         pbar, max_time, ionisation_mode, use_instrument, use_column,
-                         ref_dir, dataset, out_dir, initial_run_max_time=None, debug_mzml=None):
-    scan_duration_dict = experiment_params['scan_duration_dict']
+def run_batch_exhaustive(
+    initial_runs,
+    controller_repeat,
+    experiment_params,
+    samples,
+    pbar,
+    max_time,
+    ionisation_mode,
+    use_instrument,
+    use_column,
+    ref_dir,
+    dataset,
+    out_dir,
+    initial_run_max_time=None,
+    debug_mzml=None,
+):
+    scan_duration_dict = experiment_params["scan_duration_dict"]
 
     # perform initial blank and QC runs here
     for sample in initial_runs:
         initial_run_max_time = max_time if initial_run_max_time is None else initial_run_max_time
         controller = select_controller(CONTROLLER_FULLSCAN, experiment_params, None, None)
         out_file = get_out_file(CONTROLLER_FULLSCAN, sample, 0)
-        run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                       pbar, initial_run_max_time, ionisation_mode,
-                       use_column, controller, out_dir, out_file, debug_mzml=debug_mzml)
+        run_controller(
+            use_instrument,
+            ref_dir,
+            dataset,
+            scan_duration_dict,
+            pbar,
+            initial_run_max_time,
+            ionisation_mode,
+            use_column,
+            controller,
+            out_dir,
+            out_file,
+            debug_mzml=debug_mzml,
+        )
 
     # loop through each controller
     for controller_name in controller_repeat:
@@ -109,17 +184,30 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
                 agent = make_agent(experiment_params)
             elif controller_name in [CONTROLLER_NON_OVERLAP, CONTROLLER_HARD_ROI_EXCLUSION]:
                 grid = make_grid(experiment_params, False)
-            elif controller_name in [CONTROLLER_INTENSITY_NON_OVERLAP,
-                                     CONTROLLER_INTENSITY_ROI_EXCLUSION]:
+            elif controller_name in [
+                CONTROLLER_INTENSITY_NON_OVERLAP,
+                CONTROLLER_INTENSITY_ROI_EXCLUSION,
+            ]:
                 grid = make_grid(experiment_params, True)
 
             for i in range(repeat):
                 # if yes, run the controller
                 controller = select_controller(controller_name, experiment_params, agent, grid)
                 out_file = get_out_file(controller_name, sample, i)
-                run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                               pbar, max_time, ionisation_mode, use_column, controller, out_dir,
-                               out_file, debug_mzml=debug_mzml)
+                run_controller(
+                    use_instrument,
+                    ref_dir,
+                    dataset,
+                    scan_duration_dict,
+                    pbar,
+                    max_time,
+                    ionisation_mode,
+                    use_column,
+                    controller,
+                    out_dir,
+                    out_file,
+                    debug_mzml=debug_mzml,
+                )
                 # fname = os.path.join(out_dir, out_file+'.controller')
                 # save_obj(controller, fname)
                 del controller
@@ -127,22 +215,22 @@ def run_batch_exhaustive(initial_runs, controller_repeat, experiment_params, sam
 
 
 def make_grid(experiment_params, split_grid):
-    logger.warning('Grid initialised, split_grid=%s' % split_grid)
-    grid_params = experiment_params['grid_params']
-    min_measure_rt = grid_params['min_measure_rt']
-    max_measure_rt = grid_params['max_measure_rt']
-    rt_box_size = grid_params['rt_box_size']
-    mz_box_size = grid_params['mz_box_size']
+    logger.warning("Grid initialised, split_grid=%s" % split_grid)
+    grid_params = experiment_params["grid_params"]
+    min_measure_rt = grid_params["min_measure_rt"]
+    max_measure_rt = grid_params["max_measure_rt"]
+    rt_box_size = grid_params["rt_box_size"]
+    mz_box_size = grid_params["mz_box_size"]
     grid = BoxManager(
         box_geometry=BoxGrid(min_measure_rt, max_measure_rt, rt_box_size, 0, 1500, mz_box_size),
-        box_splitter=BoxSplitter(split=split_grid)
+        box_splitter=BoxSplitter(split=split_grid),
     )
     return grid
 
 
 def make_agent(experiment_params):
-    logger.warning('TopNDEWAgent initialised')
-    topN_params = experiment_params['topN_params']
+    logger.warning("TopNDEWAgent initialised")
+    topN_params = experiment_params["topN_params"]
     agent = TopNDEWAgent(**topN_params)
     return agent
 
@@ -157,22 +245,24 @@ def select_controller(controller_name, experiment_params, agent, grid):
         controller = SimpleMs1Controller()
 
     elif controller_name == CONTROLLER_TOPN:
-        topN_params = experiment_params['topN_params']
+        topN_params = experiment_params["topN_params"]
         print(topN_params)
         controller = TopNController(**topN_params)
 
-    elif controller_name == CONTROLLER_TOPN_ORIGINAL: # hack to allow topN with different parameters
-        topN_params = experiment_params['topN_params_original']
+    elif (
+        controller_name == CONTROLLER_TOPN_ORIGINAL
+    ):  # hack to allow topN with different parameters
+        topN_params = experiment_params["topN_params_original"]
         print(topN_params)
         controller = TopNController(**topN_params)
 
     elif controller_name == CONTROLLER_SMART_ROI:
-        smartROI_params = experiment_params['smartroi_params']
+        smartROI_params = experiment_params["smartroi_params"]
         print(smartROI_params)
         controller = TopN_SmartRoiController(**smartROI_params)
 
     elif controller_name == CONTROLLER_WEIGHTED_DEW:
-        weighed_dew_params = experiment_params['weighteddew_params']
+        weighed_dew_params = experiment_params["weighteddew_params"]
         print(weighed_dew_params)
         controller = WeightedDEWController(**weighed_dew_params)
 
@@ -180,16 +270,16 @@ def select_controller(controller_name, experiment_params, agent, grid):
         controller = AgentBasedController(agent)
 
     elif controller_name == CONTROLLER_SWATH:
-        SWATH_params = experiment_params['SWATH_params']
-        min_mz = SWATH_params['min_mz']
-        max_mz = SWATH_params['max_mz']
-        width = SWATH_params['width']
-        scan_overlap = SWATH_params['scan_overlap']
+        SWATH_params = experiment_params["SWATH_params"]
+        min_mz = SWATH_params["min_mz"]
+        max_mz = SWATH_params["max_mz"]
+        width = SWATH_params["width"]
+        scan_overlap = SWATH_params["scan_overlap"]
         controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
 
     elif controller_name == CONTROLLER_AIF:
-        AIF_params = experiment_params['AIF_params']
-        ms1_source_cid_energy = AIF_params['ms1_source_cid_energy']
+        AIF_params = experiment_params["AIF_params"]
+        ms1_source_cid_energy = AIF_params["ms1_source_cid_energy"]
         controller = AIF(ms1_source_cid_energy)
 
     elif controller_name == CONTROLLER_NON_OVERLAP:
@@ -209,60 +299,93 @@ def select_controller(controller_name, experiment_params, agent, grid):
         controller = HardRoIExcludeController(grid=grid, **non_overlap_params)
 
     else:
-        logger.warning('Unknown controller: %s' % controller_name)
+        logger.warning("Unknown controller: %s" % controller_name)
         controller = None
 
     return controller
 
 
 def get_non_overlap_params(experiment_params):
-    topN_params = experiment_params['topN_params']
-    non_overlap_params = {**topN_params, **experiment_params['non_overlap_params']}
-    non_overlap_scoring = experiment_params['non_overlap_scoring']
+    topN_params = experiment_params["topN_params"]
+    non_overlap_params = {**topN_params, **experiment_params["non_overlap_params"]}
+    non_overlap_scoring = experiment_params["non_overlap_scoring"]
 
     # check whether to use smartroi exclusion
-    if non_overlap_scoring['use_smartroi_exclusion']:
-        smartroi_params = experiment_params['smartroi_params']
+    if non_overlap_scoring["use_smartroi_exclusion"]:
+        smartroi_params = experiment_params["smartroi_params"]
         non_overlap_params = {**non_overlap_params, **smartroi_params}
 
     # check whether to use weighteddew exclusion
-    elif non_overlap_scoring['use_weighteddew_exclusion']:
-        weighteddew_params = experiment_params['weighteddew_params']
+    elif non_overlap_scoring["use_weighteddew_exclusion"]:
+        weighteddew_params = experiment_params["weighteddew_params"]
         non_overlap_params = {**non_overlap_params, **weighteddew_params}
 
     return non_overlap_params
 
 
-def run_controller(use_instrument, ref_dir, dataset, scan_duration_dict,
-                   pbar, max_time, ionisation_mode, use_column, controller, out_dir, out_file,
-                   debug_mzml=None):
+def run_controller(
+    use_instrument,
+    ref_dir,
+    dataset,
+    scan_duration_dict,
+    pbar,
+    max_time,
+    ionisation_mode,
+    use_column,
+    controller,
+    out_dir,
+    out_file,
+    debug_mzml=None,
+):
     logger.warning(out_file)
     if use_instrument:
         from vimms_fusion.MassSpec import IAPIMassSpectrometer
         from vimms_fusion.Environment import IAPIEnvironment
 
-        mass_spec = IAPIMassSpectrometer(ionisation_mode, ref_dir, filename=debug_mzml,
-                                         show_console_logs=False,
-                                         use_column=use_column)
-        with IAPIEnvironment(mass_spec, controller, max_time, progress_bar=pbar, out_dir=out_dir,
-                              out_file=out_file) as env:
+        mass_spec = IAPIMassSpectrometer(
+            ionisation_mode,
+            ref_dir,
+            filename=debug_mzml,
+            show_console_logs=False,
+            use_column=use_column,
+        )
+        with IAPIEnvironment(
+            mass_spec, controller, max_time, progress_bar=pbar, out_dir=out_dir, out_file=out_file
+        ) as env:
             env.run()
         del mass_spec, env
     else:
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, dataset,
-                                                scan_duration=scan_duration_dict)
-        env = Environment(mass_spec, controller, 0, max_time, progress_bar=pbar, out_dir=out_dir,
-                          out_file=out_file)
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, dataset, scan_duration=scan_duration_dict
+        )
+        env = Environment(
+            mass_spec,
+            controller,
+            0,
+            max_time,
+            progress_bar=pbar,
+            out_dir=out_dir,
+            out_file=out_file,
+        )
         env.run()
 
 
-def generate_sequence_df(initial_runs, controller_repeat, samples, position, raw_output_path,
-                         blank_method_path, instrument_method_path, exhaustive=False):
+def generate_sequence_df(
+    initial_runs,
+    controller_repeat,
+    samples,
+    position,
+    raw_output_path,
+    blank_method_path,
+    instrument_method_path,
+    exhaustive=False,
+):
     all_runs = []
 
     for sample in initial_runs:
         method_file, sample_type = select_sample_type_and_method_file(
-            blank_method_path, instrument_method_path, sample)
+            blank_method_path, instrument_method_path, sample
+        )
         sample_position = position[sample]
         controller_name = CONTROLLER_FULLSCAN
         out_file = "{}_{}".format(controller_name, sample)
@@ -280,11 +403,13 @@ def generate_sequence_df(initial_runs, controller_repeat, samples, position, raw
                         continue
 
                     method_file, sample_type = select_sample_type_and_method_file(
-                        blank_method_path, instrument_method_path, sample)
+                        blank_method_path, instrument_method_path, sample
+                    )
                     sample_position = position[sample]
                     out_file = "{}_{}_{}".format(controller_name, sample, i)
-                    row = generate_row(method_file, out_file, raw_output_path, sample_position,
-                                       sample_type)
+                    row = generate_row(
+                        method_file, out_file, raw_output_path, sample_position, sample_type
+                    )
                     all_runs.append(row)
 
     else:  # exhaustive setup
@@ -297,31 +422,51 @@ def generate_sequence_df(initial_runs, controller_repeat, samples, position, raw
 
                 for i in range(repeat):
                     method_file, sample_type = select_sample_type_and_method_file(
-                        blank_method_path, instrument_method_path, sample)
+                        blank_method_path, instrument_method_path, sample
+                    )
                     sample_position = position[sample]
                     out_file = "{}_{}_{}".format(controller_name, sample, i)
-                    row = generate_row(method_file, out_file, raw_output_path, sample_position,
-                                       sample_type)
+                    row = generate_row(
+                        method_file, out_file, raw_output_path, sample_position, sample_type
+                    )
                     all_runs.append(row)
 
-    headers = ['Sample Type', 'File Name', 'Sample ID', 'Path', 'Instrument Method',
-               'Process Method', 'Calibration File', 'Position', 'Inj Vol',
-               'Level', 'Sample Wt', 'Sample Vol', 'ISTD Amt', 'Dil Factor',
-               'L1 Study', 'L2 Client', 'L3 Laboratory', 'L4 Company', 'L5 Phone', 'Comment',
-               'Sample Name']
+    headers = [
+        "Sample Type",
+        "File Name",
+        "Sample ID",
+        "Path",
+        "Instrument Method",
+        "Process Method",
+        "Calibration File",
+        "Position",
+        "Inj Vol",
+        "Level",
+        "Sample Wt",
+        "Sample Vol",
+        "ISTD Amt",
+        "Dil Factor",
+        "L1 Study",
+        "L2 Client",
+        "L3 Laboratory",
+        "L4 Company",
+        "L5 Phone",
+        "Comment",
+        "Sample Name",
+    ]
     df = pd.DataFrame(all_runs, columns=headers)
     return df
 
 
 def select_sample_type_and_method_file(blank_method_path, instrument_method_path, sample):
-    if 'cmw' in sample.lower():
-        sample_type = 'Unknown'
+    if "cmw" in sample.lower():
+        sample_type = "Unknown"
         method_file = instrument_method_path
-    elif 'blank' in sample.lower():
-        sample_type = 'Blank'
+    elif "blank" in sample.lower():
+        sample_type = "Blank"
         method_file = blank_method_path
     else:
-        sample_type = 'Unknown'
+        sample_type = "Unknown"
         method_file = instrument_method_path
     return method_file, sample_type
 
@@ -343,22 +488,41 @@ def generate_row(method_file, out_file, raw_output_path, sample_position, sample
     l5_phone = None
     comment = None
     sample_name = None
-    row = [sample_type, out_file, sample_id, raw_output_path, method_file,
-           process_method, calibration_file, sample_position, injection_vol,
-           level, sample_wt, sample_vol, istd_amt, dil_factor,
-           l1_study, l2_client, l3_laboratory, l4_company, l5_phone, comment, sample_name]
+    row = [
+        sample_type,
+        out_file,
+        sample_id,
+        raw_output_path,
+        method_file,
+        process_method,
+        calibration_file,
+        sample_position,
+        injection_vol,
+        level,
+        sample_wt,
+        sample_vol,
+        istd_amt,
+        dil_factor,
+        l1_study,
+        l2_client,
+        l3_laboratory,
+        l4_company,
+        l5_phone,
+        comment,
+        sample_name,
+    ]
     return row
 
 
 def write_sequence_csv(df, out_file):
-    with open(out_file, 'w') as f:
+    with open(out_file, "w") as f:
         df.to_csv(f, header=True, index=False)
-    line_prepender(out_file, 'Bracket Type=4,')
+    line_prepender(out_file, "Bracket Type=4,")
 
 
 def line_prepender(filename, line):
     # https://stackoverflow.com/questions/5914627/prepend-line-to-beginning-of-a-file
-    with open(filename, 'r+') as f:
+    with open(filename, "r+") as f:
         content = f.read()
         f.seek(0, 0)
-        f.write(line.rstrip('\r\n') + '\n' + content)
+        f.write(line.rstrip("\r\n") + "\n" + content)

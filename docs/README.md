@@ -34,3 +34,33 @@ $ poetry shell
 ```
 
 Within the virtual environment, you can develop new controllers, run notebooks (`$ jupyter lab`), and more.
+
+## Building the Documentation
+
+ViMMS uses [MkDocs](https://www.mkdocs.org/) to build its documentation, which is hosted at [vimms.readthedocs.io](https://vimms.readthedocs.io). You can preview the
+docs locally by running:
+
+```bash
+poetry run mkdocs serve
+```
+
+This command launches a local webserver so you can view the site at `http://127.0.0.1:8000/`.
+
+## Running the Test Suite
+
+If you plan on contributing, make sure all tests pass. Execute the following
+from the project root:
+
+```bash
+./run_tests.sh
+```
+
+On Windows, use `run_tests.bat` instead. The test suite requires the
+development dependencies installed via `poetry install`.
+
+## More Information
+
+Additional usage notes and installation instructions are available in our
+[Installation guide](https://github.com/glasgowcompbio/vimms/blob/master/pages/installation.md),
+while example notebooks can be found in the
+[demo directory](https://github.com/glasgowcompbio/vimms/tree/master/demo).

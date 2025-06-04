@@ -11,10 +11,19 @@ from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.MzmlWriter import MzmlWriter
 
 
-class Environment():
-    def __init__(self, mass_spec, controller, min_time, max_time,
-                 progress_bar=True, out_dir=None, out_file=None,
-                 save_eval=False, check_exists=False):
+class Environment:
+    def __init__(
+        self,
+        mass_spec,
+        controller,
+        min_time,
+        max_time,
+        progress_bar=True,
+        out_dir=None,
+        out_file=None,
+        save_eval=False,
+        check_exists=False,
+    ):
         """
         Initialises a synchronous environment to run the mass spec and
         controller
@@ -37,8 +46,9 @@ class Environment():
         self.out_dir = out_dir
         self.out_file = out_file
         self.pending_tasks = []
-        self.bar = tqdm(total=self.max_time - self.min_time,
-                        initial=0) if self.progress_bar else None
+        self.bar = (
+            tqdm(total=self.max_time - self.min_time, initial=0) if self.progress_bar else None
+        )
         self.save_eval = save_eval
         self.check_exists = check_exists
 
@@ -51,28 +61,26 @@ class Environment():
         """
         mzml_filename = self._get_out_file(self.out_dir, self.out_file)
         if self.check_exists and mzml_filename is not None and mzml_filename.is_file():
-            logger.warning('Already exists %s' % mzml_filename)
+            logger.warning("Already exists %s" % mzml_filename)
             return
 
         # set some initial values for each run
         self._set_initial_values()
 
         # register event handlers from the controller
+        self.mass_spec.register_event(IndependentMassSpectrometer.MS_SCAN_ARRIVED, self.add_scan)
         self.mass_spec.register_event(
-            IndependentMassSpectrometer.MS_SCAN_ARRIVED, self.add_scan)
+            IndependentMassSpectrometer.ACQUISITION_STREAM_OPENING, self.handle_acquisition_open
+        )
         self.mass_spec.register_event(
-            IndependentMassSpectrometer.ACQUISITION_STREAM_OPENING,
-            self.handle_acquisition_open)
+            IndependentMassSpectrometer.ACQUISITION_STREAM_CLOSED, self.handle_acquisition_closing
+        )
         self.mass_spec.register_event(
-            IndependentMassSpectrometer.ACQUISITION_STREAM_CLOSED,
-            self.handle_acquisition_closing)
-        self.mass_spec.register_event(
-            IndependentMassSpectrometer.STATE_CHANGED,
-            self.handle_state_changed)
+            IndependentMassSpectrometer.STATE_CHANGED, self.handle_state_changed
+        )
 
         # initial scan should be generated here when the acquisition opens
-        self.mass_spec.fire_event(
-            IndependentMassSpectrometer.ACQUISITION_STREAM_OPENING)
+        self.mass_spec.fire_event(IndependentMassSpectrometer.ACQUISITION_STREAM_OPENING)
 
         # main loop to the simulate scan generation process of the mass spec
         try:
@@ -87,8 +95,7 @@ class Environment():
             raise e
         finally:
             self.close_progress_bar()
-            self.mass_spec.fire_event(
-                IndependentMassSpectrometer.ACQUISITION_STREAM_CLOSED)
+            self.mass_spec.fire_event(IndependentMassSpectrometer.ACQUISITION_STREAM_CLOSED)
             self.mass_spec.close()
         self.write_mzML(self.out_dir, self.out_file)
         if self.save_eval:
@@ -122,7 +129,7 @@ class Environment():
         Returns: None
 
         """
-        logger.debug('Acquisition open')
+        logger.debug("Acquisition open")
         # send the initial custom scan to start the custom scan
         # generation process
         params = self.get_initial_scan_params()
@@ -135,7 +142,7 @@ class Environment():
         Returns: None
 
         """
-        logger.debug('Acquisition closing')
+        logger.debug("Acquisition closing")
         self.controller.after_injection_cleanup()
 
     def handle_state_changed(self, state):
@@ -148,7 +155,7 @@ class Environment():
         Returns: None
 
         """
-        logger.debug('State changed!')
+        logger.debug("State changed!")
 
     def _update_progress_bar(self, scan):
         """
@@ -161,7 +168,7 @@ class Environment():
 
         """
         if self.bar is not None and scan.scan_duration is not None:
-            msg = '(%.3fs) ms_level=%d' % (self.mass_spec.time, scan.ms_level)
+            msg = "(%.3fs) ms_level=%d" % (self.mass_spec.time, scan.ms_level)
             if self.bar.n + scan.scan_duration < self.bar.total:
                 self.bar.update(scan.scan_duration)
             self.bar.set_description(msg)
@@ -178,7 +185,7 @@ class Environment():
                 self.bar.close()
                 self.bar = None
             except Exception as e:
-                logger.warning('Failed to close progress bar: %s' % str(e))
+                logger.warning("Failed to close progress bar: %s" % str(e))
                 pass
 
     def add_scan(self, scan):
@@ -242,9 +249,9 @@ class Environment():
         """
         mzml_filename = self._get_out_file(out_dir, out_file)
         if mzml_filename is not None:
-            writer = MzmlWriter('my_analysis', self.controller.scans)
+            writer = MzmlWriter("my_analysis", self.controller.scans)
             writer.write_mzML(mzml_filename)
-            logger.debug('Created mzML file %s' % mzml_filename)
+            logger.debug("Created mzML file %s" % mzml_filename)
 
     def write_eval_data(self, out_dir, out_file):
         """
@@ -259,8 +266,8 @@ class Environment():
         """
         mzml_filename = self._get_out_file(out_dir, out_file)
         if mzml_filename is not None:
-            eval_filename = os.path.splitext(mzml_filename)[0] + '.p' # replace .mzML with .p
-            logger.debug('Writing evaluation data to %s' % eval_filename)
+            eval_filename = os.path.splitext(mzml_filename)[0] + ".p"  # replace .mzML with .p
+            logger.debug("Writing evaluation data to %s" % eval_filename)
             eval_data = EvaluationData(self)
             save_obj(eval_data, eval_filename)
 
@@ -278,8 +285,7 @@ class Environment():
 
         # add the initial tasks from the controller to the mass spec
         # task manager
-        self.mass_spec.task_manager.add_current(
-            self.controller.get_initial_tasks())
+        self.mass_spec.task_manager.add_current(self.controller.get_initial_tasks())
 
     def get_initial_scan_params(self):
         """
@@ -303,7 +309,7 @@ class Environment():
 
         """
         data_to_save = {
-            'scans': self.controller.scans,
+            "scans": self.controller.scans,
             # etc
         }
         save_obj(data_to_save, outname)
@@ -324,9 +330,8 @@ class Environment():
             y1 = 0
             y2 = scan.intensities[i]
             a = [[x1, y1], [x2, y2]]
-            plt.plot(*zip(*a), marker='', color='r', ls='-', lw=1)
-        plt.title('Scan {0} {1}s -- {2} peaks'.format(scan.scan_id, scan.rt,
-                                                      scan.num_peaks))
-        plt.xlabel('m/z')
-        plt.ylabel('Intensities')
+            plt.plot(*zip(*a), marker="", color="r", ls="-", lw=1)
+        plt.title("Scan {0} {1}s -- {2} peaks".format(scan.scan_id, scan.rt, scan.num_peaks))
+        plt.xlabel("m/z")
+        plt.ylabel("Intensities")
         plt.show()

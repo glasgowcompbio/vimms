@@ -2,6 +2,7 @@
 This file implements various exclusion and filtering criteria in a modular way that can be reused
 elsewhere, e.g. in controllers.
 """
+
 from abc import abstractmethod, ABC
 
 import numpy as np
@@ -16,7 +17,7 @@ from vimms.Common import ScanParameters
 ###############################################################################
 
 
-class ExclusionItem():
+class ExclusionItem:
     """
     A class to store the item to exclude when computing dynamic
     exclusion window
@@ -38,7 +39,7 @@ class ExclusionItem():
         self.from_rt = from_rt
         self.to_rt = to_rt
         self.frag_at = frag_at
-        self.mz = (self.from_mz + self.to_mz) / 2.
+        self.mz = (self.from_mz + self.to_mz) / 2.0
         self.rt = self.frag_at
         self.counter = 0  # add a counter field
 
@@ -89,8 +90,12 @@ class ExclusionItem():
             return False
 
     def __repr__(self):
-        return 'ExclusionItem mz=(%f, %f) rt=(%f-%f)' % (
-            self.from_mz, self.to_mz, self.from_rt, self.to_rt)
+        return "ExclusionItem mz=(%f, %f) rt=(%f-%f)" % (
+            self.from_mz,
+            self.to_mz,
+            self.from_rt,
+            self.to_rt,
+        )
 
     def __lt__(self, other):
         if self.from_mz <= other.from_mz:
@@ -99,7 +104,7 @@ class ExclusionItem():
             return False
 
 
-class BoxHolder():
+class BoxHolder:
     """
     A class to allow quick lookup of boxes (e.g. exclusion items,
     targets, etc). Creates an interval tree on mz as this is likely to
@@ -249,14 +254,15 @@ class BoxHolder():
         return it
 
 
-class TopNExclusion():
+class TopNExclusion:
     """
     A class that perform standard dynamic exclusion for Top-N.
     This is based on checked whether an m/z and RT value lies in certain exclusion boxes.
     """
 
-    def __init__(self, mz_tol, rt_tol, exclude_after_n_times=1, exclude_t0=0,
-                 initial_exclusion_list=None):
+    def __init__(
+        self, mz_tol, rt_tol, exclude_after_n_times=1, exclude_t0=0, initial_exclusion_list=None
+    ):
         """
         Initialise a Top-N dynamic exclusion object
 
@@ -334,7 +340,7 @@ class TopNExclusion():
         """
         rt = current_scan.rt
         for task in ms2_tasks:
-            for precursor in task.get('precursor_mz'):
+            for precursor in task.get("precursor_mz"):
                 mz = precursor.precursor_mz
 
                 # new way of checking DEW -- with an initial boxholder to check first
@@ -364,9 +370,9 @@ class TopNExclusion():
         rt_lower = rt - rt_tol
         # I think this is mostly for topN (iterative) exclusion method
         rt_upper = rt + rt_tol
-        x = ExclusionItem(from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower,
-                          to_rt=rt_upper,
-                          frag_at=rt)
+        x = ExclusionItem(
+            from_mz=mz_lower, to_mz=mz_upper, from_rt=rt_lower, to_rt=rt_upper, frag_at=rt
+        )
         return x
 
 
@@ -386,7 +392,7 @@ class WeightedDEWExclusion(TopNExclusion):
         super().__init__(mz_tol, rt_tol)
         self.exclusion_t_0 = exclusion_t_0
         if self.exclusion_t_0 > self.rt_tol:
-            raise ValueError('exclusion_t_0 must be lte rt_tol')
+            raise ValueError("exclusion_t_0 must be lte rt_tol")
 
     def is_excluded(self, mz, rt):
         boxes = self.dynamic_exclusion.check_point(mz, rt)
@@ -394,8 +400,7 @@ class WeightedDEWExclusion(TopNExclusion):
             # compute weights for all the boxes that contain this (mz, rt)
             weights = []
             for b in boxes:
-                _, w = compute_weight(rt, b.frag_at, self.rt_tol,
-                                      self.exclusion_t_0)
+                _, w = compute_weight(rt, b.frag_at, self.rt_tol, self.exclusion_t_0)
                 weights.append(w)
 
             # use the min weight -- seems to work well
@@ -430,13 +435,13 @@ def compute_weight(current_rt, frag_at, rt_tol, exclusion_t_0):
         return True, 0.0
     else:
         # compute weight according to the WeightedDEW scheme
-        weight = (current_rt - (exclusion_t_0 + frag_at)) / (
-                rt_tol - exclusion_t_0)
+        weight = (current_rt - (exclusion_t_0 + frag_at)) / (rt_tol - exclusion_t_0)
         if weight > 1:
-            logger.warning('exclusion weight %f is greater than 1 ('
-                           'current_rt %f exclusion_t_0 %f frag_at %f '
-                           'rt_tol %f)' % (weight, current_rt,
-                                           exclusion_t_0, frag_at, rt_tol))
+            logger.warning(
+                "exclusion weight %f is greater than 1 ("
+                "current_rt %f exclusion_t_0 %f frag_at %f "
+                "rt_tol %f)" % (weight, current_rt, exclusion_t_0, frag_at, rt_tol)
+            )
         # assert weight <= 1, weight
         return True, weight
 
@@ -508,9 +513,7 @@ class DEWFilter(ScoreFilter):
 
         # Handles None values by converting to NaN for which all
         # comparisons return 0
-        return np.logical_not(
-            current_rt - np.array(
-                last_frag_rts, dtype=np.double) <= self.rt_tol)
+        return np.logical_not(current_rt - np.array(last_frag_rts, dtype=np.double) <= self.rt_tol)
 
 
 class WeightedDEWFilter(ScoreFilter):
@@ -557,8 +560,7 @@ class LengthFilter(ScoreFilter):
         Args:
             min_roi_length_for_fragmentation: the minimum length of ROI for fragmentation
         """
-        self.min_roi_length_for_fragmentation = \
-            min_roi_length_for_fragmentation
+        self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation
 
     def filter(self, roi_lengths):
         """
@@ -595,7 +597,7 @@ class SmartROIFilter(ScoreFilter):
         return can_fragments
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     e = ExclusionItem(1.1, 1.2, 3.4, 3.5, 3.45)
     f = ExclusionItem(1.0, 1.4, 3.3, 3.6, 3.45)
     g = ExclusionItem(2.1, 2.2, 3.2, 3.5, 3.45)

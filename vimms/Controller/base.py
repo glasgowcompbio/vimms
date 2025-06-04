@@ -2,26 +2,38 @@
 Contains the base abstract controller class, as well as other objects that are necessary for
 controllers to function.
 """
+
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import pandas as pd
 
-from vimms.Common import DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MS1_AGC_TARGET, \
-    DEFAULT_MS1_MAXIT, \
-    DEFAULT_MS1_COLLISION_ENERGY, DEFAULT_MS1_ORBITRAP_RESOLUTION, \
-    DEFAULT_MS1_ACTIVATION_TYPE, \
-    DEFAULT_MS1_MASS_ANALYSER, DEFAULT_MS1_ISOLATION_MODE, \
-    DEFAULT_SOURCE_CID_ENERGY, DEFAULT_MS2_AGC_TARGET, \
-    DEFAULT_MS2_MAXIT, DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, DEFAULT_MS2_ISOLATION_MODE, INITIAL_SCAN_ID, \
-    ScanParameters, get_default_scan_params, \
-    get_dda_scan_param
+from vimms.Common import (
+    DEFAULT_MS1_SCAN_WINDOW,
+    DEFAULT_MS1_AGC_TARGET,
+    DEFAULT_MS1_MAXIT,
+    DEFAULT_MS1_COLLISION_ENERGY,
+    DEFAULT_MS1_ORBITRAP_RESOLUTION,
+    DEFAULT_MS1_ACTIVATION_TYPE,
+    DEFAULT_MS1_MASS_ANALYSER,
+    DEFAULT_MS1_ISOLATION_MODE,
+    DEFAULT_SOURCE_CID_ENERGY,
+    DEFAULT_MS2_AGC_TARGET,
+    DEFAULT_MS2_MAXIT,
+    DEFAULT_MS2_COLLISION_ENERGY,
+    DEFAULT_MS2_ORBITRAP_RESOLUTION,
+    DEFAULT_MS2_ACTIVATION_TYPE,
+    DEFAULT_MS2_MASS_ANALYSER,
+    DEFAULT_MS2_ISOLATION_MODE,
+    INITIAL_SCAN_ID,
+    ScanParameters,
+    get_default_scan_params,
+    get_dda_scan_param,
+)
 
 
-class AdvancedParams():
+class AdvancedParams:
     """
     An object that stores advanced parameters used to control the mass spec
     e.g. AGC target, collision energy, orbitrap resolution etc.
@@ -33,24 +45,27 @@ class AdvancedParams():
     In simulated use, most of these values are not used and therefore they won't affect simulated
     results.
     """
-    def __init__(self,
-                 default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
-                 ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
-                 ms1_max_it=DEFAULT_MS1_MAXIT,
-                 ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-                 ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-                 ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                 ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-                 ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-                 ms1_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
-                 ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
-                 ms2_max_it=DEFAULT_MS2_MAXIT,
-                 ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                 ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                 ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
-                 ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                 ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
-                 ms2_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY):
+
+    def __init__(
+        self,
+        default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
+        ms1_agc_target=DEFAULT_MS1_AGC_TARGET,
+        ms1_max_it=DEFAULT_MS1_MAXIT,
+        ms1_collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+        ms1_orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+        ms1_activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+        ms1_mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+        ms1_isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+        ms1_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+        ms2_agc_target=DEFAULT_MS2_AGC_TARGET,
+        ms2_max_it=DEFAULT_MS2_MAXIT,
+        ms2_collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+        ms2_orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+        ms2_activation_type=DEFAULT_MS2_ACTIVATION_TYPE,
+        ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+        ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+        ms2_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+    ):
         """
         Create an advanced parameter object
 
@@ -98,6 +113,7 @@ class Controller(ABC):
     """
     Abtract base class for controllers.
     """
+
     def __init__(self, advanced_params=None):
         """
         Initialise a base Controller class.
@@ -112,8 +128,7 @@ class Controller(ABC):
         else:
             self.advanced_params = advanced_params
 
-        self.scans = defaultdict(
-            list)  # key: ms level, value: list of scans for that level
+        self.scans = defaultdict(list)  # key: ms level, value: list of scans for that level
         self.scan_to_process = None
         self.environment = None
         self.next_processed_scan_id = INITIAL_SCAN_ID
@@ -121,7 +136,7 @@ class Controller(ABC):
         self.current_task_id = self.initial_scan_id
         self.processing_times = []
         self.last_ms1_rt = 0.0
-        
+
     def __repr__(self):
         return f"{type(self)}({','.join(f'{k}={v}' for k, v in self.__dict__.items())})"
 
@@ -147,11 +162,13 @@ class Controller(ABC):
             activation_type=self.advanced_params.ms1_activation_type,
             mass_analyser=self.advanced_params.ms1_mass_analyser,
             isolation_mode=self.advanced_params.ms1_isolation_mode,
-            metadata=metadata)
+            metadata=metadata,
+        )
         return task
 
-    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id,
-                            isolation_width, mz_tol, rt_tol, metadata=None):
+    def get_ms2_scan_params(
+        self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None
+    ):
         """
         Generate a default scan parameter for MS2 scan. The generated scan parameter object
         is typically passed to the mass spec (whether real or simulated) that produces
@@ -170,7 +187,12 @@ class Controller(ABC):
 
         """
         task = get_dda_scan_param(
-            mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol,
+            mz,
+            intensity,
+            precursor_scan_id,
+            isolation_width,
+            mz_tol,
+            rt_tol,
             agc_target=self.advanced_params.ms2_agc_target,
             max_it=self.advanced_params.ms2_max_it,
             collision_energy=self.advanced_params.ms2_collision_energy,
@@ -180,7 +202,8 @@ class Controller(ABC):
             mass_analyser=self.advanced_params.ms2_mass_analyser,
             isolation_mode=self.advanced_params.ms2_isolation_mode,
             polarity=self.environment.mass_spec.ionisation_mode,
-            metadata=metadata)
+            metadata=metadata,
+        )
         return task
 
     def get_initial_tasks(self):
@@ -297,10 +320,10 @@ class Controller(ABC):
             # ignore any scan that we didn't send (no scan_params)
             if scan.scan_params is not None:
                 out = {
-                    'scan_id': scan.scan_id,
-                    'num_peaks': scan.num_peaks,
-                    'rt': scan.rt,
-                    'ms_level': scan.ms_level
+                    "scan_id": scan.scan_id,
+                    "num_peaks": scan.num_peaks,
+                    "rt": scan.rt,
+                    "ms_level": scan.ms_level,
                 }
                 # add all the scan params to out
                 out.update(scan.scan_params.get_all())
@@ -308,7 +331,7 @@ class Controller(ABC):
 
         # dump to csv
         df = pd.DataFrame(out_list)
-        output_method(df.to_csv(index=False, line_terminator='\n'))
+        output_method(df.to_csv(index=False, line_terminator="\n"))
 
     def _check_scan(self, params):
         """
@@ -355,63 +378,64 @@ class Controller(ABC):
         """
         pass
 
-        
+
 class WrapperController(Controller):
     """
-    Template for controller which wraps behaviour of at least one other 
+    Template for controller which wraps behaviour of at least one other
     controller.
     """
-    
+
     def __init__(self):
         self.__dict__.update(self.controller.__dict__)
-        
+
     def get_ms1_scan_params(self, metadata=None):
         val = self.controller.get_ms1_scan_params(metadata=None)
         self.__dict__.update(self.controller.__dict__)
         return val
-        
-    def get_ms2_scan_params(self, mz, intensity, precursor_scan_id, isolation_width, 
-                            mz_tol, rt_tol, metadata=None):
-                            
+
+    def get_ms2_scan_params(
+        self, mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None
+    ):
+
         val = self.controller.get_ms2_scan_params(
             mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol, metadata=None
         )
         self.__dict__.update(self.controller.__dict__)
         return val
-    
+
     def get_initial_tasks(self):
         val = self.controller.get_initial_tasks()
         self.__dict__.update(self.controller.__dict__)
         return val
-        
+
     def get_initial_scan_params(self):
         val = self.controller.get_initial_scan_params()
         self.__dict__.update(self.controller.__dict__)
         return val
-        
+
     def set_environment(self, env):
         val = self.controller.set_environment(env)
         self.__dict__.update(self.controller.__dict__)
         return val
-        
+
     def handle_scan(self, scan, current_size, pending_size):
         val = self.controller.handle_scan(scan, current_size, pending_size)
         self.__dict__.update(self.controller.__dict__)
         return val
-        
+
     def update_state_after_scan(self, last_scan):
         self.controller.update_state_after_scan(last_scan)
         self.__dict__.update(self.controller.__dict__)
-        
+
     def _process_scan(self, scan):
         val = self.controller._process_scan(scan)
         self.__dict__.update(self.controller.__dict__)
         return val
-        
+
     def dump_scans(self, output_method):
         self.controller.dump_scans(output_method)
         self.__dict__.update(self.controller.__dict__)
-        
+
     def after_injection_cleanup(self):
         self.controller.after_injection_cleanup()
         self.__dict__.update(self.controller.__dict__)

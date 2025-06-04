@@ -1,6 +1,7 @@
 """
 This file implements various methods to extract features from different sources.
 """
+
 import os
 import xml.etree.ElementTree
 import zipfile
@@ -24,14 +25,15 @@ def extract_hmdb_metabolite(in_file, delete=True):
     Returns: a list of [vimms.Chemicals.DatabaseCompound][] objects.
 
     """
-    logger.debug('Extracting HMDB metabolites from %s' % in_file)
+    logger.debug("Extracting HMDB metabolites from %s" % in_file)
 
     # if out_file is zipped then extract the xml file inside
     try:
         # extract from zip file
-        zf = zipfile.ZipFile(in_file, 'r')
+        zf = zipfile.ZipFile(in_file, "r")
         metabolite_xml_file = zf.namelist()[
-            0]  # assume there's only a single file inside the zip file
+            0
+        ]  # assume there's only a single file inside the zip file
         f = zf.open(metabolite_xml_file)
     except zipfile.BadZipFile:  # oops not a zip file
         zf = None
@@ -41,37 +43,35 @@ def extract_hmdb_metabolite(in_file, delete=True):
     # DatabaseCompound
     db = xml.etree.ElementTree.parse(f).getroot()
     compounds = []
-    prefix = '{http://www.hmdb.ca}'
+    prefix = "{http://www.hmdb.ca}"
     for metabolite_element in db:
         row = [None, None, None, None, None, None]
         for element in metabolite_element:
-            if element.tag == (prefix + 'name'):
+            if element.tag == (prefix + "name"):
                 row[0] = element.text
-            elif element.tag == (prefix + 'chemical_formula'):
+            elif element.tag == (prefix + "chemical_formula"):
                 row[1] = element.text
-            elif element.tag == (prefix + 'monisotopic_molecular_weight'):
+            elif element.tag == (prefix + "monisotopic_molecular_weight"):
                 row[2] = element.text
-            elif element.tag == (prefix + 'smiles'):
+            elif element.tag == (prefix + "smiles"):
                 row[3] = element.text
-            elif element.tag == (prefix + 'inchi'):
+            elif element.tag == (prefix + "inchi"):
                 row[4] = element.text
-            elif element.tag == (prefix + 'inchikey'):
+            elif element.tag == (prefix + "inchikey"):
                 row[5] = element.text
 
         # if all fields are present, then add them as a DatabaseCompound
         if None not in row:
-            compound = DatabaseCompound(row[0], row[1], row[2], row[3], row[4],
-                                        row[5])
+            compound = DatabaseCompound(row[0], row[1], row[2], row[3], row[4], row[5])
             compounds.append(compound)
-    logger.info(
-        'Loaded %d DatabaseCompounds from %s' % (len(compounds), in_file))
+    logger.info("Loaded %d DatabaseCompounds from %s" % (len(compounds), in_file))
 
     f.close()
     if zf is not None:
         zf.close()
 
     if delete:
-        logger.info('Deleting %s' % in_file)
+        logger.info("Deleting %s" % in_file)
         os.remove(in_file)
 
     return compounds
@@ -113,12 +113,12 @@ def extract_roi(file_names, out_dir, pattern, mzml_path, rp=None):
         if out_dir is None:
             # if no out_dir provided, then same in the same location
             # as the mzML file
-            dataset_name = os.path.splitext(mzml_file)[0] + '.p'
+            dataset_name = os.path.splitext(mzml_file)[0] + ".p"
             save_obj(dataset, dataset_name)
         else:
             # else save the chemicals in our_dir, using pattern as the filename
             basename = os.path.basename(file_names[i])
-            out_name = pattern % int(basename.split('_')[2])
+            out_name = pattern % int(basename.split("_")[2])
             save_obj(dataset, os.path.join(out_dir, out_name))
 
     return datasets

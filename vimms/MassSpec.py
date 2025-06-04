@@ -7,15 +7,26 @@ from events import Events
 from vimms.Chemicals import ChemSet
 from vimms.Common import (
     DEFAULT_SCAN_TIME_DICT,
-    INITIAL_SCAN_ID, ScanParameters, ADDUCT_TERMS, PEAKS_MZ_IDX, PEAKS_INTENSITY_IDX,
-    PEAKS_MS1_INTENSITY_IDX, PEAKS_WHICH_ISOTOPE_IDX, PEAKS_WHICH_ADDUCT_IDX
+    INITIAL_SCAN_ID,
+    ScanParameters,
+    ADDUCT_TERMS,
+    PEAKS_MZ_IDX,
+    PEAKS_INTENSITY_IDX,
+    PEAKS_MS1_INTENSITY_IDX,
+    PEAKS_WHICH_ISOTOPE_IDX,
+    PEAKS_WHICH_ADDUCT_IDX,
 )
-from vimms.MassSpecUtils import get_mz_ms1, get_mz_msn, \
-    generate_chem_ms1_peaks_for_ms2, generate_chem_ms1_peaks_for_ms1, ChemDataCollector
+from vimms.MassSpecUtils import (
+    get_mz_ms1,
+    get_mz_msn,
+    generate_chem_ms1_peaks_for_ms2,
+    generate_chem_ms1_peaks_for_ms1,
+    ChemDataCollector,
+)
 from vimms.Noise import NoPeakNoise
 
 
-class ScanEventPeak():
+class ScanEventPeak:
     """
     A class to represent an empirical or sampled scan-level peak object
     """
@@ -36,28 +47,43 @@ class ScanEventPeak():
         self.ms_level = ms_level
 
     def __repr__(self):
-        return 'Peak mz=%.4f rt=%.2f intensity=%.2f ms_level=%d' % (
-            self.mz, self.rt, self.intensity, self.ms_level)
+        return "Peak mz=%.4f rt=%.2f intensity=%.2f ms_level=%d" % (
+            self.mz,
+            self.rt,
+            self.intensity,
+            self.ms_level,
+        )
 
     def __eq__(self, other):
         if not isinstance(other, ScanEventPeak):
             # don't attempt to compare against unrelated types
             return NotImplemented
 
-        return math.isclose(self.mz, other.mz) and \
-               math.isclose(self.rt, other.rt) and \
-               math.isclose(self.intensity, other.intensity) and \
-               self.ms_level == other.ms_level
+        return (
+            math.isclose(self.mz, other.mz)
+            and math.isclose(self.rt, other.rt)
+            and math.isclose(self.intensity, other.intensity)
+            and self.ms_level == other.ms_level
+        )
 
 
-class Scan():
+class Scan:
     """
     A class to store scan information
     """
 
-    def __init__(self, scan_id, mzs, intensities, ms_level, rt,
-                 scan_duration=None, scan_params=None, parent=None,
-                 fragevent=None):
+    def __init__(
+        self,
+        scan_id,
+        mzs,
+        intensities,
+        ms_level,
+        rt,
+        scan_duration=None,
+        scan_params=None,
+        parent=None,
+        fragevent=None,
+    ):
         """
         Creates a scan
 
@@ -97,23 +123,37 @@ class Scan():
             mzs=np.array(mzs),
             intensities=np.array(intensities),
             ms_level=scan.ms_level,
-            rt=scan.rt_in_seconds
+            rt=scan.rt_in_seconds,
         )
 
     def __repr__(self):
-        return 'Scan %d num_peaks=%d rt=%.2f ms_level=%d' % (
-            self.scan_id, self.num_peaks, self.rt, self.ms_level)
+        return "Scan %d num_peaks=%d rt=%.2f ms_level=%d" % (
+            self.scan_id,
+            self.num_peaks,
+            self.rt,
+            self.ms_level,
+        )
 
 
-class ScanEvent():
+class ScanEvent:
     """
     A class to store fragmentation events. Mostly used for benchmarking purpose
     """
 
-    def __init__(self, chem, query_rt, ms_level, peaks, scan_id,
-                 parents_intensity=None, parent_adduct=None,
-                 parent_isotope=None, precursor_mz=None, isolation_window=None,
-                 scan_params=None):
+    def __init__(
+        self,
+        chem,
+        query_rt,
+        ms_level,
+        peaks,
+        scan_id,
+        parents_intensity=None,
+        parent_adduct=None,
+        parent_isotope=None,
+        precursor_mz=None,
+        isolation_window=None,
+        scan_params=None,
+    ):
         """
         Creates a fragmentation event
 
@@ -144,11 +184,10 @@ class ScanEvent():
         self.scan_params = scan_params
 
     def __repr__(self):
-        return 'MS%d ScanEvent for %s at %f' % (
-            self.ms_level, self.chem, self.query_rt)
+        return "MS%d ScanEvent for %s at %f" % (self.ms_level, self.chem, self.query_rt)
 
 
-class TaskManager():
+class TaskManager:
     """
     A class to track how many new tasks (scan commands) that we can send,
     given the buffer size of the mass spec.
@@ -203,8 +242,7 @@ class TaskManager():
         Returns: None
 
         """
-        self.pending_tasks = [t for t in self.pending_tasks if
-                              t != completed_task]
+        self.pending_tasks = [t for t in self.pending_tasks if t != completed_task]
 
     def to_send(self):
         """
@@ -275,23 +313,31 @@ class TaskManager():
         return len(self.pending_tasks)
 
 
-class IndependentMassSpectrometer():
+class IndependentMassSpectrometer:
     """
     A class that represents (synchronous) mass spectrometry process.
     Independent here refers to how the intensity of each peak in a scan is
     independent of each other i.e. there's no ion supression effect.
     """
-    MS_SCAN_ARRIVED = 'MsScanArrived'
-    ACQUISITION_STREAM_OPENING = 'AcquisitionStreamOpening'
-    ACQUISITION_STREAM_CLOSED = 'AcquisitionStreamClosing'
-    STATE_CHANGED = 'StateChanged'
 
-    def __init__(self, ionisation_mode, chemicals, mz_noise=None,
-                 intensity_noise=None, spike_noise=None,
-                 isolation_transition_window='rectangular',
-                 isolation_transition_window_params=None,
-                 scan_duration=DEFAULT_SCAN_TIME_DICT, task_manager=None,
-                 skip_ms2_spectra_generation=False):
+    MS_SCAN_ARRIVED = "MsScanArrived"
+    ACQUISITION_STREAM_OPENING = "AcquisitionStreamOpening"
+    ACQUISITION_STREAM_CLOSED = "AcquisitionStreamClosing"
+    STATE_CHANGED = "StateChanged"
+
+    def __init__(
+        self,
+        ionisation_mode,
+        chemicals,
+        mz_noise=None,
+        intensity_noise=None,
+        spike_noise=None,
+        isolation_transition_window="rectangular",
+        isolation_transition_window_params=None,
+        scan_duration=DEFAULT_SCAN_TIME_DICT,
+        task_manager=None,
+        skip_ms2_spectra_generation=False,
+    ):
         """
         Creates a mass spec object.
 
@@ -318,19 +364,22 @@ class IndependentMassSpectrometer():
         self.time = 0
 
         # current task queue
-        self.task_manager = task_manager if task_manager is not None \
-            else TaskManager()
+        self.task_manager = task_manager if task_manager is not None else TaskManager()
         self.environment = None
 
-        self.events = Events((self.MS_SCAN_ARRIVED,
-                              self.ACQUISITION_STREAM_OPENING,
-                              self.ACQUISITION_STREAM_CLOSED,
-                              self.STATE_CHANGED,))
+        self.events = Events(
+            (
+                self.MS_SCAN_ARRIVED,
+                self.ACQUISITION_STREAM_OPENING,
+                self.ACQUISITION_STREAM_CLOSED,
+                self.STATE_CHANGED,
+            )
+        )
         self.event_dict = {
             self.MS_SCAN_ARRIVED: self.events.MsScanArrived,
             self.ACQUISITION_STREAM_OPENING: self.events.AcquisitionStreamOpening,  # noqa
             self.ACQUISITION_STREAM_CLOSED: self.events.AcquisitionStreamClosing,  # noqa
-            self.STATE_CHANGED: self.events.StateChanged
+            self.STATE_CHANGED: self.events.StateChanged,
         }
 
         # the list of all chemicals in the dataset
@@ -419,18 +468,18 @@ class IndependentMassSpectrometer():
         self.fire_event(self.MS_SCAN_ARRIVED, scan)
 
         # sample scan duration and increase internal time
-        #if self.task_manager.pending_size() > 0:
+        # if self.task_manager.pending_size() > 0:
         #    next_scan_param = self.task_manager.peek_pending()
-        #elif self.task_manager.current_size() > 0:
+        # elif self.task_manager.current_size() > 0:
         #    next_scan_param = self.task_manager.peek_current()
-        #else:
+        # else:
         #    next_scan_param = None
 
-        #current_level = scan.ms_level
-        #current_rt = scan.rt
-        #current_scan_duration = self._increase_time(current_level, current_rt,
+        # current_level = scan.ms_level
+        # current_rt = scan.rt
+        # current_scan_duration = self._increase_time(current_level, current_rt,
         #                                            next_scan_param)
-        #scan.scan_duration = current_scan_duration
+        # scan.scan_duration = current_scan_duration
 
     def get_params(self):
         """
@@ -471,7 +520,7 @@ class IndependentMassSpectrometer():
 
         """
         if event_name not in self.event_dict:
-            raise ValueError('Unknown event name')
+            raise ValueError("Unknown event name")
 
         # pretend to fire the event
         # actually here we just runs the event handler method directly
@@ -493,7 +542,7 @@ class IndependentMassSpectrometer():
 
         """
         if event_name not in self.event_dict:
-            raise ValueError('Unknown event name')
+            raise ValueError("Unknown event name")
         e = self.event_dict[event_name]
         e += handler  # register a new event handler for e
 
@@ -518,7 +567,7 @@ class IndependentMassSpectrometer():
 
         """
         if event_name not in self.event_dict:
-            raise ValueError('Unknown event name')
+            raise ValueError("Unknown event name")
         e = self.event_dict[event_name]
         e.targets = []
 
@@ -555,19 +604,20 @@ class IndependentMassSpectrometer():
         # sample scan duration from dictionary
         if type(self.scan_duration_dict) is dict:
             val = self.scan_duration_dict[current_level]
-            current_scan_duration = val() if callable(
-                val) else val  # is it a function, or a value?
+            current_scan_duration = (
+                val() if callable(val) else val
+            )  # is it a function, or a value?
 
         else:  # assume it's an object
             scan_sampler = self.scan_duration_dict
 
             # if queue is empty, the next one is an MS1 scan by default
-            next_level = next_scan_param.get(
-                ScanParameters.MS_LEVEL) if next_scan_param is not None else 1
+            next_level = (
+                next_scan_param.get(ScanParameters.MS_LEVEL) if next_scan_param is not None else 1
+            )
 
             # pass both current and next MS level when sampling scan duration
-            current_scan_duration = scan_sampler.sample(current_level,
-                                                        next_level, current_rt)
+            current_scan_duration = scan_sampler.sample(current_level, next_level, current_rt)
 
         self.time += current_scan_duration
         return current_scan_duration
@@ -592,13 +642,13 @@ class IndependentMassSpectrometer():
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)
-        ms1_source_collision_energy = params.get(
-            ScanParameters.SOURCE_CID_ENERGY)
+        ms1_source_collision_energy = params.get(ScanParameters.SOURCE_CID_ENERGY)
         ms_level = params.get(ScanParameters.MS_LEVEL)
 
         # compute isolation window, depending on whether it's MS1 or MS2 scan
-        isolation_windows = self._get_isolation_windows(max_measurement_mz, min_measurement_mz,
-                                                        ms_level, params)
+        isolation_windows = self._get_isolation_windows(
+            max_measurement_mz, min_measurement_mz, ms_level, params
+        )
 
         # if the scan id is specified in the params, use it
         # otherwise use the one that has been incremented from the previous one
@@ -613,16 +663,24 @@ class IndependentMassSpectrometer():
             use_ms_level = 2
 
         # generate peaks for all valid chemicals that appear at scan time
-        chems, chemical_peaks = self._get_chem_peaks(isolation_windows, scan_time,
-                                                     use_ms_level)
+        chems, chemical_peaks = self._get_chem_peaks(isolation_windows, scan_time, use_ms_level)
 
         # post-processing:
         # - add noise to generate peak m/z and intensity values
         # - filter invalid values
         # - create a fragmentation event for valid peaks in a scan
         scan_mzs, scan_intensities, frag_events = self._get_scan_post_processing(
-            chemical_peaks, chems, isolation_windows, max_measurement_mz, min_measurement_mz,
-            ms_level, params, scan_id, scan_time, use_ms_level)
+            chemical_peaks,
+            chems,
+            isolation_windows,
+            max_measurement_mz,
+            min_measurement_mz,
+            ms_level,
+            params,
+            scan_id,
+            scan_time,
+            use_ms_level,
+        )
         self.fragmentation_events.extend(frag_events)
 
         # add spike noise to the scan
@@ -630,7 +688,8 @@ class IndependentMassSpectrometer():
         # (even though it appears in the scan). Is this the best thing to do?
         if self.spike_noise is not None:
             spike_mzs, spike_intensities = self.spike_noise.sample(
-                min_measurement_mz, max_measurement_mz)
+                min_measurement_mz, max_measurement_mz
+            )
             scan_mzs = np.concatenate([scan_mzs, spike_mzs])
             scan_intensities = np.concatenate([scan_intensities, spike_intensities])
 
@@ -640,9 +699,16 @@ class IndependentMassSpectrometer():
         # finally generate a Scan object
         scan_mzs = np.array(scan_mzs)
         scan_intensities = np.array(scan_intensities)
-        sc = Scan(scan_id, scan_mzs, scan_intensities, ms_level, scan_time,
-                  scan_duration=None, scan_params=params,
-                  fragevent=frag_events)
+        sc = Scan(
+            scan_id,
+            scan_mzs,
+            scan_intensities,
+            ms_level,
+            scan_time,
+            scan_duration=None,
+            scan_params=params,
+            fragevent=frag_events,
+        )
 
         # Note: at this point, the scan duration is not set yet because
         # we don't know what the next scan is going to be
@@ -673,17 +739,20 @@ class IndependentMassSpectrometer():
         assert use_ms_level in [1, 2]
         chems = self.chemicals.next_chems(scan_time)
         if use_ms_level == 1:
-            chemical_peaks = self._get_chem_peaks_for_ms1(chems, self.chem_data_collector,
-                                                          scan_time)
+            chemical_peaks = self._get_chem_peaks_for_ms1(
+                chems, self.chem_data_collector, scan_time
+            )
         elif use_ms_level == 2:
-            chemical_peaks = self._get_chem_peaks_for_ms2(chems, self.chem_data_collector,
-                                                          isolation_windows, scan_time)
+            chemical_peaks = self._get_chem_peaks_for_ms2(
+                chems, self.chem_data_collector, isolation_windows, scan_time
+            )
         # assert len(chems) == len(chemical_peaks)
         return chems, chemical_peaks
 
     def _get_chem_peaks_for_ms1(self, chems, cdc, scan_time):
         all_chems, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms1(
-            chems, scan_time, cdc)
+            chems, scan_time, cdc
+        )
 
         # convert to defaultdict, key: chem, value: list of peaks for that chem
         chemical_peaks = defaultdict(list)
@@ -693,21 +762,25 @@ class IndependentMassSpectrometer():
 
     def _get_chem_peaks_for_ms2(self, chems, cdc, isolation_windows, scan_time):
 
-        isolated_chems, isolated_which_adducts, isolated_which_isotopes = \
-            self._isolate_chems_for_fragmentation(
-                chems, cdc, isolation_windows, scan_time)
+        isolated_chems, isolated_which_adducts, isolated_which_isotopes = (
+            self._isolate_chems_for_fragmentation(chems, cdc, isolation_windows, scan_time)
+        )
 
-        chemical_peaks = self._get_children_spectra(chems, isolated_chems,
-                                                    isolated_which_adducts,
-                                                    isolated_which_isotopes, isolation_windows,
-                                                    scan_time)
+        chemical_peaks = self._get_children_spectra(
+            chems,
+            isolated_chems,
+            isolated_which_adducts,
+            isolated_which_isotopes,
+            isolation_windows,
+            scan_time,
+        )
         return chemical_peaks
 
-    def _isolate_chems_for_fragmentation(self, chems, cdc, isolation_windows,
-                                         scan_time):
+    def _isolate_chems_for_fragmentation(self, chems, cdc, isolation_windows, scan_time):
 
         all_chems, which_isotopes, which_adducts, peaks = generate_chem_ms1_peaks_for_ms2(
-            chems, scan_time, cdc)
+            chems, scan_time, cdc
+        )
 
         if len(peaks) > 0:
             mzs = peaks[:, 0]
@@ -717,7 +790,7 @@ class IndependentMassSpectrometer():
         # FIXME: only support one window, maybe not correct
         # original code is
         #             isolated = isolation_match(mz, isolation_windows[chemical.ms_level - 1])
-        assert len(isolation_windows[0]) == 1, 'Multiple isolation windows not supported'
+        assert len(isolation_windows[0]) == 1, "Multiple isolation windows not supported"
         lower_bound, upper_bound = isolation_windows[0][0]
 
         assert len(all_chems) == len(which_adducts)
@@ -729,33 +802,54 @@ class IndependentMassSpectrometer():
         isolated_which_isotopes = which_isotopes[isolated]
         return isolated_chems, isolated_which_adducts, isolated_which_isotopes
 
-    def _get_children_spectra(self, chems, isolated_chems, isolated_which_adducts,
-                              isolated_which_isotopes, isolation_windows, scan_time):
+    def _get_children_spectra(
+        self,
+        chems,
+        isolated_chems,
+        isolated_which_adducts,
+        isolated_which_isotopes,
+        isolation_windows,
+        scan_time,
+    ):
 
         chemical_peaks = defaultdict(list)
 
         # TODO: vectorise this
         query_rt = scan_time
         for chemical, which_adduct, which_isotope in zip(
-                isolated_chems, isolated_which_adducts, isolated_which_isotopes):
+            isolated_chems, isolated_which_adducts, isolated_which_isotopes
+        ):
 
-            ms1_intensity = self._get_intensity_ms1(chemical, query_rt,
-                                                    which_isotope, which_adduct)
+            ms1_intensity = self._get_intensity_ms1(
+                chemical, query_rt, which_isotope, which_adduct
+            )
 
             mz_peaks = []
             for i in range(len(chemical.children)):
                 mz_peaks.extend(
-                    self._get_mz_peaks_child(chemical.children[i], ms1_intensity,
-                                             which_isotope, which_adduct))
+                    self._get_mz_peaks_child(
+                        chemical.children[i], ms1_intensity, which_isotope, which_adduct
+                    )
+                )
 
             for row in mz_peaks:
                 chemical_peaks[chemical].append(row)
 
         return chemical_peaks
 
-    def _get_scan_post_processing(self, chemical_peaks, chems, isolation_windows,
-                                  max_measurement_mz, min_measurement_mz, ms_level, params,
-                                  scan_id, scan_time, use_ms_level):
+    def _get_scan_post_processing(
+        self,
+        chemical_peaks,
+        chems,
+        isolation_windows,
+        max_measurement_mz,
+        min_measurement_mz,
+        ms_level,
+        params,
+        scan_id,
+        scan_time,
+        use_ms_level,
+    ):
 
         scan_mzs = np.array([])  # all the mzs values in this scan
         scan_intensities = np.array([])  # all the intensity values in this scan
@@ -769,15 +863,17 @@ class IndependentMassSpectrometer():
 
             # apply noise if any
             peaks = np.array(peaks)
-            peaks = self.add_noise_and_filter(max_measurement_mz, min_measurement_mz,
-                                              ms_level, peaks)
+            peaks = self.add_noise_and_filter(
+                max_measurement_mz, min_measurement_mz, ms_level, peaks
+            )
 
             if len(peaks) > 0:  # if after filter, some peaks are left
                 all_peaks.append(peaks)
 
                 # for synthetic performance evaluation
-                frag = self._get_frag_event(chemical, isolation_windows, peaks, params,
-                                            scan_id, scan_time, use_ms_level)
+                frag = self._get_frag_event(
+                    chemical, isolation_windows, peaks, params, scan_id, scan_time, use_ms_level
+                )
                 frag_events.append(frag)
 
         # combine generated peaks, if any
@@ -799,10 +895,13 @@ class IndependentMassSpectrometer():
 
             if (min_measurement_mz <= noisy_mz <= max_measurement_mz) and (noisy_intensity > 0):
                 noise_peaks.append(
-                    (noisy_mz, noisy_intensity,
-                     peaks[i][PEAKS_MS1_INTENSITY_IDX],
-                     peaks[i][PEAKS_WHICH_ISOTOPE_IDX],
-                     peaks[i][PEAKS_WHICH_ADDUCT_IDX])
+                    (
+                        noisy_mz,
+                        noisy_intensity,
+                        peaks[i][PEAKS_MS1_INTENSITY_IDX],
+                        peaks[i][PEAKS_WHICH_ISOTOPE_IDX],
+                        peaks[i][PEAKS_WHICH_ADDUCT_IDX],
+                    )
                 )
         noise_peaks = np.array(noise_peaks)
 
@@ -824,8 +923,9 @@ class IndependentMassSpectrometer():
 
         return noise_peaks
 
-    def _get_frag_event(self, chemical, isolation_windows, peaks, params, scan_id, scan_time,
-                        use_ms_level):
+    def _get_frag_event(
+        self, chemical, isolation_windows, peaks, params, scan_id, scan_time, use_ms_level
+    ):
 
         # Slow. Not sure if it's ever needed.
         # scan_peaks = [ScanEventPeak(peak[PEAKS_MZ_IDX],
@@ -843,18 +943,22 @@ class IndependentMassSpectrometer():
             parent_isotope = peaks[:, PEAKS_WHICH_ADDUCT_IDX]
             precursor_mz = params.get(ScanParameters.PRECURSOR_MZ)
 
-        frag = ScanEvent(chemical, scan_time, use_ms_level, scan_peaks,
-                         scan_id,
-                         parents_intensity=parents_intensity,
-                         parent_adduct=parent_adduct,
-                         parent_isotope=parent_isotope,
-                         precursor_mz=precursor_mz,
-                         isolation_window=isolation_windows,
-                         scan_params=params)
+        frag = ScanEvent(
+            chemical,
+            scan_time,
+            use_ms_level,
+            scan_peaks,
+            scan_id,
+            parents_intensity=parents_intensity,
+            parent_adduct=parent_adduct,
+            parent_isotope=parent_isotope,
+            precursor_mz=precursor_mz,
+            isolation_window=isolation_windows,
+            scan_params=params,
+        )
         return frag
 
-    def _get_mz_peaks_child(self, chemical, ms1_intensity,
-                            which_isotope, which_adduct):
+    def _get_mz_peaks_child(self, chemical, ms1_intensity, which_isotope, which_adduct):
 
         # generate MS2 scan from a child MS2 chemical
         assert chemical.ms_level == 2
@@ -882,11 +986,12 @@ class IndependentMassSpectrometer():
 
     def _get_intensity_ms1(self, chemical, query_rt, which_isotope, which_adduct):
         assert chemical.ms_level == 1
-        intensity = chemical.isotopes[which_isotope][1] * \
-                    self._get_adducts(chemical)[which_adduct][1] * \
-                    chemical.max_intensity
-        return intensity * chemical.chromatogram.get_relative_intensity(
-            query_rt - chemical.rt)
+        intensity = (
+            chemical.isotopes[which_isotope][1]
+            * self._get_adducts(chemical)[which_adduct][1]
+            * chemical.max_intensity
+        )
+        return intensity * chemical.chromatogram.get_relative_intensity(query_rt - chemical.rt)
 
     def _get_intensity_ms2(self, chemical, ms1_intensity):
         assert chemical.ms_level == 2
@@ -949,7 +1054,7 @@ class IndependentMassSpectrometer():
             rts = np.array([])
             mzs = np.array([])
 
-        mz_value = get_mz_ms1(mz, mul, add, chrom_type, query_rt, chemical.rt,
-                              chrom.min_rt, chrom.max_rt,
-                              rts, mzs)
+        mz_value = get_mz_ms1(
+            mz, mul, add, chrom_type, query_rt, chemical.rt, chrom.min_rt, chrom.max_rt, rts, mzs
+        )
         return mz_value

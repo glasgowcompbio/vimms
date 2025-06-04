@@ -6,18 +6,17 @@ import pysmiles
 from mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chemicals import KnownChemical, UnknownChemical, DatabaseCompound
-from vimms.Common import create_if_not_exist, \
-    ATOM_MASSES, POSITIVE, ADDUCT_TERMS
+from vimms.Common import create_if_not_exist, ATOM_MASSES, POSITIVE, ADDUCT_TERMS
 from vimms.MassSpecUtils import adduct_transformation
 
 # Constants for write_msp
-COLLISION_ENERGY = '25'
-IONIZATION = 'Positive'
+COLLISION_ENERGY = "25"
+IONIZATION = "Positive"
 SKIP_RT = False
 
 
 def packline(outln, packme):
-    outln.append(packme + '\n')
+    outln.append(packme + "\n")
     return outln
 
 
@@ -25,7 +24,7 @@ def decimal_to_string(fnum, no_dec=0):
     """
     Convert a decimal to a string with no_dec decimal places
     """
-    res = ''
+    res = ""
     if no_dec == 0:
         res = str(int(fnum))
     else:
@@ -34,8 +33,14 @@ def decimal_to_string(fnum, no_dec=0):
 
 
 # flake8: noqa: C901
-def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
-              all_isotopes=False, ion_mode=[POSITIVE]):
+def write_msp(
+    chemical_list,
+    msp_filename,
+    out_dir=None,
+    skip_rt=False,
+    all_isotopes=False,
+    ion_mode=[POSITIVE],
+):
     """
     Turn a chemical list into an msp file
     """
@@ -54,14 +59,27 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
             for ionisation_mode in ion_mode:
                 for which_adduct in range(len(chem.adducts[ionisation_mode])):
                     if isinstance(chem, KnownChemical):
-                        name = 'NAME: ' + 'KnowChemical' \
-                               + '_' \
-                               + chem.formula.formula_string + '_iso' \
-                               + str(which_isotope) + '_num' + str(pos)
+                        name = (
+                            "NAME: "
+                            + "KnowChemical"
+                            + "_"
+                            + chem.formula.formula_string
+                            + "_iso"
+                            + str(which_isotope)
+                            + "_num"
+                            + str(pos)
+                        )
                     elif isinstance(chem, UnknownChemical):
-                        name = 'NAME: ' + 'UnKnowChemical' + '_' + str(
-                            chem.mass) + '_iso' + str(
-                            which_isotope) + '_num' + str(pos)
+                        name = (
+                            "NAME: "
+                            + "UnKnowChemical"
+                            + "_"
+                            + str(chem.mass)
+                            + "_iso"
+                            + str(which_isotope)
+                            + "_num"
+                            + str(pos)
+                        )
                     else:
                         raise NotImplementedError()
                     outln = packline(outln, name)
@@ -70,43 +88,49 @@ def write_msp(chemical_list, msp_filename, out_dir=None, skip_rt=False,
                     adduct = chem.adducts[ionisation_mode][which_adduct][0]
                     mul, add = ADDUCT_TERMS[adduct]
                     mz = adduct_transformation(mz, mul, add)
+                    outln = packline(outln, "PRECURSORMZ: " + decimal_to_string(mz, 2))
                     outln = packline(
-                        outln, 'PRECURSORMZ: ' + decimal_to_string(mz, 2))
-                    outln = packline(outln,
-                                     'PRECURSORTYPE: ' + '[' +
-                                     chem.adducts[ionisation_mode][
-                                         which_adduct][0] + ']+')
+                        outln,
+                        "PRECURSORTYPE: "
+                        + "["
+                        + chem.adducts[ionisation_mode][which_adduct][0]
+                        + "]+",
+                    )
                     if isinstance(chem, KnownChemical):
-                        outln = packline(
-                            outln, 'FORMULA: ' + chem.formula.formula_string)
+                        outln = packline(outln, "FORMULA: " + chem.formula.formula_string)
                     if not skip_rt:
                         rt = chem.rt + chem.chromatogram.get_apex_rt()
-                        outln = packline(outln,
-                                         'RETENTIONTIME: ' + decimal_to_string(
-                                             rt / 60, 2))  # in minutes
-                    outln = packline(outln, 'INTENSITY: ' + decimal_to_string(
-                        chem.isotopes[which_isotope][1] *
-                        chem.adducts[ionisation_mode][which_adduct][
-                            1] * chem.max_intensity))
-                    outln = packline(outln, 'IONMODE: ' + IONIZATION)
-                    outln = packline(outln,
-                                     'COLLISIONENERGY: ' + COLLISION_ENERGY)
-                    outln = packline(outln,
-                                     'Num Peaks: ' + str(len(chem.children)))
+                        outln = packline(
+                            outln, "RETENTIONTIME: " + decimal_to_string(rt / 60, 2)
+                        )  # in minutes
+                    outln = packline(
+                        outln,
+                        "INTENSITY: "
+                        + decimal_to_string(
+                            chem.isotopes[which_isotope][1]
+                            * chem.adducts[ionisation_mode][which_adduct][1]
+                            * chem.max_intensity
+                        ),
+                    )
+                    outln = packline(outln, "IONMODE: " + IONIZATION)
+                    outln = packline(outln, "COLLISIONENERGY: " + COLLISION_ENERGY)
+                    outln = packline(outln, "Num Peaks: " + str(len(chem.children)))
                     for msn in chem.children:
                         mz = msn.isotopes[0][0]
                         adduct = chem.adducts[ionisation_mode][which_adduct][0]
                         mul, add = ADDUCT_TERMS[adduct]
                         msn_mz = adduct_transformation(mz, mul, add)
-                        msn_peak = chem.isotopes[which_isotope][1] * \
-                                   chem.adducts[ionisation_mode][which_adduct][
-                                       1] * chem.max_intensity * \
-                                   1 * msn.prop_ms2_mass
-                        if decimal_to_string(msn_peak) != '0':
-                            temp = decimal_to_string(msn_mz, 5) + ' ' + \
-                                   decimal_to_string(msn_peak)
+                        msn_peak = (
+                            chem.isotopes[which_isotope][1]
+                            * chem.adducts[ionisation_mode][which_adduct][1]
+                            * chem.max_intensity
+                            * 1
+                            * msn.prop_ms2_mass
+                        )
+                        if decimal_to_string(msn_peak) != "0":
+                            temp = decimal_to_string(msn_mz, 5) + " " + decimal_to_string(msn_peak)
                             outln = packline(outln, temp)
-                    outln = packline(outln, '')
+                    outln = packline(outln, "")
                     pos += 1
 
     if out_dir is not None:
@@ -150,7 +174,7 @@ def smiles_to_formula(smiles_string):
     return chem_formula
 
 
-def mgf_to_database(mgf_file, id_field='SPECTRUMID'):
+def mgf_to_database(mgf_file, id_field="SPECTRUMID"):
     """
     Load spectra from an mgf file and save as a list of DatabaseCompounds
     Computes chemimcal formula from SMILES
@@ -158,15 +182,16 @@ def mgf_to_database(mgf_file, id_field='SPECTRUMID'):
     records = load_mgf(mgf_file, id_field=id_field)
     database = []
     for key, record in records.items():
-        chemical_formula = smiles_to_formula(record.metadata['SMILES'])
-        record.metadata['CHEMICAL_FORMULA'] = chemical_formula
+        chemical_formula = smiles_to_formula(record.metadata["SMILES"])
+        record.metadata["CHEMICAL_FORMULA"] = chemical_formula
         if chemical_formula is None:
             # Skip entries with unparseable SMILES strings.  They are not
             # useful for formula based sampling and would cause errors later
             # when converting to :class:`Formula` objects.
             continue
         database.append(
-            DatabaseCompound(record.spectrum_id,
-                             record.metadata['CHEMICAL_FORMULA'],
-                             None, None, None, key))
+            DatabaseCompound(
+                record.spectrum_id, record.metadata["CHEMICAL_FORMULA"], None, None, None, key
+            )
+        )
     return database

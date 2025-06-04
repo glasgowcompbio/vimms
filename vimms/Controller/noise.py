@@ -4,13 +4,15 @@ from abc import abstractmethod
 from vimms.Controller.roi import RoiController
 
 
-class NoiseEstimator():
+class NoiseEstimator:
     @abstractmethod
-    def estimate_noise(self, roi): pass
+    def estimate_noise(self, roi):
+        pass
 
 
-class IdentityEstimator():
-    def estimate_noise(self, roi): return 1.0
+class IdentityEstimator:
+    def estimate_noise(self, roi):
+        return 1.0
 
 
 # It's a peak if it's intensity is > X for N scans in a row.
@@ -20,11 +22,11 @@ class ThresholdEstimator(NoiseEstimator):
         self.count_threshold = count_threshold
 
     def estimate_noise(self, roi):
-        aboves = [intensity > self.intensity_threshold for intensity in
-                  roi.intensity_list]
+        aboves = [intensity > self.intensity_threshold for intensity in roi.intensity_list]
         return float(
-            max(itertools.accumulate(aboves, lambda a, b: a + 1 if b else 0,
-                                     initial=0)) >= self.count_threshold)
+            max(itertools.accumulate(aboves, lambda a, b: a + 1 if b else 0, initial=0))
+            >= self.count_threshold
+        )
 
 
 # It's a peak if we observe intensity increasing (maybe a rolling average)
@@ -34,28 +36,47 @@ class IncreaseEstimator(NoiseEstimator):
         self.count_threshold = count_threshold
 
     def estimate_noise(self, roi):
-        increases = (roi.intensity_list[i + 1] - roi.intensity_list[i] > 0
-                     for i in range(len(roi.intensity_list) - 1))
+        increases = (
+            roi.intensity_list[i + 1] - roi.intensity_list[i] > 0
+            for i in range(len(roi.intensity_list) - 1)
+        )
         return float(
-            max(itertools.accumulate(increases, lambda a, b: a + 1 if b else 0,
-                                     initial=0)) >= self.count_threshold)
+            max(itertools.accumulate(increases, lambda a, b: a + 1 if b else 0, initial=0))
+            >= self.count_threshold
+        )
 
 
 # class OracleEstimator(NoiseEstimator):
 
+
 class NoiseController(RoiController):
-    def __init__(self, ionisation_mode, isolation_width, mz_tol,
-                 min_ms1_intensity, min_roi_intensity,
-                 min_roi_length, N, noise_estimator, rt_tol=10,
-                 min_roi_length_for_fragmentation=1,
-                 ms1_shift=0,
-                 advanced_params=None):
+    def __init__(
+        self,
+        ionisation_mode,
+        isolation_width,
+        mz_tol,
+        min_ms1_intensity,
+        min_roi_intensity,
+        min_roi_length,
+        N,
+        noise_estimator,
+        rt_tol=10,
+        min_roi_length_for_fragmentation=1,
+        ms1_shift=0,
+        advanced_params=None,
+    ):
         super().__init__(
-            ionisation_mode, isolation_width, mz_tol, min_ms1_intensity,
+            ionisation_mode,
+            isolation_width,
+            mz_tol,
+            min_ms1_intensity,
             min_roi_intensity,
-            min_roi_length, N, rt_tol=rt_tol,
+            min_roi_length,
+            N,
+            rt_tol=rt_tol,
             min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-            ms1_shift=ms1_shift, advanced_params=advanced_params
+            ms1_shift=ms1_shift,
+            advanced_params=advanced_params,
         )
 
         # given a RoI, returns probability that it is noise

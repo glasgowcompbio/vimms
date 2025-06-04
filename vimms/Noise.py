@@ -25,7 +25,7 @@ def trunc_normal(mean, sigma, log_space):
         return np.exp(s)
 
 
-class NoPeakNoise():
+class NoPeakNoise:
     """
     The base peak noise object that doesn't add any noise
     """
@@ -95,16 +95,16 @@ class GaussianPeakNoiseLevelSpecific(NoPeakNoise):
 
     def get(self, original, ms_level):
         if ms_level in self.sigma_level_dict:
-            return trunc_normal(original, self.sigma_level_dict[ms_level],
-                                self.log_space)
+            return trunc_normal(original, self.sigma_level_dict[ms_level], self.log_space)
         else:
             return original
 
 
-class UniformSpikeNoise():
+class UniformSpikeNoise:
     """
     A class to add uniform spike noise to the data
     """
+
     def __init__(self, density, max_val, min_val=0, min_mz=None, max_mz=None):
         """
         Create a UniformSpikeNoise class
@@ -128,7 +128,6 @@ class UniformSpikeNoise():
             max_measurement_mz = self.max_mz
         mz_range = max_measurement_mz - min_measurement_mz
         n_points = max(int(mz_range * self.density), 1)
-        mz_vals = uniform_list(
-            n_points, min_measurement_mz, max_measurement_mz)
+        mz_vals = uniform_list(n_points, min_measurement_mz, max_measurement_mz)
         intensity_vals = uniform_list(n_points, self.min_val, self.max_val)
         return np.array(mz_vals), np.array(intensity_vals)

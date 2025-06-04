@@ -4,6 +4,7 @@ real-time ROI tracking in various controller. Additionally, ROIs can also be
 loaded from an mzML file and converted into Chemical objects for simulation
 input.
 """
+
 import copy
 import bisect
 import sys
@@ -16,9 +17,7 @@ import pylab as plt
 import pymzml
 import statsmodels.api as sm
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import (
-    load_picked_boxes, map_boxes_to_scans
-)
+from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
 from numba import njit
@@ -26,17 +25,11 @@ from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import (
-    ROI_TYPE_NORMAL, ROI_TYPE_SMART, 
-    path_or_mzml
-)
-from vimms.Evaluation import (
-    load_peakonly_boxes, load_xcms_boxes, 
-    get_precursor_intensities
-)
+from vimms.Common import ROI_TYPE_NORMAL, ROI_TYPE_SMART, path_or_mzml
+from vimms.Evaluation import load_peakonly_boxes, load_xcms_boxes, get_precursor_intensities
 
 
-class Roi():
+class Roi:
     """
     A class to store an ROI (Regions-of-interest). An ROI is a region of
     consecutive scans that potentially form a chromatographic peak. This is the
@@ -104,7 +97,7 @@ class Roi():
         Computes auto-correlation of this ROI intensity signal
         """
         return pd.Series(self.intensity_list).autocorr(lag=lag)
-        
+
     def get_num_unique_scans(self):
         return np.unique(self.rt_list).shape[0]
 
@@ -157,14 +150,14 @@ class Roi():
         """
         if self.n == 0:
             return None
-        chrom = EmpiricalChromatogram(np.array(self.rt_list),
-                                      np.array(self.mz_list),
-                                      np.array(self.intensity_list))
+        chrom = EmpiricalChromatogram(
+            np.array(self.rt_list), np.array(self.mz_list), np.array(self.intensity_list)
+        )
         return chrom
 
     @staticmethod
     def _set_fixed_bounds_for_box(dist, minm, maxm):
-        if(not dist is None):
+        if not dist is None:
             mid = (minm + maxm) / 2
             new_minm = mid - dist
             new_maxm = mid + dist
@@ -172,13 +165,15 @@ class Roi():
             new_minm, new_maxm = minm, maxm
         return new_minm, new_maxm
 
-    def to_box(self, 
-               min_rt_width, 
-               min_mz_width,
-               fixed_rt_dist=None,
-               fixed_mz_dist=None,
-               rt_shift=0, 
-               mz_shift=0):
+    def to_box(
+        self,
+        min_rt_width,
+        min_mz_width,
+        fixed_rt_dist=None,
+        fixed_mz_dist=None,
+        rt_shift=0,
+        mz_shift=0,
+    ):
         """
         Returns a generic box representation of this ROI
 
@@ -186,10 +181,10 @@ class Roi():
             min_rt_width: minimum RT width of the box
             min_mz_width: minimum m/z width of the box
             fixed_rt_dist: if not set to None, overrides the default rt-width (in seconds)
-            of the box, setting it to twice the parameter value. If set to None uses the 
+            of the box, setting it to twice the parameter value. If set to None uses the
             maximum rt-range of points belonging to this RoI as the box's rt-width
-            fixed_mz_width: if not set to None, overrides the default mz-width (in ppm) of 
-            the box, setting it twice the parameter value. If set to None uses the 
+            fixed_mz_width: if not set to None, overrides the default mz-width (in ppm) of
+            the box, setting it twice the parameter value. If set to None uses the
             maximum mz-range of points belonging to this RoI as the box's rt-width
             rt_shift: shift in retention time, if any
             mz_shift: shift in m/z, if any
@@ -201,24 +196,20 @@ class Roi():
         min_mz, max_mz = min(self.mz_list), max(self.mz_list)
 
         min_rt, max_rt = self._set_fixed_bounds_for_box(fixed_rt_dist, min_rt, max_rt)
-        dalton_dist = (
-            self.mean_mz * fixed_mz_dist / 1E6
-            if not fixed_mz_dist is None
-            else None
-        )
+        dalton_dist = self.mean_mz * fixed_mz_dist / 1e6 if not fixed_mz_dist is None else None
         min_mz, max_mz = self._set_fixed_bounds_for_box(dalton_dist, min_mz, max_mz)
-        
+
         return GenericBox(
-                    min_rt + rt_shift, 
-                    max_rt + rt_shift, 
-                    min_mz + mz_shift,
-                    max_mz + mz_shift,
-                    min_xwidth=min_rt_width, 
-                    min_ywidth=min_mz_width, 
-                    intensity=self.max_fragmentation_intensity, 
-                    id=self.id,
-                    roi=self
-              )
+            min_rt + rt_shift,
+            max_rt + rt_shift,
+            min_mz + mz_shift,
+            max_mz + mz_shift,
+            min_xwidth=min_rt_width,
+            min_ywidth=min_mz_width,
+            intensity=self.max_fragmentation_intensity,
+            id=self.id,
+            roi=self,
+        )
 
     def get_boxes_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         """
@@ -240,8 +231,7 @@ class Roi():
         overlaps = [roi_box.overlap_2(box) for box in boxes]
         return overlaps
 
-    def get_roi_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0,
-                        mz_shift=0):
+    def get_roi_overlap(self, boxes, min_rt_width, min_mz_width, rt_shift=0, mz_shift=0):
         """
         TODO: ask Ross or Vinny to add comment
 
@@ -295,12 +285,14 @@ class Roi():
         """
         Returns a string representation of this ROI
         """
-        return 'ROI with data points=%d fragmentations=%d mz ' \
-               '(%.4f-%.4f) rt (%.4f-%.4f)' % (
-                   self.n,
-                   len(self.fragmentation_events),
-                   self.mz_list[0], self.mz_list[-1],
-                   self.rt_list[0], self.rt_list[-1])
+        return "ROI with data points=%d fragmentations=%d mz " "(%.4f-%.4f) rt (%.4f-%.4f)" % (
+            self.n,
+            len(self.fragmentation_events),
+            self.mz_list[0],
+            self.mz_list[-1],
+            self.rt_list[0],
+            self.rt_list[-1],
+        )
 
 
 class SmartRoi(Roi):
@@ -312,6 +304,7 @@ class SmartRoi(Roi):
     - Davies, Vinny, et al. "Rapid Development of Improved Data-Dependent
     Acquisition Strategies." Analytical chemistry 93.14 (2021): 5676-5683.
     """
+
     INITIAL_WAITING = 0
     CAN_FRAGMENT = 1
     AFTER_FRAGMENT = 2
@@ -407,8 +400,10 @@ class SmartRoi(Roi):
     def set_smartroi_rules(self):
         # in a period after a fragmentation has happened
         # if enough time has elapsed, reset everything
-        if self.rt_list[-1] - self.rt_list[self.fragmented_index] > \
-                self.params.reset_length_seconds:
+        if (
+            self.rt_list[-1] - self.rt_list[self.fragmented_index]
+            > self.params.reset_length_seconds
+        ):
             self.status = SmartRoi.CAN_FRAGMENT
             self.can_fragment = True
 
@@ -449,13 +444,19 @@ class SmartRoi(Roi):
         self.can_fragment = status
 
 
-class SmartRoiParams():
+class SmartRoiParams:
     """
     A parameter object that stores various settings required for SmartRoi
     """
 
-    def __init__(self, initial_length_seconds=5, reset_length_seconds=1E6,
-                 intensity_increase_factor=10, dew=15, drop_perc=0.1/100):
+    def __init__(
+        self,
+        initial_length_seconds=5,
+        reset_length_seconds=1e6,
+        intensity_increase_factor=10,
+        dew=15,
+        drop_perc=0.1 / 100,
+    ):
         """
         Initialises a SmartRoiParams object
 
@@ -482,14 +483,21 @@ class SmartRoiParams():
         return str(self.__dict__)
 
 
-class RoiBuilderParams():
+class RoiBuilderParams:
     """
     A parameter object that stores various settings required for ROIBuilder
     """
 
-    def __init__(self, mz_tol=10, min_roi_length=0,
-                 min_roi_intensity=0, at_least_one_point_above=0,
-                 start_rt=0, stop_rt=1E5, max_gaps_allowed=0):
+    def __init__(
+        self,
+        mz_tol=10,
+        min_roi_length=0,
+        min_roi_intensity=0,
+        at_least_one_point_above=0,
+        start_rt=0,
+        stop_rt=1e5,
+        max_gaps_allowed=0,
+    ):
         """
         Initialises an RoiBuilderParams object
 
@@ -505,7 +513,7 @@ class RoiBuilderParams():
                               when building ROIs
         """
         if mz_tol < 0.1:
-            logger.warning(f'Is your m/z tolerance correct? mz_tol={mz_tol}')
+            logger.warning(f"Is your m/z tolerance correct? mz_tol={mz_tol}")
 
         self.mz_tol = mz_tol
         self.min_roi_length = min_roi_length
@@ -519,12 +527,12 @@ class RoiBuilderParams():
         return str(self.__dict__)
 
 
-class RoiBuilder():
+class RoiBuilder:
     """
     A class to construct ROIs. This can be used in real-time to track ROIs
     in a controller, or for extracting ROIs from an mzML file.
     """
-    
+
     def __init__(self, roi_params, smartroi_params=None):
         """
         Initialises an ROI Builder object.
@@ -620,9 +628,9 @@ class RoiBuilder():
 
                         # No match, so create a new ROI and insert it in the
                         # right place in the sorted list
-                        new_roi = self._get_roi_obj(current_mz, current_rt,
-                                                    current_intensity,
-                                                    self.roi_id_counter)
+                        new_roi = self._get_roi_obj(
+                            current_mz, current_rt, current_intensity, self.roi_id_counter
+                        )
                         self.roi_id_counter += 1
                         bisect.insort_right(self.live_roi, new_roi)
 
@@ -651,8 +659,7 @@ class RoiBuilder():
 
             self.current_roi_ids = [roi.id for roi in self.live_roi]
             self.current_roi_mzs = [roi.mz_list[-1] for roi in self.live_roi]
-            self.current_roi_intensities = [roi.intensity_list[-1] for roi in
-                                            self.live_roi]
+            self.current_roi_intensities = [roi.intensity_list[-1] for roi in self.live_roi]
             self.current_roi_length = np.array(
                 [roi.get_num_unique_scans() for roi in self.live_roi]
             )
@@ -679,32 +686,24 @@ class RoiBuilder():
         pos = bisect.bisect_right(roi_list, mz)
 
         if pos == len(roi_list):
-            dist_left = 1e6 * (
-                mz.mean_mz - roi_list[pos - 1].mean_mz
-            ) / mz.mean_mz
-            
+            dist_left = 1e6 * (mz.mean_mz - roi_list[pos - 1].mean_mz) / mz.mean_mz
+
             if dist_left < mz_tol:
                 return roi_list[pos - 1]
             else:
                 return None
-        
+
         elif pos == 0:
-            dist_right = 1e6 * (
-                roi_list[pos].mean_mz - mz.mean_mz
-            ) / mz.mean_mz
-            
+            dist_right = 1e6 * (roi_list[pos].mean_mz - mz.mean_mz) / mz.mean_mz
+
             if dist_right < mz_tol:
                 return roi_list[pos]
             else:
                 return None
-                
+
         else:
-            dist_left = 1e6 * (
-                mz.mean_mz - roi_list[pos - 1].mean_mz
-            ) / mz.mean_mz
-            dist_right = 1e6 * (
-                roi_list[pos].mean_mz - mz.mean_mz
-            ) / mz.mean_mz
+            dist_left = 1e6 * (mz.mean_mz - roi_list[pos - 1].mean_mz) / mz.mean_mz
+            dist_right = 1e6 * (roi_list[pos].mean_mz - mz.mean_mz) / mz.mean_mz
 
             if dist_left < mz_tol < dist_right:
                 return roi_list[pos - 1]
@@ -773,10 +772,10 @@ class RoiBuilder():
 
         # Add information on which scan has fragmented this ROI
         self.frag_roi_dicts.append(
-            {'scan_id': current_task_id, 'roi_id': roi_id,
-             'precursor_intensity': intensity})
+            {"scan_id": current_task_id, "roi_id": roi_id, "precursor_intensity": intensity}
+        )
 
-        #need to track for intensity non-overlap
+        # need to track for intensity non-overlap
         self.live_roi[i].max_fragmentation_intensity = max(
             self.live_roi[i].max_fragmentation_intensity, intensity
         )
@@ -786,18 +785,14 @@ class RoiBuilder():
         Stores the information on which scans and frag events are associated
         to this ROI
         """
-        frag_event_ids = np.array(
-            [event['scan_id'] for event in self.frag_roi_dicts])
+        frag_event_ids = np.array([event["scan_id"] for event in self.frag_roi_dicts])
         which_event = np.where(frag_event_ids == scan.scan_id)[0]
         live_roi_ids = np.array([roi.id for roi in self.live_roi])
-        which_roi = \
-            np.where(
-                live_roi_ids == self.frag_roi_dicts[which_event[0]]['roi_id'])[
-                0]
+        which_roi = np.where(live_roi_ids == self.frag_roi_dicts[which_event[0]]["roi_id"])[0]
         if len(which_roi) > 0:
             self.live_roi[which_roi[0]].add_fragmentation_event(
-                scan,
-                self.frag_roi_dicts[which_event[0]]['precursor_intensity'])
+                scan, self.frag_roi_dicts[which_event[0]]["precursor_intensity"]
+            )
             del self.frag_roi_dicts[which_event[0]]
         else:
             pass  # hopefully shouldnt happen
@@ -813,8 +808,11 @@ class RoiBuilder():
         Returns all ROIs above filtering criteria
         """
         # length check
-        filtered_roi = [roi for roi in self.live_roi if
-                        roi.get_num_unique_scans() >= self.roi_params.min_roi_length]
+        filtered_roi = [
+            roi
+            for roi in self.live_roi
+            if roi.get_num_unique_scans() >= self.roi_params.min_roi_length
+        ]
 
         # intensity check:
         # Keep only the ROIs that can be fragmented above
@@ -830,21 +828,23 @@ class RoiBuilder():
         return keep
 
 
-class RoiAligner():
+class RoiAligner:
     """
     A class that aligns multiple ROIs in different samples
     """
 
-    def __init__(self, mz_tolerance_absolute=1E-8,
-                 mz_tolerance_ppm=10,
-                 rt_tolerance=0.5,
-                 mz_column_pos=1,
-                 rt_column_pos=2,
-                 intensity_column_pos=3,
-                 min_rt_width=0.000001,
-                 min_mz_width=0.000001,
-                 n_categories=1):
-                 
+    def __init__(
+        self,
+        mz_tolerance_absolute=1e-8,
+        mz_tolerance_ppm=10,
+        rt_tolerance=0.5,
+        mz_column_pos=1,
+        rt_column_pos=2,
+        intensity_column_pos=3,
+        min_rt_width=0.000001,
+        min_mz_width=0.000001,
+        n_categories=1,
+    ):
         """
         TODO: ask Ross or Vinny to add comment
 
@@ -861,10 +861,14 @@ class RoiAligner():
         """
 
         self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance = (
-            mz_tolerance_absolute, mz_tolerance_ppm, rt_tolerance
+            mz_tolerance_absolute,
+            mz_tolerance_ppm,
+            rt_tolerance,
         )
         self.mz_column_pos, self.rt_column_pos, self.intensity_column_pos = (
-            mz_column_pos, rt_column_pos, intensity_column_pos
+            mz_column_pos,
+            rt_column_pos,
+            intensity_column_pos,
         )
         self.min_rt_width, self.min_mz_width = min_rt_width, min_mz_width
 
@@ -875,8 +879,7 @@ class RoiAligner():
         self.peaksets2boxes, self.peaksets2fragintensities = {}, {}
         self.addition_method = None
 
-    def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None,
-                   mz_shifts=None):
+    def add_sample(self, rois, sample_name, sample_type=None, rt_shifts=None, mz_shifts=None):
         """
         TODO: ask Ross or Vinny to add comment
 
@@ -892,26 +895,23 @@ class RoiAligner():
         """
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
-        
+
         these_peaks, frag_intensities, temp_boxes = [], [], []
         for i, roi in enumerate(rois):
             source_id = f"{sample_name}_{i}"
             peak_mz = roi.mean_mz
             peak_rt = roi.estimate_apex()
             peak_intensity = roi.get_max_intensity()
-            these_peaks.append(
-                Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
+            these_peaks.append(Peak(peak_mz, peak_rt, peak_intensity, sample_name, source_id))
             frag_intensities.append(roi.max_fragmentation_intensity)
             rt_shift = 0 if rt_shifts is None else rt_shifts[i]
             mz_shift = 0 if mz_shifts is None else mz_shifts[i]
-            temp_boxes.append(
-                roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift,
-                           mz_shift))
+            temp_boxes.append(roi.to_box(self.min_rt_width, self.min_mz_width, rt_shift, mz_shift))
 
         # do alignment, adding the peaks and boxes, and recalculating max
         # frag intensity
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
-        
+
     @staticmethod
     def load_boxes(peak_file, picking_method):
         if picking_method == "mzmine":
@@ -921,13 +921,21 @@ class RoiAligner():
         elif picking_method == "xcms":
             boxes = load_xcms_boxes(peak_file)  # not tested
         else:
-            raise NotImplementedError(f"Picking method \"{picking_method}\" not recognised!")
+            raise NotImplementedError(f'Picking method "{picking_method}" not recognised!')
         return boxes
 
-    def add_picked_peaks(self, mzml_file, peak_file, sample_name,
-                         picking_method="mzmine", sample_type=None,
-                         half_isolation_window=0, allow_last_overlap=False,
-                         rt_shifts=None, mz_shifts=None):
+    def add_picked_peaks(
+        self,
+        mzml_file,
+        peak_file,
+        sample_name,
+        picking_method="mzmine",
+        sample_type=None,
+        half_isolation_window=0,
+        allow_last_overlap=False,
+        rt_shifts=None,
+        mz_shifts=None,
+    ):
         """
         TODO: ask Ross or Vinny to add comment
 
@@ -947,29 +955,26 @@ class RoiAligner():
         """
         self.sample_names.append(sample_name)
         self.sample_types.append(sample_type)
-        
+
         these_peaks, frag_intensities = [], []
         temp_boxes = self.load_boxes(peak_file, picking_method)
         temp_boxes = update_picked_boxes(temp_boxes, rt_shifts, mz_shifts)
         self.list_of_boxes.append(temp_boxes)
-        
+
         mzml = path_or_mzml(mzml_file)
         scans2boxes, boxes2scans = map_boxes_to_scans(
-                                        mzml, 
-                                        temp_boxes, 
-                                        half_isolation_window=half_isolation_window,
-                                        allow_last_overlap=allow_last_overlap
-                                    )
-        precursor_intensities, scores = (
-            get_precursor_intensities(boxes2scans, temp_boxes, "max")
+            mzml,
+            temp_boxes,
+            half_isolation_window=half_isolation_window,
+            allow_last_overlap=allow_last_overlap,
         )
-        
+        precursor_intensities, scores = get_precursor_intensities(boxes2scans, temp_boxes, "max")
+
         for i, box in enumerate(temp_boxes):
             source_id = f"{sample_name}_{i}"
             peak_mz = box.mz
             peak_rt = box.rt_in_seconds
-            these_peaks.append(
-                Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
+            these_peaks.append(Peak(peak_mz, peak_rt, box.height, sample_name, source_id))
             frag_intensities.append(precursor_intensities[i])
 
         self._align(these_peaks, temp_boxes, frag_intensities, sample_name)
@@ -990,28 +995,27 @@ class RoiAligner():
         seen_ps, unassigned = set(), []
         for peak, box, intensity in zip(these_peaks, temp_boxes, frag_intensities):
             candidates = [
-                ps for ps in self.peaksets 
-                if not ps in seen_ps and ps.is_in_box(peak, 
-                                                      self.mz_tolerance_absolute, 
-                                                      self.mz_tolerance_ppm, 
-                                                      self.rt_tolerance
-                                                     )
+                ps
+                for ps in self.peaksets
+                if not ps in seen_ps
+                and ps.is_in_box(
+                    peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance
+                )
             ]
-            if(len(candidates) > 0):
+            if len(candidates) > 0:
                 scores = [
                     ps.compute_weight(
-                        peak, 
-                        self.mz_tolerance_absolute, 
-                        self.mz_tolerance_ppm, 
-                        self.rt_tolerance, 
-                        self.mz_weight, 
-                        self.rt_weight
-                    ) 
+                        peak,
+                        self.mz_tolerance_absolute,
+                        self.mz_tolerance_ppm,
+                        self.rt_tolerance,
+                        self.mz_weight,
+                        self.rt_weight,
+                    )
                     for ps in candidates
                 ]
                 best_ps, _ = max(
-                    ((ps, s) for ps, s in zip(candidates, scores)), 
-                    key=lambda t: t[1]
+                    ((ps, s) for ps, s in zip(candidates, scores)), key=lambda t: t[1]
                 )
                 best_ps.add_peak(peak)
                 self.peaksets2boxes[best_ps].append(box)
@@ -1019,13 +1023,13 @@ class RoiAligner():
                 seen_ps.add(best_ps)
             else:
                 unassigned.append((peak, box, intensity))
-        
+
         for peak, box, intensity in unassigned:
             new_ps = PeakSet(peak)
             self.peaksets.append(new_ps)
             self.peaksets2boxes[new_ps] = [box]
             self.peaksets2fragintensities[new_ps] = [intensity]
-            
+
         self.files_loaded.append(short_name)
 
     def to_matrix(self):
@@ -1034,11 +1038,8 @@ class RoiAligner():
         (rows: peaksets, columns: files)
         """
         return np.array(
-            [
-                [ps.get_intensity(fname) for fname in self.files_loaded]
-                for ps in self.peaksets
-            ], 
-            dtype=np.double
+            [[ps.get_intensity(fname) for fname in self.files_loaded] for ps in self.peaksets],
+            dtype=np.double,
         )
 
     def get_boxes(self, method="mean"):
@@ -1051,9 +1052,11 @@ class RoiAligner():
         Returns: a list of [vimms.Box.GenericBox][] objects.
 
         """
-        if method == "max": f1, f2 = min, max
-        else: f1 = f2 = mean
-        
+        if method == "max":
+            f1, f2 = min, max
+        else:
+            f1 = f2 = mean
+
         boxes = []
         for ps in self.peaksets:
             box_list = self.peaksets2boxes[ps]
@@ -1063,10 +1066,14 @@ class RoiAligner():
             y2 = f2(b.pt2.y for b in box_list)
             intensity = max(self.peaksets2fragintensities[ps])
             boxes.append(
-                GenericBox(x1, x2, y1, y2, 
-                           intensity=intensity, 
-                           min_xwidth=self.min_rt_width,
-                           min_ywidth=self.min_mz_width
+                GenericBox(
+                    x1,
+                    x2,
+                    y1,
+                    y2,
+                    intensity=intensity,
+                    min_xwidth=self.min_rt_width,
+                    min_ywidth=self.min_mz_width,
                 )
             )
         return boxes
@@ -1084,7 +1091,7 @@ class FrequentistRoiAligner(RoiAligner):
     This class does ...
     """
 
-    def get_boxes(self, method='mean'):
+    def get_boxes(self, method="mean"):
         """
         Converts peaksets to generic boxes in a different way
 
@@ -1096,9 +1103,9 @@ class FrequentistRoiAligner(RoiAligner):
         """
         boxes = super().get_boxes(method)
         categories = np.unique(np.array(self.sample_types))
-        enough_categories = min(
-            Counter(self.sample_types).values()) > 1 and len(
-            categories) == self.n_categories
+        enough_categories = (
+            min(Counter(self.sample_types).values()) > 1 and len(categories) == self.n_categories
+        )
         pvalues = self.get_p_values(enough_categories)
         for i, box in enumerate(boxes):
             box.pvalue = pvalues[i]
@@ -1122,8 +1129,8 @@ class FrequentistRoiAligner(RoiAligner):
             categories = np.unique(np.array(self.sample_types))
             if self.n_categories == 2:  # logistic regression
                 x = np.array([1 for i in self.sample_types])
-                if 'control' in categories:
-                    control_type = 'control'
+                if "control" in categories:
+                    control_type = "control"
                 else:
                     control_type = categories[0]
                 x[np.where(np.array(self.sample_types) == control_type)] = 0
@@ -1143,6 +1150,7 @@ class FrequentistRoiAligner(RoiAligner):
 # Other useful methods related to ROIs
 ###############################################################################
 
+
 # Make the RoI from an input file
 def make_roi(input_file, roi_params):
     """
@@ -1156,23 +1164,25 @@ def make_roi(input_file, roi_params):
              certain criteria.
 
     """
-    
-    from vimms.MassSpec import Scan #import in fn. body to avoid circular import
 
-    run = pymzml.run.Reader(input_file, MS1_Precision=5e-6,
-                            extraAccessions=[
-                                ('MS:1000016', ['value', 'unitName'])],
-                            obo_version='4.0.1')
+    from vimms.MassSpec import Scan  # import in fn. body to avoid circular import
+
+    run = pymzml.run.Reader(
+        input_file,
+        MS1_Precision=5e-6,
+        extraAccessions=[("MS:1000016", ["value", "unitName"])],
+        obo_version="4.0.1",
+    )
 
     scan_id = 0
     roi_builder = RoiBuilder(roi_params)
     for i, spectrum in enumerate(run):
         ms_level = 1
-        if spectrum['ms level'] == ms_level:
+        if spectrum["ms level"] == ms_level:
             current_ms1_scan_rt, units = spectrum.scan_time
 
             # check that ms1 scan (in seconds) is within bound
-            if units == 'minute':
+            if units == "minute":
                 current_ms1_scan_rt *= 60.0
             if current_ms1_scan_rt < roi_params.start_rt:
                 continue
@@ -1181,10 +1191,9 @@ def make_roi(input_file, roi_params):
 
             # get the raw peak data from spectrum
             mzs, intensities = spectrum_to_arrays(spectrum)
-            
+
             # update the ROI construction based on the new scan
-            scan = Scan(scan_id, mzs, intensities, ms_level,
-                        current_ms1_scan_rt)
+            scan = Scan(scan_id, mzs, intensities, ms_level, current_ms1_scan_rt)
             roi_builder.update_roi(scan)
             scan_id += 1
 
@@ -1205,7 +1214,7 @@ def spectrum_to_arrays(spectrum):
     """
     mzs = []
     intensities = []
-    for mz, intensity in spectrum.peaks('raw'):
+    for mz, intensity in spectrum.peaks("raw"):
         mzs.append(mz)
         intensities.append(intensity)
     mzs = np.array(mzs)
@@ -1213,7 +1222,7 @@ def spectrum_to_arrays(spectrum):
     return mzs, intensities
 
 
-def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method='pearson'):
+def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method="pearson"):
     """
     Computes the correlation between two ROI objects
 
@@ -1252,10 +1261,10 @@ def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method='pearson'):
     r1 = np.zeros((total_length), np.double)
     r2 = np.zeros_like(r1)
 
-    r1[:len(roi1.rt_list)] = roi1.intensity_list
-    r2[pos:pos + len(roi2.rt_list)] = roi2.intensity_list
+    r1[: len(roi1.rt_list)] = roi1.intensity_list
+    r2[pos : pos + len(roi2.rt_list)] = roi2.intensity_list
 
-    if method == 'pearson':
+    if method == "pearson":
         r, _ = pearsonr(r1, r2)
     else:
         r = cosine_score(r1, r2)
@@ -1279,7 +1288,7 @@ def cosine_score(u, v):
     return numerator / denominator
 
 
-def greedy_roi_cluster(roi_list, corr_thresh=0.75, corr_type='cosine'):
+def greedy_roi_cluster(roi_list, corr_thresh=0.75, corr_type="cosine"):
     """
     Performs a greedy clustering of ROIs
 
@@ -1325,25 +1334,25 @@ def plot_roi(roi, statuses=None, log=False):
     """
     if log:
         intensities = np.log(roi.intensity_list)
-        plt.ylabel('Log Intensity')
+        plt.ylabel("Log Intensity")
     else:
         intensities = roi.intensity_list
-        plt.ylabel('Intensity')
+        plt.ylabel("Intensity")
     if statuses is not None:
         colours = []
         for s in statuses:
-            if s == 'Noise':
-                colours.append('red')
-            elif s == 'Increase':
-                colours.append('blue')
-            elif s == 'Decrease':
-                colours.append('yellow')
+            if s == "Noise":
+                colours.append("red")
+            elif s == "Increase":
+                colours.append("blue")
+            elif s == "Decrease":
+                colours.append("yellow")
             else:
-                colours.append('green')
+                colours.append("green")
         plt.scatter(roi.rt_list, intensities, color=colours)
     else:
         plt.scatter(roi.rt_list, intensities)
-    plt.xlabel('RT')
+    plt.xlabel("RT")
     plt.show()
 
 
@@ -1361,19 +1370,19 @@ def update_picked_boxes(picked_boxes, rt_shifts, mz_shifts):
     """
     if rt_shifts is None and mz_shifts is None:
         return picked_boxes
-        
+
     new_boxes = copy.deepcopy(picked_boxes)
     for box, sec_shift, mz_shift in zip(new_boxes, rt_shifts, mz_shifts):
         if rt_shifts is not None:
             sec_shift = float(sec_shift)
             min_shift = sec_shift / 60.0
-        
+
             box.rt += min_shift
             box.rt_in_minutes += min_shift
             box.rt_in_seconds += sec_shift
             box.rt_range = [r + min_shift for r in box.rt_range]
             box.rt_range_in_seconds = [r + sec_shift for r in box.rt_range_in_seconds]
-            
+
         if mz_shifts is not None:
             mz_shift = float(mz_shift)
             box.mz += mz_shift

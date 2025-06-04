@@ -6,12 +6,21 @@ import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
 
-ALL_BLOCKS = int(1E6)
+ALL_BLOCKS = int(1e6)
 ATOL = 0.01
 
 
-def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvoluter, labels,
-                       s=3, alpha=1.0, lo=0, hi=int(1E6), out_file=None, show_plot=True):
+def plot_num_ms2_scans(
+    reference_block_deconvoluter,
+    simulated_block_deconvoluter,
+    labels,
+    s=3,
+    alpha=1.0,
+    lo=0,
+    hi=int(1e6),
+    out_file=None,
+    show_plot=True,
+):
     list_of_block_deconvoluters = [reference_block_deconvoluter]
     if simulated_block_deconvoluter is not None:
         list_of_block_deconvoluters.append(simulated_block_deconvoluter)
@@ -50,8 +59,8 @@ def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvolute
 
     # Set the labels for the x and y axes
     for ax in axs:
-        ax.set_xlabel('MS1 Scan Time (seconds)')
-        ax.set_ylabel('Number of MS2 Scans')
+        ax.set_xlabel("MS1 Scan Time (seconds)")
+        ax.set_ylabel("Number of MS2 Scans")
 
     # Adjust the layout
     plt.tight_layout()
@@ -65,8 +74,16 @@ def plot_num_ms2_scans(reference_block_deconvoluter, simulated_block_deconvolute
     plt.close()
 
 
-def plot_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, labels,
-                    bins=range(16), lo=0, hi=int(1E6), out_file=None, show_plot=True):
+def plot_histograms(
+    reference_block_deconvoluter,
+    simulated_block_deconvoluter,
+    labels,
+    bins=range(16),
+    lo=0,
+    hi=int(1e6),
+    out_file=None,
+    show_plot=True,
+):
     list_of_block_deconvoluters = [reference_block_deconvoluter]
     if simulated_block_deconvoluter is not None:
         list_of_block_deconvoluters.append(simulated_block_deconvoluter)
@@ -101,8 +118,8 @@ def plot_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, 
 
     # Set the labels for the x and y axes
     for ax in axs:
-        ax.set_xlabel('Number of MS2 Scans')
-        ax.set_ylabel('Frequency')
+        ax.set_xlabel("Number of MS2 Scans")
+        ax.set_ylabel("Frequency")
 
     # Adjust the layout
     plt.tight_layout()
@@ -116,7 +133,7 @@ def plot_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, 
     plt.close()
 
 
-def extract_ms2_counts(block_deconvoluter, lo=0, hi=int(1E6)):
+def extract_ms2_counts(block_deconvoluter, lo=0, hi=int(1e6)):
     """Extract MS2 counts from blocks within specified range."""
     data = []
     for block_id, scans in block_deconvoluter.blocks:
@@ -130,8 +147,9 @@ def extract_ms2_counts(block_deconvoluter, lo=0, hi=int(1E6)):
     return np.array(data)  # convert to numpy array here
 
 
-def compare_histograms(reference_block_deconvoluter, simulated_block_deconvoluter, bins=range(16),
-                       lo=0, hi=int(1E6)):
+def compare_histograms(
+    reference_block_deconvoluter, simulated_block_deconvoluter, bins=range(16), lo=0, hi=int(1e6)
+):
     # Extract MS2 counts from the real and simulated data
     real_data = extract_ms2_counts(reference_block_deconvoluter, lo, hi)
     simulated_data = extract_ms2_counts(simulated_block_deconvoluter, lo, hi)
@@ -146,8 +164,15 @@ def compare_histograms(reference_block_deconvoluter, simulated_block_deconvolute
     return sum_of_abs_diff
 
 
-def plot_heatmaps(rmse_ms1_array, rmse_ms2_array, sum_of_abs_diff_array, scores, penalty_factors,
-                  out_file=None, show_plot=True):
+def plot_heatmaps(
+    rmse_ms1_array,
+    rmse_ms2_array,
+    sum_of_abs_diff_array,
+    scores,
+    penalty_factors,
+    out_file=None,
+    show_plot=True,
+):
     # Convert the scores and penalty factors to strings for labeling
     scores_str = [str(s) for s in scores]
     penalty_factors_str = [str(pf) for pf in penalty_factors]
@@ -156,37 +181,39 @@ def plot_heatmaps(rmse_ms1_array, rmse_ms2_array, sum_of_abs_diff_array, scores,
     fig, axs = plt.subplots(1, 3, figsize=(18, 6))
 
     # Create the first heatmap for rmse_ms1_array
-    img1 = axs[0].imshow(rmse_ms1_array, cmap='viridis', interpolation='none', aspect='auto')
-    fig.colorbar(img1, ax=axs[0], orientation='vertical')
-    axs[0].set_title('RMSE MS1')
+    img1 = axs[0].imshow(rmse_ms1_array, cmap="viridis", interpolation="none", aspect="auto")
+    fig.colorbar(img1, ax=axs[0], orientation="vertical")
+    axs[0].set_title("RMSE MS1")
     axs[0].set_xticks(np.arange(len(penalty_factors)))
     axs[0].set_yticks(np.arange(len(scores)))
     axs[0].set_xticklabels(penalty_factors_str)
     axs[0].set_yticklabels(scores_str)
-    axs[0].set_xlabel('Penalty Factor')
-    axs[0].set_ylabel('Score')
+    axs[0].set_xlabel("Penalty Factor")
+    axs[0].set_ylabel("Score")
 
     # Create the second heatmap for rmse_ms2_array
-    img2 = axs[1].imshow(rmse_ms2_array, cmap='viridis', interpolation='none', aspect='auto')
-    fig.colorbar(img2, ax=axs[1], orientation='vertical')
-    axs[1].set_title('RMSE MS2')
+    img2 = axs[1].imshow(rmse_ms2_array, cmap="viridis", interpolation="none", aspect="auto")
+    fig.colorbar(img2, ax=axs[1], orientation="vertical")
+    axs[1].set_title("RMSE MS2")
     axs[1].set_xticks(np.arange(len(penalty_factors)))
     axs[1].set_yticks(np.arange(len(scores)))
     axs[1].set_xticklabels(penalty_factors_str)
     axs[1].set_yticklabels(scores_str)
-    axs[1].set_xlabel('Penalty Factor')
-    axs[1].set_ylabel('Score')
+    axs[1].set_xlabel("Penalty Factor")
+    axs[1].set_ylabel("Score")
 
     # Create the third heatmap for sum_of_abs_diff_array
-    img3 = axs[2].imshow(sum_of_abs_diff_array, cmap='viridis', interpolation='none', aspect='auto')
-    fig.colorbar(img3, ax=axs[2], orientation='vertical')
-    axs[2].set_title('Sum of Abs Differences')
+    img3 = axs[2].imshow(
+        sum_of_abs_diff_array, cmap="viridis", interpolation="none", aspect="auto"
+    )
+    fig.colorbar(img3, ax=axs[2], orientation="vertical")
+    axs[2].set_title("Sum of Abs Differences")
     axs[2].set_xticks(np.arange(len(penalty_factors)))
     axs[2].set_yticks(np.arange(len(scores)))
     axs[2].set_xticklabels(penalty_factors_str)
     axs[2].set_yticklabels(scores_str)
-    axs[2].set_xlabel('Penalty Factor')
-    axs[2].set_ylabel('Score')
+    axs[2].set_xlabel("Penalty Factor")
+    axs[2].set_ylabel("Score")
 
     # Show the plots
     plt.tight_layout()
@@ -197,13 +224,14 @@ def plot_heatmaps(rmse_ms1_array, rmse_ms2_array, sum_of_abs_diff_array, scores,
     if show_plot:
         plt.show()
 
+
 class BlockDeconvoluter:
     def __init__(self, mz_file, max_blocks=ALL_BLOCKS, discard_first=False):
         self.blocks = self._get_blocks(mz_file, max_blocks=max_blocks, discard_first=discard_first)
         self._reset()
 
     def check_blocks(self, lo=0, hi=ALL_BLOCKS):
-        for block in self.blocks[lo: hi]:
+        for block in self.blocks[lo:hi]:
             self.plot_block(block)
 
     def plot_block(self, block):
@@ -211,10 +239,10 @@ class BlockDeconvoluter:
         ms1_scan = scans[0]
         ms2_scans = scans[1:]
         precursors = [s.precursor_mz for s in ms2_scans]
-        print('block_id', block_id)
-        print('ms1_scan', ms1_scan.precursor_mz, '@', ms1_scan.rt_in_seconds)
-        print('precursors', precursors, '(', len(precursors), ')')
-        print('len(ms2_scans)', len(ms2_scans))
+        print("block_id", block_id)
+        print("ms1_scan", ms1_scan.precursor_mz, "@", ms1_scan.rt_in_seconds)
+        print("precursors", precursors, "(", len(precursors), ")")
+        print("len(ms2_scans)", len(ms2_scans))
         self._plot_peaks(ms1_scan, precursors)
         print()
 
@@ -260,7 +288,7 @@ class BlockDeconvoluter:
     def deconvolute_blocks(self, decon_config=None):
         self._reset()
 
-        for block in tqdm(self.blocks, desc='Processing blocks'):
+        for block in tqdm(self.blocks, desc="Processing blocks"):
             block_id, scans = block
             ms1_scan = scans[0]
             ms2_scans = scans[1:]
@@ -276,7 +304,7 @@ class BlockDeconvoluter:
             self.ms1_scans.append(ms1_scan)
             self.precursor_list.append(precursors)
 
-            scores = df['score'].tolist() if not df.empty else []
+            scores = df["score"].tolist() if not df.empty else []
             self.scores_list.append(scores)
             self.times_list.append(ms1_scan.rt_in_seconds)
 
@@ -300,29 +328,30 @@ class BlockDeconvoluter:
         fig, axs = plt.subplots(1, 2, sharey=True, figsize=(10, 5))
 
         sns.boxplot(scores_with_ms2, ax=axs[0])
-        axs[0].set_title('Blocks with MS2 scans')
+        axs[0].set_title("Blocks with MS2 scans")
 
         sns.boxplot(scores_without_ms2, ax=axs[1])
-        axs[1].set_title('Blocks without MS2 scans')
+        axs[1].set_title("Blocks without MS2 scans")
 
         plt.show()
 
     def plot_average_scores(self, window_size=10):
-        avg_scores = [sum(scores) / len(scores) if len(scores) > 0 else 0 for scores in
-                      self.scores_list]
-        num_peaks = [len(scores) if len(scores) > 0 else 0 for scores in
-                     self.scores_list]
+        avg_scores = [
+            sum(scores) / len(scores) if len(scores) > 0 else 0 for scores in self.scores_list
+        ]
+        num_peaks = [len(scores) if len(scores) > 0 else 0 for scores in self.scores_list]
 
         baseline = self._estimate_baseline(avg_scores, window_size=window_size)
         print(baseline)
 
         plt.figure(figsize=(10, 5))
-        plt.plot(self.times_list, avg_scores, label='Average Score',
-                 marker='o')  # Added marker='o' for circular markers
-        plt.axhline(y=baseline, color='r', linestyle='--', label='Baseline')
-        plt.xlabel('Time (in seconds)')
-        plt.ylabel('Average Score')
-        plt.title('Average Score over Time')
+        plt.plot(
+            self.times_list, avg_scores, label="Average Score", marker="o"
+        )  # Added marker='o' for circular markers
+        plt.axhline(y=baseline, color="r", linestyle="--", label="Baseline")
+        plt.xlabel("Time (in seconds)")
+        plt.ylabel("Average Score")
+        plt.title("Average Score over Time")
         plt.legend()
         plt.show()
 
@@ -333,24 +362,25 @@ class BlockDeconvoluter:
         min_scores = [min(scores) if len(scores) > 0 else 0 for scores in self.scores_list]
 
         plt.figure(figsize=(10, 5))
-        plt.plot(self.times_list, min_scores, label='Minimum Score',
-                 marker='o')  # Added marker='o' for circular markers
-        plt.xlabel('Time (in seconds)')
-        plt.ylabel('Minimum Score')
-        plt.title('Minimum Score over Time')
+        plt.plot(
+            self.times_list, min_scores, label="Minimum Score", marker="o"
+        )  # Added marker='o' for circular markers
+        plt.xlabel("Time (in seconds)")
+        plt.ylabel("Minimum Score")
+        plt.title("Minimum Score over Time")
         plt.legend()
         plt.show()
 
-    def plot_minimum_scores_fragmented(self, plot_type='line'):
+    def plot_minimum_scores_fragmented(self, plot_type="line"):
         min_scores_fragmented = []
         signal_to_noise_ratios = []
         for df in self.dfs:
-            if 'is_precursor' in df.columns:
-                precursor_scores = df[df['is_precursor'] == True]['score']
+            if "is_precursor" in df.columns:
+                precursor_scores = df[df["is_precursor"] == True]["score"]
                 if not precursor_scores.empty:  # Added check for empty dataframe
                     min_score_idx = precursor_scores.idxmin()
-                    min_score = df.loc[min_score_idx, 'score']
-                    sn_ratio = df.loc[min_score_idx, 'signal_to_noise']
+                    min_score = df.loc[min_score_idx, "score"]
+                    sn_ratio = df.loc[min_score_idx, "signal_to_noise"]
                     min_scores_fragmented.append(min_score)
                     signal_to_noise_ratios.append(int(sn_ratio))
                 else:  # Handling case when precursor_scores is empty
@@ -362,21 +392,29 @@ class BlockDeconvoluter:
 
         plt.figure(figsize=(10, 5))
 
-        if plot_type == 'scatter':
-            plt.scatter(min_scores_fragmented, signal_to_noise_ratios,
-                        label='Signal-to-Noise Ratio vs Min Score', marker='o')
-            plt.xlabel('Minimum Score')
-            plt.ylabel('Signal-to-Noise Ratio')
+        if plot_type == "scatter":
+            plt.scatter(
+                min_scores_fragmented,
+                signal_to_noise_ratios,
+                label="Signal-to-Noise Ratio vs Min Score",
+                marker="o",
+            )
+            plt.xlabel("Minimum Score")
+            plt.ylabel("Signal-to-Noise Ratio")
         else:  # Default to line plot
-            plt.plot(self.times_list, min_scores_fragmented, label='Minimum Score (fragmented)',
-                     marker='o')
+            plt.plot(
+                self.times_list,
+                min_scores_fragmented,
+                label="Minimum Score (fragmented)",
+                marker="o",
+            )
             for i, txt in enumerate(signal_to_noise_ratios):
                 if txt is not None:  # Check to make sure there's something to annotate
                     plt.annotate(txt, (self.times_list[i], min_scores_fragmented[i]))
-            plt.xlabel('Time (in seconds)')
-            plt.ylabel('Minimum Score')
+            plt.xlabel("Time (in seconds)")
+            plt.ylabel("Minimum Score")
 
-        plt.title('Minimum Score of Fragmented Peaks over Time')
+        plt.title("Minimum Score of Fragmented Peaks over Time")
         plt.legend()
         plt.show()
 
@@ -384,24 +422,25 @@ class BlockDeconvoluter:
         max_scores = [max(scores) if len(scores) > 0 else 0 for scores in self.scores_list]
 
         plt.figure(figsize=(10, 5))
-        plt.plot(self.times_list, max_scores, label='Maximum Score',
-                 marker='o')  # Added marker='o' for circular markers
-        plt.xlabel('Time (in seconds)')
-        plt.ylabel('Maximum Score')
-        plt.title('Maximum Score over Time')
+        plt.plot(
+            self.times_list, max_scores, label="Maximum Score", marker="o"
+        )  # Added marker='o' for circular markers
+        plt.xlabel("Time (in seconds)")
+        plt.ylabel("Maximum Score")
+        plt.title("Maximum Score over Time")
         plt.legend()
         plt.show()
 
-    def plot_maximum_scores_fragmented(self, plot_type='line'):
+    def plot_maximum_scores_fragmented(self, plot_type="line"):
         max_scores_fragmented = []
         signal_to_noise_ratios = []
         for df in self.dfs:
-            if 'is_precursor' in df.columns:
-                precursor_scores = df[df['is_precursor'] == True]['score']
+            if "is_precursor" in df.columns:
+                precursor_scores = df[df["is_precursor"] == True]["score"]
                 if not precursor_scores.empty:  # Added check for empty dataframe
                     max_score_idx = precursor_scores.idxmax()
-                    max_score = df.loc[max_score_idx, 'score']
-                    sn_ratio = df.loc[max_score_idx, 'signal_to_noise']
+                    max_score = df.loc[max_score_idx, "score"]
+                    sn_ratio = df.loc[max_score_idx, "signal_to_noise"]
                     max_scores_fragmented.append(max_score)
                     signal_to_noise_ratios.append(int(sn_ratio))
                 else:  # Handling case when precursor_scores is empty
@@ -413,21 +452,29 @@ class BlockDeconvoluter:
 
         plt.figure(figsize=(10, 5))
 
-        if plot_type == 'scatter':
-            plt.scatter(max_scores_fragmented, signal_to_noise_ratios,
-                        label='Signal-to-Noise Ratio vs Max Score', marker='o')
-            plt.xlabel('Maximum Score')
-            plt.ylabel('Signal-to-Noise Ratio')
+        if plot_type == "scatter":
+            plt.scatter(
+                max_scores_fragmented,
+                signal_to_noise_ratios,
+                label="Signal-to-Noise Ratio vs Max Score",
+                marker="o",
+            )
+            plt.xlabel("Maximum Score")
+            plt.ylabel("Signal-to-Noise Ratio")
         else:  # Default to line plot
-            plt.plot(self.times_list, max_scores_fragmented, label='Maximum Score (fragmented)',
-                     marker='o')
+            plt.plot(
+                self.times_list,
+                max_scores_fragmented,
+                label="Maximum Score (fragmented)",
+                marker="o",
+            )
             for i, txt in enumerate(signal_to_noise_ratios):
                 if txt is not None:  # Check to make sure there's something to annotate
                     plt.annotate(txt, (self.times_list[i], max_scores_fragmented[i]))
-            plt.xlabel('Time (in seconds)')
-            plt.ylabel('Maximum Score')
+            plt.xlabel("Time (in seconds)")
+            plt.ylabel("Maximum Score")
 
-        plt.title('Maximum Score of Fragmented Peaks over Time')
+        plt.title("Maximum Score of Fragmented Peaks over Time")
         plt.legend()
         plt.show()
 
@@ -471,17 +518,23 @@ class BlockDeconvoluter:
             # Check if m is close to any value in precursors
             is_precursor = any(np.isclose(m, p, atol=ATOL) for p in precursors)
             # print(m, i, is_precursor)
-            color = 'red' if is_precursor else 'C0'  # 'C0' is the default matplotlib color
+            color = "red" if is_precursor else "C0"  # 'C0' is the default matplotlib color
             plt.vlines(m, 0, i, colors=color, zorder=2 if is_precursor else 1)
 
             # If a precursor, annotate the line
             if is_precursor:
-                plt.annotate(f'm/z={m:.4f}', (m, i), textcoords="offset points", xytext=(0, 10),
-                             ha='center', color='red')
+                plt.annotate(
+                    f"m/z={m:.4f}",
+                    (m, i),
+                    textcoords="offset points",
+                    xytext=(0, 10),
+                    ha="center",
+                    color="red",
+                )
 
-        plt.xlabel('m/z')
-        plt.ylabel('Intensity' + (' (relative)' if relative else ''))
-        plt.title(f'MS1 Peaks -- {scan.rt_in_seconds}s')
+        plt.xlabel("m/z")
+        plt.ylabel("Intensity" + (" (relative)" if relative else ""))
+        plt.title(f"MS1 Peaks -- {scan.rt_in_seconds}s")
         plt.show()
 
     def _peaks_to_dataframe(self, peak_set, block_id=None, precursors=None):
@@ -506,12 +559,12 @@ class BlockDeconvoluter:
             }
 
             if block_id is not None:
-                peak_dict['block_id'] = block_id
+                peak_dict["block_id"] = block_id
 
             is_precursor = False
             if precursors is not None:
                 is_precursor = any(np.isclose(peak.mz, p, atol=ATOL) for p in precursors)
-            peak_dict['is_precursor'] = is_precursor
+            peak_dict["is_precursor"] = is_precursor
 
             peaks_list.append(peak_dict)
 
@@ -519,8 +572,8 @@ class BlockDeconvoluter:
         return df
 
     def _remove_outliers(self, scores):
-        Q1 = np.percentile(scores, 25, interpolation='midpoint')
-        Q3 = np.percentile(scores, 75, interpolation='midpoint')
+        Q1 = np.percentile(scores, 25, interpolation="midpoint")
+        Q3 = np.percentile(scores, 75, interpolation="midpoint")
         IQR = Q3 - Q1
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR

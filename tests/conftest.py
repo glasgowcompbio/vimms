@@ -7,20 +7,33 @@ import numpy as np
 import pytest
 from loguru import logger
 
-from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, \
-    GaussianChromatogramSampler, EvenMZFormulaSampler, ConstantChromatogramSampler, \
-    MZMLFormulaSampler, MZMLRTandIntensitySampler, MZMLChromatogramSampler
+from vimms.ChemicalSamplers import (
+    UniformMZFormulaSampler,
+    UniformRTAndIntensitySampler,
+    GaussianChromatogramSampler,
+    EvenMZFormulaSampler,
+    ConstantChromatogramSampler,
+    MZMLFormulaSampler,
+    MZMLRTandIntensitySampler,
+    MZMLChromatogramSampler,
+)
 from vimms.Chemicals import ChemicalMixtureCreator, ChemicalMixtureFromMZML
-from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug, \
-    ADDUCT_DICT_POS_MH, ScanParameters, set_log_level_info
+from vimms.Common import (
+    load_obj,
+    set_log_level_warning,
+    set_log_level_debug,
+    ADDUCT_DICT_POS_MH,
+    ScanParameters,
+    set_log_level_info,
+)
 from vimms.Roi import RoiBuilderParams
 
 # define some useful constants
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
-BASE_DIR = os.path.abspath(Path(DIR_PATH, 'fixtures'))
-HMDB = load_obj(Path(BASE_DIR, 'hmdb_compounds.p'))
-OUT_DIR = str(Path(DIR_PATH, 'results'))
+BASE_DIR = os.path.abspath(Path(DIR_PATH, "fixtures"))
+HMDB = load_obj(Path(BASE_DIR, "hmdb_compounds.p"))
+OUT_DIR = str(Path(DIR_PATH, "results"))
 
 MIN_MS1_INTENSITY = 1
 
@@ -31,16 +44,17 @@ MIN_RT = RT_RANGE[0][0]
 MAX_RT = RT_RANGE[0][1]
 N_CHEMS = 10
 
-BEER_CHEMS_PATH = Path(BASE_DIR, 'beer_compounds.p')
+BEER_CHEMS_PATH = Path(BASE_DIR, "beer_compounds.p")
 BEER_CHEMS = load_obj(BEER_CHEMS_PATH)
 BEER_MIN_BOUND = 550
 BEER_MAX_BOUND = 650
 
-MZML_FILE = Path(BASE_DIR, 'small_mzml.mzML')
-MGF_FILE = Path(BASE_DIR, 'small_mgf.mgf')
+MZML_FILE = Path(BASE_DIR, "small_mzml.mzML")
+MGF_FILE = Path(BASE_DIR, "small_mgf.mgf")
 
 
 # define some useful methods
+
 
 def get_rt_bounds(dataset, centre):
     rts = [ds.rt for ds in dataset]
@@ -53,7 +67,7 @@ def run_environment(env):
     # run the simulation
     start_time = time.time()
     env.run()
-    logger.info('Done in %s seconds' % (time.time() - start_time))
+    logger.info("Done in %s seconds" % (time.time() - start_time))
 
 
 def check_mzML(env, out_dir, filename, assert_size=None):
@@ -85,6 +99,7 @@ def check_non_empty(controller, ms_level):
 
 
 # define the fixtures shared across all tests
+
 
 @pytest.fixture(autouse=True)
 def random_seed():
@@ -135,7 +150,7 @@ def large_fragscan_dataset():
     ri = UniformRTAndIntensitySampler(min_rt=min_rt, max_rt=max_rt)
     cs = GaussianChromatogramSampler(sigma=100)
     cm = ChemicalMixtureCreator(um, rt_and_intensity_sampler=ri, chromatogram_sampler=cs)
-    return cm.sample(N_CHEMS*100, 2)
+    return cm.sample(N_CHEMS * 100, 2)
 
 
 @pytest.fixture(scope="module")
@@ -179,8 +194,12 @@ def even_chems():
     em = EvenMZFormulaSampler()
     ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
     cs = ConstantChromatogramSampler()
-    cm = ChemicalMixtureCreator(em, rt_and_intensity_sampler=ri, chromatogram_sampler=cs,
-                                adduct_prior_dict=ADDUCT_DICT_POS_MH)
+    cm = ChemicalMixtureCreator(
+        em,
+        rt_and_intensity_sampler=ri,
+        chromatogram_sampler=cs,
+        adduct_prior_dict=ADDUCT_DICT_POS_MH,
+    )
     return cm.sample(4, 2)
 
 

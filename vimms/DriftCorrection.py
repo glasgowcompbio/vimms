@@ -2,55 +2,67 @@ import random
 from abc import abstractmethod
 
 import numpy as np
+
 # import GPy
 
 from mass_spec_utils.library_matching.spectral_scoring_functions import cosine_similarity
 from mass_spec_utils.library_matching.spectrum import Spectrum
 
-class DriftModel():
+
+class DriftModel:
     @abstractmethod
-    def get_estimator(self, injection_number): pass
+    def get_estimator(self, injection_number):
+        pass
 
     @abstractmethod
-    def _next_model(self): pass
+    def _next_model(self):
+        pass
 
-    def send_training_data(self, scan, roi, inj_num): pass
+    def send_training_data(self, scan, roi, inj_num):
+        pass
 
-    def send_training_pair(self, x, y): pass
+    def send_training_pair(self, x, y):
+        pass
 
-    def observed_points(self): return []
+    def observed_points(self):
+        return []
 
-    def update(self, **kwargs): pass
+    def update(self, **kwargs):
+        pass
 
 
 class IdentityDrift(DriftModel):
-    '''Dummy drift model which does nothing, for testing purposes.'''
+    """Dummy drift model which does nothing, for testing purposes."""
 
-    def get_estimator(self, injection_number): return lambda roi, inj_num: (0, {})
+    def get_estimator(self, injection_number):
+        return lambda roi, inj_num: (0, {})
 
-    def _next_model(self, **kwargs): return self
+    def _next_model(self, **kwargs):
+        return self
 
 
 class OracleDrift(DriftModel):
-    '''Drift model that cheats by being given a 'true' rt drift fn. for every injection in simulation, for testing purposes.'''
+    """Drift model that cheats by being given a 'true' rt drift fn. for every injection in simulation, for testing purposes."""
 
     def __init__(self, drift_fns):
         self.drift_fns = drift_fns
 
-    def _next_model(self, **kwargs): return self
+    def _next_model(self, **kwargs):
+        return self
 
     def get_estimator(self, injection_number):
-        if (type(self.drift_fns) == type([])): return self.drift_fns[injection_number]
+        if type(self.drift_fns) == type([]):
+            return self.drift_fns[injection_number]
         return self.drift_fns
 
 
-class OraclePointMatcher():
+class OraclePointMatcher:
     MODE_ALLPOINTS = 0
     MODE_RTENABLED = 1
     MODE_FRAGPAIRS = 2
 
     def __init__(self, chem_rts_by_injection, chemicals, max_points=None, mode=None):
-        if (not max_points is None and max_points < len(chem_rts_by_injection[0])):
+        if not max_points is None and max_points < len(chem_rts_by_injection[0]):
             idxes = random.sample([i for i, _ in enumerate(chem_rts_by_injection[0])], max_points)
             self.chem_rts_by_injection = [
                 [sample[i] for i in idxes] for sample in chem_rts_by_injection
@@ -58,7 +70,7 @@ class OraclePointMatcher():
         else:
             self.chem_rts_by_injection = chem_rts_by_injection
         self.chem_to_idx = {
-            chem if chem.base_chemical is None else chem.base_chemical : idx
+            chem if chem.base_chemical is None else chem.base_chemical: idx
             for chem, idx in zip(chemicals, range(len(chem_rts_by_injection[0])))
         }
         self.not_sent = [True] * len(self.chem_rts_by_injection[0])
@@ -69,40 +81,40 @@ class OraclePointMatcher():
         self.not_sent = [True] * len(self.chem_rts_by_injection[0])
 
     def send_training_data(self, model, scan, roi, inj_num):
-        if (self.mode == OraclePointMatcher.MODE_FRAGPAIRS):
-            if (not scan.fragevent is None):
+        if self.mode == OraclePointMatcher.MODE_FRAGPAIRS:
+            if not scan.fragevent is None:
 
                 for fe in scan.fragevent:
                     parent_chem = (
-                        fe.chem
-                        if fe.chem.base_chemical is None
-                        else fe.chem.base_chemical
+                        fe.chem if fe.chem.base_chemical is None else fe.chem.base_chemical
                     )
 
-                    if (parent_chem in self.chem_to_idx):
+                    if parent_chem in self.chem_to_idx:
                         i = self.chem_to_idx[parent_chem]
-                        if (inj_num == 0):
+                        if inj_num == 0:
                             self.available[i] = True
-                        elif (self.available[i] and self.not_sent[i]):
-                            model.send_training_pair(self.chem_rts_by_injection[inj_num][i],
-                                                     self.chem_rts_by_injection[0][i])
+                        elif self.available[i] and self.not_sent[i]:
+                            model.send_training_pair(
+                                self.chem_rts_by_injection[inj_num][i],
+                                self.chem_rts_by_injection[0][i],
+                            )
                             self.not_sent[i] = False
 
         else:
-            if (self.mode == OraclePointMatcher.MODE_RTENABLED):
+            if self.mode == OraclePointMatcher.MODE_RTENABLED:
                 enable = lambda y: scan.rt > y
             else:
                 enable = lambda y: True
 
-            for i, (y, x) in enumerate(zip(self.chem_rts_by_injection[inj_num],
-                                            self.chem_rts_by_injection[0])
-                                       ):
-                if (self.not_sent[i] and enable(y)):
+            for i, (y, x) in enumerate(
+                zip(self.chem_rts_by_injection[inj_num], self.chem_rts_by_injection[0])
+            ):
+                if self.not_sent[i] and enable(y):
                     model.send_training_pair(y, x)
                     self.not_sent[i] = False
 
 
-class MS2PointMatcher():
+class MS2PointMatcher:
     def __init__(self, min_score=0.9, mass_tol=0.2, min_match=1):
         self.ms2s = [[]]
         self.min_score, self.mass_tol, self.min_match = min_score, mass_tol, min_match
@@ -116,18 +128,17 @@ class MS2PointMatcher():
         spectrum = Spectrum(roi.mean_mz, list(zip(scan.mzs, scan.intensities)))
 
         rt, _, __ = roi[0]
-        if(inj_num > 0):
-            if(len(self.ms2s[0]) > 0):
+        if inj_num > 0:
+            if len(self.ms2s[0]) > 0:
                 original_idx, original_spectrum, score = -1, None, -1
                 for i, (_, s, __) in enumerate(self.ms2s[0]):
-                    current_score, _ = cosine_similarity(spectrum,
-                                                         s,
-                                                         self.mass_tol,
-                                                         self.min_match
-                                                        )
-                    if (current_score > score):
+                    current_score, _ = cosine_similarity(
+                        spectrum, s, self.mass_tol, self.min_match
+                    )
+                    if current_score > score:
                         original_idx, original_spectrum, score = i, s, current_score
-                if (score < self.min_score): return
+                if score < self.min_score:
+                    return
                 original_rt, original_scan, prev_match = self.ms2s[0][original_idx]
                 # if(not prev_match is None and score > prev_match[1]): update previous match somehow
                 self.ms2s[0][original_idx] = (original_rt, original_spectrum, (spectrum, score))

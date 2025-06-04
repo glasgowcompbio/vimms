@@ -1,7 +1,16 @@
 from loguru import logger
 
-from tests.conftest import get_rt_bounds, CENTRE_RANGE, N_CHEMS, run_environment, \
-    check_mzML, OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND
+from tests.conftest import (
+    get_rt_bounds,
+    CENTRE_RANGE,
+    N_CHEMS,
+    run_environment,
+    check_mzML,
+    OUT_DIR,
+    BEER_CHEMS,
+    BEER_MIN_BOUND,
+    BEER_MAX_BOUND,
+)
 from vimms.Common import POSITIVE
 from vimms.Controller import SimpleMs1Controller, AdvancedParams
 from vimms.Environment import Environment
@@ -14,10 +23,10 @@ class TestMS1Controller:
     """
 
     def test_ms1_controller_with_simulated_chems(self, fragscan_dataset):
-        logger.info('Testing MS1 controller with simulated chemicals')
+        logger.info("Testing MS1 controller with simulated chemicals")
 
         min_bound, max_bound = get_rt_bounds(fragscan_dataset, CENTRE_RANGE)
-        logger.info('RT bounds %s %s' % (min_bound, max_bound))
+        logger.info("RT bounds %s %s" % (min_bound, max_bound))
         assert len(fragscan_dataset) == N_CHEMS
 
         # create a simulated mass spec and MS1 controller
@@ -29,30 +38,32 @@ class TestMS1Controller:
         run_environment(env)
 
         # write simulated output to mzML file
-        filename = 'ms1_controller_simulated_chems.mzML'
+        filename = "ms1_controller_simulated_chems.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_ms1_controller_with_qcbeer_chems(self):
-        logger.info('Testing MS1 controller with QC beer chemicals')
+        logger.info("Testing MS1 controller with QC beer chemicals")
 
         # create a simulated mass spec and MS1 controller
         mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS)
         controller = SimpleMs1Controller()
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
+        env = Environment(
+            mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False
+        )
         run_environment(env)
 
         # write simulated output to mzML file
-        filename = 'ms1_controller_qcbeer_chems.mzML'
+        filename = "ms1_controller_qcbeer_chems.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_peaks_in_range(self):
 
-        min_mz = 100.
-        max_mz = 200.
+        min_mz = 100.0
+        max_mz = 200.0
 
-        logger.info('Testing MS1 controller with narrow m/z range')
+        logger.info("Testing MS1 controller with narrow m/z range")
 
         # create a simulated mass spec and MS1 controller
         mass_spec = IndependentMassSpectrometer(POSITIVE, BEER_CHEMS)
@@ -61,11 +72,13 @@ class TestMS1Controller:
         controller = SimpleMs1Controller(advanced_params=params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False)
+        env = Environment(
+            mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False
+        )
         run_environment(env)
 
         # write simulated output to mzML file
-        filename = 'ms1_controller_qcbeer_chems_narrow.mzML'
+        filename = "ms1_controller_qcbeer_chems_narrow.mzML"
         check_mzML(env, OUT_DIR, filename)
 
         for scan_level, scans in controller.scans.items():

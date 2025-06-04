@@ -49,9 +49,13 @@ pytest = "^8.4.0"
 pytest-cov = "^6.1.1"
 mkdocs = "^1.6.1"
 mkdocstrings = "^0.29.1"
+black = "^25.1.0"
 
 [tool.setuptools_scm]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 99

@@ -9,11 +9,18 @@ from loguru import logger
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.library_matching.gnps import load_mgf
 
-from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, \
-    EmpiricalChromatogram
-from vimms.Common import Formula, DummyFormula, uniform_list, \
-    DEFAULT_MS1_SCAN_WINDOW, DEFAULT_MSN_SCAN_WINDOW, \
-    POSITIVE, NEGATIVE, PROTON_MASS, DEFAULT_SCAN_TIME_DICT
+from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, EmpiricalChromatogram
+from vimms.Common import (
+    Formula,
+    DummyFormula,
+    uniform_list,
+    DEFAULT_MS1_SCAN_WINDOW,
+    DEFAULT_MSN_SCAN_WINDOW,
+    POSITIVE,
+    NEGATIVE,
+    PROTON_MASS,
+    DEFAULT_SCAN_TIME_DICT,
+)
 from vimms.Roi import make_roi, RoiBuilderParams
 
 MIN_MZ = DEFAULT_MS1_SCAN_WINDOW[0]
@@ -24,6 +31,7 @@ MIN_MZ_MS2 = DEFAULT_MSN_SCAN_WINDOW[0]
 ###############################################################################
 # Formula samplers
 ###############################################################################
+
 
 class FormulaSampler(ABC):
     """
@@ -75,21 +83,22 @@ class DatabaseFormulaSampler(FormulaSampler):
         """
         # filter database formulae to be within mz_range
         offset = 20  # to ensure that we have room for at least M+H
-        formulas = list(
-            set([(x.chemical_formula, x.name) for x in self.database]))
+        formulas = list(set([(x.chemical_formula, x.name) for x in self.database]))
         sub_formulas = list(
-            filter(lambda x: Formula(x[0]).mass >= self.min_mz and Formula(
-                x[0]).mass <= self.max_mz - offset,
-                   formulas))
-        logger.debug(
-            '{} unique formulas in filtered database'.format(
-                len(sub_formulas)))
-        chosen_formula_positions = np.random.choice(len(sub_formulas),
-                                                    size=n_formulas,
-                                                    replace=False)
-        logger.debug('Sampled formulas')
-        return [(Formula(sub_formulas[f][0]), sub_formulas[f][1]) for f in
-                chosen_formula_positions]
+            filter(
+                lambda x: Formula(x[0]).mass >= self.min_mz
+                and Formula(x[0]).mass <= self.max_mz - offset,
+                formulas,
+            )
+        )
+        logger.debug("{} unique formulas in filtered database".format(len(sub_formulas)))
+        chosen_formula_positions = np.random.choice(
+            len(sub_formulas), size=n_formulas, replace=False
+        )
+        logger.debug("Sampled formulas")
+        return [
+            (Formula(sub_formulas[f][0]), sub_formulas[f][1]) for f in chosen_formula_positions
+        ]
 
 
 class UniformMZFormulaSampler(FormulaSampler):
@@ -109,8 +118,7 @@ class UniformMZFormulaSampler(FormulaSampler):
         Returns: a list of Formula objects
 
         """
-        mz_list = np.random.rand(n_formulas) * (
-                self.max_mz - self.min_mz) + self.min_mz
+        mz_list = np.random.rand(n_formulas) * (self.max_mz - self.min_mz) + self.min_mz
         return [(DummyFormula(m), None) for m in mz_list]
 
 
@@ -142,11 +150,10 @@ class PickEverythingFormulaSampler(DatabaseFormulaSampler):
         Returns: all formulae from the database
 
         """
-        formula_list = [(Formula(x.chemical_formula), x.name) for x in
-                        self.database]
-        return list(filter(
-            lambda x: x[0].mass >= self.min_mz and x[0].mass <= self.max_mz,
-            formula_list))
+        formula_list = [(Formula(x.chemical_formula), x.name) for x in self.database]
+        return list(
+            filter(lambda x: x[0].mass >= self.min_mz and x[0].mass <= self.max_mz, formula_list)
+        )
 
 
 class EvenMZFormulaSampler(FormulaSampler):
@@ -185,8 +192,7 @@ class MZMLFormulaSampler(FormulaSampler):
     a user supplied mzML file
     """
 
-    def __init__(self, mzml_file_name, min_mz=MIN_MZ, max_mz=MAX_MZ,
-                 source_polarity=POSITIVE):
+    def __init__(self, mzml_file_name, min_mz=MIN_MZ, max_mz=MAX_MZ, source_polarity=POSITIVE):
         """
         Create an mzML formula sampler
         Args:
@@ -217,8 +223,7 @@ class MZMLFormulaSampler(FormulaSampler):
                 elif self.source_polarity == NEGATIVE:
                     mz += PROTON_MASS
                 else:
-                    logger.warning("Unknown source polarity: {}".format(
-                        self.source_polarity))
+                    logger.warning("Unknown source polarity: {}".format(self.source_polarity))
                 if mz < self.min_mz or mz > self.max_mz:
                     continue
                 mz_bin = int(mz)
@@ -271,8 +276,9 @@ class UniformRTAndIntensitySampler(RTAndIntensitySampler):
     Returns actual intensity, but samples in log space.
     """
 
-    def __init__(self, min_rt=0, max_rt=1600, min_log_intensity=np.log(1e4),
-                 max_log_intensity=np.log(1e7)):
+    def __init__(
+        self, min_rt=0, max_rt=1600, min_log_intensity=np.log(1e4), max_log_intensity=np.log(1e7)
+    ):
         """
         Initialises uniform RT and intensity sampler
 
@@ -310,9 +316,16 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
     Useful to mimic the characteristics of actual experimental data.
     """
 
-    def __init__(self, mzml_file_name, n_intensity_bins=10, min_rt=0,
-                 max_rt=1600, min_log_intensity=np.log(1e4),
-                 max_log_intensity=np.log(1e7), roi_params=None):
+    def __init__(
+        self,
+        mzml_file_name,
+        n_intensity_bins=10,
+        min_rt=0,
+        max_rt=1600,
+        min_log_intensity=np.log(1e4),
+        max_log_intensity=np.log(1e7),
+        roi_params=None,
+    ):
         """
         Create an instance of MZMLRTandIntensitySampler.
         Args:
@@ -365,17 +378,14 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         good = make_roi(str(self.mzml_file_name), self.roi_params)
         log_roi_intensities = [np.log(max(r.intensity_list)) for r in good]
         log_roi_intensities = filter(
-            lambda x: self.min_log_intensity <= x <= self.max_log_intensity,
-            log_roi_intensities
+            lambda x: self.min_log_intensity <= x <= self.max_log_intensity, log_roi_intensities
         )
         log_roi_intensities = list(log_roi_intensities)
-        hist, bin_edges = np.histogram(log_roi_intensities,
-                                       bins=self.n_intensity_bins)
+        hist, bin_edges = np.histogram(log_roi_intensities, bins=self.n_intensity_bins)
         total_i = hist.sum()
         hist = [h / total_i for h in hist]
 
-        self.intensity_bins = [(b, bin_edges[i + 1]) for i, b in
-                               enumerate(bin_edges[:-1])]
+        self.intensity_bins = [(b, bin_edges[i + 1]) for i, b in enumerate(bin_edges[:-1])]
         self.intensity_probs = [h for h in hist]
 
     def sample(self, formula):
@@ -391,11 +401,9 @@ class MZMLRTandIntensitySampler(RTAndIntensitySampler):
         rt_bin = self.rt_bins[rt_bin_idx]
         rt = np.random.rand() * (rt_bin[1] - rt_bin[0]) + rt_bin[0]
 
-        intensity_bin_idx = np.random.choice(len(self.intensity_bins),
-                                             p=self.intensity_probs)
+        intensity_bin_idx = np.random.choice(len(self.intensity_bins), p=self.intensity_probs)
         intensity_bin = self.intensity_bins[intensity_bin_idx]
-        log_intensity = np.random.rand() * (
-                intensity_bin[1] - intensity_bin[0]) + intensity_bin[0]
+        log_intensity = np.random.rand() * (intensity_bin[1] - intensity_bin[0]) + intensity_bin[0]
         return rt, np.exp(log_intensity)
 
 
@@ -440,7 +448,7 @@ class GaussianChromatogramSampler(ChromatogramSampler):
         Returns: a [vimms.Chromatograms.FunctionalChromatogram] object.
 
         """
-        return FunctionalChromatogram('normal', [0, self.sigma])
+        return FunctionalChromatogram("normal", [0, self.sigma])
 
 
 class ConstantChromatogramSampler(ChromatogramSampler):
@@ -490,8 +498,7 @@ class MZMLChromatogramSampler(ChromatogramSampler):
 
         """
         good = make_roi(str(self.mzml_file_name), self.roi_params)
-        logger.debug("Extracted {} good ROIs from {}".format(
-            len(good), self.mzml_file_name))
+        logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
 
     def sample(self, formula, rt, intensity):
@@ -507,10 +514,12 @@ class MZMLChromatogramSampler(ChromatogramSampler):
         """
         roi_idx = np.random.choice(len(self.good_rois))
         r = self.good_rois[roi_idx]
-        chromatogram = EmpiricalChromatogram(np.array(r.rt_list),
-                                             np.array(r.mz_list),
-                                             np.array(r.intensity_list),
-                                             single_point_length=0.9)
+        chromatogram = EmpiricalChromatogram(
+            np.array(r.rt_list),
+            np.array(r.mz_list),
+            np.array(r.intensity_list),
+            single_point_length=0.9,
+        )
         return chromatogram
 
 
@@ -535,8 +544,9 @@ class UniformMS2Sampler(MS2Sampler):
     the mass of the formula.
     """
 
-    def __init__(self, poiss_peak_mean=10, min_mz=MIN_MZ_MS2,
-                 min_proportion=0.1, max_proportion=0.8):
+    def __init__(
+        self, poiss_peak_mean=10, min_mz=MIN_MZ_MS2, min_proportion=0.1, max_proportion=0.8
+    ):
         """
         Initialises uniform MS2 sampler
 
@@ -575,8 +585,9 @@ class UniformMS2Sampler(MS2Sampler):
 
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
-        parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + self.min_proportion
+        parent_proportion = (
+            np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
+        )
 
         return mz_list, intensity_list, parent_proportion
 
@@ -622,9 +633,15 @@ class CRPMS2Sampler(MS2Sampler):
     again elsewhere.
     """
 
-    def __init__(self, n_draws=1000, min_mz=MIN_MZ_MS2, min_proportion=0.1,
-                 max_proportion=0.8, alpha=1,
-                 base='uniform'):
+    def __init__(
+        self,
+        n_draws=1000,
+        min_mz=MIN_MZ_MS2,
+        min_proportion=0.1,
+        max_proportion=0.8,
+        alpha=1,
+        base="uniform",
+    ):
         """
         Create a CRP-based MS2 sampler.
         Args:
@@ -642,7 +659,7 @@ class CRPMS2Sampler(MS2Sampler):
         self.alpha = alpha
         assert self.alpha > 0
         self.base = base
-        assert self.base == 'uniform'
+        assert self.base == "uniform"
 
     def sample(self, chemical):
         """
@@ -672,8 +689,9 @@ class CRPMS2Sampler(MS2Sampler):
         mz_list = unique_vals
         s = sum(counts)
         intensity_list = [c / s for c in counts]
-        parent_proportion = \
+        parent_proportion = (
             np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
+        )
 
         return mz_list, intensity_list, parent_proportion
 
@@ -686,9 +704,15 @@ class MGFMS2Sampler(MS2Sampler):
     A sampler that generates MS2 spectra from real ones defined in some MGF file.
     """
 
-    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8,
-                 max_peaks=0, replace=False,
-                 id_field="SPECTRUMID"):
+    def __init__(
+        self,
+        mgf_file,
+        min_proportion=0.1,
+        max_proportion=0.8,
+        max_peaks=0,
+        replace=False,
+        id_field="SPECTRUMID",
+    ):
         """
         Create an MGFMS2Sampler object.
         Args:
@@ -709,19 +733,17 @@ class MGFMS2Sampler(MS2Sampler):
 
         # turn into a list where the last item is the number of times
         # this one has been sampled
-        self.spectra_list = [[s.precursor_mz, s, 0] for s in
-                             self.spectra_dict.values()]
+        self.spectra_list = [[s.precursor_mz, s, 0] for s in self.spectra_dict.values()]
 
         # filter to remove those with more than  max_peaks (if max_peaks > 0)
         if max_peaks > 0:
             self.spectra_list = list(
-                filter(lambda x: len(x[1].peaks) <= max_peaks,
-                       self.spectra_list))
+                filter(lambda x: len(x[1].peaks) <= max_peaks, self.spectra_list)
+            )
 
         # sort by precursor mz
         self.spectra_list.sort(key=lambda x: x[0])
-        logger.debug("Loaded {} spectra from {}".format(len(self.spectra_list),
-                                                        self.mgf_file))
+        logger.debug("Loaded {} spectra from {}".format(len(self.spectra_list), self.mgf_file))
 
     def sample(self, chemical):
         """
@@ -754,8 +776,9 @@ class MGFMS2Sampler(MS2Sampler):
         mz_list, intensity_list = zip(*spectrum.peaks)
         s = sum(intensity_list)
         intensity_list = [i / s for i in intensity_list]
-        parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + self.min_proportion
+        parent_proportion = (
+            np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
+        )
 
         return mz_list, intensity_list, parent_proportion
 
@@ -768,10 +791,13 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
     TODO: not sure if this class is actually completed and fully tested.
     """
 
-    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8,
-                 id_field="SPECTRUMID"):
-        super().__init__(mgf_file, min_proportion=min_proportion,
-                         max_proportion=max_proportion, id_field=id_field)
+    def __init__(self, mgf_file, min_proportion=0.1, max_proportion=0.8, id_field="SPECTRUMID"):
+        super().__init__(
+            mgf_file,
+            min_proportion=min_proportion,
+            max_proportion=max_proportion,
+            id_field=id_field,
+        )
 
     def sample(self, chemical):
         """
@@ -785,8 +811,9 @@ class ExactMatchMS2Sampler(MGFMS2Sampler):
 
         spectrum = self.spectra_dict[chemical.database_accession]
         mz_list, intensity_list = zip(*spectrum.peaks)
-        parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + self.min_proportion
+        parent_proportion = (
+            np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
+        )
         return mz_list, intensity_list, parent_proportion
 
 
@@ -795,9 +822,15 @@ class MZMLMS2Sampler(MS2Sampler):
     A sampler that sample MS2 spectra from an actual mzML file.
     """
 
-    def __init__(self, mzml_file, min_n_peaks=1, min_total_intensity=1e3,
-                 min_proportion=0.1, max_proportion=0.8,
-                 with_replacement=False):
+    def __init__(
+        self,
+        mzml_file,
+        min_n_peaks=1,
+        min_total_intensity=1e3,
+        min_proportion=0.1,
+        max_proportion=0.8,
+        with_replacement=False,
+    ):
         """
         Create an MZMLMS2Sampler object
         Args:
@@ -828,12 +861,17 @@ class MZMLMS2Sampler(MS2Sampler):
         Returns: None
 
         """
-        ms2_scans = list(filter(
-            lambda x: x.ms_level == 2 and len(x.peaks) >= self.min_n_peaks and sum(
-                [i for mz, i in x.peaks]) >= self.min_total_intensity, self.mzml_object.scans))
-        assert len(
-            ms2_scans) > 0, "After filtering no ms2 scans remain - " \
-                            "consider loosening filter parameters"
+        ms2_scans = list(
+            filter(
+                lambda x: x.ms_level == 2
+                and len(x.peaks) >= self.min_n_peaks
+                and sum([i for mz, i in x.peaks]) >= self.min_total_intensity,
+                self.mzml_object.scans,
+            )
+        )
+        assert len(ms2_scans) > 0, (
+            "After filtering no ms2 scans remain - " "consider loosening filter parameters"
+        )
         logger.debug("{} MS2 scansn remaining".format(len(ms2_scans)))
         self.ms2_scans = ms2_scans
 
@@ -847,18 +885,20 @@ class MZMLMS2Sampler(MS2Sampler):
 
         """
 
-        assert len(
-            self.ms2_scans) > 0, "MS2 sampler ran out of scans. " \
-                                 "Consider an alternative, or " \
-                                 "setting with_replacement to True"
+        assert len(self.ms2_scans) > 0, (
+            "MS2 sampler ran out of scans. "
+            "Consider an alternative, or "
+            "setting with_replacement to True"
+        )
         # pick a scan and removoe
         scan_idx = np.random.choice(len(self.ms2_scans), 1)[0]
         scan = self.ms2_scans[scan_idx]
         if not self.with_replacement:
             del self.ms2_scans[scan_idx]
 
-        parent_proportion = np.random.rand() * (
-                self.max_proportion - self.min_proportion) + self.min_proportion
+        parent_proportion = (
+            np.random.rand() * (self.max_proportion - self.min_proportion) + self.min_proportion
+        )
 
         mz_list, intensity_list = zip(*scan.peaks)
 
@@ -868,6 +908,7 @@ class MZMLMS2Sampler(MS2Sampler):
 ###############################################################################
 # Scan time samplers
 ###############################################################################
+
 
 class ScanTimeSampler(ABC):
     """
@@ -897,8 +938,9 @@ class DefaultScanTimeSampler(ScanTimeSampler):
                             would certainly differ from yours!
         """
 
-        self.scan_time_dict = scan_time_dict if scan_time_dict is not None \
-            else DEFAULT_SCAN_TIME_DICT
+        self.scan_time_dict = (
+            scan_time_dict if scan_time_dict is not None else DEFAULT_SCAN_TIME_DICT
+        )
 
     def sample(self, current_level, next_level, current_rt):
         """
@@ -937,8 +979,9 @@ class MzMLScanTimeSampler(ScanTimeSampler):
             # followed by another MS1 scan
             default = DEFAULT_SCAN_TIME_DICT[1]
             logger.warning(
-                'Not enough MS1 scans to compute (1, 1) scan duration. '
-                'The default of %f will be used' % default)
+                "Not enough MS1 scans to compute (1, 1) scan duration. "
+                "The default of %f will be used" % default
+            )
             self.time_dict[(1, 1)] = [default]
 
     def _extract_timing(self, seed_file):
@@ -957,7 +1000,7 @@ class MzMLScanTimeSampler(ScanTimeSampler):
                  - A numpy array of bin edges.
 
         """
-        logger.debug('Extracting timing dictionary from seed file')
+        logger.debug("Extracting timing dictionary from seed file")
         seed_mzml = MZMLFile(seed_file)
 
         # Compute the minimum and maximum RTs
@@ -967,9 +1010,8 @@ class MzMLScanTimeSampler(ScanTimeSampler):
         max_rt = max(rts) + OFFSET
 
         bin_edges = np.linspace(min_rt, max_rt, self.num_bins + 1)
-        bin_edges = np.delete(bin_edges, 0) # delete the first bin boundary as we don't need it
-        time_dict = {edge: {(1, 1): [], (1, 2): [], (2, 1): [], (2, 2): []} for edge in
-                     bin_edges}
+        bin_edges = np.delete(bin_edges, 0)  # delete the first bin boundary as we don't need it
+        time_dict = {edge: {(1, 1): [], (1, 2): [], (2, 1): [], (2, 2): []} for edge in bin_edges}
 
         for i, s in enumerate(seed_mzml.scans[:-1]):
             # get current and next ms-levels
@@ -1005,8 +1047,12 @@ class MzMLScanTimeSampler(ScanTimeSampler):
 
         """
         is_frag_file = False
-        if (1, 2) in time_dict and len(time_dict[(1, 2)]) > 0 and \
-                (2, 2) in time_dict and len(time_dict[(2, 2)]) > 0:
+        if (
+            (1, 2) in time_dict
+            and len(time_dict[(1, 2)]) > 0
+            and (2, 2) in time_dict
+            and len(time_dict[(2, 2)]) > 0
+        ):
             # seed_file must contain timing on (1,2) and (2,2)
             # i.e. it must be a DDA file with MS1 and MS2 scans
             is_frag_file = True
@@ -1034,6 +1080,6 @@ class MzMLScanTimeSampler(ScanTimeSampler):
         try:
             sampled = np.random.choice(values, replace=False, size=1)
             return sampled[0]
-        except ValueError: # no value to sample, just return the default
+        except ValueError:  # no value to sample, just return the default
             default = DEFAULT_SCAN_TIME_DICT[current_level]
             return default

@@ -15,8 +15,10 @@ def get_shared_experiment_params():
         "AIF_params": {"ms1_source_cid_energy": 25},
         "SWATH_params": {"min_mz": 70, "max_mz": 1000, "width": 100, "scan_overlap": 0},
         "non_overlap_scoring": {
-            "use_smartroi_exclusion": False,  # if True, all non-overlap controllers will use smartroi exclusion
-            "use_weighteddew_exclusion": False,  # if True, all non-overlap controllers will use weighteddew exclusion
+            # if True, all non-overlap controllers will use smartroi exclusion
+            "use_smartroi_exclusion": False,
+            # if True, all non-overlap controllers will use weighteddew exclusion
+            "use_weighteddew_exclusion": False,
         },
         "non_overlap_params": {
             "roi_params": RoiBuilderParams(min_roi_intensity=0, min_roi_length=3),

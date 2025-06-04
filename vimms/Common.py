@@ -9,10 +9,8 @@ import re
 import sys
 import zipfile
 
-from numba import njit
 import numpy as np
 import importlib
-import sys
 
 # ---------------------------------------------------------------------------
 # Compatibility fixes
@@ -110,7 +108,6 @@ ADDUCT_TERMS = {
     "[M+DMSO]+H": (1, 79.02122),
     "[M+2ACN]+H": (1, 83.060370),
     "2M+H": (2, 1.007276),
-    "M+ACN+Na": (1, 64.015765),
     "2M+NH4": (2, 18),
     "M-H": (1, -PROTON_MASS),
 }
@@ -445,8 +442,8 @@ def create_if_not_exist(out_dir):
 def path_or_mzml(mzml):
     try:
         mzml = MZMLFile(mzml)
-    except:
-        if not type(mzml) == MZMLFile:
+    except Exception:
+        if not isinstance(mzml, MZMLFile):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
 
@@ -820,7 +817,7 @@ def get_dda_scan_param(
 
     # create precursor object, assume it's all singly charged
     precursor_charge = +1 if (polarity == POSITIVE) else -1
-    if type(mz) == list:
+    if isinstance(mz, list):
         precursor_list = []
         for i, m in enumerate(mz):
             precursor_list.append(
@@ -833,7 +830,7 @@ def get_dda_scan_param(
             )
         dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
 
-        if type(isolation_width) == list:
+        if isinstance(isolation_width, list):
             assert len(isolation_width) == len(precursor_list)
         else:
             isolation_width = [isolation_width for m in mz]

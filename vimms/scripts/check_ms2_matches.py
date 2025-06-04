@@ -2,6 +2,16 @@
 # simple script that loads an msp and an mzml and sees how many of the
 # spectra in the MSP file can be matched to a spectrum in an ms2 scan
 # in the .mzml
+from vimms.Common import load_obj, ScanParameters, PROTON_MASS
+from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
+from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
+from mass_spec_utils.data_import.mzml import MZMLFile
+from loguru import logger
+import pandas as pd
+import numpy as np
+import os
+import glob
+import argparse
 import sys
 
 from vimms.Box import GenericBox
@@ -9,24 +19,11 @@ from vimms.Box import GenericBox
 sys.path.append("..")
 sys.path.append("../..")  # if running in this folder
 
-import argparse
-import glob
-import os
-
-import numpy as np
-import pandas as pd
-from loguru import logger
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
-from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
-
-from vimms.Common import load_obj, ScanParameters, PROTON_MASS
-
 
 def process_block(block, file_name):
     peak_start_pos = [b.startswith("Num") for b in block].index(True)
     peaks = []
-    for line in block[peak_start_pos + 1 :]:
+    for line in block[peak_start_pos + 1:]:
         line = line.rstrip()
         if ";" in line:
             # msp format has peak tuples separated by ';'
@@ -93,7 +90,7 @@ def make_queries_from_aligned_msdial(msdial_file_name, frag_file=True, sample_na
     query_spectra = []
     msdial_df = pd.read_csv(msdial_file_name, sep="\t", index_col="Alignment ID", header=4)
     if frag_file:
-        msdial_df = msdial_df[msdial_df["MS/MS assigned"] == True]
+        msdial_df = msdial_df[msdial_df["MS/MS assigned"]]
 
     for i, row in msdial_df.iterrows():
         new_spectrum = aligned_row_to_spectral_record(row, sample_name=sample_name)

@@ -1,25 +1,24 @@
 # TopN on the HeLA data
 
-import sys
-
-sys.path.append("/home/joewandy/vimms")
-
-import os
-import numpy as np
-import seaborn as sns
-from tqdm import tqdm
-
-from vimms.Common import set_log_level_warning, create_if_not_exist
-from vimms.scripts.scan_timings import count_stuff, plot_num_scans, compute_similarity
-from vimms.scripts.check_fragmented_ions import plot_num_ms2_scans, plot_histograms
+from mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.scripts.check_fragmented_ions import (
     compare_histograms,
     BlockDeconvoluter,
     plot_heatmaps,
 )
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.scripts.check_fragmented_ions import plot_num_ms2_scans, plot_histograms
+from vimms.scripts.scan_timings import count_stuff, plot_num_scans, compute_similarity
+from vimms.Common import set_log_level_warning, create_if_not_exist
+from tqdm import tqdm
+import seaborn as sns
+import numpy as np
+import os
+import sys
 
-### Setup Parameters
+sys.path.append("/home/joewandy/vimms")
+
+
+# Setup Parameters
 seed_mzml_file = "/home/joewandy/data/HELA_20ng_1ul__sol_3.mzML"
 rt_range = [(0, 7200)]
 min_rt = rt_range[0][0]
@@ -132,7 +131,10 @@ for i, score in enumerate(scores):
             rmse_ms2_array[i, j] = rmse_ms2
             sum_of_abs_diff_array[i, j] = sum_of_abs_diff
 
-            # print(f'score={score} penalty={penalty} rmse_ms1={rmse_ms1} rmse_ms2={rmse_ms2} num_ms2_diff={sum_of_abs_diff}')
+            # print(
+            #     f"score={score} penalty={penalty} rmse_ms1={rmse_ms1} "
+            #     f"rmse_ms2={rmse_ms2} num_ms2_diff={sum_of_abs_diff}"
+            # )
 
         else:
             print(f"The file {simulated_input_file} does not exist.")

@@ -602,7 +602,7 @@ class IndependentMassSpectrometer:
         self.idx += 1
 
         # sample scan duration from dictionary
-        if type(self.scan_duration_dict) is dict:
+        if isinstance(self.scan_duration_dict, dict):
             val = self.scan_duration_dict[current_level]
             current_scan_duration = (
                 val() if callable(val) else val
@@ -638,7 +638,6 @@ class IndependentMassSpectrometer:
         Returns:
 
         """
-        frag = None
 
         min_measurement_mz = params.get(ScanParameters.FIRST_MASS)
         max_measurement_mz = params.get(ScanParameters.LAST_MASS)

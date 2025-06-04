@@ -9,8 +9,6 @@ import numpy as np
 from intervaltree import IntervalTree
 from loguru import logger
 
-from vimms.Common import ScanParameters
-
 
 ###############################################################################
 # DEW Exclusions

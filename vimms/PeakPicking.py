@@ -149,7 +149,7 @@ class MZMineParams(AbstractParams):
             for h in headers:
                 for fs in fs_names:
                     m = pattern.match(h)
-                    if not m is None:
+                    if m is not None:
                         mzmine_names.add(m.group(1))
 
         mode = mode.lower()
@@ -193,7 +193,7 @@ class MZMineParams(AbstractParams):
                     row_indices[h] = i
                 else:
                     m = pattern.match(h)
-                    if not m is None:
+                    if m is not None:
                         mzml_indices[m.group(1)][m.group(2)] = i
 
             fullscan_names = mzml_indices.keys()
@@ -294,7 +294,7 @@ class XCMSScriptParams(AbstractParams):
         params = (
             (f"--{k}", str(v))
             for k, v in self.__dict__.items()
-            if k != "xcms_r_script" and k != "rscript_exe" and not v is None
+            if k != "xcms_r_script" and k != "rscript_exe" and v is not None
         )
 
         if not os.path.exists(output_path) or force:

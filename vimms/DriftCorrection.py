@@ -1,7 +1,6 @@
 import random
 from abc import abstractmethod
 
-import numpy as np
 
 # import GPy
 
@@ -42,7 +41,8 @@ class IdentityDrift(DriftModel):
 
 
 class OracleDrift(DriftModel):
-    """Drift model that cheats by being given a 'true' rt drift fn. for every injection in simulation, for testing purposes."""
+    """Drift model that cheats by being given a 'true' rt drift
+    function for every injection in simulation, for testing purposes."""
 
     def __init__(self, drift_fns):
         self.drift_fns = drift_fns
@@ -51,7 +51,7 @@ class OracleDrift(DriftModel):
         return self
 
     def get_estimator(self, injection_number):
-        if type(self.drift_fns) == type([]):
+        if isinstance(self.drift_fns, list):
             return self.drift_fns[injection_number]
         return self.drift_fns
 
@@ -62,7 +62,7 @@ class OraclePointMatcher:
     MODE_FRAGPAIRS = 2
 
     def __init__(self, chem_rts_by_injection, chemicals, max_points=None, mode=None):
-        if not max_points is None and max_points < len(chem_rts_by_injection[0]):
+        if max_points is not None and max_points < len(chem_rts_by_injection[0]):
             idxes = random.sample([i for i, _ in enumerate(chem_rts_by_injection[0])], max_points)
             self.chem_rts_by_injection = [
                 [sample[i] for i in idxes] for sample in chem_rts_by_injection
@@ -82,7 +82,7 @@ class OraclePointMatcher:
 
     def send_training_data(self, model, scan, roi, inj_num):
         if self.mode == OraclePointMatcher.MODE_FRAGPAIRS:
-            if not scan.fragevent is None:
+            if scan.fragevent is not None:
 
                 for fe in scan.fragevent:
                     parent_chem = (
@@ -102,9 +102,14 @@ class OraclePointMatcher:
 
         else:
             if self.mode == OraclePointMatcher.MODE_RTENABLED:
-                enable = lambda y: scan.rt > y
+
+                def enable(y):
+                    return scan.rt > y
+
             else:
-                enable = lambda y: True
+
+                def enable(y):
+                    return True
 
             for i, (y, x) in enumerate(
                 zip(self.chem_rts_by_injection[inj_num], self.chem_rts_by_injection[0])
@@ -140,7 +145,8 @@ class MS2PointMatcher:
                 if score < self.min_score:
                     return
                 original_rt, original_scan, prev_match = self.ms2s[0][original_idx]
-                # if(not prev_match is None and score > prev_match[1]): update previous match somehow
+                # if(not prev_match is None and score > prev_match[1]): update previous
+                # match somehow
                 self.ms2s[0][original_idx] = (original_rt, original_spectrum, (spectrum, score))
                 self.ms2s[inj_num].append((rt, spectrum, None))
                 model.send_training_pair(rt, original_rt)
@@ -149,7 +155,8 @@ class MS2PointMatcher:
 
 
 # class GPDrift(DriftModel):
-#     '''Drift model that uses a Gaussian Process and known training points to learn a drift function with reference to points in the first injection.'''
+#     '''Drift model that uses a Gaussian Process and known training points to
+#     learn a drift function with reference to points in the first injection.'''
 #
 #     def __init__(self, kernel, point_matcher, max_points=None):
 #         self.kernel = kernel
@@ -158,7 +165,8 @@ class MS2PointMatcher:
 #         self.model = None
 #         self.max_points = max_points
 #
-#     # TODO: Ideally this would use _online_ learning rather than retraining the whole model every time...
+#     # TODO: Ideally this would use _online_ learning rather than retraining the
+#     # whole model every time...
 #     def get_estimator(self, injection_number):
 #         if (injection_number == 0 or self.Y == []):
 #             return lambda roi, inj_num: (0, {})
@@ -190,7 +198,8 @@ class MS2PointMatcher:
 #     def send_training_data(self, scan, roi, inj_num):
 #         self.point_matcher.send_training_data(self, scan, roi, inj_num)
 #
-#     # TODO: update to allow updating points: search for point with matching x point then change corresponding y value
+#     # TODO: update to allow updating points: search for point with matching x
+#     # point then change corresponding y value
 #     def send_training_pair(self, y, x):
 #         self.Y.append(y)
 #         self.X.append(x)

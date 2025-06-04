@@ -1,13 +1,6 @@
 from loguru import logger
 
 from tests.conftest import OUT_DIR
-from vimms.ChemicalSamplers import (
-    EvenMZFormulaSampler,
-    UniformRTAndIntensitySampler,
-    ConstantChromatogramSampler,
-    FixedMS2Sampler,
-)
-from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import (
     DEFAULT_ISOLATION_WIDTH,
     POSITIVE,
@@ -15,7 +8,7 @@ from vimms.Common import (
     get_default_scan_params,
     get_dda_scan_param,
 )
-from vimms.Controller import FixedScansController, MultiIsolationController
+from vimms.Controller import FixedScansController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 

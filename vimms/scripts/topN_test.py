@@ -1,24 +1,3 @@
-import sys
-
-sys.path.append("..")
-sys.path.append("../..")  # if running in this folder
-
-import os
-import argparse
-import time
-
-import numpy as np
-
-import pymzml
-from loguru import logger
-
-from vimms.Roi import RoiBuilderParams
-from vimms.Chemicals import ChemicalMixtureFromMZML
-from vimms.ChemicalSamplers import MzMLScanTimeSampler
-
-from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import TopNController, AdvancedParams
-from vimms.Environment import Environment
 from vimms.Common import (
     POSITIVE,
     load_obj,
@@ -27,6 +6,22 @@ from vimms.Common import (
     set_log_level_warning,
     set_log_level_debug,
 )
+from vimms.Environment import Environment
+from vimms.Controller import TopNController, AdvancedParams
+from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.ChemicalSamplers import MzMLScanTimeSampler
+from vimms.Chemicals import ChemicalMixtureFromMZML
+from vimms.Roi import RoiBuilderParams
+from loguru import logger
+import pymzml
+import numpy as np
+import time
+import argparse
+import os
+import sys
+
+sys.path.append("..")
+sys.path.append("../..")  # if running in this folder
 
 
 def parse_args():
@@ -258,8 +253,6 @@ def run_simulation(args, dataset, st, out_dir):
     rt_tol = args.rt_tol
     mz_tol = args.mz_tol
     min_ms1_intensity = args.min_ms1_intensity
-    min_fit_score = args.min_fit_score
-    penalty_factor = args.penalty_factor
     default_ms1_scan_window = (
         args.default_ms1_scan_window_start,
         args.default_ms1_scan_window_end,
@@ -268,7 +261,6 @@ def run_simulation(args, dataset, st, out_dir):
     # DEW, isotope and charge filtering parameters
     exclude_after_n_times = args.exclude_after_n_times
     exclude_t0 = args.exclude_t0
-    charge_range = (args.charge_range_start, args.charge_range_end)
 
     # create controller and mass spec objects
     params = AdvancedParams(default_ms1_scan_window=default_ms1_scan_window)

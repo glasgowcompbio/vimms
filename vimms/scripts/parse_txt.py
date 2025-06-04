@@ -112,7 +112,7 @@ def main():
             lines.append(line)
     print("Loaded {} lines".format(len(lines)))
     scan_sequence_list = extract_scan_sequence(lines)
-    start_time = scan_sequence_list[0].send_time
+    scan_sequence_list[0].send_time
     if args.plot_from is not None or args.plot_to is not None:
         if args.plot_from is None:
             plot_from = 0

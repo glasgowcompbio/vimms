@@ -409,11 +409,7 @@ class ChemSet:
 
     @classmethod
     def to_chemset(cls, chems, filepath=None, fast=False):
-        if (
-            type(chems) == MemoryChems
-            or type(chems) == FileChems
-            or type(chems) == FastMemoryChems
-        ):
+        if isinstance(chems, (MemoryChems, FileChems, FastMemoryChems)):
             return chems
 
         if filepath is None:
@@ -462,7 +458,7 @@ class MemoryChems(ChemSet):
 
     @classmethod
     def from_chems(cls, chems):
-        if type(chems) == cls:
+        if isinstance(chems, cls):
             return chems
         return cls(chems)
 
@@ -520,7 +516,7 @@ class FileChems(ChemSet):
         self.reset()
 
     def reset(self):
-        if not self.f is None:
+        if self.f is not None:
             self.f.close()
             self.f = None
         self.pending = deque()
@@ -537,15 +533,15 @@ class FileChems(ChemSet):
                 pass
 
     def __exit__(self, type, value, traceback):
-        if not self.f is None:
+        if self.f is not None:
             self.f.close()
 
     @classmethod
     def from_path(cls, filepath, chems=None):
-        if type(chems) == cls:
+        if isinstance(chems, cls):
             return chems
 
-        if not chems is None:
+        if chems is not None:
             cls.dump_chems(chems, filepath)
 
         return cls(filepath)

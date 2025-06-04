@@ -3,11 +3,7 @@ This file describes controllers that build regions-of-interests (ROIs) in real-t
 and use that as additional information to decide which precursor ions to fragment.
 """
 
-import copy
-from copy import deepcopy
-
 import numpy as np
-from loguru import logger
 
 from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller.topN import TopNController
@@ -19,7 +15,6 @@ from vimms.Exclusion import (
     DEWFilter,
     WeightedDEWFilter,
 )
-from vimms.MassSpec import Scan
 from vimms.Roi import RoiBuilder
 
 

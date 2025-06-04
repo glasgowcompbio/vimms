@@ -1,23 +1,22 @@
 import os
 import copy
 import itertools
-from collections import deque, OrderedDict
+from collections import OrderedDict
 import pathlib
-import inspect
 import multiprocessing
 import json
 import uuid
 
-from vimms.Common import POSITIVE, save_obj, load_obj
+from vimms.Common import POSITIVE, save_obj
 from vimms.Roi import RoiBuilderParams
-from vimms.Chemicals import ChemicalMixtureFromMZML, ChemSet, MemoryChems, FileChems
+from vimms.Chemicals import ChemicalMixtureFromMZML, ChemSet, FileChems
 from vimms.ChemicalSamplers import FixedMS2Sampler
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Controller import TopNController, AgentBasedController
 from vimms.Agent import TopNDEWAgent
 from vimms.Controller.roi import TopN_RoiController
-from vimms.Box import BoxIntervalTrees, BoxGrid
-from vimms.BoxManager import BoxManager, BoxConverter, BoxSplitter
+from vimms.Box import BoxGrid
+from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.Controller.box import (
     TopNEXController,
     HardRoIExcludeController,
@@ -30,8 +29,7 @@ from vimms.Matching import Matching
 from vimms.Controller.misc import DsDAController, MatchingController
 from vimms.Environment import Environment
 from vimms.BoxVisualise import EnvPlotPickler
-from vimms.PeakPicking import MZMineParams
-from vimms.Evaluation import pick_aligned_peaks, evaluate_real
+from vimms.Evaluation import evaluate_real
 
 
 class Shareable:
@@ -63,7 +61,7 @@ class Shareable:
         elif self.name == "dsda":
             for_controller = {"advanced_params", "task_filter"}
             self.shared = DsDAState(
-                **{k: v for k, v in params.items() if not k in for_controller}, out_dir=out_dir
+                **{k: v for k, v in params.items() if k not in for_controller}, out_dir=out_dir
             )
             self.params = {
                 **{k: v for k, v in params.items() if k in for_controller},
@@ -160,7 +158,7 @@ class ExperimentCase:
         pickle_env=False,
     ):
 
-        self.name = name if not name is None else controller_type
+        self.name = name if name is not None else controller_type
         self.fullscan_paths = fullscan_paths
         self.params = params
         self.shareable_base = shareable_base
@@ -171,7 +169,7 @@ class ExperimentCase:
         try:
             self.controller, self.shared = self.controllers[c]
             self.shared = copy.deepcopy(self.shared)
-        except:
+        except Exception:
             error_msg = "Not a recognised controller, please use one of:\n" + "\n".join(
                 self.controllers.keys()
             )
@@ -250,7 +248,7 @@ class ExperimentCase:
         Returns: Boolean indicating whether an error was thrown.
         """
 
-        params = self.shared.init_shareable(
+        self.shared.init_shareable(
             self.params, out_dir, self.fullscan_paths, shareable_base=self.shareable_base
         )
         try:
@@ -393,10 +391,10 @@ class Experiment:
     def amend_mzml_paths(mzml_pairs, fullscan_dir=None, out_dir=None):
         new_pairs = []
         for fs, mzml in mzml_pairs:
-            if not fullscan_dir is None:
+            if fullscan_dir is not None:
                 fs = os.path.join(fullscan_dir, os.path.basename(fs))
 
-            if not out_dir is None:
+            if out_dir is not None:
                 mzml = os.path.join(out_dir, os.path.basename(mzml))
 
             new_pairs.append((fs, mzml))
@@ -472,7 +470,7 @@ class Experiment:
             aligned_dirs = [self.out_dir] * len(self.case_names)
         else:
             try:
-                if type(aligned_dirs) == type(""):
+                if isinstance(aligned_dirs, str):
                     raise TypeError
                 aligned_dirs = list(aligned_dirs)
             except TypeError:
@@ -483,12 +481,12 @@ class Experiment:
             aligned_names = []
             for fses in fullscan_paths:
                 key = tuple(sorted(fses))
-                if not key in unique_fs:
+                if key not in unique_fs:
                     unique_fs[key] = f"peaks_{len(unique_fs)}"
                 aligned_names.append(unique_fs[key])
         else:
             try:
-                if type(aligned_names) == type(""):
+                if isinstance(aligned_names, str):
                     raise TypeError
                 aligned_names = list(aligned_names)
             except TypeError:

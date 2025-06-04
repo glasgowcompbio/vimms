@@ -7,7 +7,6 @@ input.
 
 import copy
 import bisect
-import sys
 from collections import Counter, defaultdict
 from statistics import mean
 
@@ -18,9 +17,7 @@ import pymzml
 import statsmodels.api as sm
 from loguru import logger
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
-from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_processing.alignment import Peak, PeakSet
-from numba import njit
 from scipy.stats import pearsonr
 
 from vimms.Box import GenericBox
@@ -157,7 +154,7 @@ class Roi:
 
     @staticmethod
     def _set_fixed_bounds_for_box(dist, minm, maxm):
-        if not dist is None:
+        if dist is not None:
             mid = (minm + maxm) / 2
             new_minm = mid - dist
             new_maxm = mid + dist
@@ -196,7 +193,7 @@ class Roi:
         min_mz, max_mz = min(self.mz_list), max(self.mz_list)
 
         min_rt, max_rt = self._set_fixed_bounds_for_box(fixed_rt_dist, min_rt, max_rt)
-        dalton_dist = self.mean_mz * fixed_mz_dist / 1e6 if not fixed_mz_dist is None else None
+        dalton_dist = self.mean_mz * fixed_mz_dist / 1e6 if fixed_mz_dist is not None else None
         min_mz, max_mz = self._set_fixed_bounds_for_box(dalton_dist, min_mz, max_mz)
 
         return GenericBox(
@@ -997,7 +994,7 @@ class RoiAligner:
             candidates = [
                 ps
                 for ps in self.peaksets
-                if not ps in seen_ps
+                if ps not in seen_ps
                 and ps.is_in_box(
                     peak, self.mz_tolerance_absolute, self.mz_tolerance_ppm, self.rt_tolerance
                 )
@@ -1262,7 +1259,7 @@ def roi_correlation(roi1, roi2, min_rt_point_overlap=5, method="pearson"):
     r2 = np.zeros_like(r1)
 
     r1[: len(roi1.rt_list)] = roi1.intensity_list
-    r2[pos : pos + len(roi2.rt_list)] = roi2.intensity_list
+    r2[pos: pos + len(roi2.rt_list)] = roi2.intensity_list
 
     if method == "pearson":
         r, _ = pearsonr(r1, r2)

@@ -57,7 +57,7 @@ def fragmentation_performance_chemicals(
         # at this point we have collected the RTs of the all the chemicals that
         # have been fragmented above the min_intensity threshold
         flatten_rts = []
-        for obj in sample_chemical_start_rts[0 : (i + 1)]:
+        for obj in sample_chemical_start_rts[0: (i + 1)]:
             flatten_rts.extend(obj)
         sample_chemical_start_rts_total.append(len(np.unique(np.array(flatten_rts))))
         total_matched_chemicals = sample_chemical_start_rts_total
@@ -146,7 +146,7 @@ def multi_sample_fragmentation_performance_aligned(params):
     total_chemicals_found = []
 
     for i in range(len(chemicals_found_multi)):
-        total_chemicals_found.append((chemicals_found_multi[0 : (1 + i)].sum(axis=0) > 0).sum())
+        total_chemicals_found.append((chemicals_found_multi[0: (1 + i)].sum(axis=0) > 0).sum())
 
     return total_chemicals_found
 
@@ -178,7 +178,7 @@ def dsda_get_scan_params(schedule_file, template_file, isolation_width, mz_tol, 
             precursor_scan_id = scan_id
             scan_params = get_default_scan_params(scan_id=scan_id)
         else:
-            assert not precursor_scan_id is None
+            assert precursor_scan_id is not None
             mz = 100 if np.isnan(masses[i]) else masses[i]
             # TODO: Should mz_tol and rt_tol be here???
             scan_params = get_dda_scan_param(
@@ -333,12 +333,12 @@ class DsDAState:
         self.socket.settimeout(300)
         self.socket.listen()
 
-        child = subprocess.Popen(
+        subprocess.Popen(
             [self.rscript_loc, self.dsda_loc]
             + [
                 arg
                 for arg in itertools.chain(
-                    *((f"--{k}", str(v)) for k, v in self.dsda_params.items() if not v is None)
+                    *((f"--{k}", str(v)) for k, v in self.dsda_params.items() if v is not None)
                 )
             ]
             + [
@@ -360,7 +360,7 @@ class DsDAState:
         try:
             self.child_socket.send(b"q\r\n")
             self.child_socket.shutdown(socket.SHUT_RDWR)
-        except:
+        except BaseException:
             raise
         finally:
             self.socket.close()

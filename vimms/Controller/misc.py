@@ -9,7 +9,6 @@ import math
 import os
 import subprocess
 from statistics import mean
-from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 from loguru import logger
@@ -72,9 +71,9 @@ class TaskFilter:
 
     @classmethod
     def _make_scan(cls, task, scan_id, precursor_id):
-        if not task.get(ScanParameters.MS_LEVEL) in [1, 2]:
+        if task.get(ScanParameters.MS_LEVEL) not in [1, 2]:
             raise NotImplementedError(
-                f"""{cls} isn't sure how to copy a ScanParameters with 
+                f"""{cls} isn't sure how to copy a ScanParameters with
                 ms_level = {task.get(ScanParameters.MS_LEVEL)}"""
             )
 
@@ -86,8 +85,8 @@ class TaskFilter:
                 # modifying internals, so here we defend against future changes in
                 # ScanParameters
                 for p in s.get(ScanParameters.PRECURSOR_MZ):
-                    test = p.precursor_scan_id
-            except:
+                    pass
+            except Exception:
                 raise NotImplementedError(
                     f"""
                     ScanParameters doesn't have the expected internal structure
@@ -340,7 +339,6 @@ class MS2PlannerController(FixedScansController):
         records = []
         fs_names, line_ls = reader.read_aligned_csv(inpath)
         for i, (row_fields, mzml_fields) in enumerate(line_ls):
-            row = []
             if len(list(mzml_fields.keys())) > 1:
                 raise NotImplementedError(
                     "MS2Planner controller doesn't currently handle aligned experiment"
@@ -570,7 +568,7 @@ class MS2PlannerController(FixedScansController):
         if mode.lower() == "curve":
             if fullscan_file is None or restriction is None:
                 raise ValueError(
-                    """fullscan_file and restriction arguments must be 
+                    """fullscan_file and restriction arguments must be
                        supplied for curve mode!"""
                 )
 

@@ -7,16 +7,10 @@ Fragment Ion Mass Spectra), and some others.
 import csv
 import os
 
-from vimms.Common import DEFAULT_MS1_AGC_TARGET, DEFAULT_MS1_MAXIT, \
-    DEFAULT_MS1_COLLISION_ENERGY, \
-    DEFAULT_MS1_ORBITRAP_RESOLUTION, \
-    DEFAULT_MS2_AGC_TARGET, \
-    DEFAULT_MS2_MAXIT, \
-    DEFAULT_MS2_COLLISION_ENERGY, \
-    DEFAULT_MS2_ORBITRAP_RESOLUTION, DEFAULT_MS2_ISOLATION_MODE, \
-    DEFAULT_MS2_ACTIVATION_TYPE, \
-    DEFAULT_MS2_MASS_ANALYSER, create_if_not_exist, ScanParameters, \
-    get_default_scan_params, get_dda_scan_param
+from vimms.Common import (
+    create_if_not_exist,
+    ScanParameters,
+)
 from vimms.Controller import Controller
 from vimms.DIA import DiaWindows
 
@@ -50,19 +44,18 @@ class AIF(Controller):
         Returns: None
 
         """
-        heads = ['ID', 'MS Type', 'Start m/z', 'End m/z', 'Name', 'CE',
-                 'DecTarget(1:Yes, 0:No)']
+        heads = ["ID", "MS Type", "Start m/z", "End m/z", "Name", "CE", "DecTarget(1:Yes, 0:No)"]
         start = self.advanced_params.default_ms1_scan_window[0]
         stop = self.advanced_params.default_ms1_scan_window[1]
         ce = self.ms1_source_cid_energy
-        ms1_row = ['0', 'SCAN', start, stop, "0eV", 0, 0]
-        aif_row = ['1', 'ALL', start, stop, "{}eV".format(ce), ce, 1]
+        ms1_row = ["0", "SCAN", start, stop, "0eV", 0, 0]
+        aif_row = ["1", "ALL", start, stop, "{}eV".format(ce), ce, 1]
 
         out_dir = os.path.dirname(filename)
         create_if_not_exist(out_dir)
 
-        with open(filename, 'w', newline='') as f:
-            writer = csv.writer(f, delimiter='\t', dialect='excel')
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f, delimiter="\t", dialect="excel")
             writer.writerow(heads)
             writer.writerow(ms1_row)
             writer.writerow(aif_row)
@@ -91,8 +84,7 @@ class AIF(Controller):
         if self.scan_to_process is not None:
             # make the MS1 scan with source cid energy applied
             aif_scan = self.get_ms1_scan_params()
-            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY,
-                         self.ms1_source_cid_energy)
+            aif_scan.set(ScanParameters.SOURCE_CID_ENERGY, self.ms1_source_cid_energy)
             self._check_scan(aif_scan)
 
             scans.append(aif_scan)
@@ -119,9 +111,7 @@ class SWATH(Controller):
     Should be used in conjunction with MS-DIAL for deconvolution.
     """
 
-    def __init__(self, min_mz, max_mz,
-                 width, scan_overlap=0,
-                 advanced_params=None):
+    def __init__(self, min_mz, max_mz, width, scan_overlap=0, advanced_params=None):
         """
         Initialise a SWATH-MS controller
 
@@ -154,21 +144,21 @@ class SWATH(Controller):
 
         """
 
-        heads = ['Experiment', 'MS Type', 'Min m/z', 'Max m/z']
+        heads = ["Experiment", "MS Type", "Min m/z", "Max m/z"]
         start_mz, stop_mz = self._get_start_stop()
         ms1_mz_range = self.advanced_params.default_ms1_scan_window
-        ms1_row = ['0', 'SCAN', ms1_mz_range[0], ms1_mz_range[1]]
+        ms1_row = ["0", "SCAN", ms1_mz_range[0], ms1_mz_range[1]]
         swath_rows = []
         for i, start in enumerate(start_mz):
             stop = stop_mz[i]
-            new_row = [i + 1, 'SWATH', start, stop]
+            new_row = [i + 1, "SWATH", start, stop]
             swath_rows.append(new_row)
 
         out_dir = os.path.dirname(filename)
         create_if_not_exist(out_dir)
 
-        with open(filename, 'w', newline='') as f:
-            writer = csv.writer(f, delimiter='\t', dialect='excel')
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f, delimiter="\t", dialect="excel")
             writer.writerow(heads)
             writer.writerow(ms1_row)
             for row in swath_rows:
@@ -205,16 +195,15 @@ class SWATH(Controller):
 
             precursor_mz_list = []
             for i, start in enumerate(start_mz):
-                precursor_mz = (stop_mz[i] + start) / 2.
+                precursor_mz = (stop_mz[i] + start) / 2.0
                 precursor_mz_list.append(precursor_mz)
 
             mz_tol = 10  # not used
             rt_tol = 15  # these are not used
             for mz in precursor_mz_list:
-                dda_scan_params = self.get_ms2_scan_params(mz, 0,
-                                                           precursor_scan_id,
-                                                           isolation_width,
-                                                           mz_tol, rt_tol)
+                dda_scan_params = self.get_ms2_scan_params(
+                    mz, 0, precursor_scan_id, isolation_width, mz_tol, rt_tol
+                )
                 # push this dda scan to the mass spec queue
                 new_tasks.append(dda_scan_params)
 
@@ -236,10 +225,18 @@ class DiaController(Controller):
     Note: the following method used multiple simultaneous isolation windows
     """
 
-    def __init__(self, min_mz, max_mz,  # TODO: add scan overlap to DiaWindows
-                 window_type, kaufmann_design, num_windows, scan_overlap=0,
-                 extra_bins=0, dia_design='kaufmann',
-                 advanced_params=None):
+    def __init__(
+        self,
+        min_mz,
+        max_mz,  # TODO: add scan overlap to DiaWindows
+        window_type,
+        kaufmann_design,
+        num_windows,
+        scan_overlap=0,
+        extra_bins=0,
+        dia_design="kaufmann",
+        advanced_params=None,
+    ):
         super().__init__(advanced_params=advanced_params)
         self.dia_design = dia_design
         self.window_type = window_type
@@ -268,10 +265,15 @@ class DiaController(Controller):
             mzs = self.scan_to_process.mzs
             if len(mzs) > 0:  # check that ms1 scan is not empty
                 default_range = [(self.min_mz, self.max_mz)]
-                locations = DiaWindows(mzs, default_range, self.dia_design,
-                                       self.window_type, self.kaufmann_design,
-                                       self.extra_bins,
-                                       self.num_windows).locations
+                locations = DiaWindows(
+                    mzs,
+                    default_range,
+                    self.dia_design,
+                    self.window_type,
+                    self.kaufmann_design,
+                    self.extra_bins,
+                    self.num_windows,
+                ).locations
                 for loc in locations:
                     mz = []
                     isolation_width = []
@@ -280,10 +282,9 @@ class DiaController(Controller):
                         mz.append(sum(sub_loc) / 2)
                         isolation_width.append(sub_loc[1] - sub_loc[0])
                         intensity.append(0)
-                    dda_scan_params = self.get_ms2_scan_params(mz, intensity,
-                                                               precursor_scan_id,
-                                                               isolation_width,
-                                                               mz_tol, rt_tol)
+                    dda_scan_params = self.get_ms2_scan_params(
+                        mz, intensity, precursor_scan_id, isolation_width, mz_tol, rt_tol
+                    )
 
                     # push this dda scan to the mass spec queue
                     new_tasks.append(dda_scan_params)

@@ -12,6 +12,7 @@ class AgentBasedController(Controller):
     """
     A class that implements an agent-based controller.
     """
+
     def __init__(self, agent, advanced_params=None):
         """Initialises an agent-based controller.
 
@@ -25,9 +26,9 @@ class AgentBasedController(Controller):
     def _process_scan(self, scan):
         new_tasks = []
         if self.scan_to_process is not None:
-            new_tasks, self.current_task_id, self.next_processed_scan_id = \
-                self.agent.next_tasks(self.scan_to_process, self,
-                                      self.current_task_id)
+            new_tasks, self.current_task_id, self.next_processed_scan_id = self.agent.next_tasks(
+                self.scan_to_process, self, self.current_task_id
+            )
             self.scan_to_process = None  # has been processed
         return new_tasks
 

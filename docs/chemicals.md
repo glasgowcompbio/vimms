@@ -35,3 +35,29 @@ You can explore these functionalities further with our notebooks demonstrating t
 Unknown chemicals are those without identifiable properties, typically extracted from existing mzML files. These could come from prior runs on an actual mass spectrometer. Each peak picked is presumed to correspond to a chemical, and their identities remain unknown. As fragmentation strategies operate without needing to know chemical identities, this presumption suffices for our simulation process.
 
 For an example of how to extract unknown chemicals from existing mzML files, see this [notebook](https://github.com/glasgowcompbio/vimms/blob/master/demo/01.%20Data/02.%20Extracting%20Chemicals%20from%20an%20mzML%20file.ipynb).
+### Multi-sample Mixtures
+
+For experiments involving multiple samples, `MultipleMixtureCreator` can introduce group specific intensity changes and missing values. Provide a master list of chemicals and a description of each sample group:
+
+```python
+from vimms.Chemicals import MultipleMixtureCreator
+
+mm = MultipleMixtureCreator(master_list,
+                             group_list=["control", "case"],
+                             group_dict={"control": {},
+                                         "case": {"missing_probability": 0.1,
+                                                  "changing_probability": 0.2}})
+mixtures = mm.generate_chemical_lists()
+```
+
+Each entry in `mixtures` represents the chemicals for a single sample.
+
+### Building Datasets from mzML
+
+Existing mzML files can be converted into chemical lists using `ChemicalMixtureFromMZML`. The ROIs are extracted and converted to `UnknownChemical` objects so that real data can be resimulated or combined with synthetic chemicals.
+
+```python
+from vimms.Chemicals import ChemicalMixtureFromMZML
+cm = ChemicalMixtureFromMZML("example.mzML")
+chemicals = cm.sample(n_chemicals=None, ms_levels=2)
+```

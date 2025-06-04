@@ -2,27 +2,29 @@
 This file provides the implementation of various miscellaneous controllers, some are
 pretty experimental.
 """
+
 import copy
 import itertools
 import math
 import os
 import subprocess
 from statistics import mean
-from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 from loguru import logger
 
 from vimms.Common import (
-    INITIAL_SCAN_ID, get_default_scan_params,
-    get_dda_scan_param, DEFAULT_ISOLATION_WIDTH,
-    ScanParameters
+    INITIAL_SCAN_ID,
+    get_default_scan_params,
+    get_dda_scan_param,
+    DEFAULT_ISOLATION_WIDTH,
+    ScanParameters,
 )
 from vimms.PeakPicking import MZMineParams
 from vimms.Controller.base import Controller, WrapperController
 
 
-class TaskFilter():
+class TaskFilter:
     """
     Can be used with [vimms.Controller.misc.FixedScansController][] and its
     subclasses to resynchronise scan RTs if they don't go according to
@@ -30,10 +32,11 @@ class TaskFilter():
     is before or after the planned RT by a certain threshold (scaled to scan
     lengths).
     """
+
     def __init__(self, ms1_length, ms2_length, skip_margin=0.5, add_margin=1.2):
         """
         Create a new TaskFilter.
-        
+
         Args:
             ms1_length: Expected length of MS1 scans.
             ms2_length: Expected length of MS2 scans.
@@ -47,43 +50,43 @@ class TaskFilter():
         self.ms1_length = ms1_length
         self.ms2_length = ms2_length
         self.min_length = min(ms1_length, ms2_length)
-        
+
         self.skip_margin = skip_margin
         self.add_margin = add_margin
-        
+
     @staticmethod
     def _find_nearest_ms2(task_idx, tasks):
         max_dist = max(task_idx + 1, len(tasks) - task_idx)
         for dist in range(1, max_dist):
-            
+
             right_idx = task_idx + dist
-            if(right_idx < len(tasks) and tasks[right_idx].get(ScanParameters.MS_LEVEL) == 2):
+            if right_idx < len(tasks) and tasks[right_idx].get(ScanParameters.MS_LEVEL) == 2:
                 return tasks[right_idx]
-            
+
             left_idx = task_idx - dist
-            if(left_idx > -1 and tasks[left_idx].get(ScanParameters.MS_LEVEL) == 2):
+            if left_idx > -1 and tasks[left_idx].get(ScanParameters.MS_LEVEL) == 2:
                 return tasks[left_idx]
-            
+
         return None
-        
+
     @classmethod
     def _make_scan(cls, task, scan_id, precursor_id):
-        if(not task.get(ScanParameters.MS_LEVEL) in [1, 2]):
+        if task.get(ScanParameters.MS_LEVEL) not in [1, 2]:
             raise NotImplementedError(
-                f"""{cls} isn't sure how to copy a ScanParameters with 
+                f"""{cls} isn't sure how to copy a ScanParameters with
                 ms_level = {task.get(ScanParameters.MS_LEVEL)}"""
             )
-        
+
         s = copy.deepcopy(task)
         s.set(ScanParameters.SCAN_ID, scan_id)
-        if(s.get(ScanParameters.MS_LEVEL) == 2):
+        if s.get(ScanParameters.MS_LEVEL) == 2:
             try:
-                #not sure there is any sensible way to change this without directly
-                #modifying internals, so here we defend against future changes in
-                #ScanParameters
+                # not sure there is any sensible way to change this without directly
+                # modifying internals, so here we defend against future changes in
+                # ScanParameters
                 for p in s.get(ScanParameters.PRECURSOR_MZ):
-                    test = p.precursor_scan_id
-            except:
+                    pass
+            except Exception:
                 raise NotImplementedError(
                     f"""
                     ScanParameters doesn't have the expected internal structure
@@ -91,16 +94,16 @@ class TaskFilter():
                     make a horrible mistake.
                     """
                 )
-                
+
             for p in s.get(ScanParameters.PRECURSOR_MZ):
                 p.precursor_scan_id = precursor_id
         return s
-        
+
     @classmethod
     def _make_ms2(cls, task_idx, tasks, scan_id, precursor_id):
         template_scan = TaskFilter._find_nearest_ms2(task_idx, tasks)
-        
-        if(template_scan is None):
+
+        if template_scan is None:
             return get_dda_scan_param(
                 precursor_mz=100.0,
                 intensity=0.0,
@@ -108,24 +111,24 @@ class TaskFilter():
                 isolation_width=DEFAULT_ISOLATION_WIDTH,
                 mz_tol=0.0,
                 rt_tol=0.0,
-                scan_id=scan_id
+                scan_id=scan_id,
             )
         else:
             return cls._make_scan(tasks[task_idx], scan_id, precursor_id)
-        
+
     def _get_task_length(self, task):
-        if(task.get(ScanParameters.MS_LEVEL) == 1):
+        if task.get(ScanParameters.MS_LEVEL) == 1:
             return self.ms1_length
-        elif(task.get(ScanParameters.MS_LEVEL) == 2):
+        elif task.get(ScanParameters.MS_LEVEL) == 2:
             return self.ms2_length
-        
+
         raise NotImplementedError(f"MS_LEVEL: {task.get(ScanParameters.MS_LEVEL)}")
-        
+
     def get_task(self, scan, scan_id, precursor_id, task_idx, expected_rts, tasks):
         """
         Gets the next task and updates the current task index for the
         parent controller.
-        
+
         Args:
             scan: Current scan from parent.
             scan_id: ID of scan.
@@ -133,53 +136,53 @@ class TaskFilter():
             task_idx: Current index in task queue.
             expected_rts: Queue of expected RTs corresponding to tasks.
             tasks: Full task queue.
-            
+
         Returns: Tuple of new task index and next task.
         """
         actual_rt = scan.rt + scan.scan_duration
         expected_rt = expected_rts[task_idx]
         rt_dist = expected_rt - actual_rt
 
-        if(rt_dist > self.add_margin * self.min_length):
-            if(self.ms1_length > self.ms2_length):
-                if(rt_dist > self.add_margin * self.ms1_length):
+        if rt_dist > self.add_margin * self.min_length:
+            if self.ms1_length > self.ms2_length:
+                if rt_dist > self.add_margin * self.ms1_length:
                     new_task = get_default_scan_params(scan_id=scan_id)
                 else:
                     new_task = self._make_ms2(task_idx, tasks, scan_id, precursor_id)
             else:
-                if(rt_dist > self.add_margin * self.ms2_length):
+                if rt_dist > self.add_margin * self.ms2_length:
                     new_task = self._make_ms2(task_idx, tasks, scan_id, precursor_id)
                 else:
                     new_task = get_default_scan_params(scan_id=scan_id)
             return task_idx, new_task
         else:
-            if(task_idx >= len(tasks) - 1): 
+            if task_idx >= len(tasks) - 1:
                 return task_idx, self._make_scan(tasks[task_idx], scan_id, precursor_id)
-            
-            while(
-                actual_rt >= expected_rts[task_idx + 1] 
-                             - self.skip_margin * self._get_task_length(tasks[task_idx])
-            ):
+
+            while actual_rt >= expected_rts[
+                task_idx + 1
+            ] - self.skip_margin * self._get_task_length(tasks[task_idx]):
                 task_idx += 1
-                if(task_idx >= len(tasks) - 1):
+                if task_idx >= len(tasks) - 1:
                     return task_idx, self._make_scan(tasks[task_idx], scan_id, precursor_id)
-            
+
             return task_idx + 1, self._make_scan(tasks[task_idx], scan_id, precursor_id)
+
 
 class FixedScansController(Controller):
     """
     A controller which takes a schedule of scans, and converts them into
     tasks in a queue.
-    
-    The base class for pre-scheduled controllers like 
-    [vimms.Controller.misc.DsDAController][] and 
+
+    The base class for pre-scheduled controllers like
+    [vimms.Controller.misc.DsDAController][] and
     [vimms.Controller.misc.MatchingController][].
     """
 
     def __init__(self, schedule=None, advanced_params=None, expected_rts=None, task_filter=None):
         """
         Create a FixedScansController.
-        
+
         Args:
             schedule: List of [vimms.Common.ScanParameter][] objects.
             advanced_params: Instance of [vimms.Controller.base.AdvancedParams][].
@@ -187,24 +190,22 @@ class FixedScansController(Controller):
                 to schedule. Only needed if e.g. resynchronising RTs using
                 task_filter.
             task_filter: Object that dynamically returns tasks on request. For
-                example [vimms.Controller.misc.TaskFilter][] can be used to 
+                example [vimms.Controller.misc.TaskFilter][] can be used to
                 resynchronise unexpected RTs with the expected ones in the schedule.
         """
         super().__init__(advanced_params=advanced_params)
         self.tasks = None
         self.initial_task = None
-        self.task_idx = 1 #First scan of schedule is always run
+        self.task_idx = 1  # First scan of schedule is always run
         self.expected_rts = expected_rts
         self.task_filter = task_filter
-        
+
         if schedule is not None and len(schedule) > 0:
             # if schedule is provided, set it
             self.set_tasks(schedule)
             self.scan_id = self.initial_task.get(ScanParameters.SCAN_ID) + 1
             self.precursor_id = (
-                self.scan_id - 1 
-                if self.initial_task.get(ScanParameters.MS_LEVEL) == 1 
-                else None
+                self.scan_id - 1 if self.initial_task.get(ScanParameters.MS_LEVEL) == 1 else None
             )
 
     def get_initial_tasks(self):
@@ -215,7 +216,7 @@ class FixedScansController(Controller):
         """
         # the remaining scan parameters in the schedule must have been set
         assert self.tasks is not None
-        if(self.task_filter is None):
+        if self.task_filter is None:
             return self.tasks[1:]
         else:
             return []
@@ -224,7 +225,7 @@ class FixedScansController(Controller):
         """
         Returns the initial scan parameter object to send when
         acquisition starts
-        
+
         Returns: The initial task.
         """
         # the first scan parameters in the schedule must have been set
@@ -234,7 +235,7 @@ class FixedScansController(Controller):
     def set_tasks(self, schedule):
         """
         Set a new schedule for this controller.
-        
+
         Args:
             schedule: A list of [vimms.Common.ScanParameter][].
         """
@@ -244,7 +245,7 @@ class FixedScansController(Controller):
 
     def handle_scan(self, scan, current_size, pending_size):
         # simply record every scan that we've received, but return no new tasks
-        logger.debug('Time %f Received %s' % (scan.rt, scan))
+        logger.debug("Time %f Received %s" % (scan.rt, scan))
         self.scans[scan.ms_level].append(scan)
         return self._process_scan(scan)
 
@@ -252,54 +253,49 @@ class FixedScansController(Controller):
         pass
 
     def _process_scan(self, scan):
-        if(self.task_filter is None):
+        if self.task_filter is None:
             return []
         else:
             self.task_idx, new_task = self.task_filter.get_task(
-                scan, 
-                self.scan_id, 
-                self.precursor_id, 
-                self.task_idx, 
-                self.expected_rts, 
-                self.tasks
+                scan, self.scan_id, self.precursor_id, self.task_idx, self.expected_rts, self.tasks
             )
-            if(new_task.get(ScanParameters.MS_LEVEL) == 1):
+            if new_task.get(ScanParameters.MS_LEVEL) == 1:
                 self.precursor_id = self.scan_id
             self.scan_id += 1
             return [new_task]
-        
+
 
 class DsDAController(WrapperController):
     """
-    A controller which allows running the DsDA  (Dataset-Dependent Acquisition) 
+    A controller which allows running the DsDA  (Dataset-Dependent Acquisition)
     method.
-    
+
     See the original publication for a description of DsDA:
-    
-    Broeckling, Hoyes, et al. "Comprehensive Tandem-Mass-Spectrometry coverage 
-    of complex samples enabled by Data-Set-Dependent acquisition." 
+
+    Broeckling, Hoyes, et al. "Comprehensive Tandem-Mass-Spectrometry coverage
+    of complex samples enabled by Data-Set-Dependent acquisition."
     Analytical Chemistry. 90, 8020–8027 (2018).
     """
 
     def __init__(self, dsda_state, mzml_name, advanced_params=None, task_filter=None):
         """
         Initialise a new DsDAController instance.
-        
+
         Args:
-            dsda_state: An instance of [vimms.DsDA.DsDAState][], wrapping a 
+            dsda_state: An instance of [vimms.DsDA.DsDAState][], wrapping a
             live R process running DsDA.
             mzml_name: The name of the .mzML file to write for this injection.
-            advanced_params: a [vimms.Controller.base.AdvancedParams][] object 
-                that contains advanced parameters to control the mass spec. 
+            advanced_params: a [vimms.Controller.base.AdvancedParams][] object
+                that contains advanced parameters to control the mass spec.
                 See [vimms.Controller.base.AdvancedParams][] for defaults.
-            task_filter: Object that examines the task list and adds or deletes 
+            task_filter: Object that examines the task list and adds or deletes
                 tasks to ensure schedule remains in sync with the actual RT.
         """
         self.dsda_state = dsda_state
         self.mzml_name = mzml_name
         self.task_filter = task_filter
-        
-        if(dsda_state.file_num == 0):
+
+        if dsda_state.file_num == 0:
             self.controller = self.dsda_state.get_base_controller()
         else:
             schedule_params, rts = self.dsda_state.get_scan_params()
@@ -307,9 +303,9 @@ class DsDAController(WrapperController):
                 schedule=schedule_params,
                 advanced_params=advanced_params,
                 expected_rts=rts,
-                task_filter=task_filter
+                task_filter=task_filter,
             )
-            
+
         print(self.controller)
         super().__init__()
 
@@ -337,39 +333,40 @@ class MS2PlannerController(FixedScansController):
 
         Returns: None
         """
-        
+
         out_headers = ["Mass [m/z]", "retention_time", "charge", "Blank", "Sample"]
-        
+
         records = []
         fs_names, line_ls = reader.read_aligned_csv(inpath)
         for i, (row_fields, mzml_fields) in enumerate(line_ls):
-            row = []
-            if(len(list(mzml_fields.keys())) > 1):
+            if len(list(mzml_fields.keys())) > 1:
                 raise NotImplementedError(
                     "MS2Planner controller doesn't currently handle aligned experiment"
                 )
-            #not sure if it even makes sense to try and use an aligned file with
-            #MS2Planner
-            #but handle the file as if it was aligned in case this 
-            #more general code will be useful later
+            # not sure if it even makes sense to try and use an aligned file with
+            # MS2Planner
+            # but handle the file as if it was aligned in case this
+            # more general code will be useful later
             statuses = ((mzml, inner["status"].upper()) for mzml, inner in mzml_fields.items())
             mzmls = [mzml for mzml, s in statuses if s == "DETECTED" or s == "ESTIMATED"]
-            if(mzmls != []):
-                records.append([
-                    row_fields["row m/z"],
-                    float(row_fields["row retention time"]) * 60,
-                    mzml_fields[mzmls[0]]["charge"],
-                    0.0,
-                    mean(float(mzml_fields[mzml]["height"]) for mzml in mzmls)
-                ])
-                
+            if mzmls != []:
+                records.append(
+                    [
+                        row_fields["row m/z"],
+                        float(row_fields["row retention time"]) * 60,
+                        mzml_fields[mzmls[0]]["charge"],
+                        0.0,
+                        mean(float(mzml_fields[mzml]["height"]) for mzml in mzmls),
+                    ]
+                )
+
         records.sort(key=lambda r: r[1])
-        
+
         with open(outpath, "w+") as f:
             f.write(",".join(out_headers) + "\n")
             for r in records:
                 f.write(",".join(str(field) for field in r) + "\n")
-                
+
     @staticmethod
     def mzmine2ms2planner(inpath, outpath):
         """
@@ -382,12 +379,12 @@ class MS2PlannerController(FixedScansController):
         Returns: None
 
         """
-        
+
         return MS2PlannerController.boxfile2ms2planner(MZMineParams, inpath, outpath)
 
     @staticmethod
     def minimise_single(x, target):
-        if (target < 0):
+        if target < 0:
             return 0
         c = int(target // x)
         return min(c, c + 1, key=lambda c: abs(target - c * x))
@@ -410,36 +407,42 @@ class MS2PlannerController(FixedScansController):
         """
         best_coefficients = (float("inf"), [])
         stack = [MS2PlannerController.minimise_single(args[0], target)] if len(args) > 0 else []
-        while (stack != []):
+        while stack != []:
             remainder = target - sum(s * a for s, a in zip(stack, args))
             for i in range(len(stack), len(args)):
                 c = MS2PlannerController.minimise_single(args[i], remainder)
                 stack.append(c)
                 remainder -= c * args[i]
             dist = abs(remainder)
-            if (not math.isclose(dist, best_coefficients[0]) and dist < best_coefficients[0]):
+            if not math.isclose(dist, best_coefficients[0]) and dist < best_coefficients[0]:
                 best_coefficients = (dist, copy.copy(stack))
             stack.pop()
-            while (stack != [] and stack[-1] <= 0):
+            while stack != [] and stack[-1] <= 0:
                 stack.pop()
-            if (stack != []):
+            if stack != []:
                 stack[-1] -= 1
         return best_coefficients[1]
 
     @staticmethod
     def parse_ms2planner(fpaths):
-        fields = ["mz_centre", "mz_isolation", "duration", "rt_start",
-                  "rt_end", "intensity", "apex_rt", "charge"]
-                 
+        fields = [
+            "mz_centre",
+            "mz_isolation",
+            "duration",
+            "rt_start",
+            "rt_end",
+            "intensity",
+            "apex_rt",
+            "charge",
+        ]
+
         schedules = []
         for fpath in fpaths:
             schedule = []
             with open(fpath, "r") as f:
                 f.readline()
                 for ln in f:
-                    schedule.append(
-                        dict(zip(fields, (float(x) for x in ln.split(","))))
-                    )
+                    schedule.append(dict(zip(fields, (float(x) for x in ln.split(",")))))
             schedules.append(schedule)
         return schedules
 
@@ -460,92 +463,87 @@ class MS2PlannerController(FixedScansController):
         new_sched = [get_default_scan_params(scan_id=INITIAL_SCAN_ID)]
         precursor_id = INITIAL_SCAN_ID
         id_count = INITIAL_SCAN_ID + 1
-        
+
         srted = sorted(schedule, key=lambda s: s["rt_start"])
         print("Schedule times: {}".format([s["rt_start"] for s in srted]))
         print(f"NUM SCANS IN SCHEDULE FILE: {len(schedule)}")
         for ms2 in srted:
-        
-            if(ms2["rt_start"] - time < scan_duration_dict[1]):
+
+            if ms2["rt_start"] - time < scan_duration_dict[1]:
                 target = ms2["rt_start"] - time
             else:
                 target = ms2["rt_start"] - scan_duration_dict[1] - time
-                
+
             num_ms1, num_ms2 = MS2PlannerController.minimise_distance(
-                target, 
-                scan_duration_dict[1],
-                scan_duration_dict[2]
+                target, scan_duration_dict[1], scan_duration_dict[2]
             )
-            
-            if(ms2["rt_start"] - time >= scan_duration_dict[1]):
+
+            if ms2["rt_start"] - time >= scan_duration_dict[1]:
                 num_ms1 += 1
-            num_ms2 += 1 #add the actual scan
-                
+            num_ms2 += 1  # add the actual scan
+
             print(f"num_scans: {(num_ms1, num_ms2)}")
-            
+
             filler_diff = num_ms1 - num_ms2
-            fillers = [
-                1 if filler_diff > 0 else 2
-                for i in range(abs(filler_diff))
-            ]
+            fillers = [1 if filler_diff > 0 else 2 for i in range(abs(filler_diff))]
             fillers.extend([1, 2] * min(num_ms1, num_ms2))
-                
+
             for ms_level in fillers:
                 # print(f"sid: {id_count}")
-                if(ms_level == 1):
+                if ms_level == 1:
                     precursor_id = id_count
                     new_sched.append(get_default_scan_params(scan_id=precursor_id))
                 else:
                     new_sched.append(
                         get_dda_scan_param(
-                            ms2["mz_centre"], 
-                            0.0, 
+                            ms2["mz_centre"],
+                            0.0,
                             precursor_id,
                             ms2["mz_isolation"],
-                            0.0, 
                             0.0,
-                            scan_id=id_count
+                            0.0,
+                            scan_id=id_count,
                         )
                     )
                 id_count += 1
-            
-            times = [
-                time, 
-                scan_duration_dict[1] * num_ms1,
-                scan_duration_dict[2] * num_ms2
-            ]
+
+            times = [time, scan_duration_dict[1] * num_ms1, scan_duration_dict[2] * num_ms2]
             time = sum(times)
-            
-            print(f"Start time: {times[0]}, MS1 duration: {times[1]}, "
-                  f"MS2 duration: {times[2]}, End time: {time}")
+
+            print(
+                f"Start time: {times[0]}, MS1 duration: {times[1]}, "
+                f"MS2 duration: {times[2]}, End time: {time}"
+            )
             print(f"schedule_length: {len(new_sched)}")
         print(f"Durations: {scan_duration_dict}")
-        
+
         return new_sched
 
     @staticmethod
-    def from_fullscan(ms2planner_dir,
-                      fullscan_mzmine_table,
-                      out_file,
-                      intensity_threshold,
-                      intensity_ratio,
-                      num_injections,
-                      intensity_accu,
-                      isolation,
-                      delay,
-                      min_scan_len,
-                      max_scan_len,
-                      scan_duration_dict,
-                      mode="apex",
-                      fullscan_file=None,
-                      restriction=None,
-                      cluster_method="kNN",
-                      userpython="python",
-                      advanced_params=None):
+    def from_fullscan(
+        ms2planner_dir,
+        fullscan_mzmine_table,
+        out_file,
+        intensity_threshold,
+        intensity_ratio,
+        num_injections,
+        intensity_accu,
+        isolation,
+        delay,
+        min_scan_len,
+        max_scan_len,
+        scan_duration_dict,
+        mode="apex",
+        fullscan_file=None,
+        restriction=None,
+        cluster_method="kNN",
+        userpython="python",
+        advanced_params=None,
+    ):
 
         converted = os.path.join(os.path.dirname(out_file), "mzmine2ms2planner.txt")
         MS2PlannerController.mzmine2ms2planner(fullscan_mzmine_table, converted)
-        
+
         process_args = [
             userpython,
             os.path.join(ms2planner_dir, "path_finder.py"),
@@ -555,47 +553,55 @@ class MS2PlannerController(FixedScansController):
             str(intensity_threshold),
             str(intensity_ratio),
             str(num_injections),
-            "-intensity_accu", str(intensity_accu),
-            "-isolation", str(isolation),
-            "-delay", str(delay),
-            "-min_scan", str(min_scan_len),
-            "-max_scan", str(max_scan_len),
+            "-intensity_accu",
+            str(intensity_accu),
+            "-isolation",
+            str(isolation),
+            "-delay",
+            str(delay),
+            "-min_scan",
+            str(min_scan_len),
+            "-max_scan",
+            str(max_scan_len),
         ]
-        
-        if(mode.lower() == "curve"):
-            if(fullscan_file is None or restriction is None):
+
+        if mode.lower() == "curve":
+            if fullscan_file is None or restriction is None:
                 raise ValueError(
-                    """fullscan_file and restriction arguments must be 
+                    """fullscan_file and restriction arguments must be
                        supplied for curve mode!"""
                 )
-            
-            process_args.extend([
-                "-infile_raw", str(fullscan_file),
-                "-restriction", str(restriction[0]), str(restriction[1]),
-                "-cluster", str(cluster_method)
-            ])
-                
-        elif(mode.lower() != "apex"):
+
+            process_args.extend(
+                [
+                    "-infile_raw",
+                    str(fullscan_file),
+                    "-restriction",
+                    str(restriction[0]),
+                    str(restriction[1]),
+                    "-cluster",
+                    str(cluster_method),
+                ]
+            )
+
+        elif mode.lower() != "apex":
             raise ValueError("Only curve and apex are supported as modes!")
-        
+
         subprocess.run(process_args)
         out_files = [
             f"{'.'.join(out_file.split('.')[:-1])}_{mode.lower()}_path_{i+1}.csv"
             for i in range(num_injections)
         ]
         schedules = [
-            MS2PlannerController.sched_dict2params(sch, scan_duration_dict) 
+            MS2PlannerController.sched_dict2params(sch, scan_duration_dict)
             for sch in MS2PlannerController.parse_ms2planner(out_files)
         ]
-        with open(os.path.join(os.path.dirname(out_file), "scan_params.txt"),
-                  "w+") as f:
+        with open(os.path.join(os.path.dirname(out_file), "scan_params.txt"), "w+") as f:
             for i, schedule in enumerate(schedules):
                 f.write(f"SCHEDULE {i}\n\n")
-                f.write("".join(
-                    f"SCAN {j}: {scan}\n\n" for j, scan in enumerate(schedule))
-                )
+                f.write("".join(f"SCAN {j}: {scan}\n\n" for j, scan in enumerate(schedule)))
         return [
-            MS2PlannerController(schedule=schedule, advanced_params=advanced_params) 
+            MS2PlannerController(schedule=schedule, advanced_params=advanced_params)
             for schedule in schedules
         ]
 
@@ -605,27 +611,28 @@ class MatchingController(FixedScansController):
     A pre-scheduled controller that executes a scan queue planned by
     a maximum bipartite matching from [vimms.Matching][].
     """
+
     @classmethod
     def from_matching(cls, matching, isolation_width, advanced_params=None, task_filter=None):
         """
         Construct a list of MatchingControllers (one for each injection)
         from a potentially multi-injection matching.
-        
+
         Args:
             matching: Instance of [vimms.Matching.Matching][].
             isolation_width: Isolation width in Daltons.
             advanced_params: Instance of [vimms.Controller.base.AdvancedParams][].
             task_filter: Object that dynamically returns tasks on request. For
-                example [vimms.Controller.misc.TaskFilter][] can be used to 
+                example [vimms.Controller.misc.TaskFilter][] can be used to
                 resynchronise unexpected RTs with the expected ones in the schedule.
         """
         return [
             MatchingController(
-                schedule=schedule, 
+                schedule=schedule,
                 advanced_params=advanced_params,
                 expected_rts=rts,
-                task_filter=task_filter
-            ) 
+                task_filter=task_filter,
+            )
             for schedule, rts in zip(*matching.make_schedules(isolation_width))
         ]
 
@@ -634,8 +641,8 @@ class MultiIsolationController(Controller):
     """
     A controller used to test multiple isolations in a single MS2 scan.
     """
-    def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH,
-                 advanced_params=None):
+
+    def __init__(self, N, isolation_width=DEFAULT_ISOLATION_WIDTH, advanced_params=None):
         """
         Initialise a multi-isolation controller
         Args:
@@ -681,8 +688,13 @@ class MultiIsolationController(Controller):
                     mz.append(mzs[idx[s]])
                     intensity.append(mzs[idx[s]])
                 dda_scan_params = self.get_ms2_scan_params(
-                    mz, intensity, precursor_scan_id, self.isolation_width,
-                    self.mz_tol, self.rt_tol)
+                    mz,
+                    intensity,
+                    precursor_scan_id,
+                    self.isolation_width,
+                    self.mz_tol,
+                    self.rt_tol,
+                )
 
                 new_tasks.append(dda_scan_params)
                 self.current_task_id += 1

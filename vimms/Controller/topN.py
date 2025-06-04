@@ -1,11 +1,5 @@
 import numpy as np
 from loguru import logger
-from ms_deisotope import (
-    PenalizedMSDeconVFitter,
-    AveragineDeconvoluter,
-)
-from ms_deisotope.deconvolution import deconvolute_peaks
-from ms_deisotope.deconvolution.utils import prepare_peaklist
 
 from vimms.Common import DUMMY_PRECURSOR_MZ
 from vimms.Controller.base import Controller
@@ -19,12 +13,21 @@ class TopNController(Controller):
     the peaks with the highest intensity that are not excluded
     """
 
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                 min_ms1_intensity,
-                 ms1_shift=0, initial_exclusion_list=None, advanced_params=None,
-                 force_N=False, exclude_after_n_times=1, exclude_t0=0,
-                 deisotope=False, charge_range=(2, 3), min_fit_score=80, penalty_factor=1.5,
-                 use_quick_charge=False):
+    def __init__(
+        self,
+        ionisation_mode,
+        N,
+        isolation_width,
+        mz_tol,
+        rt_tol,
+        min_ms1_intensity,
+        ms1_shift=0,
+        initial_exclusion_list=None,
+        advanced_params=None,
+        force_N=False,
+        exclude_after_n_times=1,
+        exclude_t0=0,
+    ):
         """
         Initialise the Top-N controller
 
@@ -43,10 +46,6 @@ class TopNController(Controller):
             force_N: whether to always force N fragmentations.
             exclude_after_n_times; allow ions to NOT be excluded up to n_times.
             exclude_t0: time for initial exclusion check.
-            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
-            charge_range: the charge state of ions to keep.
-            min_fit_score: minimum score to keep from doing isotope deconvolution.
-            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
         super().__init__(advanced_params=advanced_params)
 
@@ -77,28 +76,16 @@ class TopNController(Controller):
 
         if self.force_N and ms1_shift > 0:
             logger.warning(
-                "Setting force_N to True with non-zero shift can lead to "
-                "strange behaviour")
-
-        self.exclusion = TopNExclusion(self.mz_tol, self.rt_tol,
-                                       exclude_after_n_times=exclude_after_n_times,
-                                       exclude_t0=exclude_t0,
-                                       initial_exclusion_list=initial_exclusion_list)
-
-        # for isotope filtering using ms_deisotope
-        self.deisotope = deisotope
-        self.charge_range = charge_range
-        self.min_fit_score = min_fit_score
-        self.penalty_factor = penalty_factor
-        self.use_quick_charge = use_quick_charge
-
-        if self.deisotope:
-            scorer = PenalizedMSDeconVFitter(
-                minimum_score=self.min_fit_score,
-                penalty_factor=self.penalty_factor,
-                mass_error_tolerance=0.00002
+                "Setting force_N to True with non-zero shift can lead to " "strange behaviour"
             )
-            self.dc = {'scorer': scorer}
+
+        self.exclusion = TopNExclusion(
+            self.mz_tol,
+            self.rt_tol,
+            exclude_after_n_times=exclude_after_n_times,
+            exclude_t0=exclude_t0,
+            initial_exclusion_list=initial_exclusion_list,
+        )
 
     def _process_scan(self, scan):
         # if there's a previous ms1 scan to process
@@ -113,10 +100,6 @@ class TopNController(Controller):
             intensities = self.scan_to_process.intensities
             assert mzs.shape == intensities.shape
             rt = self.scan_to_process.rt
-
-            # perform isotope deconvolution, necessary for proteomics data
-            if self.deisotope:
-                mzs, intensities = self._deisotope(mzs, intensities)
 
             # loop over points in decreasing intensity
             idx = np.argsort(intensities)[::-1]
@@ -134,9 +117,9 @@ class TopNController(Controller):
 
                 if intensity < self.min_ms1_intensity:
                     logger.debug(
-                        'Time %f Minimum intensity threshold %f reached '
-                        'at %f, %d' % (rt, self.min_ms1_intensity, intensity,
-                                       fragmented_count))
+                        "Time %f Minimum intensity threshold %f reached "
+                        "at %f, %d" % (rt, self.min_ms1_intensity, intensity, fragmented_count)
+                    )
                     break
 
                 # skip ion in the dynamic exclusion list of the mass spec
@@ -147,8 +130,13 @@ class TopNController(Controller):
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.get_ms2_scan_params(
-                    mz, intensity, precursor_scan_id, self.isolation_width,
-                    self.mz_tol, self.rt_tol)
+                    mz,
+                    intensity,
+                    precursor_scan_id,
+                    self.isolation_width,
+                    self.mz_tol,
+                    self.rt_tol,
+                )
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1
@@ -168,9 +156,13 @@ class TopNController(Controller):
                 for i in range(n_tasks_remaining):
                     precursor_scan_id = self.scan_to_process.scan_id
                     dda_scan_params = self.get_ms2_scan_params(
-                        DUMMY_PRECURSOR_MZ, 100.0, precursor_scan_id,
+                        DUMMY_PRECURSOR_MZ,
+                        100.0,
+                        precursor_scan_id,
                         self.isolation_width,
-                        self.mz_tol, self.rt_tol)
+                        self.mz_tol,
+                        self.rt_tol,
+                    )
                     new_tasks.append(dda_scan_params)
                     ms2_tasks.append(dda_scan_params)
                     fragmented_count += 1
@@ -191,22 +183,11 @@ class TopNController(Controller):
             self.scan_to_process = None
         return new_tasks
 
-    def _deisotope(self, mzs, intensities):
-        pl = prepare_peaklist((mzs, intensities))
-        dt = AveragineDeconvoluter
-        ps = deconvolute_peaks(pl, decon_config=self.dc, charge_range=self.charge_range,
-                               deconvoluter_type=dt, use_quick_charge=self.use_quick_charge)
-
-        peaks = ps.peak_set.peaks
-        mzs = np.array([peak.mz for peak in peaks])
-        intensities = np.array([peak.intensity for peak in peaks])
-        return mzs, intensities
-
     def update_state_after_scan(self, scan):
         pass
 
 
-class ScanItem():
+class ScanItem:
     """
     Represents a scan item object. Used by the WeightedDEW controller to store
     the pair of m/z and intensity values along with their associated weight
@@ -238,16 +219,29 @@ class WeightedDEWController(TopNController):
      a certain precursor ion is excluded or not. For more details, refer to our paper.
     """
 
-    def __init__(self, ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                 min_ms1_intensity, ms1_shift=0,
-                 exclusion_t_0=15, log_intensity=False,
-                 deisotope=False, charge_range=(2, 3), min_fit_score=80, penalty_factor=1.5, use_quick_charge=False,
-                 advanced_params=None):
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                         min_ms1_intensity, ms1_shift=ms1_shift,
-                         deisotope=deisotope, charge_range=charge_range,
-                         min_fit_score=min_fit_score, penalty_factor=penalty_factor, use_quick_charge=use_quick_charge,
-                         advanced_params=advanced_params)
+    def __init__(
+        self,
+        ionisation_mode,
+        N,
+        isolation_width,
+        mz_tol,
+        rt_tol,
+        min_ms1_intensity,
+        ms1_shift=0,
+        exclusion_t_0=15,
+        log_intensity=False,
+        advanced_params=None,
+    ):
+        super().__init__(
+            ionisation_mode,
+            N,
+            isolation_width,
+            mz_tol,
+            rt_tol,
+            min_ms1_intensity,
+            ms1_shift=ms1_shift,
+            advanced_params=advanced_params,
+        )
         self.log_intensity = log_intensity
         self.exclusion = WeightedDEWExclusion(mz_tol, rt_tol, exclusion_t_0)
 
@@ -260,19 +254,19 @@ class WeightedDEWController(TopNController):
             intensities = self.scan_to_process.intensities
             rt = self.scan_to_process.rt
 
-            # perform isotope deconvolution, necessary for proteomics data
-            if self.deisotope:
-                mzs, intensities = self._deisotope(mzs, intensities)
-
             if not self.log_intensity:
-                mzi = [ScanItem(mz, intensities[i]) for i, mz in enumerate(mzs)
-                       if
-                       intensities[i] >= self.min_ms1_intensity]
+                mzi = [
+                    ScanItem(mz, intensities[i])
+                    for i, mz in enumerate(mzs)
+                    if intensities[i] >= self.min_ms1_intensity
+                ]
             else:
                 # take log of intensities for peak scoring
-                mzi = [ScanItem(mz, np.log(intensities[i])) for i, mz in
-                       enumerate(mzs) if
-                       intensities[i] >= self.min_ms1_intensity]
+                mzi = [
+                    ScanItem(mz, np.log(intensities[i]))
+                    for i, mz in enumerate(mzs)
+                    if intensities[i] >= self.min_ms1_intensity
+                ]
 
             for si in mzi:
                 is_exc, weight = self.exclusion.is_excluded(si.mz, rt)
@@ -301,15 +295,21 @@ class WeightedDEWController(TopNController):
 
                 if mzi[i].weight == 0.0:
                     logger.debug(
-                        'Time %f no ions left reached at %f, %d' % (
-                            rt, intensity, fragmented_count))
+                        "Time %f no ions left reached at %f, %d"
+                        % (rt, intensity, fragmented_count)
+                    )
                     break
 
                 # create a new ms2 scan parameter to be sent to the mass spec
                 precursor_scan_id = self.scan_to_process.scan_id
                 dda_scan_params = self.get_ms2_scan_params(
-                    mz, intensity, precursor_scan_id,
-                    self.isolation_width, self.mz_tol, self.rt_tol)
+                    mz,
+                    intensity,
+                    precursor_scan_id,
+                    self.isolation_width,
+                    self.mz_tol,
+                    self.rt_tol,
+                )
                 new_tasks.append(dda_scan_params)
                 ms2_tasks.append(dda_scan_params)
                 fragmented_count += 1

@@ -1,29 +1,25 @@
 # computes optimal performance
-import sys
-sys.path.append('..')
-sys.path.append('../..')  # if running in this folder
-
-import argparse
-import bisect
-import os
-
-import networkx as nx
-import numpy as np
-from loguru import logger
-
-from mass_spec_utils.data_import.mzmine import load_picked_boxes
-from mass_spec_utils.data_import.mzml import MZMLFile
-
-from vimms.Common import POSITIVE
 from vimms.Roi import Roi
+from vimms.Common import POSITIVE
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import load_picked_boxes
+from loguru import logger
+import numpy as np
+import networkx as nx
+import os
+import bisect
+import argparse
+import sys
+
+sys.path.append("..")
+sys.path.append("../..")  # if running in this folder
 
 
 def get_times(mzfile_object):
     times = {1: [], 2: []}
     for i, scan in enumerate(mzfile_object.scans[1:]):
         scan_level = mzfile_object.scans[i].ms_level
-        elapsed_time = scan.rt_in_seconds - \
-                       mzfile_object.scans[i].rt_in_seconds
+        elapsed_time = scan.rt_in_seconds - mzfile_object.scans[i].rt_in_seconds
         if elapsed_time > 0:
             times[scan_level].append(elapsed_time)
     return times
@@ -66,8 +62,12 @@ def add_rois_to_boxes(boxes, mzfile, verbose=True):
 
         # find the boxes that are active at this scan
         ok_boxes = list(
-            filter(lambda x: x.rt_range_in_seconds[0] <= scan_rt and
-                             x.rt_range_in_seconds[1] >= scan_rt, boxes))
+            filter(
+                lambda x: x.rt_range_in_seconds[0] <= scan_rt
+                and x.rt_range_in_seconds[1] >= scan_rt,
+                boxes,
+            )
+        )
         if len(ok_boxes) == 0:
             continue  # no boxes now, onto the next scan
 
@@ -80,8 +80,7 @@ def add_rois_to_boxes(boxes, mzfile, verbose=True):
             for i in range(min_idx, max_idx):
                 sub_peaks.append((mz_list[i], intensity_list[i]))
             if len(sub_peaks) > 0:
-                sub_peaks.sort(key=lambda x: x[1],
-                               reverse=True)  # sort by descending intensity
+                sub_peaks.sort(key=lambda x: x[1], reverse=True)  # sort by descending intensity
                 peak_mz = sub_peaks[0][0]
                 peak_intensity = sub_peaks[0][1]
                 peak_rt = scan_rt
@@ -107,19 +106,18 @@ def get_intensity(roi, rt, interpolate=False):
         after_pos = pos
         if interpolate:
             prop = (rt - roi.rt_list[before_pos]) / (
-                    roi.rt_list[after_pos] - roi.rt_list[before_pos])
+                roi.rt_list[after_pos] - roi.rt_list[before_pos]
+            )
             return roi.intensity_list[before_pos] + prop * (
-                    roi.intensity_list[after_pos] - roi.intensity_list[
-                before_pos])
+                roi.intensity_list[after_pos] - roi.intensity_list[before_pos]
+            )
         else:
             return roi.intensity_list[before_pos]
 
 
-def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity,
-                     chrom_min=0.001):
+def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity, chrom_min=0.001):
     # this currently only works for mono-isotope and M+H
-    logger.warning('Making graph edges from chemicals only uses the '
-                   'monoisotopic M+H adduct')
+    logger.warning("Making graph edges from chemicals only uses the " "monoisotopic M+H adduct")
     chem_id = 0
     edges = []
     # find the minimum delta t and then set the step for determining the end
@@ -129,7 +127,7 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity,
     # delta_t = min_scan_delta / 2
     for chemical in chems:
 
-        adduct = 'M+H'
+        adduct = "M+H"
         which_isotope = 0
 
         # skip chems that start after the end of acquisition
@@ -148,8 +146,9 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity,
 
         # get the intensity at this RT
         adduct_intensity = {a: i for a, i in chemical.adducts[POSITIVE]}
-        max_intensity = chemical.isotopes[which_isotope][1] * adduct_intensity[
-            adduct] * chemical.max_intensity
+        max_intensity = (
+            chemical.isotopes[which_isotope][1] * adduct_intensity[adduct] * chemical.max_intensity
+        )
 
         # standard loop as in the ROI case
         spo = bisect.bisect_right(scan_start_times, rt_start)
@@ -157,7 +156,8 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity,
         while spo < len(scan_start_times):
             # get relative intensity at this time point
             rel_intensity = chemical.chromatogram.get_relative_intensity(
-                scan_start_times[spo] - chemical.rt)
+                scan_start_times[spo] - chemical.rt
+            )
             if rel_intensity is None:
                 rel_intensity = 0.0
             intensity = max_intensity * rel_intensity
@@ -168,8 +168,7 @@ def make_edges_chems(chems, scan_start_times, scan_levels, min_ms1_intensity,
                     can_fragment = False
             if scan_levels[spo] == 2:
                 if can_fragment:
-                    edges.append(
-                        ("S{}".format(spo), "B{}".format(chem_id), chemical))
+                    edges.append(("S{}".format(spo), "B{}".format(chem_id), chemical))
             spo += 1
             if rel_intensity < chrom_min:
                 break
@@ -188,15 +187,13 @@ def make_edges(boxes, scan_start_times, scan_levels, min_ms1_intensity):
         can_fragment = False  # until we see an MS1
         while spo < len(scan_start_times) and scan_start_times[spo] < rt_end:
             if scan_levels[spo] == 1:
-                if get_intensity(box.roi,
-                                 scan_start_times[spo]) >= min_ms1_intensity:
+                if get_intensity(box.roi, scan_start_times[spo]) >= min_ms1_intensity:
                     can_fragment = True
                 else:
                     can_fragment = False
             if scan_levels[spo] == 2:
                 if can_fragment:
-                    edges.append(
-                        ("S{}".format(spo), "B{}".format(peak_id), box))
+                    edges.append(("S{}".format(spo), "B{}".format(peak_id), box))
             spo += 1
     return edges
 
@@ -207,17 +204,16 @@ def reducedUnweightedMaxMatchingFromLists(scanSet, boxSet, edgeList):
     G.add_nodes_from(scanSet, bipartite=0)
     G.add_nodes_from(boxSet, bipartite=1)
     G.add_edges_from(edgeList)  # add edges to graph from list
-    print('There are {} scans and {} boxes'.format(len(scanSet), len(boxSet)))
-    print('There are {} edges in total'.format(len(edgeList)))
-    top_nodes = {n for n, d in G.nodes(data=True) if
-                 d['bipartite'] == 0}  # scans
+    print("There are {} scans and {} boxes".format(len(scanSet), len(boxSet)))
+    print("There are {} edges in total".format(len(edgeList)))
+    top_nodes = {n for n, d in G.nodes(data=True) if d["bipartite"] == 0}  # scans
     # call the matching algorithms
     matching = nx.bipartite.matching.hopcroft_karp_matching(G, top_nodes)
     size = 0
     scanList = list(scanSet)
-    matchList = [(s, '-') for s in scanList]
+    matchList = [(s, "-") for s in scanList]
 
-    items_list = list(matching.items())[:len(matching) // 2]
+    items_list = list(matching.items())[: len(matching) // 2]
 
     for scan, box in items_list:
         ind = scanList.index(scan)
@@ -227,24 +223,19 @@ def reducedUnweightedMaxMatchingFromLists(scanSet, boxSet, edgeList):
     return matchList, size
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Compute optimal performance')
-    parser.add_argument('--N', dest='N', default=10, type=int)
-    parser.add_argument('--ms1_time', dest='ms1_time', default=0.6, type=float)
-    parser.add_argument('--ms2_time', dest='ms2_time', default=0.2, type=float)
-    parser.add_argument('box_file', type=str)
-    parser.add_argument('--mzml_file', dest='mzml_file',
-                        default=None, type=str)
-    parser.add_argument('--timing_file', dest='timing_file', default=None,
-                        type=str)
-    parser.add_argument('--min_rt', dest='min_rt', default=0.0, type=float)
-    parser.add_argument('--max_rt', dest='max_rt', default=26.0 * 60.0,
-                        type=float)
-    parser.add_argument('--min_ms1_intensity', dest='min_ms1_intensity',
-                        default=5e3, type=float)
-    parser.add_argument('--time_factor', dest='time_factor', default=1,
-                        type=float)
+    parser = argparse.ArgumentParser(description="Compute optimal performance")
+    parser.add_argument("--N", dest="N", default=10, type=int)
+    parser.add_argument("--ms1_time", dest="ms1_time", default=0.6, type=float)
+    parser.add_argument("--ms2_time", dest="ms2_time", default=0.2, type=float)
+    parser.add_argument("box_file", type=str)
+    parser.add_argument("--mzml_file", dest="mzml_file", default=None, type=str)
+    parser.add_argument("--timing_file", dest="timing_file", default=None, type=str)
+    parser.add_argument("--min_rt", dest="min_rt", default=0.0, type=float)
+    parser.add_argument("--max_rt", dest="max_rt", default=26.0 * 60.0, type=float)
+    parser.add_argument("--min_ms1_intensity", dest="min_ms1_intensity", default=5e3, type=float)
+    parser.add_argument("--time_factor", dest="time_factor", default=1, type=float)
     args = parser.parse_args()
 
     print("ARGUMENTS:")
@@ -258,35 +249,31 @@ if __name__ == '__main__':
         print("No timing file provided")
         time_dict[1] = args.ms1_time
         time_dict[2] = args.ms2_time
-        print("MS1 time = {}, MS2 time = {}".format(
-            time_dict[1], time_dict[2]))
+        print("MS1 time = {}, MS2 time = {}".format(time_dict[1], time_dict[2]))
     else:
         print("Extracting times from {}".format(args.timing_file))
         times = get_times(MZMLFile(args.timing_file))
         for ms_level in [1, 2]:
             time_dict[ms_level] = np.array(times[ms_level]).mean()
-        print("MS1 time = {}, MS2 time = {}".format(
-            time_dict[1], time_dict[2]))
+        print("MS1 time = {}, MS2 time = {}".format(time_dict[1], time_dict[2]))
 
-    if not args.time_factor == 1.:
+    if not args.time_factor == 1.0:
         print("Changing times by factor {}".format(args.time_factor))
         for ms_level in time_dict:
             time_dict[ms_level] *= args.time_factor
-        print("MS1 time = {}, MS2 time = {}".format(
-            time_dict[1], time_dict[2]))
+        print("MS1 time = {}, MS2 time = {}".format(time_dict[1], time_dict[2]))
 
     print()
     print()
-    scan_levels, scan_start_times = setup_scans(time_dict, args.N, args.min_rt,
-                                                args.max_rt)
+    scan_levels, scan_start_times = setup_scans(time_dict, args.N, args.min_rt, args.max_rt)
     print("Created {} scan times and levels".format(len(scan_levels)))
 
     if args.mzml_file is None:
         print("No mzml file provided, assuming standard naming convention")
         tokens = args.box_file.split(os.sep)
         final_part = tokens[-1]
-        final_part = final_part.split('_box')[0]
-        final_part += '.mzML'
+        final_part = final_part.split("_box")[0]
+        final_part += ".mzML"
         mzml_file_name = os.path.join(os.sep.join(tokens[:-1]), final_part)
         print("Assuming {}".format(mzml_file_name))
         if os.path.isfile(mzml_file_name):
@@ -316,8 +303,7 @@ if __name__ == '__main__':
     print()
     print()
     print("Making edges")
-    edges = make_edges(boxes, scan_start_times, scan_levels,
-                       args.min_ms1_intensity)
+    edges = make_edges(boxes, scan_start_times, scan_levels, args.min_ms1_intensity)
     print("{} edges made".format(len(edges)))
 
     scan_names, box_names, _ = zip(*edges)
@@ -328,8 +314,7 @@ if __name__ == '__main__':
     print()
     print()
     print("Doing matching")
-    matchList, size = reducedUnweightedMaxMatchingFromLists(scanSet, boxSet,
-                                                            reduced_edges)
+    matchList, size = reducedUnweightedMaxMatchingFromLists(scanSet, boxSet, reduced_edges)
     print("The matching has size: {}".format(size))
 
     print("Finished!")

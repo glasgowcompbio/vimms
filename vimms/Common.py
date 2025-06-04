@@ -9,8 +9,19 @@ import re
 import sys
 import zipfile
 
-from numba import njit
 import numpy as np
+import importlib
+
+# ---------------------------------------------------------------------------
+# Compatibility fixes
+# ---------------------------------------------------------------------------
+# Older pickles in the wild may reference the module ``numpy.core.numeric``.
+# Importing this module directly now raises a ``DeprecationWarning`` in recent
+# NumPy versions.  To avoid emitting the warning when unpickling old objects,
+# alias ``numpy.core.numeric`` to ``numpy._core.numeric`` before any unpickling
+# happens.
+if "numpy.core.numeric" not in sys.modules:
+    sys.modules["numpy.core.numeric"] = importlib.import_module("numpy._core.numeric")
 import requests
 from loguru import logger
 from tqdm.auto import tqdm
@@ -22,25 +33,25 @@ from mass_spec_utils.data_import.mzml import MZMLFile
 ###############################################################################
 
 
-MONO = 'Mono'
-C = 'C'
-C13 = 'C13'
+MONO = "Mono"
+C = "C"
+C13 = "C13"
 C12_PROPORTION = 0.989
 C13_MZ_DIFF = 1.0033548378
 
-MZ = 'mz'
-INTENSITY = 'intensity'
-RT = 'rt'
-MZ_INTENSITY_RT = MZ + '_' + INTENSITY + '_' + RT
-N_PEAKS = 'n_peaks'
-SCAN_DURATION = 'scan_duration'
-POSITIVE = 'Positive'
-NEGATIVE = 'Negative'
+MZ = "mz"
+INTENSITY = "intensity"
+RT = "rt"
+MZ_INTENSITY_RT = MZ + "_" + INTENSITY + "_" + RT
+N_PEAKS = "n_peaks"
+SCAN_DURATION = "scan_duration"
+POSITIVE = "Positive"
+NEGATIVE = "Negative"
 DEFAULT_MS1_SCAN_WINDOW = (70.0, 1000.0)
 DEFAULT_MSN_SCAN_WINDOW = (70.0, 600.0)
 DEFAULT_ISOLATION_WIDTH = 0.7
-CHEM_DATA = 'data'
-CHEM_NOISE = 'noise'
+CHEM_DATA = "data"
+CHEM_NOISE = "noise"
 
 MAX_POSSIBLE_RT = 1e6
 
@@ -52,57 +63,74 @@ DEFAULT_MS1_AGC_TARGET = 200000
 DEFAULT_MS2_AGC_TARGET = 30000
 DEFAULT_MS1_MAXIT = 250
 DEFAULT_MS2_MAXIT = 100
-DEFAULT_MS1_ACTIVATION_TYPE = 'HCD'  # CID, HCD
-DEFAULT_MS2_ACTIVATION_TYPE = 'HCD'  # CID, HCD
-DEFAULT_MS1_MASS_ANALYSER = 'Orbitrap'  # IonTrap, Orbitrap
-DEFAULT_MS2_MASS_ANALYSER = 'Orbitrap'  # IonTrap, Orbitrap
-DEFAULT_MS1_ISOLATION_MODE = 'Quadrupole'  # None, Quadrupole, IonTrap
-DEFAULT_MS2_ISOLATION_MODE = 'Quadrupole'  # None, Quadrupole, IonTrap
+DEFAULT_MS1_ACTIVATION_TYPE = "HCD"  # CID, HCD
+DEFAULT_MS2_ACTIVATION_TYPE = "HCD"  # CID, HCD
+DEFAULT_MS1_MASS_ANALYSER = "Orbitrap"  # IonTrap, Orbitrap
+DEFAULT_MS2_MASS_ANALYSER = "Orbitrap"  # IonTrap, Orbitrap
+DEFAULT_MS1_ISOLATION_MODE = "Quadrupole"  # None, Quadrupole, IonTrap
+DEFAULT_MS2_ISOLATION_MODE = "Quadrupole"  # None, Quadrupole, IonTrap
 DEFAULT_SOURCE_CID_ENERGY = 0
 
 PROTON_MASS = 1.00727645199076
 
-CHROM_TYPE_EMPIRICAL = 'empirical'
-CHROM_TYPE_CONSTANT = 'constant'
-CHROM_TYPE_FUNCTIONAL = 'functional'
+CHROM_TYPE_EMPIRICAL = "empirical"
+CHROM_TYPE_CONSTANT = "constant"
+CHROM_TYPE_FUNCTIONAL = "functional"
 
 ADDUCT_NAMES_POS = [
-    'M+H', '[M+ACN]+H', '[M+CH3OH]+H', '[M+NH3]+H', 'M+Na',
-    'M+K', 'M+2Na-H', 'M+ACN+Na', 'M+2K+H', '[M+DMSO]+H',
-    '[M+2ACN]+H', '2M+H', 'M+ACN+Na', '2M+NH4'
+    "M+H",
+    "[M+ACN]+H",
+    "[M+CH3OH]+H",
+    "[M+NH3]+H",
+    "M+Na",
+    "M+K",
+    "M+2Na-H",
+    "M+ACN+Na",
+    "M+2K+H",
+    "[M+DMSO]+H",
+    "[M+2ACN]+H",
+    "2M+H",
+    "M+ACN+Na",
+    "2M+NH4",
 ]
-ADDUCT_NAMES_NEG = [
-    'M-H'
-]
+ADDUCT_NAMES_NEG = ["M-H"]
 
 ADDUCT_TERMS = {
-    'M+H': (1, PROTON_MASS),
-    '[M+ACN]+H': (1, 42.033823),
-    '[M+CH3OH]+H': (1, 33.033489),
-    '[M+NH3]+H': (1, 18.033823),
-    'M+Na': (1, 22.989218),
-    'M+K': (1, 38.963158),
-    'M+2Na-H': (1, 44.971160),
-    'M+ACN+Na': (1, 64.015765),
-    'M+2K+H': (1, 76.919040),
-    '[M+DMSO]+H': (1, 79.02122),
-    '[M+2ACN]+H': (1, 83.060370),
-    '2M+H': (2, 1.007276),
-    'M+ACN+Na': (1, 64.015765),
-    '2M+NH4': (2, 18),
-    'M-H': (1, -PROTON_MASS)
+    "M+H": (1, PROTON_MASS),
+    "[M+ACN]+H": (1, 42.033823),
+    "[M+CH3OH]+H": (1, 33.033489),
+    "[M+NH3]+H": (1, 18.033823),
+    "M+Na": (1, 22.989218),
+    "M+K": (1, 38.963158),
+    "M+2Na-H": (1, 44.971160),
+    "M+ACN+Na": (1, 64.015765),
+    "M+2K+H": (1, 76.919040),
+    "[M+DMSO]+H": (1, 79.02122),
+    "[M+2ACN]+H": (1, 83.060370),
+    "2M+H": (2, 1.007276),
+    "2M+NH4": (2, 18),
+    "M-H": (1, -PROTON_MASS),
 }
 
 # example prior dictionary to be passed when creating an
 # adducts object to only get M+H adducts out
-ADDUCT_DICT_POS_MH = {POSITIVE: {'M+H': 1.0}}
+ADDUCT_DICT_POS_MH = {POSITIVE: {"M+H": 1.0}}
 
-ATOM_NAMES = ['C', 'H', 'N', 'O', 'P', 'S', 'Cl', 'I', 'Br', 'Si', 'F', 'D']
-ATOM_MASSES = {'C': 12.00000000000, 'H': 1.00782503214, 'O': 15.99491462210,
-               'N': 14.00307400524,
-               'P': 30.97376151200, 'S': 31.97207069000, 'Cl': 34.96885271000,
-               'I': 126.904468, 'Br': 78.9183376,
-               'Si': 27.9769265327, 'F': 18.99840320500, 'D': 2.01410177800}
+ATOM_NAMES = ["C", "H", "N", "O", "P", "S", "Cl", "I", "Br", "Si", "F", "D"]
+ATOM_MASSES = {
+    "C": 12.00000000000,
+    "H": 1.00782503214,
+    "O": 15.99491462210,
+    "N": 14.00307400524,
+    "P": 30.97376151200,
+    "S": 31.97207069000,
+    "Cl": 34.96885271000,
+    "I": 126.904468,
+    "Br": 78.9183376,
+    "Si": 27.9769265327,
+    "F": 18.99840320500,
+    "D": 2.01410177800,
+}
 
 GET_MS2_BY_PEAKS = "sample"
 GET_MS2_BY_SPECTRA = "spectra"
@@ -111,38 +139,33 @@ DUMMY_PRECURSOR_MZ = 123.456
 INITIAL_SCAN_ID = 100000
 DEFAULT_SCAN_TIME_DICT = {1: 0.4, 2: 0.2}
 
-MSDIAL_DDA_MODE = 'lcmsdda'
-MSDIAL_DIA_MODE = 'lcmsdia'
+MSDIAL_DDA_MODE = "lcmsdda"
+MSDIAL_DIA_MODE = "lcmsdia"
 
-IN_SILICO_OPTIMISE_TOPN = 'TopN'
-IN_SILICO_OPTIMISE_SMART_ROI = 'SmartROI'
-IN_SILICO_OPTIMISE_WEIGHTED_DEW = 'WeightedDEW'
+IN_SILICO_OPTIMISE_TOPN = "TopN"
+IN_SILICO_OPTIMISE_SMART_ROI = "SmartROI"
+IN_SILICO_OPTIMISE_WEIGHTED_DEW = "WeightedDEW"
 
-ROI_EXCLUSION_DEW = 'exclusion_dew'
-ROI_EXCLUSION_WEIGHTED_DEW = 'exclusion_weighted_dew'
+ROI_EXCLUSION_DEW = "exclusion_dew"
+ROI_EXCLUSION_WEIGHTED_DEW = "exclusion_weighted_dew"
 
-GRID_CONTROLLER_SCORING_PARAMS = {
-    'theta1': 1,
-    'theta2': 0,
-    'theta3': 0,
-    'theta4': 0
-}
+GRID_CONTROLLER_SCORING_PARAMS = {"theta1": 1, "theta2": 0, "theta3": 0, "theta4": 0}
 
-ROI_TYPE_NORMAL = 'roi'
-ROI_TYPE_SMART = 'smart'
+ROI_TYPE_NORMAL = "roi"
+ROI_TYPE_SMART = "smart"
 
-CONTROLLER_FULLSCAN = 'fullscan'
-CONTROLLER_TOPN = 'topN'
-CONTROLLER_TOPN_ORIGINAL = 'topN_original'
-CONTROLLER_TOPN_EXCLUSION = 'topN_exclusion'
-CONTROLLER_SWATH = 'SWATH'
-CONTROLLER_AIF = 'AIF'
-CONTROLLER_NON_OVERLAP = 'non_overlap'
-CONTROLLER_INTENSITY_NON_OVERLAP = 'intensity_non_overlap'
-CONTROLLER_INTENSITY_ROI_EXCLUSION = 'intensity_roi_exclusion'
-CONTROLLER_HARD_ROI_EXCLUSION = 'hard_roi_exclusion'
-CONTROLLER_SMART_ROI = 'smart_roi'
-CONTROLLER_WEIGHTED_DEW = 'weighted_dew'
+CONTROLLER_FULLSCAN = "fullscan"
+CONTROLLER_TOPN = "topN"
+CONTROLLER_TOPN_ORIGINAL = "topN_original"
+CONTROLLER_TOPN_EXCLUSION = "topN_exclusion"
+CONTROLLER_SWATH = "SWATH"
+CONTROLLER_AIF = "AIF"
+CONTROLLER_NON_OVERLAP = "non_overlap"
+CONTROLLER_INTENSITY_NON_OVERLAP = "intensity_non_overlap"
+CONTROLLER_INTENSITY_ROI_EXCLUSION = "intensity_roi_exclusion"
+CONTROLLER_HARD_ROI_EXCLUSION = "hard_roi_exclusion"
+CONTROLLER_SMART_ROI = "smart_roi"
+CONTROLLER_WEIGHTED_DEW = "weighted_dew"
 
 PEAKS_MZ_IDX = 0
 PEAKS_INTENSITY_IDX = 1
@@ -167,7 +190,7 @@ WHICH_ADDUCTS_IDX = 10
 ###############################################################################
 
 
-class Formula():
+class Formula:
     """
     A class to represent a chemical formula
     """
@@ -206,12 +229,12 @@ class Formula():
 
         """
         # Do some regex matching to find the numbers of the important atoms
-        ex = atom_name + '(?![a-z])' + '\\d*'
+        ex = atom_name + "(?![a-z])" + "\\d*"
         m = re.search(ex, self.formula_string)
         if m is None:
             return 0
         else:
-            ex = atom_name + '(?![a-z])' + '(\\d*)'
+            ex = atom_name + "(?![a-z])" + "(\\d*)"
             m2 = re.findall(ex, self.formula_string)
             total = 0
             for a in m2:
@@ -240,7 +263,7 @@ class Formula():
         return self.formula_string
 
 
-class DummyFormula():
+class DummyFormula:
     """
     A dummy wrapper to store an mz as a [vimms.Common.Formula][].
     This is convenient as it allows us to treat an m/z value like an (unknown) formula.
@@ -258,7 +281,7 @@ class DummyFormula():
         return self.mass
 
 
-class ScanParameters():
+class ScanParameters:
     """
     A class to store parameters used to instruct the mass spec how to
     generate a scan. This object is usually created by the controller.
@@ -266,44 +289,44 @@ class ScanParameters():
     to perform next.
     """
 
-    MS_LEVEL = 'ms_level'
-    COLLISION_ENERGY = 'collision_energy'
-    POLARITY = 'polarity'
-    FIRST_MASS = 'first_mass'
-    LAST_MASS = 'last_mass'
-    ORBITRAP_RESOLUTION = 'orbitrap_resolution'
-    AGC_TARGET = 'agc_target'
-    MAX_IT = 'max_it'
-    MASS_ANALYSER = 'analyzer'
-    ACTIVATION_TYPE = 'activation_type'
-    ISOLATION_MODE = 'isolation_mode'
-    SOURCE_CID_ENERGY = 'source_cid_energy'
-    METADATA = 'metadata'
+    MS_LEVEL = "ms_level"
+    COLLISION_ENERGY = "collision_energy"
+    POLARITY = "polarity"
+    FIRST_MASS = "first_mass"
+    LAST_MASS = "last_mass"
+    ORBITRAP_RESOLUTION = "orbitrap_resolution"
+    AGC_TARGET = "agc_target"
+    MAX_IT = "max_it"
+    MASS_ANALYSER = "analyzer"
+    ACTIVATION_TYPE = "activation_type"
+    ISOLATION_MODE = "isolation_mode"
+    SOURCE_CID_ENERGY = "source_cid_energy"
+    METADATA = "metadata"
     UNIQUENESS_TOKEN = "uniqueness_token"
 
     # this is used for DIA-based controllers to specify which windows to
     # fragment
-    ISOLATION_WINDOWS = 'isolation_windows'
+    ISOLATION_WINDOWS = "isolation_windows"
 
     # precursor m/z and isolation width have to be specified together for
     # DDA-based controllers
-    PRECURSOR_MZ = 'precursor_mz'
-    ISOLATION_WIDTH = 'isolation_width'
+    PRECURSOR_MZ = "precursor_mz"
+    ISOLATION_WIDTH = "isolation_width"
 
     # used in Top-N, hybrid and ROI controllers to perform dynamic exclusion
-    DYNAMIC_EXCLUSION_MZ_TOL = 'dew_mz_tol'
-    DYNAMIC_EXCLUSION_RT_TOL = 'dew_rt_tol'
+    DYNAMIC_EXCLUSION_MZ_TOL = "dew_mz_tol"
+    DYNAMIC_EXCLUSION_RT_TOL = "dew_rt_tol"
 
     # only used by the hybrid controller for now, since its Top-N may change
     # depending on time for other DDA controllers it's always the same
     # throughout the whole run, so we don't send this parameter
-    CURRENT_TOP_N = 'current_top_N'
+    CURRENT_TOP_N = "current_top_N"
 
     # if the scan id is specified, then it should be used by the mass spec
     # useful for pre-scheduled controllers where we want the controller
     # to know the scan ids of MS1, MS2
     # and also the precursor ids of those MS2 scans in advance.
-    SCAN_ID = 'scan_id'
+    SCAN_ID = "scan_id"
 
     def __init__(self):
         """
@@ -354,7 +377,7 @@ class ScanParameters():
         return compute_isolation_windows(isolation_width_list, precursor_mz_list)
 
     def __repr__(self):
-        return 'ScanParameters %s' % (self.params)
+        return "ScanParameters %s" % (self.params)
 
 
 def compute_isolation_windows(isolation_width_list, precursor_mz_list):
@@ -369,13 +392,12 @@ def compute_isolation_windows(isolation_width_list, precursor_mz_list):
     return isolation_windows
 
 
-class Precursor():
+class Precursor:
     """
     A class to store precursor peak information when writing an MS2 scan.
     """
 
-    def __init__(self, precursor_mz, precursor_intensity, precursor_charge,
-                 precursor_scan_id):
+    def __init__(self, precursor_mz, precursor_intensity, precursor_charge, precursor_scan_id):
         """
         Create a Precursor object.
         Args:
@@ -390,14 +412,18 @@ class Precursor():
         self.precursor_scan_id = precursor_scan_id
 
     def __repr__(self):
-        return 'Precursor mz %f intensity %f charge %d scan_id %d' % (
-            self.precursor_mz, self.precursor_intensity, self.precursor_charge,
-            self.precursor_scan_id)
+        return "Precursor mz %f intensity %f charge %d scan_id %d" % (
+            self.precursor_mz,
+            self.precursor_intensity,
+            self.precursor_charge,
+            self.precursor_scan_id,
+        )
 
 
 ###############################################################################
 # Common methods
 ###############################################################################
+
 
 def create_if_not_exist(out_dir):
     """
@@ -409,15 +435,15 @@ def create_if_not_exist(out_dir):
 
     """
     if not pathlib.Path(out_dir).exists():
-        logger.info('Created %s' % out_dir)
+        logger.info("Created %s" % out_dir)
         pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
 
 def path_or_mzml(mzml):
     try:
         mzml = MZMLFile(mzml)
-    except:
-        if (not type(mzml) == MZMLFile):
+    except Exception:
+        if not isinstance(mzml, MZMLFile):
             raise NotImplementedError("Didn't recognise the MZMLFile!")
     return mzml
 
@@ -445,10 +471,7 @@ def get_scan_times_combined(mzmls):
 
 
 def get_avg_scan_times(mzmls):
-    return {
-        level: np.mean(times)
-        for level, times in get_scan_times_combined(mzmls).items()
-    }
+    return {level: np.mean(times) for level, times in get_scan_times_combined(mzmls).items()}
 
 
 def save_obj(obj, filename):
@@ -468,13 +491,13 @@ def save_obj(obj, filename):
     # workaround for
     # TypeError: can't pickle _thread.lock objects
     # when trying to pickle a progress bar
-    if hasattr(obj, 'bar'):
+    if hasattr(obj, "bar"):
         obj.bar = None
 
     out_dir = os.path.dirname(filename)
     create_if_not_exist(out_dir)
-    logger.info('Saving %s to %s' % (type(obj), filename))
-    with gzip.GzipFile(filename, 'w') as f:
+    logger.info("Saving %s to %s" % (type(obj), filename))
+    with gzip.GzipFile(filename, "w") as f:
         pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -489,11 +512,12 @@ def load_obj(filename):
 
     """
     try:
-        with gzip.GzipFile(filename, 'rb') as f:
+        with gzip.GzipFile(filename, "rb") as f:
             return pickle.load(f)
     except OSError:
-        logger.warning('Old, invalid or missing pickle in %s. '
-                       'Please regenerate this file.' % filename)
+        logger.warning(
+            "Old, invalid or missing pickle in %s. " "Please regenerate this file." % filename
+        )
         raise
 
 
@@ -512,7 +536,8 @@ def chromatogramDensityNormalisation(rts, intensities):
     area = 0.0
     for rt_index in range(len(rts) - 1):
         area += ((intensities[rt_index] + intensities[rt_index + 1]) / 2) / (
-                rts[rt_index + 1] - rts[rt_index])
+            rts[rt_index + 1] - rts[rt_index]
+        )
     new_intensities = [x * (1 / area) for x in intensities]
     return new_intensities
 
@@ -600,7 +625,7 @@ def get_rt(spectrum):
 
     """
     rt, units = spectrum.scan_time
-    if units == 'minute':
+    if units == "minute":
         rt *= 60.0
     return rt
 
@@ -631,18 +656,21 @@ def download_file(url, out_file=None):
 
     """
     r = requests.get(url, stream=True)
-    total_size = int(r.headers.get('content-length', 0))
+    total_size = int(r.headers.get("content-length", 0))
     block_size = 1024
     current_size = 0
 
     if out_file is None:
-        out_file = url.rsplit('/', 1)[-1]  # get the last part in url
-    logger.info('Downloading %s' % out_file)
+        out_file = url.rsplit("/", 1)[-1]  # get the last part in url
+    logger.info("Downloading %s" % out_file)
 
-    with open(out_file, 'wb') as f:
-        for data in tqdm(r.iter_content(block_size),
-                         total=math.ceil(total_size // block_size), unit='KB',
-                         unit_scale=True):
+    with open(out_file, "wb") as f:
+        for data in tqdm(
+            r.iter_content(block_size),
+            total=math.ceil(total_size // block_size),
+            unit="KB",
+            unit_scale=True,
+        ):
             current_size += len(data)
             f.write(data)
     assert current_size == total_size
@@ -659,14 +687,13 @@ def extract_zip_file(in_file, delete=True):
     Returns: None
 
     """
-    logger.info('Extracting %s' % in_file)
+    logger.info("Extracting %s" % in_file)
     with zipfile.ZipFile(file=in_file) as zip_file:
-        for file in tqdm(iterable=zip_file.namelist(),
-                         total=len(zip_file.namelist())):
+        for file in tqdm(iterable=zip_file.namelist(), total=len(zip_file.namelist())):
             zip_file.extract(member=file)
 
     if delete:
-        logger.info('Deleting %s' % in_file)
+        logger.info("Deleting %s" % in_file)
         os.remove(in_file)
 
 
@@ -685,18 +712,19 @@ def uniform_list(N, min_val, max_val):
 
 
 def get_default_scan_params(
-        polarity=POSITIVE,
-        agc_target=DEFAULT_MS1_AGC_TARGET,
-        max_it=DEFAULT_MS1_MAXIT,
-        collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
-        source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
-        orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
-        default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
-        mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
-        activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-        isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
-        metadata=None,
-        scan_id=None):
+    polarity=POSITIVE,
+    agc_target=DEFAULT_MS1_AGC_TARGET,
+    max_it=DEFAULT_MS1_MAXIT,
+    collision_energy=DEFAULT_MS1_COLLISION_ENERGY,
+    source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+    orbitrap_resolution=DEFAULT_MS1_ORBITRAP_RESOLUTION,
+    default_ms1_scan_window=DEFAULT_MS1_SCAN_WINDOW,
+    mass_analyser=DEFAULT_MS1_MASS_ANALYSER,
+    activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+    isolation_mode=DEFAULT_MS1_ISOLATION_MODE,
+    metadata=None,
+    scan_id=None,
+):
     """
     Generate the default MS1 scan parameters.
 
@@ -719,42 +747,43 @@ def get_default_scan_params(
     """
     default_scan_params = ScanParameters()
     default_scan_params.set(ScanParameters.MS_LEVEL, 1)
-    default_scan_params.set(ScanParameters.ISOLATION_WINDOWS,
-                            [[default_ms1_scan_window]])
-    default_scan_params.set(ScanParameters.ISOLATION_WIDTH,
-                            DEFAULT_ISOLATION_WIDTH)
+    default_scan_params.set(ScanParameters.ISOLATION_WINDOWS, [[default_ms1_scan_window]])
+    default_scan_params.set(ScanParameters.ISOLATION_WIDTH, DEFAULT_ISOLATION_WIDTH)
     default_scan_params.set(ScanParameters.COLLISION_ENERGY, collision_energy)
-    default_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION,
-                            orbitrap_resolution)
+    default_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, orbitrap_resolution)
     default_scan_params.set(ScanParameters.ACTIVATION_TYPE, activation_type)
     default_scan_params.set(ScanParameters.MASS_ANALYSER, mass_analyser)
     default_scan_params.set(ScanParameters.ISOLATION_MODE, isolation_mode)
     default_scan_params.set(ScanParameters.AGC_TARGET, agc_target)
     default_scan_params.set(ScanParameters.MAX_IT, max_it)
-    default_scan_params.set(
-        ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
+    default_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
     default_scan_params.set(ScanParameters.POLARITY, polarity)
-    default_scan_params.set(ScanParameters.FIRST_MASS,
-                            default_ms1_scan_window[0])
-    default_scan_params.set(ScanParameters.LAST_MASS,
-                            default_ms1_scan_window[1])
+    default_scan_params.set(ScanParameters.FIRST_MASS, default_ms1_scan_window[0])
+    default_scan_params.set(ScanParameters.LAST_MASS, default_ms1_scan_window[1])
     default_scan_params.set(ScanParameters.METADATA, metadata)
     default_scan_params.set(ScanParameters.SCAN_ID, scan_id)
     return default_scan_params
 
 
-def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width,
-                       mz_tol, rt_tol,
-                       agc_target=DEFAULT_MS2_AGC_TARGET,
-                       max_it=DEFAULT_MS2_MAXIT,
-                       collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
-                       source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
-                       orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
-                       mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
-                       activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
-                       isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
-                       polarity=POSITIVE,
-                       metadata=None, scan_id=None):
+def get_dda_scan_param(
+    mz,
+    intensity,
+    precursor_scan_id,
+    isolation_width,
+    mz_tol,
+    rt_tol,
+    agc_target=DEFAULT_MS2_AGC_TARGET,
+    max_it=DEFAULT_MS2_MAXIT,
+    collision_energy=DEFAULT_MS2_COLLISION_ENERGY,
+    source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+    orbitrap_resolution=DEFAULT_MS2_ORBITRAP_RESOLUTION,
+    mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
+    activation_type=DEFAULT_MS1_ACTIVATION_TYPE,
+    isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
+    polarity=POSITIVE,
+    metadata=None,
+    scan_id=None,
+):
     """
     Generate the default MS2 scan parameters.
 
@@ -788,25 +817,32 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width,
 
     # create precursor object, assume it's all singly charged
     precursor_charge = +1 if (polarity == POSITIVE) else -1
-    if type(mz) == list:
+    if isinstance(mz, list):
         precursor_list = []
         for i, m in enumerate(mz):
             precursor_list.append(
-                Precursor(precursor_mz=m, precursor_intensity=intensity[i],
-                          precursor_charge=precursor_charge,
-                          precursor_scan_id=precursor_scan_id))
+                Precursor(
+                    precursor_mz=m,
+                    precursor_intensity=intensity[i],
+                    precursor_charge=precursor_charge,
+                    precursor_scan_id=precursor_scan_id,
+                )
+            )
         dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
 
-        if type(isolation_width) == list:
+        if isinstance(isolation_width, list):
             assert len(isolation_width) == len(precursor_list)
         else:
             isolation_width = [isolation_width for m in mz]
         dda_scan_params.set(ScanParameters.ISOLATION_WIDTH, isolation_width)
 
     else:
-        precursor = Precursor(precursor_mz=mz, precursor_intensity=intensity,
-                              precursor_charge=precursor_charge,
-                              precursor_scan_id=precursor_scan_id)
+        precursor = Precursor(
+            precursor_mz=mz,
+            precursor_intensity=intensity,
+            precursor_charge=precursor_charge,
+            precursor_scan_id=precursor_scan_id,
+        )
         precursor_list = [precursor]
         dda_scan_params.set(ScanParameters.PRECURSOR_MZ, precursor_list)
 
@@ -822,8 +858,7 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width,
 
     # define other fragmentation parameters
     dda_scan_params.set(ScanParameters.COLLISION_ENERGY, collision_energy)
-    dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION,
-                        orbitrap_resolution)
+    dda_scan_params.set(ScanParameters.ORBITRAP_RESOLUTION, orbitrap_resolution)
     dda_scan_params.set(ScanParameters.ACTIVATION_TYPE, activation_type)
     dda_scan_params.set(ScanParameters.MASS_ANALYSER, mass_analyser)
     dda_scan_params.set(ScanParameters.ISOLATION_MODE, isolation_mode)
@@ -838,8 +873,9 @@ def get_dda_scan_param(mz, intensity, precursor_scan_id, isolation_width,
     # dynamically scale the upper mass
     charge = 1
     wiggle_room = 1.1
-    max_precursor_mz = max([(p.precursor_mz + isol / 2) for (p, isol) in
-                            zip(precursor_list, isolation_width)])
+    max_precursor_mz = max(
+        [(p.precursor_mz + isol / 2) for (p, isol) in zip(precursor_list, isolation_width)]
+    )
     last_mass = max_precursor_mz * charge * wiggle_room
     dda_scan_params.set(ScanParameters.LAST_MASS, last_mass)
     return dda_scan_params

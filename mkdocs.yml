@@ -16,8 +16,14 @@ plugins:
 
 nav:
   - Home: README.md
+  - Simulation Overview: simulation_overview.md
   - Creating Chemicals: chemicals.md
   - Running Controllers: controllers.md
+  - Evaluating Simulations: evaluation.md
+  - Running on a Real Instrument: real_instrument.md
+  - Adding Noise: noise.md
+  - Chromatographic Models: chromatography.md
+  - Command Line Utilities: cli_tools.md
   - API Documentation:
     - Common: api/common.md
     - Chemical Generation Process:

@@ -2,20 +2,19 @@
 This file describes controllers that build regions-of-interests (ROIs) in real-time
 and use that as additional information to decide which precursor ions to fragment.
 """
-import copy
-from copy import deepcopy
 
 import numpy as np
-from loguru import logger
 
 from vimms.Common import ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW
 from vimms.Controller.topN import TopNController
 from vimms.Exclusion import (
-    MinIntensityFilter, LengthFilter, SmartROIFilter,
-    WeightedDEWExclusion, DEWFilter,
-    WeightedDEWFilter
+    MinIntensityFilter,
+    LengthFilter,
+    SmartROIFilter,
+    WeightedDEWExclusion,
+    DEWFilter,
+    WeightedDEWFilter,
 )
-from vimms.MassSpec import Scan
 from vimms.Roi import RoiBuilder
 
 
@@ -24,23 +23,22 @@ class RoiController(TopNController):
     An ROI based controller with multiple options
     """
 
-    def __init__(self, ionisation_mode, isolation_width,
-                 N,
-                 mz_tol,
-                 rt_tol,
-                 min_ms1_intensity,
-                 roi_params,
-                 smartroi_params=None,
-                 min_roi_length_for_fragmentation=0,
-                 ms1_shift=0,
-                 advanced_params=None,
-                 exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None,
-                 deisotope=False,
-                 charge_range=(2, 3),
-                 min_fit_score=80,
-                 penalty_factor=1.5,
-                 use_quick_charge=False):
+    def __init__(
+        self,
+        ionisation_mode,
+        isolation_width,
+        N,
+        mz_tol,
+        rt_tol,
+        min_ms1_intensity,
+        roi_params,
+        smartroi_params=None,
+        min_roi_length_for_fragmentation=0,
+        ms1_shift=0,
+        advanced_params=None,
+        exclusion_method=ROI_EXCLUSION_DEW,
+        exclusion_t_0=None,
+    ):
         """
         Initialise an ROI-based controller
         Args:
@@ -64,25 +62,25 @@ class RoiController(TopNController):
                               used to describe how to perform dynamic exclusion so that precursors
                               that have been fragmented are not fragmented again.
             exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
-            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
-            charge_range: the charge state of ions to keep.
-            min_fit_score: minimum score to keep from doing isotope deconvolution.
-            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
-        super().__init__(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                         min_ms1_intensity, ms1_shift=ms1_shift,
-                         deisotope=deisotope, charge_range=charge_range,
-                         min_fit_score=min_fit_score, penalty_factor=penalty_factor, use_quick_charge=use_quick_charge,
-                         advanced_params=advanced_params)
+        super().__init__(
+            ionisation_mode,
+            N,
+            isolation_width,
+            mz_tol,
+            rt_tol,
+            min_ms1_intensity,
+            ms1_shift=ms1_shift,
+            advanced_params=advanced_params,
+        )
         self.min_roi_length_for_fragmentation = min_roi_length_for_fragmentation  # noqa
         self.roi_builder = RoiBuilder(roi_params, smartroi_params=smartroi_params)
 
         self.exclusion_method = exclusion_method
-        assert self.exclusion_method in [ROI_EXCLUSION_DEW,
-                                         ROI_EXCLUSION_WEIGHTED_DEW]
+        assert self.exclusion_method in [ROI_EXCLUSION_DEW, ROI_EXCLUSION_WEIGHTED_DEW]
         if self.exclusion_method == ROI_EXCLUSION_WEIGHTED_DEW:
-            assert exclusion_t_0 is not None, 'Must be a number'
-            assert exclusion_t_0 < rt_tol, 'Impossible combination'
+            assert exclusion_t_0 is not None, "Must be a number"
+            assert exclusion_t_0 < rt_tol, "Impossible combination"
             self.exclusion = WeightedDEWExclusion(mz_tol, rt_tol, exclusion_t_0)
 
         self.exclusion_t_0 = exclusion_t_0
@@ -101,7 +99,7 @@ class RoiController(TopNController):
         self.next_processed_scan_id = self.current_task_id
         new_tasks.append(ms1_scan_params)
 
-    class MS2Scheduler():
+    class MS2Scheduler:
         """
         A class that performs MS2 scheduling of tasks
         """
@@ -129,8 +127,13 @@ class RoiController(TopNController):
             """
             precursor_scan_id = self.parent.scan_to_process.scan_id
             dda_scan_params = self.parent.get_ms2_scan_params(
-                mz, intensity, precursor_scan_id, self.parent.isolation_width,
-                self.parent.mz_tol, self.parent.rt_tol)
+                mz,
+                intensity,
+                precursor_scan_id,
+                self.parent.isolation_width,
+                self.parent.mz_tol,
+                self.parent.rt_tol,
+            )
             new_tasks.append(dda_scan_params)
             ms2_tasks.append(dda_scan_params)
             self.parent.current_task_id += 1
@@ -142,14 +145,6 @@ class RoiController(TopNController):
     def _process_scan(self, scan):
         if self.scan_to_process is not None:
             assert self.scan_to_process == scan
-
-            # perform isotope deconvolution, necessary for proteomics data
-            if self.deisotope:
-                mzs = self.scan_to_process.mzs
-                intensities = self.scan_to_process.intensities
-                assert mzs.shape == intensities.shape
-                mzs, intensities = self._deisotope(mzs, intensities)
-                scan = Scan(scan.scan_id, mzs, intensities, scan.ms_level, scan.rt)
 
             # keep growing ROIs if we encounter a new ms1 scan
             self.roi_builder.update_roi(scan)
@@ -272,7 +267,7 @@ class RoiController(TopNController):
 
         """
         if len(scores) > self.N:  # number of fragmentation events filter
-            scores[scores.argsort()[:(len(scores) - self.N)]] = 0
+            scores[scores.argsort()[: (len(scores) - self.N)]] = 0
         return scores
 
     def _get_scores(self):
@@ -291,25 +286,22 @@ class TopN_SmartRoiController(RoiController):
     This is used in the paper 'Rapid Development ...'
     """
 
-    def __init__(self,
-                 ionisation_mode,
-                 isolation_width,
-                 N,
-                 mz_tol,
-                 rt_tol,
-                 min_ms1_intensity,
-                 roi_params,
-                 smartroi_params,
-                 min_roi_length_for_fragmentation=0,
-                 ms1_shift=0,
-                 advanced_params=None,
-                 exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None,
-                 deisotope=False,
-                 charge_range=(2, 3),
-                 min_fit_score=80,
-                 penalty_factor=1.5,
-                 use_quick_charge=False):
+    def __init__(
+        self,
+        ionisation_mode,
+        isolation_width,
+        N,
+        mz_tol,
+        rt_tol,
+        min_ms1_intensity,
+        roi_params,
+        smartroi_params,
+        min_roi_length_for_fragmentation=0,
+        ms1_shift=0,
+        advanced_params=None,
+        exclusion_method=ROI_EXCLUSION_DEW,
+        exclusion_t_0=None,
+    ):
         """
         Initialise the Top-N SmartROI controller.
 
@@ -334,32 +326,25 @@ class TopN_SmartRoiController(RoiController):
                               used to describe how to perform dynamic exclusion so that precursors
                               that have been fragmented are not fragmented again.
             exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
-            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
-            charge_range: the charge state of ions to keep.
-            min_fit_score: minimum score to keep from doing isotope deconvolution.
-            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
-        super().__init__(ionisation_mode, isolation_width,
-                         N,
-                         mz_tol,
-                         rt_tol,
-                         min_ms1_intensity,
-                         roi_params,
-                         smartroi_params=smartroi_params,
-                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         ms1_shift=ms1_shift,
-                         advanced_params=advanced_params,
-                         exclusion_method=exclusion_method,
-                         exclusion_t_0=exclusion_t_0,
-                         deisotope=deisotope,
-                         charge_range=charge_range,
-                         min_fit_score=min_fit_score,
-                         penalty_factor=penalty_factor,
-                         use_quick_charge=use_quick_charge)
+        super().__init__(
+            ionisation_mode,
+            isolation_width,
+            N,
+            mz_tol,
+            rt_tol,
+            min_ms1_intensity,
+            roi_params,
+            smartroi_params=smartroi_params,
+            min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+            ms1_shift=ms1_shift,
+            advanced_params=advanced_params,
+            exclusion_method=exclusion_method,
+            exclusion_t_0=exclusion_t_0,
+        )
 
     def _get_dda_scores(self):
-        return self._log_roi_intensities() * self._min_intensity_filter() * \
-            self._smartroi_filter()
+        return self._log_roi_intensities() * self._min_intensity_filter() * self._smartroi_filter()
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()
@@ -372,24 +357,21 @@ class TopN_RoiController(RoiController):
     A ROI-based controller that implements the Top-N selection.
     """
 
-    def __init__(self,
-                 ionisation_mode,
-                 isolation_width,
-                 N,
-                 mz_tol,
-                 rt_tol,
-                 min_ms1_intensity,
-                 roi_params,
-                 min_roi_length_for_fragmentation=0,
-                 ms1_shift=0,
-                 advanced_params=None,
-                 exclusion_method=ROI_EXCLUSION_DEW,
-                 exclusion_t_0=None,
-                 deisotope=False,
-                 charge_range=(2, 3),
-                 min_fit_score=80,
-                 penalty_factor=1.5,
-                 use_quick_charge=False):
+    def __init__(
+        self,
+        ionisation_mode,
+        isolation_width,
+        N,
+        mz_tol,
+        rt_tol,
+        min_ms1_intensity,
+        roi_params,
+        min_roi_length_for_fragmentation=0,
+        ms1_shift=0,
+        advanced_params=None,
+        exclusion_method=ROI_EXCLUSION_DEW,
+        exclusion_t_0=None,
+    ):
         """
         Initialise the Top-N SmartROI controller.
 
@@ -411,28 +393,21 @@ class TopN_RoiController(RoiController):
                               used to describe how to perform dynamic exclusion so that precursors
                               that have been fragmented are not fragmented again.
             exclusion_t_0: parameter for WeightedDEW exclusion (refer to paper for details).
-            deisotope: whether to perform isotopic deconvolution, necessary for proteomics.
-            charge_range: the charge state of ions to keep.
-            min_fit_score: minimum score to keep from doing isotope deconvolution.
-            penalty_factor: penalty factor for scoring during isotope deconvolution.
         """
-        super().__init__(ionisation_mode,
-                         isolation_width,
-                         N,
-                         mz_tol,
-                         rt_tol,
-                         min_ms1_intensity,
-                         roi_params,
-                         min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
-                         ms1_shift=ms1_shift,
-                         advanced_params=advanced_params,
-                         exclusion_method=exclusion_method,
-                         exclusion_t_0=exclusion_t_0,
-                         deisotope=deisotope,
-                         charge_range=charge_range,
-                         min_fit_score=min_fit_score,
-                         penalty_factor=penalty_factor,
-                         use_quick_charge=use_quick_charge)
+        super().__init__(
+            ionisation_mode,
+            isolation_width,
+            N,
+            mz_tol,
+            rt_tol,
+            min_ms1_intensity,
+            roi_params,
+            min_roi_length_for_fragmentation=min_roi_length_for_fragmentation,
+            ms1_shift=ms1_shift,
+            advanced_params=advanced_params,
+            exclusion_method=exclusion_method,
+            exclusion_t_0=exclusion_t_0,
+        )
 
     def _get_scores(self):
         initial_scores = self._get_dda_scores()

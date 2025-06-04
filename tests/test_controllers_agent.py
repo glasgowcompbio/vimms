@@ -1,7 +1,11 @@
 from tests.conftest import OUT_DIR, check_mzML, check_non_empty_MS1, check_non_empty_MS2
 from vimms.Agent import TopNDEWAgent
-from vimms.ChemicalSamplers import UniformMZFormulaSampler, UniformRTAndIntensitySampler, \
-    GaussianChromatogramSampler, FixedMS2Sampler
+from vimms.ChemicalSamplers import (
+    UniformMZFormulaSampler,
+    UniformRTAndIntensitySampler,
+    GaussianChromatogramSampler,
+    FixedMS2Sampler,
+)
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
 from vimms.Controller import AgentBasedController
@@ -17,8 +21,9 @@ class TestAgentBasedController:
         ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=80)
         cr = GaussianChromatogramSampler(sigma=1)
         ms = FixedMS2Sampler()
-        cs = ChemicalMixtureCreator(fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cr,
-                                    ms2_sampler=ms)
+        cs = ChemicalMixtureCreator(
+            fs, rt_and_intensity_sampler=ri, chromatogram_sampler=cr, ms2_sampler=ms
+        )
         d = cs.sample(500, 2)
         ionisation_mode = POSITIVE
 
@@ -34,7 +39,7 @@ class TestAgentBasedController:
 
         check_non_empty_MS1(controller)
         check_non_empty_MS2(controller)
-        check_mzML(env, OUT_DIR, 'shell.mzML')
+        check_mzML(env, OUT_DIR, "shell.mzML")
 
         controller = AgentBasedController(agent)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
@@ -44,7 +49,7 @@ class TestAgentBasedController:
 
         check_non_empty_MS1(controller)
         check_non_empty_MS2(controller)
-        check_mzML(env, OUT_DIR, 'shell2.mzML')
+        check_mzML(env, OUT_DIR, "shell2.mzML")
 
         controller = AgentBasedController(agent)
         mass_spec = IndependentMassSpectrometer(ionisation_mode, d, spike_noise=spike_noise)
@@ -54,4 +59,4 @@ class TestAgentBasedController:
 
         check_non_empty_MS1(controller)
         # check_non_empty_MS2(controller) # ms2 scans have been exhausted at this point
-        check_mzML(env, OUT_DIR, 'shell3.mzML')
+        check_mzML(env, OUT_DIR, "shell3.mzML")

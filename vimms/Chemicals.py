@@ -2,6 +2,7 @@
 Provides implementation of Chemicals objects that are used as input
 to the simulation.
 """
+
 import copy
 import itertools
 import pickle
@@ -13,23 +14,39 @@ import scipy
 import scipy.stats
 from loguru import logger
 
-from vimms.ChemicalSamplers import UniformRTAndIntensitySampler, \
-    GaussianChromatogramSampler, UniformMS2Sampler
+from vimms.ChemicalSamplers import (
+    UniformRTAndIntensitySampler,
+    GaussianChromatogramSampler,
+    UniformMS2Sampler,
+)
 from vimms.Chromatograms import EmpiricalChromatogram
-from vimms.Common import Formula, DummyFormula, \
-    PROTON_MASS, POSITIVE, NEGATIVE, C12_PROPORTION, \
-    C13_MZ_DIFF, C, MONO, C13, load_obj, ADDUCT_NAMES_POS, ADDUCT_NAMES_NEG
+from vimms.Common import (
+    Formula,
+    DummyFormula,
+    PROTON_MASS,
+    POSITIVE,
+    NEGATIVE,
+    C12_PROPORTION,
+    C13_MZ_DIFF,
+    C,
+    MONO,
+    C13,
+    load_obj,
+    ADDUCT_NAMES_POS,
+    ADDUCT_NAMES_NEG,
+)
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiBuilderParams
 
 
-class DatabaseCompound():
+class DatabaseCompound:
     """
     A class to represent a compound stored in a database, e.g. HMDB
     """
 
-    def __init__(self, name, chemical_formula, monisotopic_molecular_weight,
-                 smiles, inchi, inchikey):
+    def __init__(
+        self, name, chemical_formula, monisotopic_molecular_weight, smiles, inchi, inchikey
+    ):
         """
         Creates a DatabaseCompound object
         Args:
@@ -48,7 +65,7 @@ class DatabaseCompound():
         self.inchikey = inchikey
 
 
-class Isotopes():
+class Isotopes:
     """
     A class to represent an isotope of a chemical
     """
@@ -72,8 +89,7 @@ class Isotopes():
 
         TODO: Add functionality for elements other than Carbon
         """
-        peaks = [() for i in
-                 range(len(self._get_isotope_proportions(total_proportion)))]
+        peaks = [() for i in range(len(self._get_isotope_proportions(total_proportion)))]
         for i in range(len(peaks)):
             peaks[i] += (self._get_isotope_mz(self._get_isotope_names(i)),)
             peaks[i] += (self._get_isotope_proportions(total_proportion)[i],)
@@ -93,11 +109,15 @@ class Isotopes():
         proportions = []
         while sum(proportions) < total_proportion:
             proportions.extend(
-                [scipy.stats.binom.pmf(len(proportions),
-                                       self.formula._get_n_element(C),
-                                       1 - C12_PROPORTION)])
-        normalised_proportions = [proportions[i] / sum(proportions) for i in
-                                  range(len(proportions))]
+                [
+                    scipy.stats.binom.pmf(
+                        len(proportions), self.formula._get_n_element(C), 1 - C12_PROPORTION
+                    )
+                ]
+            )
+        normalised_proportions = [
+            proportions[i] / sum(proportions) for i in range(len(proportions))
+        ]
         return normalised_proportions
 
     def _get_isotope_names(self, isotope_number):
@@ -126,19 +146,17 @@ class Isotopes():
         if isotope == MONO:
             return self.formula._get_mz()
         elif isotope[-3:] == C13:
-            return self.formula._get_mz() + float(
-                isotope.split(C13)[0]) * C13_MZ_DIFF
+            return self.formula._get_mz() + float(isotope.split(C13)[0]) * C13_MZ_DIFF
         else:
             return None
 
 
-class Adducts():
+class Adducts:
     """
     A class to represent an adduct of a chemical
     """
 
-    def __init__(self, formula, adduct_proportion_cutoff=0.05,
-                 adduct_prior_dict=None):
+    def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
         """
         Create an Adduct class
 
@@ -148,25 +166,20 @@ class Adducts():
             adduct_prior_dict: custom adduct dictionary, if any
         """
         if adduct_prior_dict is None:
-            self.adduct_names = {
-                POSITIVE: ADDUCT_NAMES_POS,
-                NEGATIVE: ADDUCT_NAMES_NEG
-            }
+            self.adduct_names = {POSITIVE: ADDUCT_NAMES_POS, NEGATIVE: ADDUCT_NAMES_NEG}
             self.adduct_prior = {
                 POSITIVE: np.ones(len(self.adduct_names[POSITIVE])) * 0.1,
-                NEGATIVE: np.ones(len(self.adduct_names[NEGATIVE])) * 0.1
+                NEGATIVE: np.ones(len(self.adduct_names[NEGATIVE])) * 0.1,
             }
             # give more weight to the first one, i.e. M+H
             self.adduct_prior[POSITIVE][0] = 1.0
             self.adduct_prior[NEGATIVE][0] = 1.0
         else:
-            assert POSITIVE in adduct_prior_dict or \
-                   NEGATIVE in adduct_prior_dict
-            self.adduct_names = {k: list(adduct_prior_dict[k].keys()) for k in
-                                 adduct_prior_dict}
+            assert POSITIVE in adduct_prior_dict or NEGATIVE in adduct_prior_dict
+            self.adduct_names = {k: list(adduct_prior_dict[k].keys()) for k in adduct_prior_dict}
             self.adduct_prior = {
-                k: np.array(list(adduct_prior_dict[k].values())) for k in
-                adduct_prior_dict}
+                k: np.array(list(adduct_prior_dict[k].values())) for k in adduct_prior_dict
+            }
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
 
@@ -181,8 +194,7 @@ class Adducts():
             adducts[k] = []
             for j in range(len(self.adduct_names[k])):
                 if proportions[k][j] != 0:
-                    adducts[k].extend(
-                        [(self._get_adduct_names()[k][j], proportions[k][j])])
+                    adducts[k].extend([(self._get_adduct_names()[k][j], proportions[k][j])])
         return adducts
 
     def _get_adduct_proportions(self):
@@ -198,8 +210,7 @@ class Adducts():
             proportions[k] = np.random.dirichlet(self.adduct_prior[k])
             while max(proportions[k]) < 0.2:
                 proportions[k] = np.random.dirichlet(self.adduct_prior[k])
-            proportions[k][
-                np.where(proportions[k] < self.adduct_proportion_cutoff)] = 0
+            proportions[k][np.where(proportions[k] < self.adduct_proportion_cutoff)] = 0
             proportions[k] = proportions[k] / max(proportions[k])
             proportions[k].tolist()
             assert len(proportions[k]) == len(self.adduct_names[k])
@@ -222,10 +233,7 @@ class BaseChemical(metaclass=ABCMeta):
     For other MS levels, please use the MSN class.
     """
 
-    __slots__ = (
-        "ms_level",
-        "children"
-    )
+    __slots__ = ("ms_level", "children")
 
     def __init__(self, ms_level, children):
         """
@@ -252,8 +260,7 @@ class Chemical(BaseChemical):
         "base_chemical",
     )
 
-    def __init__(self, rt, max_intensity, chromatogram, children,
-                 base_chemical):
+    def __init__(self, rt, max_intensity, chromatogram, children, base_chemical):
         """
         Create a Chemical object
         Args:
@@ -294,8 +301,7 @@ class Chemical(BaseChemical):
         Returns: the original base chemical
 
         """
-        return self if self.base_chemical is None else \
-            self.base_chemical.get_original_parent()
+        return self if self.base_chemical is None else self.base_chemical.get_original_parent()
 
 
 class UnknownChemical(Chemical):
@@ -305,14 +311,9 @@ class UnknownChemical(Chemical):
     from an existing mzML file.
     """
 
-    __slots__ = (
-        "isotopes",
-        "adducts",
-        "mass"
-    )
+    __slots__ = ("isotopes", "adducts", "mass")
 
-    def __init__(self, mz, rt, max_intensity, chromatogram, children=None,
-                 base_chemical=None):
+    def __init__(self, mz, rt, max_intensity, chromatogram, children=None, base_chemical=None):
         """
         Initialises an UnknownChemical object.
 
@@ -326,14 +327,16 @@ class UnknownChemical(Chemical):
             base_chemical: the base chemical from which this chemical is derived
         """
         super().__init__(rt, max_intensity, chromatogram, children, base_chemical)
-        self.isotopes = [
-            (mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
+        self.isotopes = [(mz, 1, "Mono")]  # [(mz, intensity_proportion, isotope,name)]
         self.adducts = {POSITIVE: [("M+H", 1)], NEGATIVE: [("M-H", 1)]}
         self.mass = mz
 
     def __repr__(self):
-        return 'UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f' % (
-            self.isotopes[0][0], self.rt, self.max_intensity)
+        return "UnknownChemical mz=%.4f rt=%.2f max_intensity=%.2f" % (
+            self.isotopes[0][0],
+            self.rt,
+            self.max_intensity,
+        )
 
 
 class KnownChemical(Chemical):
@@ -342,10 +345,20 @@ class KnownChemical(Chemical):
     Known chemicals have formula which are defined during creation.
     """
 
-    def __init__(self, formula, isotopes, adducts, rt, max_intensity,
-                 chromatogram, children=None,
-                 include_adducts_isotopes=True, total_proportion=0.99,
-                 database_accession=None, base_chemical=None):
+    def __init__(
+        self,
+        formula,
+        isotopes,
+        adducts,
+        rt,
+        max_intensity,
+        chromatogram,
+        children=None,
+        include_adducts_isotopes=True,
+        total_proportion=0.99,
+        database_accession=None,
+        base_chemical=None,
+    ):
         """
         Initialises a Known chemical object
 
@@ -376,11 +389,14 @@ class KnownChemical(Chemical):
         self.database_accession = database_accession
 
     def __repr__(self):
-        return 'KnownChemical - %r rt=%.2f max_intensity=%.2f' % (
-            self.formula.formula_string, self.rt, self.max_intensity)
+        return "KnownChemical - %r rt=%.2f max_intensity=%.2f" % (
+            self.formula.formula_string,
+            self.rt,
+            self.max_intensity,
+        )
 
 
-class ChemSet():
+class ChemSet:
     def reset(self):
         self.rt = 0
         self.current = []
@@ -393,9 +409,7 @@ class ChemSet():
 
     @classmethod
     def to_chemset(cls, chems, filepath=None, fast=False):
-        if type(chems) == MemoryChems or \
-                type(chems) == FileChems or \
-                type(chems) == FastMemoryChems:
+        if isinstance(chems, (MemoryChems, FileChems, FastMemoryChems)):
             return chems
 
         if filepath is None:
@@ -419,7 +433,7 @@ class ChemSet():
         key = Chemical.get_max_rt
         self.current.extend(chems)
         self.current.sort(key=key, reverse=True)
-        while (len(self.current) > 0 and Chemical.get_max_rt(self.current[-1]) < rt):
+        while len(self.current) > 0 and Chemical.get_max_rt(self.current[-1]) < rt:
             self.current.pop()
         self.rt = rt
 
@@ -444,7 +458,7 @@ class MemoryChems(ChemSet):
 
     @classmethod
     def from_chems(cls, chems):
-        if (type(chems) == cls):
+        if isinstance(chems, cls):
             return chems
         return cls(chems)
 
@@ -453,17 +467,20 @@ class MemoryChems(ChemSet):
         chems = []
         with open(filepath, "rb") as f:
             try:
-                while (True):
+                while True:
                     chems.extend(pickle.load(f))
             except EOFError:
                 pass
         return cls(chems)
 
     def next_chems(self, rt):
-        if (rt < self.rt): self.reset()
+        if rt < self.rt:
+            self.reset()
         new_pos = self.pos
-        while (new_pos < len(self.local_chems)
-               and Chemical.get_min_rt(self.local_chems[new_pos]) <= rt):
+        while (
+            new_pos < len(self.local_chems)
+            and Chemical.get_min_rt(self.local_chems[new_pos]) <= rt
+        ):
             new_pos += 1
         self._update(rt, itertools.islice(self.local_chems, self.pos, new_pos))
         self.pos = new_pos
@@ -479,10 +496,12 @@ class FastMemoryChems(MemoryChems):
         self.local_chems = np.array(local_chems)
 
         chem_rts = np.array([chem.rt for chem in self.local_chems])
-        self.chrom_min_rts = np.array(
-            [chem.chromatogram.min_rt for chem in self.local_chems]) + chem_rts
-        self.chrom_max_rts = np.array(
-            [chem.chromatogram.max_rt for chem in self.local_chems]) + chem_rts
+        self.chrom_min_rts = (
+            np.array([chem.chromatogram.min_rt for chem in self.local_chems]) + chem_rts
+        )
+        self.chrom_max_rts = (
+            np.array([chem.chromatogram.max_rt for chem in self.local_chems]) + chem_rts
+        )
 
     def next_chems(self, rt):
         idx = np.where((self.chrom_min_rts < rt) & (rt < self.chrom_max_rts))[0]
@@ -497,7 +516,7 @@ class FileChems(ChemSet):
         self.reset()
 
     def reset(self):
-        if (not self.f is None):
+        if self.f is not None:
             self.f.close()
             self.f = None
         self.pending = deque()
@@ -507,38 +526,40 @@ class FileChems(ChemSet):
     def __iter__(self):
         with open(self.filepath, "rb") as f:
             try:
-                while (True):
+                while True:
                     for ch in pickle.load(f):
                         yield ch
             except EOFError:
                 pass
 
     def __exit__(self, type, value, traceback):
-        if (not self.f is None):
+        if self.f is not None:
             self.f.close()
 
     @classmethod
     def from_path(cls, filepath, chems=None):
-        if (type(chems) == cls):
+        if isinstance(chems, cls):
             return chems
 
-        if (not chems is None):
+        if chems is not None:
             cls.dump_chems(chems, filepath)
 
         return cls(filepath)
 
     def next_chems(self, rt):
-        if (rt < self.rt): self.reset()
-        if (self.finished):
+        if rt < self.rt:
+            self.reset()
+        if self.finished:
             self._update(rt, [])
             return np.array(list(reversed(self.current)))
 
-        if (self.f is None):
+        if self.f is None:
             self.f = open(self.filepath, "rb")
 
         try:
-            while (not self.finished and
-                   (len(self.pending) == 0 or Chemical.get_min_rt(self.pending[-1]) <= rt)):
+            while not self.finished and (
+                len(self.pending) == 0 or Chemical.get_min_rt(self.pending[-1]) <= rt
+            ):
                 try:
                     new_chems = pickle.load(self.f)
                 except pickle.UnpicklingError:
@@ -554,7 +575,7 @@ class FileChems(ChemSet):
             self.f.close()
 
         new = []
-        while (len(self.pending) > 0 and Chemical.get_min_rt(self.pending[0]) <= rt):
+        while len(self.pending) > 0 and Chemical.get_min_rt(self.pending[0]) <= rt:
             new.append(self.pending.popleft())
 
         self._update(rt, new)
@@ -566,15 +587,9 @@ class MSN(BaseChemical):
     A chemical that represents an MS2+ fragment.
     """
 
-    __slots__ = (
-        "isotopes",
-        "prop_ms2_mass",
-        "parent_mass_prop",
-        "parent"
-    )
+    __slots__ = ("isotopes", "prop_ms2_mass", "parent_mass_prop", "parent")
 
-    def __init__(self, mz, ms_level, prop_ms2_mass, parent_mass_prop,
-                 children=None, parent=None):
+    def __init__(self, mz, ms_level, prop_ms2_mass, parent_mass_prop, children=None, parent=None):
         """
         Initialises an MSN object
 
@@ -593,22 +608,24 @@ class MSN(BaseChemical):
         self.parent = parent
 
     def __repr__(self):
-        return 'MSN Fragment mz=%.4f ms_level=%d' % (
-            self.isotopes[0][0], self.ms_level)
+        return "MSN Fragment mz=%.4f ms_level=%d" % (self.isotopes[0][0], self.ms_level)
 
 
-class ChemicalMixtureCreator():
+class ChemicalMixtureCreator:
     """
     A class to create a list of known chemical objects using simplified,
     cleaned methods.
     """
 
-    def __init__(self, formula_sampler,
-                 rt_and_intensity_sampler=UniformRTAndIntensitySampler(),
-                 chromatogram_sampler=GaussianChromatogramSampler(),
-                 ms2_sampler=UniformMS2Sampler(),
-                 adduct_proportion_cutoff=0.05,
-                 adduct_prior_dict=None):
+    def __init__(
+        self,
+        formula_sampler,
+        rt_and_intensity_sampler=UniformRTAndIntensitySampler(),
+        chromatogram_sampler=GaussianChromatogramSampler(),
+        ms2_sampler=UniformMS2Sampler(),
+        adduct_proportion_cutoff=0.05,
+        adduct_prior_dict=None,
+    ):
         """
         Create a mixture of [vimms.Chemicals.KnownChemical][] objects.
         Args:
@@ -659,9 +676,8 @@ class ChemicalMixtureCreator():
             rt, intensity = self.rt_and_intensity_sampler.sample(formula)
             rt_list.append(rt)
             intensity_list.append(intensity)
-            chromatogram_list.append(
-                self.chromatogram_sampler.sample(formula, rt, intensity))
-        logger.debug('Sampled rt and intensity values and chromatograms')
+            chromatogram_list.append(self.chromatogram_sampler.sample(formula, rt, intensity))
+        logger.debug("Sampled rt and intensity values and chromatograms")
 
         # make into known chemical objects
         chemicals = []
@@ -671,32 +687,36 @@ class ChemicalMixtureCreator():
             chromatogram = chromatogram_list[i]
             if isinstance(formula, Formula):
                 isotopes = Isotopes(formula)
-                adducts = Adducts(formula, self.adduct_proportion_cutoff,
-                                  adduct_prior_dict=self.adduct_prior_dict)
+                adducts = Adducts(
+                    formula,
+                    self.adduct_proportion_cutoff,
+                    adduct_prior_dict=self.adduct_prior_dict,
+                )
 
                 chemicals.append(
                     KnownChemical(
-                        formula, isotopes, adducts, rt, max_intensity,
+                        formula,
+                        isotopes,
+                        adducts,
+                        rt,
+                        max_intensity,
                         chromatogram,
                         include_adducts_isotopes=include_adducts_isotopes,
-                        database_accession=db_accession))
+                        database_accession=db_accession,
+                    )
+                )
             elif isinstance(formula, DummyFormula):
-                chemicals.append(
-                    UnknownChemical(formula.mass, rt, max_intensity,
-                                    chromatogram))
+                chemicals.append(UnknownChemical(formula.mass, rt, max_intensity, chromatogram))
             else:
-                logger.warning(
-                    "Unkwown formula object: {}".format(type(formula)))
+                logger.warning("Unkwown formula object: {}".format(type(formula)))
 
             if ms_levels == 2:
                 parent = chemicals[-1]
-                child_mz, child_intensity, parent_proportion = \
-                    self.ms2_sampler.sample(parent)
+                child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(parent)
 
                 children = []
                 for mz, intensity in zip(child_mz, child_intensity):
-                    child = MSN(mz, 2, intensity, parent_proportion, None,
-                                parent)
+                    child = MSN(mz, 2, intensity, parent_proportion, None, parent)
                     children.append(child)
                 children.sort(key=lambda x: x.isotopes[0])
                 parent.children = children
@@ -704,16 +724,20 @@ class ChemicalMixtureCreator():
         return chemicals
 
 
-class MultipleMixtureCreator():
+class MultipleMixtureCreator:
     """
     A class to create a list of known chemical objects in multiple
     samples (mixtures)
     """
 
-    def __init__(self, master_chemical_list, group_list, group_dict,
-                 intensity_noise=GaussianPeakNoise(
-                     sigma=0.001, log_space=True),
-                 overall_missing_probability=0.0):
+    def __init__(
+        self,
+        master_chemical_list,
+        group_list,
+        group_dict,
+        intensity_noise=GaussianPeakNoise(sigma=0.001, log_space=True),
+        overall_missing_probability=0.0,
+    ):
         """
         Create a chemical mixture creator.
         example
@@ -741,10 +765,10 @@ class MultipleMixtureCreator():
         self.intensity_noise = intensity_noise
         self.overall_missing_probability = overall_missing_probability
 
-        if 'control' not in self.group_dict:
-            self.group_dict['control'] = {}
-            self.group_dict['control']['missing_probability'] = 0.0
-            self.group_dict['control']['changing_probability'] = 0.0
+        if "control" not in self.group_dict:
+            self.group_dict["control"] = {}
+            self.group_dict["control"]["missing_probability"] = 0.0
+            self.group_dict["control"]["changing_probability"] = 0.0
 
         self._generate_changes()
 
@@ -757,16 +781,15 @@ class MultipleMixtureCreator():
         self.group_multipliers = {}
         for group in self.group_dict:
             self.group_multipliers[group] = {}
-            missing_probability = self.group_dict[group]['missing_probability']
-            changing_probability = self.group_dict[group][
-                'changing_probability']
+            missing_probability = self.group_dict[group]["missing_probability"]
+            changing_probability = self.group_dict[group]["changing_probability"]
             for chemical in self.master_chemical_list:
-                self.group_multipliers[group][
-                    chemical] = 1.0  # default is no change
+                self.group_multipliers[group][chemical] = 1.0  # default is no change
                 if np.random.rand() <= changing_probability:
                     # uniform between doubling and halving
                     self.group_multipliers[group][chemical] = np.exp(
-                        np.random.rand() * (np.log(5) - np.log(0.2) + np.log(0.2)))
+                        np.random.rand() * (np.log(5) - np.log(0.2) + np.log(0.2))
+                    )
                 if np.random.rand() <= missing_probability:
                     self.group_multipliers[group][chemical] = 0.0
 
@@ -781,8 +804,10 @@ class MultipleMixtureCreator():
         for group in self.group_list:
             new_list = []
             for chemical in self.master_chemical_list:
-                if np.random.rand() < self.overall_missing_probability or \
-                        self.group_multipliers[group][chemical] == 0.:
+                if (
+                    np.random.rand() < self.overall_missing_probability
+                    or self.group_multipliers[group][chemical] == 0.0
+                ):
                     continue  # chemical is missing overall
                 new_intensity = chemical.max_intensity * self.group_multipliers[group][chemical]
                 new_intensity = self.intensity_noise.get(new_intensity, 1)
@@ -796,14 +821,13 @@ class MultipleMixtureCreator():
         return chemical_lists
 
 
-class ChemicalMixtureFromMZML():
+class ChemicalMixtureFromMZML:
     """
     A class to create a list of known chemical objects from an mzML file
     using simplified, cleaned methods.
     """
 
-    def __init__(self, mzml_file_name, ms2_sampler=UniformMS2Sampler(),
-                 roi_params=None):
+    def __init__(self, mzml_file_name, ms2_sampler=UniformMS2Sampler(), roi_params=None):
         """
         Create a ChemicalMixtureFromMZML class.
         Args:
@@ -831,8 +855,7 @@ class ChemicalMixtureFromMZML():
         Returns: the list of good ROI objects
         """
         good = make_roi(str(self.mzml_file_name), self.roi_params)
-        logger.debug("Extracted {} good ROIs from {}".format(
-            len(good), self.mzml_file_name))
+        logger.debug("Extracted {} good ROIs from {}".format(len(good), self.mzml_file_name))
         return good
 
     def sample(self, n_chemicals, ms_levels, source_polarity=POSITIVE):
@@ -852,8 +875,7 @@ class ChemicalMixtureFromMZML():
             rois_to_use = range(len(self.good_rois))
             logger.warning("Requested more chemicals than ROIs")
         else:
-            rois_to_use = np.random.permutation(len(self.good_rois))[
-                          :n_chemicals]
+            rois_to_use = np.random.permutation(len(self.good_rois))[:n_chemicals]
         chemicals = []
         for roi_idx in rois_to_use:
             r = self.good_rois[roi_idx]
@@ -863,31 +885,29 @@ class ChemicalMixtureFromMZML():
             elif source_polarity == NEGATIVE:
                 mz += PROTON_MASS
             else:
-                logger.warning(
-                    "Unknown source polarity {}".format(source_polarity))
+                logger.warning("Unknown source polarity {}".format(source_polarity))
             rt = r.rt_list[0]  # this is in seconds
             max_intensity = max(r.intensity_list)
 
             # make a chromatogram object
-            chromatogram = EmpiricalChromatogram(np.array(r.rt_list),
-                                                 np.array(r.mz_list),
-                                                 np.array(r.intensity_list),
-                                                 single_point_length=0.9)
+            chromatogram = EmpiricalChromatogram(
+                np.array(r.rt_list),
+                np.array(r.mz_list),
+                np.array(r.intensity_list),
+                single_point_length=0.9,
+            )
 
             # make a chemical
-            new_chemical = UnknownChemical(mz, rt, max_intensity, chromatogram,
-                                           children=None)
+            new_chemical = UnknownChemical(mz, rt, max_intensity, chromatogram, children=None)
             chemicals.append(new_chemical)
 
             if ms_levels == 2:
                 parent = chemicals[-1]
-                child_mz, child_intensity, parent_proportion = \
-                    self.ms2_sampler.sample(parent)
+                child_mz, child_intensity, parent_proportion = self.ms2_sampler.sample(parent)
 
                 children = []
                 for mz, intensity in zip(child_mz, child_intensity):
-                    child = MSN(mz, 2, intensity, parent_proportion, None,
-                                parent)
+                    child = MSN(mz, 2, intensity, parent_proportion, None, parent)
                     children.append(child)
                 children.sort(key=lambda x: x.isotopes[0])
                 parent.children = children
@@ -906,15 +926,13 @@ def get_pooled_sample(dataset_list):
 
     """
     n_datasets = len(dataset_list)
-    all_chems = np.array(
-        [item for sublist in dataset_list for item in sublist])
+    all_chems = np.array([item for sublist in dataset_list for item in sublist])
     unique_parents = list(set([chem.base_chemical for chem in all_chems]))
     # create dataset
     dataset = []
     for chem in unique_parents:
         matched_chemicals = all_chems[np.where(all_chems == chem)[0]]
-        new_intensity = sum(
-            [mchem.max_intensity for mchem in matched_chemicals]) / n_datasets
+        new_intensity = sum([mchem.max_intensity for mchem in matched_chemicals]) / n_datasets
         new_chem = copy.deepcopy(chem)
         new_chem.max_intensity = new_intensity
         dataset.append(new_chem)

@@ -4,13 +4,26 @@ from pathlib import Path
 
 from loguru import logger
 
-from tests.conftest import N_CHEMS, get_rt_bounds, CENTRE_RANGE, check_mzML, \
-    OUT_DIR, BEER_CHEMS, BEER_MIN_BOUND, BEER_MAX_BOUND, check_non_empty_MS2
-from vimms.ChemicalSamplers import EvenMZFormulaSampler, FixedMS2Sampler, \
-    ConstantChromatogramSampler, UniformRTAndIntensitySampler
+from tests.conftest import (
+    N_CHEMS,
+    get_rt_bounds,
+    CENTRE_RANGE,
+    check_mzML,
+    OUT_DIR,
+    BEER_CHEMS,
+    BEER_MIN_BOUND,
+    BEER_MAX_BOUND,
+    check_non_empty_MS2,
+)
+from vimms.ChemicalSamplers import (
+    EvenMZFormulaSampler,
+    FixedMS2Sampler,
+    ConstantChromatogramSampler,
+    UniformRTAndIntensitySampler,
+)
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
-from vimms.Controller import AdvancedParams, AIF, SWATH, DiaController
+from vimms.Controller import AdvancedParams, AIF, SWATH
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import GaussianPeakNoiseLevelSpecific, UniformSpikeNoise
@@ -23,7 +36,7 @@ class TestAIFControllers:
     """
 
     def test_AIF_controller_with_simulated_chems(self, fragscan_dataset):
-        logger.info('Testing Top-N controller with simulated chemicals')
+        logger.info("Testing Top-N controller with simulated chemicals")
 
         # create some chemical object
         assert len(fragscan_dataset) == N_CHEMS
@@ -44,9 +57,10 @@ class TestAIFControllers:
         scan_time_dict = {1: 0.12, 2: 0.06}
 
         # create a simulated mass spec without noise and Top-N controller
-        logger.info('Without noise')
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset,
-                                                scan_duration=scan_time_dict)
+        logger.info("Without noise")
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, fragscan_dataset, scan_duration=scan_time_dict
+        )
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, advanced_params=params)
@@ -66,17 +80,20 @@ class TestAIFControllers:
         set_log_level_debug()
 
         # write simulated output to mzML file
-        filename = 'AIF_simulated_chems_no_noise.mzML'
+        filename = "AIF_simulated_chems_no_noise.mzML"
         check_mzML(env, OUT_DIR, filename)
 
         # create a simulated mass spec with noise and Top-N controller
-        logger.info('With noise')
+        logger.info("With noise")
         mz_noise = GaussianPeakNoiseLevelSpecific({2: 0.01})
-        intensity_noise = GaussianPeakNoiseLevelSpecific({2: 1000.})
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, fragscan_dataset,
-                                                mz_noise=mz_noise,
-                                                intensity_noise=intensity_noise,
-                                                scan_duration=scan_time_dict)
+        intensity_noise = GaussianPeakNoiseLevelSpecific({2: 1000.0})
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode,
+            fragscan_dataset,
+            mz_noise=mz_noise,
+            intensity_noise=intensity_noise,
+            scan_duration=scan_time_dict,
+        )
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, advanced_params=params)
@@ -96,11 +113,11 @@ class TestAIFControllers:
         set_log_level_debug()
 
         # write simulated output to mzML file
-        filename = 'AIF_simulated_chems_with_noise.mzML'
+        filename = "AIF_simulated_chems_with_noise.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_AIF_controller_with_beer_chems(self):
-        logger.info('Testing Top-N controller with QC beer chemicals')
+        logger.info("Testing Top-N controller with QC beer chemicals")
 
         # isolation_width = 1
         # N = 10
@@ -115,15 +132,17 @@ class TestAIFControllers:
 
         # create a simulated mass spec without noise and Top-N controller
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, BEER_CHEMS,
-                                                scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, BEER_CHEMS, scan_duration=scan_time_dict
+        )
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, advanced_params=params)
 
         # create an environment to run both the mass spec and controller
-        env = Environment(mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND,
-                          progress_bar=False)
+        env = Environment(
+            mass_spec, controller, BEER_MIN_BOUND, BEER_MAX_BOUND, progress_bar=False
+        )
 
         # set the log level to WARNING so we don't see too many messages
         # when environment is running
@@ -136,7 +155,7 @@ class TestAIFControllers:
         set_log_level_debug()
 
         # write simulated output to mzML file
-        filename = 'AIF_qcbeer_chems_no_noise.mzML'
+        filename = "AIF_qcbeer_chems_no_noise.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_aif_msdial_experiment_file(self):
@@ -145,17 +164,17 @@ class TestAIFControllers:
         params = AdvancedParams(default_ms1_scan_window=[min_mz, max_mz])
         ms1_source_cid_energy = 30
         controller = AIF(ms1_source_cid_energy, advanced_params=params)
-        out_file = Path(OUT_DIR, 'AIF_experiment.txt')
+        out_file = Path(OUT_DIR, "AIF_experiment.txt")
         controller.write_msdial_experiment_file(out_file)
 
         assert os.path.exists(out_file)
-        with open(out_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t', lineterminator=os.linesep)
+        with open(out_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t", lineterminator=os.linesep)
             rows = []
             for row in reader:
                 rows.append(row)
         ce = ms1_source_cid_energy
-        expected_row = ['1', 'ALL', min_mz, max_mz, "{}eV".format(ce), ce, 1]
+        expected_row = ["1", "ALL", min_mz, max_mz, "{}eV".format(ce), ce, 1]
         for i, val in enumerate(expected_row):
             assert rows[-1][i] == str(val)
 
@@ -164,8 +183,9 @@ class TestAIFControllers:
         ms = FixedMS2Sampler(n_frags=2)
         cs = ConstantChromatogramSampler()
         ri = UniformRTAndIntensitySampler(min_rt=0, max_rt=1)
-        cs = ChemicalMixtureCreator(fs, ms2_sampler=ms, chromatogram_sampler=cs,
-                                    rt_and_intensity_sampler=ri)
+        cs = ChemicalMixtureCreator(
+            fs, ms2_sampler=ms, chromatogram_sampler=cs, rt_and_intensity_sampler=ri
+        )
         d = cs.sample(1, 2)
 
         ms1_source_cid_energy = 30
@@ -180,8 +200,7 @@ class TestAIFControllers:
         for i, s in enumerate(controller.scans[1]):
             if i % 2 == 1:
                 # odd scan, AIF, should  have two peaks at 81 and 91
-                integer_mzs = [int(i) for i in s.mzs]
-                integer_mzs.sort()
+                integer_mzs = sorted([int(i) for i in s.mzs])
                 assert integer_mzs[0] == 81
                 assert integer_mzs[1] == 91
             else:
@@ -204,9 +223,9 @@ class TestSWATH:
 
         spike_noise = UniformSpikeNoise(0.1, 1)
 
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, ten_chems,
-                                                spike_noise=spike_noise,
-                                                scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, ten_chems, spike_noise=spike_noise, scan_duration=scan_time_dict
+        )
 
         env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
 
@@ -216,7 +235,7 @@ class TestSWATH:
 
         check_non_empty_MS2(controller)
 
-        filename = 'SWATH_ten_chems.mzML'
+        filename = "SWATH_ten_chems.mzML"
         check_mzML(env, OUT_DIR, filename)
 
     def test_swath_more(self, even_chems):
@@ -233,8 +252,9 @@ class TestSWATH:
         scan_overlap = 0
         controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
-                                                scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, even_chems, scan_duration=scan_time_dict
+        )
         env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
         set_log_level_warning()
         env.run()
@@ -247,8 +267,9 @@ class TestSWATH:
         width = 200
         controller2 = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
-                                                scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, even_chems, scan_duration=scan_time_dict
+        )
         env = Environment(mass_spec, controller2, 200, 300, progress_bar=False)
         env.run()
 
@@ -260,8 +281,9 @@ class TestSWATH:
         width = 400
         controller3 = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
         scan_time_dict = {1: 0.124, 2: 0.124}
-        mass_spec = IndependentMassSpectrometer(ionisation_mode, even_chems,
-                                                scan_duration=scan_time_dict)
+        mass_spec = IndependentMassSpectrometer(
+            ionisation_mode, even_chems, scan_duration=scan_time_dict
+        )
         env = Environment(mass_spec, controller3, 200, 300, progress_bar=False)
         env.run()
 
@@ -275,16 +297,16 @@ class TestSWATH:
         width = 100
         scan_overlap = 0
         controller = SWATH(min_mz, max_mz, width, scan_overlap=scan_overlap)
-        out_file = Path(OUT_DIR, 'swath_experiment.txt')
+        out_file = Path(OUT_DIR, "swath_experiment.txt")
         controller.write_msdial_experiment_file(out_file)
 
         assert os.path.exists(out_file)
-        with open(out_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t', lineterminator=os.linesep)
+        with open(out_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t", lineterminator=os.linesep)
             rows = []
             for row in reader:
                 rows.append(row)
-        expected_row = ['4', 'SWATH', '350', '450']
+        expected_row = ["4", "SWATH", "350", "450"]
         for i, val in enumerate(expected_row):
             assert rows[-1][i] == val
 

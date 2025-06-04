@@ -45,14 +45,15 @@ def run_topN(chemset):
 
     # create a simulated mass spec without noise and Top-N controller
     mass_spec = IndependentMassSpectrometer(ionisation_mode, chemset)
-    controller = TopNController(ionisation_mode, N, isolation_width, mz_tol, rt_tol,
-                                MIN_MS1_INTENSITY)
+    controller = TopNController(
+        ionisation_mode, N, isolation_width, mz_tol, rt_tol, MIN_MS1_INTENSITY
+    )
 
     # create an environment to run both the mass spec and controller
     env = Environment(mass_spec, controller, 0, 1440, progress_bar=False)
     start_time = time.time()
     env.run()
-    logger.info('Done in %s seconds' % (time.time() - start_time))
+    logger.info("Done in %s seconds" % (time.time() - start_time))
 
 
 def run_smart_roi(chemset):
@@ -68,18 +69,27 @@ def run_smart_roi(chemset):
 
     min_roi_intensity = 50
     min_roi_length = 0
-    roi_params = RoiBuilderParams(min_roi_length=min_roi_length,
-                                  min_roi_intensity=min_roi_intensity)
+    roi_params = RoiBuilderParams(
+        min_roi_length=min_roi_length, min_roi_intensity=min_roi_intensity
+    )
     smartroi_params = SmartRoiParams()
-    controller = TopN_SmartRoiController(ionisation_mode, isolation_width, N, mz_tol, rt_tol,
-                                         MIN_MS1_INTENSITY, roi_params, smartroi_params,
-                                         min_roi_length_for_fragmentation=0)
+    controller = TopN_SmartRoiController(
+        ionisation_mode,
+        isolation_width,
+        N,
+        mz_tol,
+        rt_tol,
+        MIN_MS1_INTENSITY,
+        roi_params,
+        smartroi_params,
+        min_roi_length_for_fragmentation=0,
+    )
 
     # create an environment to run both the mass spec and controller
     env = Environment(mass_spec, controller, 0, 1440, progress_bar=False)
     start_time = time.time()
     env.run()
-    logger.info('Done in %s seconds' % (time.time() - start_time))
+    logger.info("Done in %s seconds" % (time.time() - start_time))
 
 
 def main():
@@ -87,6 +97,7 @@ def main():
     chemset = ChemSet.to_chemset(large_fragscan_dataset, fast=True)
     # run_topN(chemset)
     run_smart_roi(chemset)
+
 
 if __name__ == "__main__":
     main()

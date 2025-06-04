@@ -47,3 +47,17 @@ For additional examples, refer to our [notebooks](https://github.com/glasgowcomp
 ## Evaluation
 
 ViMMS allows evaluation of simulation results using methods provided [here](https://github.com/glasgowcompbio/vimms/blob/master/vimms/Evaluation.py). These tools offer a convenient way to assess the performance and outcomes of your simulations.
+### Available Controllers
+
+ViMMS ships with several ready to use controllers. Common options include:
+
+* `TopNController` – standard Top‑N data dependent acquisition.
+* `WeightedDEWController` – a Top‑N variant with dynamic exclusion weighting.
+* `SmartROIController` – ROI guided fragmentation using adaptive scoring.
+* `FullScanController` – MS1 only acquisition useful for creating full scan datasets.
+
+All controllers share a common interface and can be extended to implement new fragmentation logic.
+
+### Writing mzML Output
+
+The `Environment` class provides `write_mzML` to export the generated scans. Set `out_file` or `out_dir` when constructing the environment to automatically write the mzML file once the run completes.

@@ -16,8 +16,15 @@ from vimms.Box import BoxGrid
 from vimms.BoxManager import BoxManager, BoxSplitter
 from vimms.BoxVisualise import PlotPoints
 from vimms.Common import load_obj, create_if_not_exist, POSITIVE
-from vimms.Controller import AgentBasedController, TopN_SmartRoiController, TopNController, \
-    WeightedDEWController, AIF, SWATH, AdvancedParams
+from vimms.Controller import (
+    AgentBasedController,
+    TopN_SmartRoiController,
+    TopNController,
+    WeightedDEWController,
+    AIF,
+    SWATH,
+    AdvancedParams,
+)
 from vimms.Controller.box import IntensityNonOverlapController, NonOverlapController
 from vimms.Environment import Environment
 from vimms.Evaluation import evaluate_multi_peak_roi_aligner
@@ -27,19 +34,24 @@ from vimms.Utils import write_msp
 
 
 def make_msp(pickle_folder, sample_list=None):
-    msp_folder = pickle_folder  # put msp in the same folder
-    original_files = glob.glob(os.path.join(pickle_folder, '*.p'))
+    original_files = glob.glob(os.path.join(pickle_folder, "*.p"))
     for pf in original_files:
         logger.info(pf)
         root, ext = os.path.splitext(pf)
 
         chems = load_obj(pf)
         if sample_list is None:  # single injection
-            msp_filename = '%s.msp' % root
+            msp_filename = "%s.msp" % root
             if not exists(msp_filename):
                 logger.info(msp_filename)
-                write_msp(chems, msp_filename, out_dir=None, skip_rt=True, all_isotopes=False,
-                          ion_mode=[POSITIVE])
+                write_msp(
+                    chems,
+                    msp_filename,
+                    out_dir=None,
+                    skip_rt=True,
+                    all_isotopes=False,
+                    ion_mode=[POSITIVE],
+                )
 
         else:  # multiple injections
             assert len(chems) == len(sample_list)
@@ -50,18 +62,31 @@ def make_msp(pickle_folder, sample_list=None):
                 sample_name = sample_list[i]
                 chem = chems[i]
                 all_chems.extend(chem)
-                msp_filename = '%s_%s.msp' % (root, sample_name)
+                msp_filename = "%s_%s.msp" % (root, sample_name)
                 if not exists(msp_filename):
                     logger.info(msp_filename)
-                    write_msp(chem, msp_filename, out_dir=None, skip_rt=True, all_isotopes=False,
-                              ion_mode=[POSITIVE])
+                    write_msp(
+                        chem,
+                        msp_filename,
+                        out_dir=None,
+                        skip_rt=True,
+                        all_isotopes=False,
+                        ion_mode=[POSITIVE],
+                    )
 
                     # write the combined msp files
-            msp_filename = '%s.msp' % root
+            msp_filename = "%s.msp" % root
             if not exists(msp_filename):
                 logger.info(msp_filename)
-                write_msp(all_chems, msp_filename, out_dir=None, skip_rt=True, all_isotopes=False,
-                          ion_mode=[POSITIVE])
+                write_msp(
+                    all_chems,
+                    msp_filename,
+                    out_dir=None,
+                    skip_rt=True,
+                    all_isotopes=False,
+                    ion_mode=[POSITIVE],
+                )
+
 
 def run_experiment(result_folder, sample_list, controller_names, experiment_params, parallel=True):
     """
@@ -74,21 +99,21 @@ def run_experiment(result_folder, sample_list, controller_names, experiment_para
     :param experiment_params: experimental parameters
     :return: None
     """
-    pickle_files = glob.glob(os.path.join(result_folder, '*.p'))
+    pickle_files = glob.glob(os.path.join(result_folder, "*.p"))
     params_list = []
     for pf in pickle_files:
         parameters = {
-            'pf': pf,
-            'sample_list': sample_list,
-            'result_folder': result_folder,
-            'controller_names': controller_names,
-            'experiment_params': experiment_params
+            "pf": pf,
+            "sample_list": sample_list,
+            "result_folder": result_folder,
+            "controller_names": controller_names,
+            "experiment_params": experiment_params,
         }
         params_list.append(parameters)
 
     run_serial = True
     if parallel:  # Try to run the controllers in parallel. If fails, then run it serially
-        logger.warning('Running controllers in parallel, please wait ...')
+        logger.warning("Running controllers in parallel, please wait ...")
         run_serial = False
         try:
             rc = ipp.Client()
@@ -98,13 +123,13 @@ def run_experiment(result_folder, sample_list, controller_names, experiment_para
             dview.map_sync(run_once, params_list)
         except OSError:  # cluster has not been started
             run_serial = True
-            logger.warning('Failed: IPycluster not found')
+            logger.warning("Failed: IPycluster not found")
         except ipp.error.TimeoutError:  # takes too long to run
             run_serial = True
-            logger.warning('Failed: IPycluster time-out')
+            logger.warning("Failed: IPycluster time-out")
 
     if run_serial:  # if parallel is disabled, or any exception from above, run it serially
-        logger.warning('Running controllers in serial mode, please wait ...')
+        logger.warning("Running controllers in serial mode, please wait ...")
         for parameters in params_list:
             run_once(parameters)
 
@@ -116,11 +141,11 @@ def run_once(parameters):
     :return: None
     """
     # get parameters
-    pf = parameters['pf']
-    sample_list = parameters['sample_list']
-    result_folder = parameters['result_folder']
-    controller_names = parameters['controller_names']
-    experiment_params = parameters['experiment_params']
+    pf = parameters["pf"]
+    sample_list = parameters["sample_list"]
+    result_folder = parameters["result_folder"]
+    controller_names = parameters["controller_names"]
+    experiment_params = parameters["experiment_params"]
     pbar = False
 
     # get experiment name
@@ -133,69 +158,87 @@ def run_once(parameters):
     assert len(chem_list) == len(sample_list)
 
     # run a lot of controllers on the chemical list
-    run_simulated_exp(result_folder, experiment_name, controller_names, sample_list, chem_list,
-                      experiment_params, pbar)
+    run_simulated_exp(
+        result_folder,
+        experiment_name,
+        controller_names,
+        sample_list,
+        chem_list,
+        experiment_params,
+        pbar,
+    )
 
 
-def run_simulated_exp(result_folder, experiment_name, controller_names, sample_list, chem_list,
-                      experiment_params, pbar):
-    ionisation_mode = experiment_params['ionisation_mode']
-    min_measure_rt = experiment_params['min_measure_rt']
-    max_measure_rt = experiment_params['max_measure_rt']
-    min_measure_mz = experiment_params['min_measure_mz']
-    max_measure_mz = experiment_params['max_measure_mz']
+def run_simulated_exp(
+    result_folder,
+    experiment_name,
+    controller_names,
+    sample_list,
+    chem_list,
+    experiment_params,
+    pbar,
+):
+    ionisation_mode = experiment_params["ionisation_mode"]
+    min_measure_rt = experiment_params["min_measure_rt"]
+    max_measure_rt = experiment_params["max_measure_rt"]
+    min_measure_mz = experiment_params["min_measure_mz"]
+    max_measure_mz = experiment_params["max_measure_mz"]
 
-    rt_box_size = experiment_params['rt_box_size']
-    mz_box_size = experiment_params['mz_box_size']
-    scan_duration_dict = experiment_params['scan_duration_dict']
-    spike_noise = experiment_params['spike_noise']
-    mz_noise = experiment_params['mz_noise']
-    intensity_noise = experiment_params['intensity_noise']
+    rt_box_size = experiment_params["rt_box_size"]
+    mz_box_size = experiment_params["mz_box_size"]
+    scan_duration_dict = experiment_params["scan_duration_dict"]
+    spike_noise = experiment_params["spike_noise"]
+    mz_noise = experiment_params["mz_noise"]
+    intensity_noise = experiment_params["intensity_noise"]
 
-    topN_params = experiment_params['topN_params']
-    smartroi_params = experiment_params['smartroi_params']
-    weighteddew_params = experiment_params['weighteddew_params']
-    AIF_params = experiment_params['AIF_params']
-    SWATH_params = experiment_params['SWATH_params']
+    topN_params = experiment_params["topN_params"]
+    smartroi_params = experiment_params["smartroi_params"]
+    weighteddew_params = experiment_params["weighteddew_params"]
+    AIF_params = experiment_params["AIF_params"]
+    SWATH_params = experiment_params["SWATH_params"]
 
-    non_overlap_params = {**topN_params,
-                          **experiment_params['non_overlap_params']}  # combine the two dicts
-    intensity_non_overlap_params = {**topN_params, **experiment_params['non_overlap_params']}
+    non_overlap_params = {
+        **topN_params,
+        **experiment_params["non_overlap_params"],
+    }  # combine the two dicts
+    intensity_non_overlap_params = {**topN_params, **experiment_params["non_overlap_params"]}
 
     non_overlap_smartroi_params = {**non_overlap_params, **smartroi_params}
     intensity_non_overlap_smartroi_params = {**intensity_non_overlap_params, **smartroi_params}
 
     non_overlap_weighteddew_params = {**non_overlap_params, **weighteddew_params}
-    intensity_non_overlap_weighteddew_params = {**intensity_non_overlap_params,
-                                                **weighteddew_params}
+    intensity_non_overlap_weighteddew_params = {
+        **intensity_non_overlap_params,
+        **weighteddew_params,
+    }
 
     IE_topN_params = dict(topN_params)
     agent = TopNDEWAgent(**IE_topN_params)
 
     def make_grid():
         grid = BoxManager(
-            box_geometry=BoxGrid(min_measure_rt, max_measure_rt, rt_box_size,
-                                 0, 1500, mz_box_size)
+            box_geometry=BoxGrid(min_measure_rt, max_measure_rt, rt_box_size, 0, 1500, mz_box_size)
         )
         return grid
 
     def make_intensity_grid():
         grid = BoxManager(
-            box_geometry=BoxGrid(min_measure_rt, max_measure_rt, rt_box_size,
-                                 0, 1500, mz_box_size),
-            box_splitter=BoxSplitter(split=True)
+            box_geometry=BoxGrid(
+                min_measure_rt, max_measure_rt, rt_box_size, 0, 1500, mz_box_size
+            ),
+            box_splitter=BoxSplitter(split=True),
         )
         return grid
 
     for controller_name in controller_names:
 
         grids = {
-            'non_overlap': make_grid(),
-            'non_overlap_smartroi': make_grid(),
-            'non_overlap_weighteddew': make_grid(),
-            'intensity_non_overlap': make_intensity_grid(),
-            'intensity_non_overlap_smartroi': make_intensity_grid(),
-            'intensity_non_overlap_weighteddew': make_intensity_grid()
+            "non_overlap": make_grid(),
+            "non_overlap_smartroi": make_grid(),
+            "non_overlap_weighteddew": make_grid(),
+            "intensity_non_overlap": make_intensity_grid(),
+            "intensity_non_overlap_smartroi": make_intensity_grid(),
+            "intensity_non_overlap_weighteddew": make_intensity_grid(),
         }
 
         for i, chems in enumerate(chem_list):
@@ -203,87 +246,117 @@ def run_simulated_exp(result_folder, experiment_name, controller_names, sample_l
             params.default_ms1_scan_window = [min_measure_mz, max_measure_mz]
 
             controllers = {
-                'topN': TopNController(advanced_params=params, **topN_params),
-                'topN_exclusion': AgentBasedController(agent, advanced_params=params),
-                'non_overlap': NonOverlapController(
-                    grid=grids["non_overlap"],
-                    advanced_params=params,
-                    **non_overlap_params
+                "topN": TopNController(advanced_params=params, **topN_params),
+                "topN_exclusion": AgentBasedController(agent, advanced_params=params),
+                "non_overlap": NonOverlapController(
+                    grid=grids["non_overlap"], advanced_params=params, **non_overlap_params
                 ),
-                'non_overlap_smartroi': NonOverlapController(
-                    grid=grids["non_overlap_smartroi"],
-                    **non_overlap_smartroi_params
+                "non_overlap_smartroi": NonOverlapController(
+                    grid=grids["non_overlap_smartroi"], **non_overlap_smartroi_params
                 ),
-                'non_overlap_weighteddew': NonOverlapController(
+                "non_overlap_weighteddew": NonOverlapController(
                     grid=grids["non_overlap_weighteddew"],
                     advanced_params=params,
-                    **non_overlap_weighteddew_params
+                    **non_overlap_weighteddew_params,
                 ),
-                'intensity_non_overlap': IntensityNonOverlapController(
+                "intensity_non_overlap": IntensityNonOverlapController(
                     grid=grids["intensity_non_overlap"],
                     advanced_params=params,
-                    **intensity_non_overlap_params
+                    **intensity_non_overlap_params,
                 ),
-                'intensity_non_overlap_smartroi': IntensityNonOverlapController(
+                "intensity_non_overlap_smartroi": IntensityNonOverlapController(
                     grid=grids["intensity_non_overlap_smartroi"],
                     advanced_params=params,
-                    **intensity_non_overlap_smartroi_params
+                    **intensity_non_overlap_smartroi_params,
                 ),
-                'intensity_non_overlap_weighteddew': IntensityNonOverlapController(
+                "intensity_non_overlap_weighteddew": IntensityNonOverlapController(
                     grid=grids["intensity_non_overlap_weighteddew"],
                     advanced_params=params,
-                    **intensity_non_overlap_weighteddew_params
+                    **intensity_non_overlap_weighteddew_params,
                 ),
-                'smartroi': TopN_SmartRoiController(
-                    non_overlap_smartroi_params['ionisation_mode'],
-                    non_overlap_smartroi_params['isolation_width'],
-                    non_overlap_smartroi_params['N'],
-                    non_overlap_smartroi_params['mz_tol'],
-                    non_overlap_smartroi_params['rt_tol'],
-                    non_overlap_smartroi_params['min_ms1_intensity'],
-                    non_overlap_smartroi_params['roi_params'],
-                    non_overlap_smartroi_params['smartroi_params'],
+                "smartroi": TopN_SmartRoiController(
+                    non_overlap_smartroi_params["ionisation_mode"],
+                    non_overlap_smartroi_params["isolation_width"],
+                    non_overlap_smartroi_params["N"],
+                    non_overlap_smartroi_params["mz_tol"],
+                    non_overlap_smartroi_params["rt_tol"],
+                    non_overlap_smartroi_params["min_ms1_intensity"],
+                    non_overlap_smartroi_params["roi_params"],
+                    non_overlap_smartroi_params["smartroi_params"],
                     min_roi_length_for_fragmentation=non_overlap_smartroi_params[
-                        'min_roi_length_for_fragmentation'],
-                    advanced_params=params
+                        "min_roi_length_for_fragmentation"
+                    ],
+                    advanced_params=params,
                 ),
-                'weighteddew': WeightedDEWController(
-                    non_overlap_weighteddew_params['ionisation_mode'],
-                    non_overlap_weighteddew_params['N'],
-                    non_overlap_weighteddew_params['isolation_width'],
-                    non_overlap_weighteddew_params['mz_tol'],
-                    non_overlap_weighteddew_params['rt_tol'],
-                    non_overlap_weighteddew_params['min_ms1_intensity'],
-                    exclusion_t_0=non_overlap_weighteddew_params['exclusion_t_0'],
+                "weighteddew": WeightedDEWController(
+                    non_overlap_weighteddew_params["ionisation_mode"],
+                    non_overlap_weighteddew_params["N"],
+                    non_overlap_weighteddew_params["isolation_width"],
+                    non_overlap_weighteddew_params["mz_tol"],
+                    non_overlap_weighteddew_params["rt_tol"],
+                    non_overlap_weighteddew_params["min_ms1_intensity"],
+                    exclusion_t_0=non_overlap_weighteddew_params["exclusion_t_0"],
                     log_intensity=True,
-                    advanced_params=params
+                    advanced_params=params,
                 ),
-                'AIF': AIF(advanced_params=params, **AIF_params),
-                'SWATH': SWATH(advanced_params=params, **SWATH_params)
+                "AIF": AIF(advanced_params=params, **AIF_params),
+                "SWATH": SWATH(advanced_params=params, **SWATH_params),
             }
 
-            logger.warning('%s %s' % (sample_list[i], controller_name))
+            logger.warning("%s %s" % (sample_list[i], controller_name))
             output_folder = os.path.join(result_folder, controller_name, experiment_name)
-            mzML_name = '%s_%s.mzML' % (experiment_name, sample_list[i])
+            mzML_name = "%s_%s.mzML" % (experiment_name, sample_list[i])
 
             controller = controllers[controller_name]
-            run_controller(min_measure_rt, max_measure_rt, ionisation_mode, chems, controller,
-                           output_folder, mzML_name, pbar,
-                           spike_noise, mz_noise, intensity_noise,
-                           scan_duration_dict)
+            run_controller(
+                min_measure_rt,
+                max_measure_rt,
+                ionisation_mode,
+                chems,
+                controller,
+                output_folder,
+                mzML_name,
+                pbar,
+                spike_noise,
+                mz_noise,
+                intensity_noise,
+                scan_duration_dict,
+            )
 
 
-def run_controller(min_rt, max_rt, ionisation_mode, chems, controller,
-                   out_dir, out_file, pbar,
-                   spike_noise, mz_noise, intensity_noise,
-                   scan_duration_dict):
-    mass_spec = IndependentMassSpectrometer(ionisation_mode, chems,
-                                            spike_noise=spike_noise,
-                                            mz_noise=mz_noise,
-                                            intensity_noise=intensity_noise,
-                                            scan_duration=scan_duration_dict)
-    env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=pbar,
-                      out_dir=out_dir, out_file=out_file, save_eval=True, check_exists=True)
+def run_controller(
+    min_rt,
+    max_rt,
+    ionisation_mode,
+    chems,
+    controller,
+    out_dir,
+    out_file,
+    pbar,
+    spike_noise,
+    mz_noise,
+    intensity_noise,
+    scan_duration_dict,
+):
+    mass_spec = IndependentMassSpectrometer(
+        ionisation_mode,
+        chems,
+        spike_noise=spike_noise,
+        mz_noise=mz_noise,
+        intensity_noise=intensity_noise,
+        scan_duration=scan_duration_dict,
+    )
+    env = Environment(
+        mass_spec,
+        controller,
+        min_rt,
+        max_rt,
+        progress_bar=pbar,
+        out_dir=out_dir,
+        out_file=out_file,
+        save_eval=True,
+        check_exists=True,
+    )
     env.run()
 
 
@@ -295,7 +368,7 @@ def mzml_to_boxname(mzml):
 
 
 def count_boxes(box_file):
-    with open(box_file, 'r') as f:
+    with open(box_file, "r") as f:
         return sum(ln.strip() != "" for ln in f) - 1
 
 
@@ -316,11 +389,15 @@ def multi_samples_eval(controller_name, out_dir, repeat, box_mzML, mzmine_templa
     mzmine_outs = []
     for box_mzML in box_mzMLs:
         peak_picking_outdir = os.path.dirname(os.path.abspath(box_mzML))
-        pick_peaks(box_mzML, xml_template=mzmine_template, output_dir=peak_picking_outdir,
-                   mzmine_command=mzmine_path,
-                   force=False)
+        pick_peaks(
+            box_mzML,
+            xml_template=mzmine_template,
+            output_dir=peak_picking_outdir,
+            mzmine_command=mzmine_path,
+            force=False,
+        )
         seed_box_file = mzml_to_boxname(box_mzML)
-        print('Found', count_boxes(seed_box_file), 'boxes in', box_mzML)
+        print("Found", count_boxes(seed_box_file), "boxes in", box_mzML)
         mzmine_outs.append(seed_box_file)
 
     input_files = get_experiment_mzmls(controller_name, out_dir, repeat)
@@ -333,8 +410,9 @@ def multi_samples_eval(controller_name, out_dir, repeat, box_mzML, mzmine_templa
     # create ROI aligner and call evaluation method
     aligner = RoiAligner(rt_tolerance=100)
     for i in range(repeat):
-        aligner.add_picked_peaks(input_files[i], mzmine_outs[i], samples[i], 'mzmine',
-                                 half_isolation_window=0.01)
+        aligner.add_picked_peaks(
+            input_files[i], mzmine_outs[i], samples[i], "mzmine", half_isolation_window=0.01
+        )
     multi_eval = evaluate_multi_peak_roi_aligner(aligner, samples)
     return multi_eval
 
@@ -353,7 +431,7 @@ def results_to_df(all_results):
             try:
                 coverages = results["cumulative_coverage_prop"]
             except KeyError:
-                coverages = results['cumulative_coverage_proportion']
+                coverages = results["cumulative_coverage_proportion"]
 
             try:
                 intensity_proportions = results["cumulative_coverage_intensities_prop"]
@@ -367,50 +445,61 @@ def results_to_df(all_results):
                 row = (i, controller_name, j, cov, intensity)
                 data.append(row)
 
-    df = pd.DataFrame(data, columns=['repeat', 'controller', 'sample_num', 'coverage_prop',
-                                     'intensity_prop'])
+    df = pd.DataFrame(
+        data, columns=["repeat", "controller", "sample_num", "coverage_prop", "intensity_prop"]
+    )
     return df
 
 
 def plot_results(controller_names, eval_res, suptitle=None, outfile=None, cumulative=True):
-    sns.set_context('poster')
+    sns.set_context("poster")
     fig, (ax1, ax2) = plt.subplots(1, 2)
     for exp_name in controller_names:
         results = eval_res[exp_name]
         if cumulative:
-            coverages = results['cumulative_coverage_proportion']
+            coverages = results["cumulative_coverage_proportion"]
             intensity_proportions = results["cumulative_intensity_proportion"]
         else:
-            coverages = results['coverage_proportion']
+            coverages = results["coverage_proportion"]
             intensity_proportions = results["intensity_proportion"]
 
         xis = list(range(1, len(coverages) + 1))
 
         if cumulative:
-            ax1.set(xlabel="Num. Runs", ylabel="Cumulative Coverage Proportion",
-                    title="Multi-Sample Cumulative Coverage")
+            ax1.set(
+                xlabel="Num. Runs",
+                ylabel="Cumulative Coverage Proportion",
+                title="Multi-Sample Cumulative Coverage",
+            )
         else:
-            ax1.set(xlabel="Num. Runs", ylabel="Coverage Proportion",
-                    title="Multi-Sample Coverage")
+            ax1.set(
+                xlabel="Num. Runs", ylabel="Coverage Proportion", title="Multi-Sample Coverage"
+            )
 
         ax1.plot(xis, coverages, label=exp_name)
-        ax1.legend(loc='lower right', bbox_to_anchor=(1, 0.05))
+        ax1.legend(loc="lower right", bbox_to_anchor=(1, 0.05))
 
         if cumulative:
-            ax2.set(xlabel="Num. Runs", ylabel="Cumulative Intensity Proportion",
-                    title="Multi-Sample Cumulative Intensity Proportion")
+            ax2.set(
+                xlabel="Num. Runs",
+                ylabel="Cumulative Intensity Proportion",
+                title="Multi-Sample Cumulative Intensity Proportion",
+            )
         else:
-            ax2.set(xlabel="Num. Runs", ylabel="Intensity Proportion",
-                    title="Multi-Sample Intensity Proportion")
+            ax2.set(
+                xlabel="Num. Runs",
+                ylabel="Intensity Proportion",
+                title="Multi-Sample Intensity Proportion",
+            )
 
         ax2.plot(xis, intensity_proportions, label=exp_name)
-        ax2.legend(loc='lower right', bbox_to_anchor=(1, 0.05))
+        ax2.legend(loc="lower right", bbox_to_anchor=(1, 0.05))
     fig.set_size_inches(18.5, 10.5)
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
     if outfile is not None:
         create_if_not_exist(os.path.dirname(outfile))
-        plt.savefig(outfile, facecolor='white', transparent=False)
+        plt.savefig(outfile, facecolor="white", transparent=False)
 
 
 def print_results(controller_names, eval_res):
@@ -419,12 +508,21 @@ def print_results(controller_names, eval_res):
         print(f"Cumulative Coverage: {successes(eval_res[exp_name])}")
         print(f"Cumulative Coverage Proportion: {eval_res[exp_name]['cumulative_coverage_prop']}")
         print(
-            f"Cumulative Intensity Proportion: {eval_res[exp_name]['cumulative_coverage_intensities_prop']}")
+            "Cumulative Intensity Proportion: "
+            f"{eval_res[exp_name]['cumulative_coverage_intensities_prop']}"
+        )
         print()
 
 
-def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
-                   sample_values, sample_label, cumulative=False):
+def to_eval_res_df(
+    eval_res_list,
+    controller_names,
+    group_values,
+    group_label,
+    sample_values,
+    sample_label,
+    cumulative=False,
+):
     assert len(group_values) == len(eval_res_list)
 
     data = []
@@ -435,10 +533,10 @@ def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
         for controller_name in controller_names:
             results = eval_res[controller_name].evaluation_report()
             if cumulative:
-                coverages = results['cumulative_coverage_proportion']
+                coverages = results["cumulative_coverage_proportion"]
                 intensity_proportions = results["cumulative_intensity_proportion"]
             else:
-                coverages = results['coverage_proportion']
+                coverages = results["coverage_proportion"]
                 intensity_proportions = results["intensity_proportion"]
 
             assert len(coverages) == len(sample_values)
@@ -448,37 +546,55 @@ def to_eval_res_df(eval_res_list, controller_names, group_values, group_label,
                 sample_value = sample_values[j]
                 row = [group_value, sample_value, controller_name, cov, intensity]
                 data.append(row)
-    df = pd.DataFrame(data, columns=[group_label, sample_label, 'controller', 'coverage_prop',
-                                     'intensity_prop'])
+    df = pd.DataFrame(
+        data, columns=[group_label, sample_label, "controller", "coverage_prop", "intensity_prop"]
+    )
     return df
 
 
-def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
-                       cumulative=False, palette=None):
+def plot_multi_results(
+    df, x, suptitle=None, outfile=None, plot_type="boxplot", cumulative=False, palette=None
+):
 
-    sns.set_context(context='poster', font_scale=1, rc=None)
+    sns.set_context(context="poster", font_scale=1, rc=None)
     figsize = (20, 10)
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
-    if plot_type == 'boxplot':
-        sns.boxplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0],
-                    palette=palette)
-        sns.boxplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1],
-                    palette=palette)
-    elif plot_type == 'lineplot':
-        sns.lineplot(x=x, y='coverage_prop', hue='controller', data=df, ax=axes[0],
-                     palette=palette, err_style="bars", ci='sd')
-        sns.lineplot(x=x, y='intensity_prop', hue='controller', data=df, ax=axes[1],
-                     palette=palette, err_style="bars", ci='sd')
+    if plot_type == "boxplot":
+        sns.boxplot(x=x, y="coverage_prop", hue="controller", data=df, ax=axes[0], palette=palette)
+        sns.boxplot(
+            x=x, y="intensity_prop", hue="controller", data=df, ax=axes[1], palette=palette
+        )
+    elif plot_type == "lineplot":
+        sns.lineplot(
+            x=x,
+            y="coverage_prop",
+            hue="controller",
+            data=df,
+            ax=axes[0],
+            palette=palette,
+            err_style="bars",
+            ci="sd",
+        )
+        sns.lineplot(
+            x=x,
+            y="intensity_prop",
+            hue="controller",
+            data=df,
+            ax=axes[1],
+            palette=palette,
+            err_style="bars",
+            ci="sd",
+        )
     else:
-        raise ValueError('Invalid plot_type, must be boxplot or lineplot')
+        raise ValueError("Invalid plot_type, must be boxplot or lineplot")
 
     if cumulative:
-        axes[0].set_title('Cumulative Coverage')
-        axes[1].set_title('Cumulative Intensity Proportion')
+        axes[0].set_title("Cumulative Coverage")
+        axes[1].set_title("Cumulative Intensity Proportion")
     else:
-        axes[0].set_title('Coverage')
-        axes[1].set_title('Intensity Proportion')
+        axes[0].set_title("Coverage")
+        axes[1].set_title("Intensity Proportion")
 
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=32)
@@ -490,7 +606,7 @@ def plot_multi_results(df, x, suptitle=None, outfile=None, plot_type='boxplot',
 
     if outfile is not None:
         create_if_not_exist(os.path.dirname(outfile))
-        plt.savefig(outfile, facecolor='white', transparent=False)
+        plt.savefig(outfile, facecolor="white", transparent=False)
 
 
 def plot_frag_events(exp_name, out_dir, repeat):
@@ -508,8 +624,11 @@ def plot_frag_events(exp_name, out_dir, repeat):
         for i, (mzml, ax) in enumerate(zip(mzmls, axes)):
             pp = PlotPoints.from_mzml(mzml)
             pp.plot_ms2s(ax)
-            ax.set(title=f"{exp_name} Run {i + 1} Fragmentation Events", xlabel="RT (Seconds)",
-                   ylabel="m/z")
+            ax.set(
+                title=f"{exp_name} Run {i + 1} Fragmentation Events",
+                xlabel="RT (Seconds)",
+                ylabel="m/z",
+            )
         fig.set_size_inches(20, len(mzmls) * 4)
 
     plt.suptitle(exp_name, fontsize=18)

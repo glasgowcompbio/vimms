@@ -116,7 +116,6 @@ dmypy.json
 # CLMS-specific ignores
 models/*
 .idea/*
-Pipfile.lock
 examples/hmdb_metabolites.zip
 examples/example_data.zip
 examples/example_data/

@@ -11,14 +11,10 @@ We also offer an extension that allows ViMMS controllers to operate directly on 
 
 # Installation
 
-ViMMS is compatible with Python 3+. You can install the current release of ViMMS using pip or pipenv:
+ViMMS is compatible with Python 3+. You can install the current release of ViMMS using pip:
 
 ```
 $ pip install vimms
-```
-or
-```
-$ pipenv install vimms
 ```
 
 Find the current version on our [Release page](https://github.com/glasgowcompbio/vimms/releases) or on [PyPi](https://pypi.org/project/vimms/#history).
@@ -31,18 +27,10 @@ To access the latest, unreleased ViMMS code, clone our repository:
 git clone https://github.com/glasgowcompbio/vimms.git
 ```
 
-ViMMS dependencies can be managed using either [Pipenv](https://pipenv.pypa.io/en/latest/) or [Anaconda Python](https://www.anaconda.com). After installing your chosen tool and cloning the repo, create a new virtual environment and install all required packages:
-
-For Pipenv:
+ViMMS dependencies are managed with [Poetry](https://python-poetry.org/). After cloning the repository, create a new virtual environment and install all required packages:
 ```
-$ pipenv install
-$ pipenv shell
-```
-
-For Anaconda:
-```
-$ conda env create --file environment.yml
-$ conda activate vimms
+$ poetry install
+$ poetry shell
 ```
 
 Within the virtual environment, you can develop new controllers, run notebooks (`$ jupyter lab`), and more.

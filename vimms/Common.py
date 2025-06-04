@@ -11,6 +11,21 @@ import zipfile
 
 from numba import njit
 import numpy as np
+import importlib
+import sys
+
+# ---------------------------------------------------------------------------
+# Compatibility fixes
+# ---------------------------------------------------------------------------
+# Older pickles in the wild may reference the module ``numpy.core.numeric``.
+# Importing this module directly now raises a ``DeprecationWarning`` in recent
+# NumPy versions.  To avoid emitting the warning when unpickling old objects,
+# alias ``numpy.core.numeric`` to ``numpy._core.numeric`` before any unpickling
+# happens.
+if 'numpy.core.numeric' not in sys.modules:
+    sys.modules['numpy.core.numeric'] = importlib.import_module(
+        'numpy._core.numeric'
+    )
 import requests
 from loguru import logger
 from tqdm.auto import tqdm

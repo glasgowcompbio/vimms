@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import numpy as np
 from numba import njit, float64, int32, types
 from numba_stats import norm
@@ -219,7 +217,7 @@ def generate_chem_ms1_peaks(chems, scan_time, cdc, with_intensity):
     which_adducts = np.empty(row_count)
 
     if row_count > 0:
-        data = all_data[:, ISOTOPE_MZ_IDX : CHROM_MZ_IDX + 1]
+        data = all_data[:, ISOTOPE_MZ_IDX: CHROM_MZ_IDX + 1]
         peaks = calculate_chem_ms1_peaks(
             data,
             all_chrom_mz_arr,

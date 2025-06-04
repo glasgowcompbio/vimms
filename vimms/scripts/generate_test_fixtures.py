@@ -1,17 +1,14 @@
+from vimms.Roi import RoiBuilderParams
+from vimms.Chemicals import ChemicalMixtureFromMZML
+from vimms.FeatureExtraction import extract_hmdb_metabolite
+from vimms.Common import download_file, extract_zip_file, save_obj
+from loguru import logger
+import shutil
+import os
 import sys
 
 sys.path.append("..")
 sys.path.append("../..")  # if running in this folder
-
-import os
-import shutil
-
-from loguru import logger
-
-from vimms.Common import download_file, extract_zip_file, save_obj
-from vimms.FeatureExtraction import extract_hmdb_metabolite
-from vimms.Chemicals import ChemicalMixtureFromMZML
-from vimms.Roi import RoiBuilderParams
 
 
 def download_example_data():

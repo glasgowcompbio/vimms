@@ -1,19 +1,3 @@
-import sys
-
-sys.path.append("..")
-sys.path.append("../..")  # if running in this folder
-
-import argparse
-import configparser
-import os
-from abc import ABC, abstractmethod
-
-from vimms.Common import (
-    IN_SILICO_OPTIMISE_TOPN,
-    add_log_file,
-    IN_SILICO_OPTIMISE_SMART_ROI,
-    IN_SILICO_OPTIMISE_WEIGHTED_DEW,
-)
 from vimms.InSilicoSimulation import (
     extract_chemicals,
     get_timing,
@@ -28,6 +12,20 @@ from vimms.InSilicoSimulation import (
     string_to_list,
     plot_counts,
 )
+from vimms.Common import (
+    IN_SILICO_OPTIMISE_TOPN,
+    add_log_file,
+    IN_SILICO_OPTIMISE_SMART_ROI,
+    IN_SILICO_OPTIMISE_WEIGHTED_DEW,
+)
+from abc import ABC, abstractmethod
+import os
+import configparser
+import argparse
+import sys
+
+sys.path.append("..")
+sys.path.append("../..")  # if running in this folder
 
 
 class InSilicoSimulator(ABC):

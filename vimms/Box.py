@@ -5,8 +5,6 @@ Note: this module is still under development and might change significantly.
 import copy
 import itertools
 import math
-import random
-import itertools
 from abc import abstractmethod, ABCMeta
 from collections import defaultdict, namedtuple
 from decimal import Decimal
@@ -22,7 +20,7 @@ class Point:
     __slots__ = ("x", "y")
 
     def round(self, ndigits=8):
-        if not ndigits is None:
+        if ndigits is not None:
             self.x, self.y = round(self.x, ndigits), round(self.y, ndigits)
 
     def __init__(self, x, y, round_digits=None):
@@ -34,7 +32,7 @@ class Point:
 
     def __eq__(self, other_point):
         return (
-            type(self) == type(other_point)
+            isinstance(other_point, type(self))
             and math.isclose(self.x, other_point.x)
             and math.isclose(self.y, other_point.y)
         )
@@ -57,7 +55,7 @@ class Interval:
 
     def __eq__(self, other_inv):
         return (
-            type(self) == type(other_inv)
+            isinstance(other_inv, type(self))
             and self.pt1 == other_inv.pt1
             and self.pt2 == other_inv.pt2
         )
@@ -116,7 +114,7 @@ class Box:
 
     def __eq__(self, other_box):
         return (
-            type(self) == type(other_box)
+            isinstance(other_box, type(self))
             and self.pt1 == other_box.pt1
             and self.pt2 == other_box.pt2
         )
@@ -237,14 +235,14 @@ class GenericBox(Box):
         x1, y1 = self.pt1
         x2, y2 = self.pt2
 
-        if not xwidth is None:
+        if xwidth is not None:
             mid = (x1 + x2) / 2
             dist = (xwidth / 1e6) * mid
             if dist > x2 - x1:
                 x1 = mid - dist / 2
                 x2 = mid + dist / 2
 
-        if not ywidth is None:
+        if ywidth is not None:
             mid = (y1 + y2) / 2
             dist = (ywidth / 1e6) * mid
             if dist > y2 - y1:
@@ -337,8 +335,9 @@ class GenericBox(Box):
 
 class Grid(metaclass=ABCMeta):
     """
-    Partitions a 2D space into a number of rectangles of fixed size, for faster lookup.
-    If a query object and a saved object touch the same rectangle, then the saved object should be factored into the query.
+    Partitions a 2D space into a number of rectangles of fixed size for faster
+    lookup. If a query object and a saved object touch the same rectangle, then
+    the saved object should be factored into the query.
     """
 
     @staticmethod
@@ -414,12 +413,12 @@ class ArrayGrid(Grid):
 
     def approx_non_overlap(self, box):
         rt_box_range, mz_box_range, total_boxes = self.get_box_ranges(box)
-        boxes = self.boxes[rt_box_range[0] : rt_box_range[1], mz_box_range[0] : mz_box_range[1]]
+        boxes = self.boxes[rt_box_range[0]: rt_box_range[1], mz_box_range[0]: mz_box_range[1]]
         return (total_boxes - np.sum(boxes)) / total_boxes
 
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
-        self.boxes[rt_box_range[0] : rt_box_range[1], mz_box_range[0] : mz_box_range[1]] = True
+        self.boxes[rt_box_range[0]: rt_box_range[1], mz_box_range[0]: mz_box_range[1]] = True
 
 
 class LocatorGrid(Grid):
@@ -439,7 +438,7 @@ class LocatorGrid(Grid):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         boxes = set()
         for row in self.boxes[
-            rt_box_range[0] : rt_box_range[1], mz_box_range[0] : mz_box_range[1]
+            rt_box_range[0]: rt_box_range[1], mz_box_range[0]: mz_box_range[1]
         ]:
             for s in row:
                 boxes |= s
@@ -451,7 +450,7 @@ class LocatorGrid(Grid):
     def register_box(self, box):
         rt_box_range, mz_box_range, _ = self.get_box_ranges(box)
         for row in self.boxes[
-            rt_box_range[0] : rt_box_range[1], mz_box_range[0] : mz_box_range[1]
+            rt_box_range[0]: rt_box_range[1], mz_box_range[0]: mz_box_range[1]
         ]:
             for s in row:
                 s.add(box)
@@ -488,7 +487,7 @@ class LineSweeper:
     def _remove_active(self):
         b = self.active.pop()
         self.was_active.append(b)
-        if not b in self.removed:
+        if b not in self.removed:
             try:
                 self.active_intervals.removei(b.pt1.y, b.pt2.y + 1e-12, b)
             except KeyError:
@@ -632,8 +631,10 @@ class LineSweeper:
 
 class BoxGeometry(metaclass=ABCMeta):
     """
-    Describes the interface for an abstract class which can do geometric operations on points, intervals and rectangles.
-    Different subclasses use different data structures, and hence the choice of data structure matters for performance.
+    Describes the interface for an abstract class which can do geometric
+    operations on points, intervals and rectangles. Different subclasses use
+    different data structures, and hence the choice of data structure matters
+    for performance.
     """
 
     def set_active_boxes(self, *args):
@@ -994,10 +995,16 @@ class BoxLineSweeper(BoxExact):
 
         other_boxes = (
             self.lswp.interval_overlaps_which_boxes(
-                Interval(self.lswp.current_loc, self.lswp.current_loc, sliced.pt1.y, sliced.pt2.y)
+                Interval(
+                    self.lswp.current_loc,
+                    self.lswp.current_loc,
+                    sliced.pt1.y,
+                    sliced.pt2.y,
+                )
             )
             + self.lswp.was_active
-        )  # TODO: If the manual intersection check is removed from this non-overlap, then filter to intersecting boxes
+        )  # TODO: If the manual intersection check is removed from this
+        # non-overlap, then filter to intersecting boxes
         sliced_uncovered = sum(b.area() for b in BoxExact.non_overlap_boxes(sliced, other_boxes))
 
         running_uncovered, running_total = self.running_scores.get(sliced.id, (0, 0))

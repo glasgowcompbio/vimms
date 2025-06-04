@@ -1,31 +1,28 @@
 # data generation script
-import sys
-
-sys.path.append("..")
-sys.path.append("../..")  # if running in this folder
-
-import argparse
-
-import numpy as np
-from loguru import logger
-
-from vimms.Utils import write_msp
-from vimms.Environment import Environment
-from vimms.Noise import UniformSpikeNoise
-from vimms.Controller import TopNController, SWATH
-from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.ChemicalSamplers import (
-    DatabaseFormulaSampler,
-    UniformRTAndIntensitySampler,
-    UniformMS2Sampler,
-)
-from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import (
     DEFAULT_MS1_SCAN_WINDOW,
     load_obj,
     ADDUCT_DICT_POS_MH,
     set_log_level_warning,
 )
+from vimms.Chemicals import ChemicalMixtureCreator
+from vimms.ChemicalSamplers import (
+    DatabaseFormulaSampler,
+    UniformRTAndIntensitySampler,
+    UniformMS2Sampler,
+)
+from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.Controller import TopNController, SWATH
+from vimms.Noise import UniformSpikeNoise
+from vimms.Environment import Environment
+from vimms.Utils import write_msp
+from loguru import logger
+import numpy as np
+import argparse
+import sys
+
+sys.path.append("..")
+sys.path.append("../..")  # if running in this folder
 
 
 DEFAULT_RT_RANGE = (100, 500)

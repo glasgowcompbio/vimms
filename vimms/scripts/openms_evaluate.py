@@ -1,16 +1,14 @@
+from vimms.Evaluation import RealEvaluator
+from loguru import logger
+import subprocess
+import shutil
+import os
+import argparse
 import sys
 
 sys.path.append("..")
 sys.path.append("../..")  # if running in this folder
 
-import argparse
-import os
-import shutil
-import subprocess
-
-from loguru import logger
-
-from vimms.Evaluation import RealEvaluator
 
 DEFAULT_OPENMS_DIR = "/Applications/OpenMS-3.0.0/bin"
 DEFAULT_INI_FILE = "../../batch_files/FeatureFinderCentroided.ini"

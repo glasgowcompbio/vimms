@@ -1,22 +1,18 @@
 # computes optimal performance
+from vimms.Roi import Roi
+from vimms.Common import POSITIVE
+from mass_spec_utils.data_import.mzml import MZMLFile
+from mass_spec_utils.data_import.mzmine import load_picked_boxes
+from loguru import logger
+import numpy as np
+import networkx as nx
+import os
+import bisect
+import argparse
 import sys
 
 sys.path.append("..")
 sys.path.append("../..")  # if running in this folder
-
-import argparse
-import bisect
-import os
-
-import networkx as nx
-import numpy as np
-from loguru import logger
-
-from mass_spec_utils.data_import.mzmine import load_picked_boxes
-from mass_spec_utils.data_import.mzml import MZMLFile
-
-from vimms.Common import POSITIVE
-from vimms.Roi import Roi
 
 
 def get_times(mzfile_object):

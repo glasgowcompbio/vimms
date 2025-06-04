@@ -16,7 +16,6 @@ import seaborn as sns
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plotly.colors import DEFAULT_PLOTLY_COLORS
-from mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Common import path_or_mzml, get_scan_times_combined, get_scan_times
 from vimms.Box import GenericBox, BoxGrid
@@ -171,7 +170,7 @@ class AutoColourMap(ColourMap):
         # if there's no path from one box to another when we build a graph of
         # their overlaps, we can re-use colours
         pairs = [(top, set()) for b in boxes for top in b.parents]
-        if all(not top.id is None for top, _ in pairs):
+        if all(top.id is not None for top, _ in pairs):
             pairs.sort(key=lambda p: p[0].id)
         top_level = OrderedDict(pairs)  # need uniqueness and maintain ordering
         if self.reuse_colours:
@@ -233,7 +232,7 @@ class PlotPoints:
 
     def __init__(self, ms1_points, ms2s=None, markers={}):
         self.ms1_points = np.array(ms1_points)
-        self.ms2s = np.array(ms2s) if not ms2s is None else np.zeros((0, 3))
+        self.ms2s = np.array(ms2s) if ms2s is not None else np.zeros((0, 3))
         self.active_ms1 = np.ones((len(self.ms1_points)), dtype=bool)
         self.active_ms2 = np.ones((len(self.ms2s)), dtype=bool)
         self.markers = markers
@@ -312,7 +311,7 @@ class PlotPoints:
         )
 
         if abs_scaling:
-            if not colour_minm is None:
+            if colour_minm is not None:
                 minm = colour_minm
             else:
                 minm = math.log(np.min(self.ms1_points[:, 2]))
@@ -420,9 +419,9 @@ class PlotPoints:
         else:
             markers = "0"
 
-        if not colour_minm is None:
+        if colour_minm is not None:
             cmin = colour_minm
-        elif not abs_scaling is None:
+        elif abs_scaling is not None:
             cmin = min(np.log(self.ms2s[:, 2]))
         else:
             cmin = None
@@ -465,9 +464,9 @@ class PlotPoints:
             ColourMap.PURE_BLUE,
         ]
 
-        if not colour_minm is None:
+        if colour_minm is not None:
             cmin = colour_minm
-        elif not abs_scaling is None:
+        elif abs_scaling is not None:
             cmin = min(np.log(self.ms2s[:, 2]))
         else:
             cmin = None
@@ -600,13 +599,13 @@ class PlotBox:
 
     def mpl_add_to_plot(self, ax, min_rt=None, max_rt=None, min_mz=None, max_mz=None, crop=False):
         if (
-            not min_rt is None
+            min_rt is not None
             and self.max_rt < min_rt
-            or not max_rt is None
+            or max_rt is not None
             and self.min_rt > max_rt
-            or not min_mz is None
+            or min_mz is not None
             and self.max_mz < min_mz
-            or not max_mz is None
+            or max_mz is not None
             and self.min_mz > max_mz
         ):
             return
@@ -694,24 +693,24 @@ def mpl_set_axis_style(
     legend_kwargs=None,
 ):
 
-    if not labelsize is None:
+    if labelsize is not None:
         ax.xaxis.label.set_size(labelsize)
         ax.yaxis.label.set_size(labelsize)
 
-    if not title is None:
+    if title is not None:
         ax.set_title(title, y=title_y)
 
-    if not titlesize is None:
+    if titlesize is not None:
         ax.title.set_fontsize(titlesize)
 
     for ln in ax.lines:
-        if not linewidth is None:
+        if linewidth is not None:
             ln.set_linewidth(linewidth)
 
-        if not markersize is None:
+        if markersize is not None:
             ln.set_markersize(markersize)
 
-    if not legend_kwargs is None:
+    if legend_kwargs is not None:
         ax.legend(**legend_kwargs)
 
 
@@ -727,20 +726,20 @@ def mpl_set_figure_style(
 ):
 
     for ax in fig.axes:
-        if not tick_kwargs is None:
+        if tick_kwargs is not None:
             ax.tick_params(**tick_kwargs)
 
-        if not axis_borderwidth is None:
+        if axis_borderwidth is not None:
             for pos in ["top", "bottom", "left", "right"]:
                 ax.spines[pos].set_linewidth(axis_borderwidth)
 
-        if not axis_kwargs is None:
+        if axis_kwargs is not None:
             mpl_set_axis_style(ax, **axis_kwargs)
 
-    if not suptitle is None:
+    if suptitle is not None:
         fig.suptitle(suptitle, y=suptitle_y, fontsize=suptitle_size)
 
-    if not figure_sizes is None:
+    if figure_sizes is not None:
         fig.set_size_inches(*figure_sizes)
 
 
@@ -844,7 +843,7 @@ def mpl_fragmentation_counts(evals, min_intensity=0.0, key="times_covered_summar
     fig, axes = plt.subplots(1, len(evals), sharey=True)
     try:
         axes[0]
-    except:
+    except Exception:
         axes = [axes]
 
     for eva, ax, fc in zip(evals, axes, fcs):
@@ -1031,7 +1030,7 @@ def seaborn_hist(data, xlabel, binsize=None):
 
     try:
         axes[0]
-    except:
+    except Exception:
         axes = [axes]
 
     for i, ts in enumerate(data):
@@ -1051,12 +1050,12 @@ def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined"):
 
     try:
         axes[0]
-    except:
+    except Exception:
         axes = [axes]
 
     try:
         axes[0][0]
-    except:
+    except Exception:
         axes = [axes]
 
     for mzml, times, ax_ls in zip(mzmls, timings, axes):
@@ -1220,7 +1219,7 @@ class BoxViewer:
                 min_rt=xbounds[0], max_rt=xbounds[1], min_mz=ybounds[0], max_mz=ybounds[1]
             )
 
-            if not mzml is None:
+            if mzml is not None:
                 print(os.path.basename(mzml.file_name))
             else:
                 print("No mzml")
@@ -1341,7 +1340,7 @@ def boxes2csv(fname, boxes, colours=None):
 
         for b, c in zip(boxes, colours):
             ls = b.serialise_info(minutes=True)
-            if not c is None:
+            if c is not None:
                 ls.extend([c.to_hexcode(), c.A])
             w.writerow(ls)
 

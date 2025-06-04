@@ -5,7 +5,6 @@ Note: this module is still under development and might change significantly.
 """
 
 from math import log
-from copy import deepcopy
 
 import numpy as np
 

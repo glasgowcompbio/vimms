@@ -48,8 +48,7 @@ class TestNegative:
         for level in controller.scans:
             for scan in controller.scans[level]:
                 assert scan.scan_params.get(ScanParameters.POLARITY) == NEGATIVE
-        ms1_peaks = [int(m) for m in controller.scans[1][0].mzs]
-        ms1_peaks.sort()
+        ms1_peaks = sorted([int(m) for m in controller.scans[1][0].mzs])
         assert 98 in ms1_peaks
         assert 198 in ms1_peaks
         assert 298 in ms1_peaks

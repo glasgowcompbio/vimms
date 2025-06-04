@@ -23,7 +23,7 @@ from vimms.ChemicalSamplers import (
 )
 from vimms.Chemicals import ChemicalMixtureCreator
 from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
-from vimms.Controller import AdvancedParams, AIF, SWATH, DiaController
+from vimms.Controller import AdvancedParams, AIF, SWATH
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import GaussianPeakNoiseLevelSpecific, UniformSpikeNoise
@@ -200,8 +200,7 @@ class TestAIFControllers:
         for i, s in enumerate(controller.scans[1]):
             if i % 2 == 1:
                 # odd scan, AIF, should  have two peaks at 81 and 91
-                integer_mzs = [int(i) for i in s.mzs]
-                integer_mzs.sort()
+                integer_mzs = sorted([int(i) for i in s.mzs])
                 assert integer_mzs[0] == 81
                 assert integer_mzs[1] == 91
             else:

@@ -1,7 +1,5 @@
 from collections import deque
-from operator import attrgetter
 
-from vimms.Roi import Roi, RoiAligner
 from vimms.Box import BoxIntervalTrees, BoxGrid, LineSweeper
 from vimms.DriftCorrection import IdentityDrift
 
@@ -129,7 +127,7 @@ class BoxManager:
 
         for idx in idxes:
             geom = self.geoms[idx]
-            if not geom is None:
+            if geom is not None:
                 geom.set_active_boxes(current_rt)
 
     def _update_geometry(self):
@@ -232,8 +230,18 @@ class BoxSplitter:
 # TODO: This could probably be implemented as a component later
 """
 class CaseControlGridEstimator(GridEstimator):
-    def __init__(self, grid, drift_model, min_rt_width=0.01, min_mz_width=0.01, rt_tolerance=100, box_method='mean'):
-        super().__init__(grid, drift_model, min_rt_width=min_rt_width, min_mz_width=min_mz_width)
+    def __init__(
+        self,
+        grid,
+        drift_model,
+        min_rt_width=0.01,
+        min_mz_width=0.01,
+        rt_tolerance=100,
+        box_method="mean",
+    ):
+        super().__init__(
+            grid, drift_model, min_rt_width=min_rt_width, min_mz_width=min_mz_width
+        )
         self.rt_tolerance = rt_tolerance
         self.box_method = box_method
 
@@ -243,8 +251,12 @@ class CaseControlGridEstimator(GridEstimator):
         for inj_num, inj in enumerate(self.observed_rois):
             fn = self.drift_models[inj_num].get_estimator(inj_num)
             rt_shifts = [-fn(roi, inj_num)[0] for roi in inj]
-            roi_aligner.add_sample(self.observed_rois, self.grid.sample_number, rt_shifts=rt_shifts)
-        boxes = roi_aligner.get_boxes(method=self.box_method)  # TODO might need to add intensity here
+            roi_aligner.add_sample(
+                self.observed_rois, self.grid.sample_number, rt_shifts=rt_shifts
+            )
+        boxes = roi_aligner.get_boxes(
+            method=self.box_method
+        )  # TODO might need to add intensity here
         for box in boxes:
             self.grid.register_box(box)
 """

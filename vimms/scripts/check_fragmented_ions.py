@@ -339,7 +339,7 @@ class BlockDeconvoluter:
         avg_scores = [
             sum(scores) / len(scores) if len(scores) > 0 else 0 for scores in self.scores_list
         ]
-        num_peaks = [len(scores) if len(scores) > 0 else 0 for scores in self.scores_list]
+        [len(scores) if len(scores) > 0 else 0 for scores in self.scores_list]
 
         baseline = self._estimate_baseline(avg_scores, window_size=window_size)
         print(baseline)
@@ -376,7 +376,7 @@ class BlockDeconvoluter:
         signal_to_noise_ratios = []
         for df in self.dfs:
             if "is_precursor" in df.columns:
-                precursor_scores = df[df["is_precursor"] == True]["score"]
+                precursor_scores = df[df["is_precursor"]]["score"]
                 if not precursor_scores.empty:  # Added check for empty dataframe
                     min_score_idx = precursor_scores.idxmin()
                     min_score = df.loc[min_score_idx, "score"]
@@ -436,7 +436,7 @@ class BlockDeconvoluter:
         signal_to_noise_ratios = []
         for df in self.dfs:
             if "is_precursor" in df.columns:
-                precursor_scores = df[df["is_precursor"] == True]["score"]
+                precursor_scores = df[df["is_precursor"]]["score"]
                 if not precursor_scores.empty:  # Added check for empty dataframe
                     max_score_idx = precursor_scores.idxmax()
                     max_score = df.loc[max_score_idx, "score"]

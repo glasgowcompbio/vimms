@@ -2,15 +2,13 @@ import os
 import csv
 import copy
 import math
-import re
 import itertools
 import bisect
 import pathlib
-import subprocess
 import json
 from functools import reduce
 from operator import attrgetter
-from collections import Counter, defaultdict
+from collections import defaultdict
 from abc import abstractmethod, ABCMeta
 
 import numpy as np
@@ -20,10 +18,9 @@ from loguru import logger
 
 from mass_spec_utils.data_import.mzml import MZMLFile
 from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans, PickedBox
-from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
+from mass_spec_utils.library_matching.spectrum import SpectralRecord
 
 from vimms.Common import path_or_mzml
-from vimms.PeakPicking import pick_aligned_peaks  # backwards compatibility
 from vimms.PeakPicking import MZMineParams
 from vimms.Box import Point, Interval, GenericBox, LineSweeper
 from vimms.scripts.check_ms2_matches import aligned_row_to_spectral_record, row_to_spectral_record
@@ -83,7 +80,7 @@ class Evaluator(metaclass=ABCMeta):
         if min_intensity is None:
             min_intensity = self.report_min_intensity
 
-        if not self.report is None and math.isclose(min_intensity, self.report_min_intensity):
+        if self.report is not None and math.isclose(min_intensity, self.report_min_intensity):
             return self.report
 
         frag_counts = self.chem_info[:, self.TIMES_FRAGMENTED, :].T
@@ -154,7 +151,9 @@ class Evaluator(metaclass=ABCMeta):
             "cumulative_raw_intensity_proportion": cumulative_raw_intensities_prop.tolist(),
             "cumulative_coverage_proportion": cumulative_coverage_prop.tolist(),
             "cumulative_intensity_proportion": cumulative_coverage_intensities_prop.tolist(),
-            "cumulative_covered_intensities_proportion": cumulative_covered_intensities_prop.tolist(),
+            "cumulative_covered_intensities_proportion": (
+                cumulative_covered_intensities_prop.tolist()
+            ),
         }
 
         self.extra_info(report)
@@ -169,7 +168,9 @@ class Evaluator(metaclass=ABCMeta):
             "Cumulative coverage": "sum_cumulative_coverage",
             "Cumulative coverage proportion": "cumulative_coverage_proportion",
             "Cumulative intensity proportion": "cumulative_intensity_proportion",
-            "Cumulative intensity proportion of covered spectra": "cumulative_covered_intensities_proportion",
+            "Cumulative intensity proportion of covered spectra": (
+                "cumulative_covered_intensities_proportion"
+            ),
             "Times covered": "times_covered_summary",
             "Times fragmented": "times_fragmented_summary",
         }
@@ -484,7 +485,7 @@ class RealEvaluator(Evaluator):
         geom = self.geoms[fs_idx]
         if geom is None:
             geom = LineSweeper()
-            geom.register_boxes(ch for ch in chems if not ch is None)
+            geom.register_boxes(ch for ch in chems if ch is not None)
             self.geoms[fs_idx] = geom
 
         current_intensities = [[] for _ in self.chems]
@@ -583,9 +584,9 @@ class RealEvaluator(Evaluator):
         covered = self.evaluation_report(min_intensity=min_intensity)["cumulative_coverage"][-1]
 
         for row, hits in zip(self.chems, covered):
-            new_row = [b for b in row if not b is None]
+            new_row = [b for b in row if b is not None]
 
-            if not aggregate is None and aggregate.lower() == "max":
+            if aggregate is not None and aggregate.lower() == "max":
                 b0 = new_row[0]
                 for b in new_row[1:]:
                     b0 = b0.combine_max(b)

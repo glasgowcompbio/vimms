@@ -3,23 +3,19 @@ import bisect
 import copy
 import itertools
 import math
-import re
 import datetime
-from statistics import mean
-from collections import defaultdict
 from operator import attrgetter
 
 import intervaltree
 import networkx as nx
 import numpy as np
-from mass_spec_utils.data_import.mzml import MZMLFile
 
 # TODO: scans from mzml function
 # TODO: bin sort version
 # TODO: constraint programming/stable marriage versions??
 # TODO: could chemical collapse with arbitrary exclusion condition, for when
 #  chems_list doesn't have same items e.g. with aligner
-from vimms.Common import POSITIVE, get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
+from vimms.Common import get_default_scan_params, INITIAL_SCAN_ID, get_dda_scan_param
 from vimms.Roi import RoiBuilderParams
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Box import GenericBox
@@ -190,7 +186,7 @@ class MatchingScan:
         Returns: A list of lists of MatchingScans, one list per injection.
         """
 
-        if not log is None:
+        if log is not None:
             log.start_scan = datetime.datetime.now()
 
         if roi_params is None:
@@ -209,7 +205,7 @@ class MatchingScan:
                 MatchingScan._create_scan_intensities(mzml2chems[mzml_path], i, schedule)
             )
 
-        if not log is None:
+        if log is not None:
             log.end_scan = datetime.datetime.now()
 
         return scans_list
@@ -274,7 +270,7 @@ class MatchingChem:
         Returns: A list of lists of MatchingChems.
         """
 
-        if not log is None:
+        if log is not None:
             log.start_chem = datetime.datetime.now()
 
         box_order = [".".join(os.path.basename(fname).split(".")[:-1]) for fname in box_order]
@@ -282,7 +278,6 @@ class MatchingChem:
 
         fs_names, line_ls = reader.read_aligned_csv(box_file_path)
         for i, (_, mzml_fields) in enumerate(line_ls):
-            row = []
             for j, fname in enumerate(box_order):
                 inner = mzml_fields[fname]
                 status = inner["status"].upper()
@@ -297,7 +292,7 @@ class MatchingChem:
                         )
                     )
 
-        if not log is None:
+        if log is not None:
             log.end_chem = datetime.datetime.now()
 
         return chems_list
@@ -405,10 +400,10 @@ class Matching:
         self.log = log
 
     def __len__(self):
-        return sum(type(k) == MatchingChem for k in self.matching.keys())
+        return sum(isinstance(k, MatchingChem) for k in self.matching.keys())
 
     def __iter__(self):
-        return ((ch, s) for ch, s in self.matching.items() if type(ch) == MatchingChem)
+        return ((ch, s) for ch, s in self.matching.items() if isinstance(ch, MatchingChem))
 
     @staticmethod
     def make_edges(scans, chems, intensity_threshold):
@@ -474,7 +469,7 @@ class Matching:
         chem_map = dict()
         for i, chem_ls in enumerate(chems_list):
             for ch in chem_ls:
-                if not ch.id in chem_map:
+                if ch.id not in chem_map:
                     ch.chem_by_inj = {}
                     chem_map[ch.id] = ch
                 else:
@@ -485,7 +480,7 @@ class Matching:
 
         chems = set(v for k, v in chem_map.items())
 
-        if not edge_limit is None:
+        if edge_limit is not None:
             edges_list = [
                 {
                     ch: sorted(ls, key=lambda e: e[1], reverse=True)[:edge_limit]
@@ -579,14 +574,14 @@ class Matching:
         Returns: A weighted matching.
         """
         first_match = Matching.unweighted_matching(G)
-        new_chems = set(v for v in first_match.keys() if type(v) == MatchingChem)
+        new_chems = {v for v in first_match.keys() if isinstance(v, MatchingChem)}
         if len(new_chems) < 1:
             return {}, None
 
         aux_G = copy.deepcopy(G)
         chems = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 1}
         for ch in chems:
-            if not ch in new_chems:
+            if ch not in new_chems:
                 aux_G.remove_node(ch)
 
         top_nodes = {n for n, d in aux_G.nodes(data=True) if d["bipartite"] == 0}
@@ -606,12 +601,15 @@ class Matching:
         the nearest scan (in scan index terms) included in the matching.
         """
 
-        if not self.log is None:
+        if self.log is not None:
             self.log.start_assign = datetime.datetime.now()
 
         if self.weighted == Matching.TWOSTEP:
             G = self.aux_graph
-            matching_f = lambda G: Matching.two_step_weighted_matching(G)[0]
+
+            def matching_f(G):
+                return Matching.two_step_weighted_matching(G)[0]
+
         else:
             G = self.nx_graph
             matching_f = Matching.unweighted_matching
@@ -620,39 +618,39 @@ class Matching:
         self.full_assignment = [[DEFAULT_VAL for s in scans] for scans in self.scans_list]
 
         for s in self.matching:
-            if type(s) == MatchingScan:
+            if isinstance(s, MatchingScan):
                 ch = self.matching[s]
                 self.full_assignment[s.injection_num][s.scan_idx] = ch.get_target(s.injection_num)
 
         if self.full_assignment_strategy == self.RECURSIVE_ASSIGNMENT:
             aux_G = copy.deepcopy(G)
-            chems = {n for n in aux_G.nodes if type(n) == MatchingChem}
+            chems = {n for n in aux_G.nodes if isinstance(n, MatchingChem)}
             matching = self.matching
             for ch in chems:
-                if not ch in matching:
+                if ch not in matching:
                     aux_G.remove_node(ch)
 
             remove = [n for n, degree in aux_G.degree() if degree < 1]
             for n in remove:
                 aux_G.remove_node(n)
 
-            if not self.log is None:
+            if self.log is not None:
                 self.log.recursive_scan_counts = []
 
-            scans = {n for n in aux_G.nodes if type(n) == MatchingScan}
+            scans = {n for n in aux_G.nodes if isinstance(n, MatchingScan)}
             while len(scans) > 0:
-                if not self.log is None:
+                if self.log is not None:
                     self.log.recursive_scan_counts.append(len(scans))
 
                 for s in matching:
-                    if type(s) == MatchingScan:
+                    if isinstance(s, MatchingScan):
                         ch = matching[s]
                         self.full_assignment[s.injection_num][s.scan_idx] = ch.get_target(
                             s.injection_num
                         )
                         aux_G.remove_node(s)
 
-                scans = {n for n in aux_G.nodes if type(n) == MatchingScan}
+                scans = {n for n in aux_G.nodes if isinstance(n, MatchingScan)}
                 matching = matching_f(aux_G)
 
         elif self.full_assignment_strategy == self.NEAREST_ASSIGNMENT:
@@ -678,7 +676,7 @@ class Matching:
                 for i in range(last_i + 1, len(scans)):
                     scans[i] = scans[last_i]
 
-        if not self.log is None:
+        if self.log is not None:
             self.log.end_assign = datetime.datetime.now()
 
     def assign_remaining_scans(self, full_assignment_strategy):
@@ -734,7 +732,7 @@ class Matching:
         Returns: A new Matching.
         """
 
-        if not log is None:
+        if log is not None:
             log.start_matching = datetime.datetime.now()
 
         G = Matching._make_graph(
@@ -758,7 +756,7 @@ class Matching:
             full_assignment_strategy=full_assignment_strategy,
         )
 
-        if not log is None:
+        if log is not None:
             log.end_matching = datetime.datetime.now()
             matching.log = log
 
@@ -815,8 +813,8 @@ class Matching:
         """
 
         G = self.nx_graph
-        all_scans = {n for n in G.nodes if type(n) == MatchingScan}
-        all_chems = {n for n in G.nodes if type(n) == MatchingChem}
+        all_scans = {n for n in G.nodes if isinstance(n, MatchingScan)}
+        all_chems = {n for n in G.nodes if isinstance(n, MatchingChem)}
 
         report = {}
         report["matching_size"] = len(self)
@@ -836,7 +834,7 @@ class Matching:
 
         chems2edges_ls = [{ch: [] for ch in chems} for chems in self.chems_list]
         for v0, v1, edgedata in G.edges(data=True):
-            s, ch = (v0, v1) if type(v1) is MatchingChem else (v1, v0)
+            s, ch = (v0, v1) if isinstance(v1, MatchingChem) else (v1, v0)
             for i, inj in enumerate(chems2edges_ls):
                 if s.injection_num == i:
                     inj[ch].append(-edgedata["weight"])
@@ -863,7 +861,7 @@ class Matching:
             ch.max_intensity >= self.intensity_threshold for ch in all_chems
         )
 
-        if not self.log is None:
+        if self.log is not None:
             self.log.matching_report = report
         return report
 

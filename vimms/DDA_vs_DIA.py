@@ -34,7 +34,6 @@ from vimms.Utils import write_msp
 
 
 def make_msp(pickle_folder, sample_list=None):
-    msp_folder = pickle_folder  # put msp in the same folder
     original_files = glob.glob(os.path.join(pickle_folder, "*.p"))
     for pf in original_files:
         logger.info(pf)
@@ -509,7 +508,8 @@ def print_results(controller_names, eval_res):
         print(f"Cumulative Coverage: {successes(eval_res[exp_name])}")
         print(f"Cumulative Coverage Proportion: {eval_res[exp_name]['cumulative_coverage_prop']}")
         print(
-            f"Cumulative Intensity Proportion: {eval_res[exp_name]['cumulative_coverage_intensities_prop']}"
+            "Cumulative Intensity Proportion: "
+            f"{eval_res[exp_name]['cumulative_coverage_intensities_prop']}"
         )
         print()
 

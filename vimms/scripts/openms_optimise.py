@@ -1,27 +1,12 @@
-import os
-import sys
-
-sys.path.append("..")
-sys.path.append("../..")  # if running in this folder
-
-import argparse
-
-import numpy as np
-import pylab as plt
-import seaborn as sns
-from loguru import logger
-import optuna
-
-from optuna.visualization import plot_optimization_history, plot_param_importances
-
-from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Controller import (
-    TopNController,
-    AdvancedParams,
-    TopN_SmartRoiController,
-    WeightedDEWController,
+from vimms.scripts.openms_optimise_params import (
+    ParametersBuilder,
+    TopNParameters,
+    SmartROIParameters,
+    WeightedDEWParameters,
 )
-from vimms.Environment import Environment
+from vimms.scripts.topN_test import get_input_filenames, extract_chems, extract_scan_timing
+from vimms.scripts.openms_evaluate import extract_boxes, evaluate_fragmentation
+from vimms.Roi import RoiBuilderParams, SmartRoiParams
 from vimms.Common import (
     POSITIVE,
     create_if_not_exist,
@@ -29,15 +14,26 @@ from vimms.Common import (
     set_log_level_debug,
     save_obj,
 )
-from vimms.Roi import RoiBuilderParams, SmartRoiParams
-from vimms.scripts.openms_evaluate import extract_boxes, evaluate_fragmentation
-from vimms.scripts.topN_test import get_input_filenames, extract_chems, extract_scan_timing
-from vimms.scripts.openms_optimise_params import (
-    ParametersBuilder,
-    TopNParameters,
-    SmartROIParameters,
-    WeightedDEWParameters,
+from vimms.Environment import Environment
+from vimms.Controller import (
+    TopNController,
+    AdvancedParams,
+    TopN_SmartRoiController,
+    WeightedDEWController,
 )
+from vimms.MassSpec import IndependentMassSpectrometer
+from optuna.visualization import plot_optimization_history, plot_param_importances
+import optuna
+from loguru import logger
+import seaborn as sns
+import pylab as plt
+import numpy as np
+import argparse
+import os
+import sys
+
+sys.path.append("..")
+sys.path.append("../..")  # if running in this folder
 
 
 class TopNSimulator:
@@ -86,8 +82,6 @@ class TopNSimulator:
         rt_tol = params.RT_TOL
         mz_tol = params.MZ_TOL
         min_ms1_intensity = params.MIN_MS1_INTENSITY
-        min_fit_score = params.MIN_FIT_SCORE
-        penalty_factor = params.PENALTY_FACTOR
         default_ms1_scan_window = (
             params.DEFAULT_MS1_SCAN_WINDOW_START,
             params.DEFAULT_MS1_SCAN_WINDOW_END,
@@ -96,7 +90,6 @@ class TopNSimulator:
         # DEW, isotope and charge filtering parameters
         exclude_after_n_times = params.EXCLUDE_AFTER_N_TIMES
         exclude_t0 = params.EXCLUDE_T0
-        charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
 
         # create controller and mass spec objects
         params = AdvancedParams(default_ms1_scan_window=default_ms1_scan_window)
@@ -116,7 +109,8 @@ class TopNSimulator:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=self.pbar)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
+        # set the log level to WARNING so we don't see too many messages when
+        # environment is running
         set_log_level_warning()
 
         # run the simulation
@@ -243,15 +237,12 @@ class SmartROISimulator:
         rt_tol = params.RT_TOL
         mz_tol = params.MZ_TOL
         min_ms1_intensity = params.MIN_MS1_INTENSITY
-        min_fit_score = params.MIN_FIT_SCORE
-        penalty_factor = params.PENALTY_FACTOR
         default_ms1_scan_window = (
             params.DEFAULT_MS1_SCAN_WINDOW_START,
             params.DEFAULT_MS1_SCAN_WINDOW_END,
         )
 
         # DEW, isotope and charge filtering parameters
-        charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
 
         intensity_increase_factor = (
             params.IIF
@@ -288,7 +279,8 @@ class SmartROISimulator:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=self.pbar)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
+        # set the log level to WARNING so we don't see too many messages when
+        # environment is running
         set_log_level_warning()
 
         # run the simulation
@@ -376,11 +368,11 @@ def save_study(study, results, out_dir):
     save_obj(results, os.path.join(out_dir, "topN_optimise_results.p"))
 
     # Write report csv and plots
-    study.trials_dataframe().to_csv(os.path.join(out_dir, f"study.csv"))
+    study.trials_dataframe().to_csv(os.path.join(out_dir, "study.csv"))
     fig1 = plot_optimization_history(study)
-    fig1.write_image(os.path.join(out_dir, f"study_optimisation_history.png"))
+    fig1.write_image(os.path.join(out_dir, "study_optimisation_history.png"))
     fig2 = plot_param_importances(study)
-    fig2.write_image(os.path.join(out_dir, f"study_param_importances.png"))
+    fig2.write_image(os.path.join(out_dir, "study_param_importances.png"))
 
 
 class WeightedDEWSimulator:
@@ -439,8 +431,6 @@ class WeightedDEWSimulator:
         rt_tol = params.RT_TOL
         mz_tol = params.MZ_TOL
         min_ms1_intensity = params.MIN_MS1_INTENSITY
-        min_fit_score = params.MIN_FIT_SCORE
-        penalty_factor = params.PENALTY_FACTOR
         default_ms1_scan_window = (
             params.DEFAULT_MS1_SCAN_WINDOW_START,
             params.DEFAULT_MS1_SCAN_WINDOW_END,
@@ -448,7 +438,6 @@ class WeightedDEWSimulator:
 
         # DEW, isotope and charge filtering parameters
         exclude_t0 = params.EXCLUDE_T0
-        charge_range = (params.CHARGE_RANGE_START, params.CHARGE_RANGE_END)
 
         # create controller and mass spec objects
         params = AdvancedParams(default_ms1_scan_window=default_ms1_scan_window)
@@ -468,7 +457,8 @@ class WeightedDEWSimulator:
         # create an environment to run both the mass spec and controller
         env = Environment(mass_spec, controller, min_rt, max_rt, progress_bar=self.pbar)
 
-        # set the log level to WARNING so we don't see too many messages when environment is running
+        # set the log level to WARNING so we don't see too many messages when
+        # environment is running
         set_log_level_warning()
 
         # run the simulation

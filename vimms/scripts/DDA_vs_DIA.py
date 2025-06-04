@@ -1481,9 +1481,28 @@ def plot_score_distributions(score_df, palette=None, bins=10, out_file=None):
         legend=True,
     )
 
-    # g = sns.histplot(data=selected_df, hue='method', x='score', palette=palette, multiple="stack", ax=axes[0]) # stacked histogram
-    # g = sns.histplot(data=selected_df, hue='method', x='score', element='step', fill=False, stat="percent", common_norm=False, palette=palette, ax=axes[0]) # unfilled step function
-    # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20, col='method', ax=axes[0]) # separate into columns
+    # Example plotting options:
+    # g = sns.histplot(
+    #     data=selected_df,
+    #     hue="method",
+    #     x="score",
+    #     palette=palette,
+    #     multiple="stack",
+    #     ax=axes[0],
+    # )
+    # g = sns.histplot(
+    #     data=selected_df,
+    #     hue="method",
+    #     x="score",
+    #     element="step",
+    #     fill=False,
+    #     stat="percent",
+    #     common_norm=False,
+    #     palette=palette,
+    #     ax=axes[0],
+    # )
+    # g = sns.displot(data=selected_df, x='score', kind='hist', bins=20,
+    # col='method', ax=axes[0]) # separate into columns
 
     g.set(xlabel="Cosine similiarity (%)")
     ax.legend(labels=["Top-N", "SWATH", "AIF"])
@@ -1551,7 +1570,7 @@ def plot_score_distribution_simulated(plot_df, suptitle=None, palette=None, out_
 
     df = plot_df[plot_df["method"] == "AIF"].copy()
     ax = axes[2]
-    g = sns.boxplot(
+    sns.boxplot(
         data=df,
         x="num_chem",
         y="score_percent",
@@ -1741,7 +1760,7 @@ def plot_hit_proportion(plot_df, suptitle=None, out_file=None, palette=None):
     df["log_num_chem"] = np.log10(df["num_chem"])
 
     axes = ax[1][1]
-    g = sns.lineplot(
+    sns.lineplot(
         data=df,
         x="log_num_chem",
         y="prop_annotated_compounds",
@@ -1821,7 +1840,7 @@ def venn_diagram(hit_prop_df, methods, threshold, out_file=None):
 
     plt.figure(figsize=(7, 7))
     labels = [x if x != "topN" else "Top-N" for x in methods]
-    v = venn3(subsets=[s1a, s2a, s3a], set_labels=labels)
+    venn3(subsets=[s1a, s2a, s3a], set_labels=labels)
 
     if out_file is not None:
         plt.savefig(out_file, dpi=300, bbox_inches="tight")

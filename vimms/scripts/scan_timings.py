@@ -1,22 +1,18 @@
+from mass_spec_utils.data_import.mzml import MZMLFile
+import pylab as plt
+from sklearn.metrics import mean_squared_error
+from scipy import interpolate
+import pymzml
+from loguru import logger
+import seaborn as sns
+import numpy as np
+import os
+import glob
+import argparse
 import sys
 
 sys.path.append("..")
 sys.path.append("../..")  # if running in this folder
-
-import argparse
-import glob
-import os
-
-import numpy as np
-import seaborn as sns
-from loguru import logger
-import pymzml
-from scipy import interpolate
-from sklearn.metrics import mean_squared_error
-
-
-import pylab as plt
-from mass_spec_utils.data_import.mzml import MZMLFile
 
 
 def parse_args():

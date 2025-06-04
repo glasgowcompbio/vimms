@@ -53,8 +53,8 @@ def extract_example(roi, min_length, max_length, label):
         # choose a length
         max_length = min(max_length, end_point)
         length = np.random.choice(range(min_length, max_length + 1))
-        intensity_vals = roi["intensity"][end_point - (length - 1) : end_point + 1]
-        mz_vals = roi["mz"][end_point - (length - 1) : end_point + 1]
+        intensity_vals = roi["intensity"][end_point - (length - 1): end_point + 1]
+        mz_vals = roi["mz"][end_point - (length - 1): end_point + 1]
         return mz_vals, intensity_vals
     else:
         return [], []
@@ -114,8 +114,8 @@ if __name__ == "__main__":
     print("Loading")
     roi_dict = load_all_json(json_files)
     print("Loaded:")
-    for key, l in roi_dict.items():
-        print("\t", key, len(l))
+    for key, lst in roi_dict.items():
+        print("\t", key, len(lst))
 
     peaks_choice_list = list(range(len(roi_dict["peaks"])))
     no_peaks_choice_list = list(range(len(roi_dict["no_peaks"])))

@@ -15,6 +15,23 @@ Eager to start using ViMMS? Take advantage of these resources:
 - For specific examples that accompany our publications, see the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples).
 - You can also find this [quick guide on how to get started using ViMMS](https://github.com/glasgowcompbio/vimms/blob/master/demo/guide_to_vimms/guide_to_vimms.ipynb).
 
+## Development Setup
+
+This repository uses **pre-commit** to automatically format code with Black and
+AutoPEP8 and to run flake8 checks. Install the development dependencies and set
+up the hooks with:
+
+```bash
+poetry install --with dev
+pre-commit install
+```
+
+You can run all hooks on the entire project anytime using:
+
+```bash
+pre-commit run --all-files
+```
+
 # Key Features
 
 ViMMS provides scan-level control simulation of the MS2 acquisition process in a virtual environment. You can generate new LC-MS/MS data based on empirical data or virtually replay a previous LC-MS/MS analysis using existing data, which allows for testing different fragmentation strategies. With ViMMS, you can evaluate diverse fragmentation strategies using real data, and extract the scan results as mzML files.

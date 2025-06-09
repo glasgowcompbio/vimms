@@ -1,6 +1,10 @@
 
 from demo.untargeted.generate_chemicals import generate_chemicals
-from demo.untargeted.generate_dataset import create_design, setup_simulation
+from demo.untargeted.generate_dataset import (
+    create_design,
+    generate_mzml_files,
+    setup_simulation,
+)
 
 
 def test_generate_chemicals_length():
@@ -22,3 +26,9 @@ def test_setup_simulation_returns_data():
     chems, design = setup_simulation(20, 2)
     assert len(chems) == 20
     assert len(design.samples['case']) == 2
+
+
+def test_generate_mzml_files(tmp_path):
+    chems, design = setup_simulation(3, 1)
+    generate_mzml_files(chems, design, tmp_path, max_rt=20, top_n=1)
+    assert (tmp_path / 'case' / 'case_1.mzML').is_file()

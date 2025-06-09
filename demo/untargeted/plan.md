@@ -9,7 +9,8 @@ track progress.
 1. **Simulated Data Generation**
    - Create a Python script to generate 100 chemicals using `ChemicalMixtureCreator`.
    - Split chemicals into two groups (case/control) with 5 samples each.
-   - Use reasonable metabolomics ranges (e.g. m/z 100--1000, RT <3 min).
+   - Use reasonable metabolomics ranges (e.g. m/z 100--1000, RT <3 min) with
+     chromatograms roughly 5 s wide (``sigma≈1``).
    - Acquire data with Top‑1 DDA in positive mode including common adducts.
    - Export mzML files and a ground‑truth table linking peaks to compounds and
      MS2 spectra.

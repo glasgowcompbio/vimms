@@ -3,6 +3,7 @@ from demo.untargeted.generate_chemicals import generate_chemicals
 from demo.untargeted.generate_dataset import (
     create_design,
     generate_mzml_files,
+    generate_ground_truth_table,
     setup_simulation,
 )
 
@@ -32,3 +33,10 @@ def test_generate_mzml_files(tmp_path):
     chems, design = setup_simulation(3, 1)
     generate_mzml_files(chems, design, tmp_path, max_rt=20, top_n=1)
     assert (tmp_path / 'case' / 'case_1.mzML').is_file()
+
+
+def test_generate_ground_truth_table():
+    chems, design = setup_simulation(2, 1)
+    df = generate_ground_truth_table(chems, design)
+    assert {'sample', 'compound_id', 'mz_min', 'mz_max'} <= set(df.columns)
+    assert len(df) == 4  # 2 samples (case/control) * 2 chemicals

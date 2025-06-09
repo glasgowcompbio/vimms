@@ -1,21 +1,22 @@
 """Prepare a simulated dataset design for untargeted pipeline testing.
 
 This module creates chemicals and an experimental design consisting of two
-groups (case and control). It also provides utilities to generate mzML files
-for each sample using a simple Top-1 DDA controller. Ground truth generation
-will be added later.
+groups (case and control). It provides utilities to generate mzML files
+for each sample using a simple Top-1 DDA controller and produces a ground
+truth table of the underlying peaks.
 """
 
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from vimms.Common import POSITIVE
+from vimms.Common import POSITIVE, PROTON_MASS
 from vimms.Controller import TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 
 from .generate_chemicals import generate_chemicals
+import pandas as pd
 
 
 @dataclass
@@ -88,6 +89,35 @@ def generate_mzml_files(
             env.run()
 
 
+def generate_ground_truth_table(
+    chemicals: list, design: ExperimentalDesign
+) -> pd.DataFrame:
+    """Return a table describing the true peaks for each sample."""
+
+    records = []
+    for compound_id, chem in enumerate(chemicals):
+        mz = chem.mass + PROTON_MASS
+        rt_min = chem.get_min_rt()
+        rt_max = chem.get_max_rt()
+        rt_apex = chem.get_apex_rt()
+        for group_samples in design.samples.values():
+            for sample in group_samples:
+                records.append(
+                    {
+                        "sample": sample,
+                        "compound_id": compound_id,
+                        "mz_apex": mz,
+                        "rt_apex": rt_apex,
+                        "intensity": chem.max_intensity,
+                        "mz_min": mz - 0.01,
+                        "mz_max": mz + 0.01,
+                        "rt_min": rt_min,
+                        "rt_max": rt_max,
+                    }
+                )
+    return pd.DataFrame.from_records(records)
+
+
 def main() -> None:
     """Entry point for dataset preparation."""
 
@@ -99,7 +129,8 @@ def main() -> None:
     for group, names in design.samples.items():
         print(group, names)
     generate_mzml_files(chemicals, design, out_dir)
-    # TODO: generate ground truth tables
+    gt = generate_ground_truth_table(chemicals, design)
+    gt.to_csv(out_dir / "ground_truth.csv", index=False)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from demo.untargeted.generate_dataset import (
     create_design,
     generate_mzml_files,
     generate_ground_truth_table,
+    write_ground_truth_mgf,
     setup_simulation,
 )
 
@@ -40,3 +41,11 @@ def test_generate_ground_truth_table():
     df = generate_ground_truth_table(chems, design)
     assert {'sample', 'compound_id', 'mz_min', 'mz_max'} <= set(df.columns)
     assert len(df) == 4  # 2 samples (case/control) * 2 chemicals
+
+
+def test_write_ground_truth_mgf(tmp_path):
+    chems = generate_chemicals(2)
+    out_file = tmp_path / "lib.mgf"
+    write_ground_truth_mgf(chems, out_file)
+    text = out_file.read_text()
+    assert text.startswith("BEGIN IONS")

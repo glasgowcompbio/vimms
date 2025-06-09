@@ -118,6 +118,28 @@ def generate_ground_truth_table(
     return pd.DataFrame.from_records(records)
 
 
+def write_ground_truth_mgf(chemicals: list, out_file: Path) -> None:
+    """Write a simple MGF file of MS2 spectra for each chemical."""
+
+    with open(out_file, "w") as f:
+        for compound_id, chem in enumerate(chemicals):
+            if not chem.children:
+                continue
+            pepmass = chem.mass + PROTON_MASS
+            rt_apex = chem.get_apex_rt()
+
+            f.write("BEGIN IONS\n")
+            f.write(f"TITLE=compound_{compound_id}\n")
+            f.write(f"PEPMASS={pepmass:.5f}\n")
+            f.write("CHARGE=1+\n")
+            f.write(f"RTINSECONDS={rt_apex:.2f}\n")
+            for frag in chem.children:
+                mz = frag.isotopes[0][0]
+                intensity = chem.max_intensity * frag.prop_ms2_mass
+                f.write(f"{mz:.5f} {intensity:.1f}\n")
+            f.write("END IONS\n")
+
+
 def main() -> None:
     """Entry point for dataset preparation."""
 
@@ -131,6 +153,7 @@ def main() -> None:
     generate_mzml_files(chemicals, design, out_dir)
     gt = generate_ground_truth_table(chemicals, design)
     gt.to_csv(out_dir / "ground_truth.csv", index=False)
+    write_ground_truth_mgf(chemicals, out_dir / "ground_truth.mgf")
 
 
 if __name__ == "__main__":

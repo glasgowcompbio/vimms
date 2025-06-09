@@ -14,7 +14,7 @@ track progress.
    - Acquire data with Top‑1 DDA in positive mode including common adducts.
    - Export mzML files, a ground‑truth table linking peaks to compounds, and a
      simple MGF library of MS2 spectra.
-   - **Status:** Partially completed (mzML, ground truth, and MGF written)
+   - **Status:** Completed (mzML, ground truth table, and MGF library generated)
 
 2. **Peak Picking**
    - Since the chemicals are simulated, derive peak information directly from the

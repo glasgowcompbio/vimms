@@ -6,8 +6,6 @@
 # In[1]:
 
 
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
 
 
 # In[2]:
@@ -29,7 +27,6 @@ sys.path.append('../..')
 
 
 import pylab as plt
-get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 # In[5]:
@@ -71,7 +68,7 @@ from vimms.Common import POSITIVE, set_log_level_warning, set_log_level_debug
 
 
 from vimms.ChemicalSamplers import DatabaseFormulaSampler
-from vimms.Common import load_obj
+from vimms.Common import load_obj, download_file
 
 
 # In[7]:

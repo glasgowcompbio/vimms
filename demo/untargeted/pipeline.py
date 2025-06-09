@@ -15,6 +15,14 @@ from .join_aligner import join_align
 from .evaluation import compute_group_metrics
 
 
+def report_metrics(metrics: dict) -> None:
+    """Print alignment metrics in a friendly format."""
+
+    print("Alignment metrics:")
+    for key, value in metrics.items():
+        print(f"{key}: {value:.4f}")
+
+
 def run_pipeline(
     out_dir: Path = Path("./out"),
     n_chemicals: int = 100,
@@ -66,9 +74,7 @@ def main() -> None:
     """Command-line entry point for running the pipeline."""
 
     metrics = run_pipeline()
-    print("Alignment metrics:")
-    for k, v in metrics.items():
-        print(f"{k}: {v:.4f}")
+    report_metrics(metrics)
 
 
 if __name__ == "__main__":

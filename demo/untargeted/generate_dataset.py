@@ -14,7 +14,7 @@ from vimms.Common import POSITIVE, PROTON_MASS
 from vimms.Controller import TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.Column import LinearColumn
+from vimms.rt.column_drift import SimulatedDriftModel
 
 from .generate_chemicals import generate_chemicals
 import pandas as pd
@@ -70,8 +70,8 @@ def generate_mzml_files(
     top_n:
         Number of precursors to fragment in each cycle.
     column_params:
-        Optional parameters for :class:`~vimms.Column.LinearColumn` specifying
-        ``noise_sd``, ``intercept_params`` and ``linear_params``.
+        Optional parameters for :class:`~vimms.rt.column_drift.SimulatedDriftModel`
+        specifying ``noise_sd``, ``intercept_params`` and ``linear_params``.
 
     Returns
     -------
@@ -85,13 +85,19 @@ def generate_mzml_files(
         group_dir.mkdir(parents=True, exist_ok=True)
         for sample in samples:
             if column_params is not None:
-                col = LinearColumn(
-                    chemicals,
-                    column_params.get("noise_sd", 0.1),
-                    column_params.get("intercept_params", (0.0, 5.0)),
-                    column_params.get("linear_params", (0.0, 0.001)),
+                drift = SimulatedDriftModel(
+                    min_logp=0.0,
+                    max_logp=float(max_rt),
+                    min_rt=0.0,
+                    max_rt=float(max_rt),
+                    intercept_mu=column_params.get("intercept_params", (0.0, 5.0))[0],
+                    intercept_sd=column_params.get("intercept_params", (0.0, 5.0))[1],
+                    slope_mu=1.0 + column_params.get("linear_params", (0.0, 0.001))[0],
+                    slope_sd=column_params.get("linear_params", (0.0, 0.001))[1],
+                    noise_sd=column_params.get("noise_sd", 0.1),
                 )
-                sample_data = col.get_dataset()
+                col = drift.make_column()
+                sample_data = col.get_dataset(chemicals)
             else:
                 sample_data = chemicals
             ms = IndependentMassSpectrometer(POSITIVE, sample_data)

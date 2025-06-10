@@ -8,12 +8,13 @@ truth table of the underlying peaks.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from vimms.Common import POSITIVE, PROTON_MASS
 from vimms.Controller import TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
+from vimms.ColumnDrift import SimulatedDriftModel
 
 from .generate_chemicals import generate_chemicals
 import pandas as pd
@@ -37,8 +38,8 @@ def create_design(n_samples_per_group: int = 5) -> ExperimentalDesign:
 
 
 def setup_simulation(
-    n_chemicals: int = 100, n_samples_per_group: int = 5
-) -> Tuple[list, ExperimentalDesign]:
+    n_chemicals=100, n_samples_per_group=5
+):
     """Generate chemicals and an experimental design."""
 
     chemicals = generate_chemicals(n_chemicals)
@@ -52,7 +53,8 @@ def generate_mzml_files(
     out_dir: Path,
     max_rt: int = 180,
     top_n: int = 1,
-) -> None:
+    column_params=None,
+) -> dict:
     """Generate an mzML file for each sample in ``design``.
 
     Parameters
@@ -67,13 +69,34 @@ def generate_mzml_files(
         Maximum retention time (seconds) for the simulation.
     top_n:
         Number of precursors to fragment in each cycle.
+    column_params:
+        Optional parameters for ``SimulatedDriftModel`` specifying
+        ``noise_sd``, ``intercept_params`` and ``linear_params``.
+
+    Returns
+    -------
+    dict
+        Mapping sample names to the chemicals used for simulation.
     """
 
+    sample_chems = {}
     for group, samples in design.samples.items():
         group_dir = out_dir / group
         group_dir.mkdir(parents=True, exist_ok=True)
         for sample in samples:
-            ms = IndependentMassSpectrometer(POSITIVE, chemicals)
+            if column_params is not None:
+                drift = SimulatedDriftModel(
+                    intercept_mu=column_params.get("intercept_params", (0.0, 5.0))[0],
+                    intercept_sd=column_params.get("intercept_params", (0.0, 5.0))[1],
+                    slope_mu=1.0 + column_params.get("linear_params", (0.0, 0.001))[0],
+                    slope_sd=column_params.get("linear_params", (0.0, 0.001))[1],
+                    noise_sd=column_params.get("noise_sd", 0.1),
+                )
+                col = drift.make_column(chemicals)
+                sample_data = col.get_dataset()
+            else:
+                sample_data = chemicals
+            ms = IndependentMassSpectrometer(POSITIVE, sample_data)
             controller = TopNController(
                 POSITIVE, top_n, 1, 10, 15, 1000
             )
@@ -87,28 +110,47 @@ def generate_mzml_files(
                 out_file=f"{sample}.mzML",
             )
             env.run()
+            sample_chems[sample] = sample_data
+    return sample_chems
 
 
 def generate_ground_truth_table(
-    chemicals: list, design: ExperimentalDesign
+    chemicals,
+    design: ExperimentalDesign,
+    per_sample_chems=None,
 ) -> pd.DataFrame:
-    """Return a table describing the true peaks for each sample."""
+    """Return a table describing the true peaks for each sample.
+
+    Parameters
+    ----------
+    chemicals:
+        Base chemical list used when ``per_sample_chems`` is ``None``.
+    design:
+        Experimental design describing the samples.
+    per_sample_chems:
+        Optional mapping of sample name to a list of chemicals with RT drift
+        applied. When provided, ground truth retention times are taken from this
+        mapping instead of ``chemicals``.
+    """
 
     records = []
     for compound_id, chem in enumerate(chemicals):
         mz = chem.mass + PROTON_MASS
-        rt_min = chem.get_min_rt()
-        rt_max = chem.get_max_rt()
-        rt_apex = chem.get_apex_rt()
+        base_rt_min = chem.get_min_rt()
+        base_rt_max = chem.get_max_rt()
         for group_samples in design.samples.values():
             for sample in group_samples:
+                s_chem = chem if per_sample_chems is None else per_sample_chems[sample][compound_id]
+                rt_apex = s_chem.get_apex_rt()
+                rt_min = s_chem.get_min_rt() if per_sample_chems else base_rt_min
+                rt_max = s_chem.get_max_rt() if per_sample_chems else base_rt_max
                 records.append(
                     {
                         "sample": sample,
                         "compound_id": compound_id,
                         "mz_apex": mz,
                         "rt_apex": rt_apex,
-                        "intensity": chem.max_intensity,
+                        "intensity": s_chem.max_intensity,
                         "mz_min": mz - 0.01,
                         "mz_max": mz + 0.01,
                         "rt_min": rt_min,

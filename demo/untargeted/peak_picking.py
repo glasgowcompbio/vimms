@@ -32,12 +32,3 @@ def write_peak_table(gt_file: Path, out_file: Path) -> pd.DataFrame:
     return peaks
 
 
-def main() -> None:
-    """Entry point for the peak picking step."""
-    gt_file = Path("./out/ground_truth.csv")
-    out_file = Path("./out/peaks.csv")
-    write_peak_table(gt_file, out_file)
-
-
-if __name__ == "__main__":
-    main()

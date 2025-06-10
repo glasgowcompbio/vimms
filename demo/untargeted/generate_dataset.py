@@ -8,7 +8,7 @@ truth table of the underlying peaks.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from vimms.Common import POSITIVE, PROTON_MASS
 from vimms.Controller import TopNController
@@ -25,6 +25,16 @@ class ExperimentalDesign:
     """Simple container describing sample groups."""
 
     samples: Dict[str, List[str]]
+
+
+@dataclass
+class Dataset:
+    """Container describing input data for the pipeline."""
+
+    design: ExperimentalDesign
+    mzml_files: Dict[str, Path]
+    ground_truth: Optional[pd.DataFrame] = None
+    mgf_file: Optional[Path] = None
 
 
 def create_design(n_samples_per_group: int = 5) -> ExperimentalDesign:
@@ -182,21 +192,55 @@ def write_ground_truth_mgf(chemicals: list, out_file: Path) -> None:
             f.write("END IONS\n")
 
 
-def main() -> None:
-    """Entry point for dataset preparation."""
+def generate_synthetic_dataset(
+    out_dir: Path,
+    n_chemicals: int = 100,
+    n_samples_per_group: int = 5,
+    max_rt: int = 180,
+    top_n: int = 1,
+    use_rt_noise: bool = False,
+    noise_sd: float = 0.1,
+    intercept_params: tuple[float, float] = (0.0, 5.0),
+    linear_params: tuple[float, float] = (0.0, 0.001),
+) -> Dataset:
+    """Generate a synthetic dataset and return a :class:`Dataset` object."""
 
-    chemicals, design = setup_simulation()
-    out_dir = Path("./out")
     out_dir.mkdir(parents=True, exist_ok=True)
+    chemicals, design = setup_simulation(n_chemicals, n_samples_per_group)
 
-    print(f"Generated {len(chemicals)} chemicals")
-    for group, names in design.samples.items():
-        print(group, names)
-    generate_mzml_files(chemicals, design, out_dir)
-    gt = generate_ground_truth_table(chemicals, design)
-    gt.to_csv(out_dir / "ground_truth.csv", index=False)
-    write_ground_truth_mgf(chemicals, out_dir / "ground_truth.mgf")
+    column_params = None
+    if use_rt_noise:
+        column_params = {
+            "noise_sd": noise_sd,
+            "intercept_params": intercept_params,
+            "linear_params": linear_params,
+        }
+
+    sample_chems = generate_mzml_files(
+        chemicals,
+        design,
+        out_dir,
+        max_rt=max_rt,
+        top_n=top_n,
+        column_params=column_params,
+    )
+
+    gt = generate_ground_truth_table(
+        chemicals,
+        design,
+        per_sample_chems=sample_chems if use_rt_noise else None,
+    )
+    gt_file = out_dir / "ground_truth.csv"
+    gt.to_csv(gt_file, index=False)
+    mgf_file = out_dir / "ground_truth.mgf"
+    write_ground_truth_mgf(chemicals, mgf_file)
+
+    mzml_files = {
+        sample: out_dir / group / f"{sample}.mzML"
+        for group, samples in design.samples.items()
+        for sample in samples
+    }
+
+    return Dataset(design=design, mzml_files=mzml_files, ground_truth=gt, mgf_file=mgf_file)
 
 
-if __name__ == "__main__":
-    main()

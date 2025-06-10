@@ -8,7 +8,7 @@ truth table of the underlying peaks.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from vimms.Common import POSITIVE, PROTON_MASS
 from vimms.Controller import TopNController
@@ -38,8 +38,8 @@ def create_design(n_samples_per_group: int = 5) -> ExperimentalDesign:
 
 
 def setup_simulation(
-    n_chemicals: int = 100, n_samples_per_group: int = 5
-) -> Tuple[list, ExperimentalDesign]:
+    n_chemicals=100, n_samples_per_group=5
+):
     """Generate chemicals and an experimental design."""
 
     chemicals = generate_chemicals(n_chemicals)
@@ -53,7 +53,7 @@ def generate_mzml_files(
     out_dir: Path,
     max_rt: int = 180,
     top_n: int = 1,
-    column_params: dict | None = None,
+    column_params=None,
 ) -> dict:
     """Generate an mzML file for each sample in ``design``.
 
@@ -70,8 +70,8 @@ def generate_mzml_files(
     top_n:
         Number of precursors to fragment in each cycle.
     column_params:
-        Optional parameters for :class:`~vimms.ColumnDrift.SimulatedDriftModel`
-        specifying ``noise_sd``, ``intercept_params`` and ``linear_params``.
+        Optional parameters for ``SimulatedDriftModel`` specifying
+        ``noise_sd``, ``intercept_params`` and ``linear_params``.
 
     Returns
     -------
@@ -115,9 +115,9 @@ def generate_mzml_files(
 
 
 def generate_ground_truth_table(
-    chemicals: list,
+    chemicals,
     design: ExperimentalDesign,
-    per_sample_chems: dict | None = None,
+    per_sample_chems=None,
 ) -> pd.DataFrame:
     """Return a table describing the true peaks for each sample.
 

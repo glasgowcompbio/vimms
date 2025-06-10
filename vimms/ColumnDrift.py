@@ -7,7 +7,7 @@ from .Column import LinearColumn
 
 
 class BaseColumnDriftModel(metaclass=ABCMeta):
-    """Base class for objects that provide one drifted :class:`LinearColumn`."""
+    """Base class for objects that provide one drifted ``LinearColumn``."""
 
     def __init__(self, noise_sd=0.0, random_state=None):
         self.noise_sd = noise_sd
@@ -18,7 +18,7 @@ class BaseColumnDriftModel(metaclass=ABCMeta):
         """Return ``(intercept_shift, slope_scale)`` for one injection."""
 
     def make_column(self, dataset):
-        """Return a :class:`LinearColumn` with drift for ``dataset``."""
+        """Return a ``LinearColumn`` with drift for ``dataset``."""
         intercept, scale = self._sample_drift()
         return LinearColumn.from_fixed_offsets(dataset, self.noise_sd, intercept, scale - 1.0)
 

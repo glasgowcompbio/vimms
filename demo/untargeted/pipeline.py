@@ -42,7 +42,7 @@ def run_pipeline(
     ----------
     use_rt_noise:
         Whether to apply retention time drift to each injection using a
-        :class:`~vimms.rt.column_drift.SimulatedDriftModel`.
+        :class:`~vimms.ColumnDrift.SimulatedDriftModel`.
     noise_sd:
         Standard deviation of random noise added around the drift function.
     intercept_params:

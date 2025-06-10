@@ -14,7 +14,7 @@ from vimms.Common import POSITIVE, PROTON_MASS
 from vimms.Controller import TopNController
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
-from vimms.rt.column_drift import SimulatedDriftModel
+from vimms.ColumnDrift import SimulatedDriftModel
 
 from .generate_chemicals import generate_chemicals
 import pandas as pd
@@ -70,7 +70,7 @@ def generate_mzml_files(
     top_n:
         Number of precursors to fragment in each cycle.
     column_params:
-        Optional parameters for :class:`~vimms.rt.column_drift.SimulatedDriftModel`
+        Optional parameters for :class:`~vimms.ColumnDrift.SimulatedDriftModel`
         specifying ``noise_sd``, ``intercept_params`` and ``linear_params``.
 
     Returns
@@ -86,18 +86,14 @@ def generate_mzml_files(
         for sample in samples:
             if column_params is not None:
                 drift = SimulatedDriftModel(
-                    min_logp=0.0,
-                    max_logp=float(max_rt),
-                    min_rt=0.0,
-                    max_rt=float(max_rt),
                     intercept_mu=column_params.get("intercept_params", (0.0, 5.0))[0],
                     intercept_sd=column_params.get("intercept_params", (0.0, 5.0))[1],
                     slope_mu=1.0 + column_params.get("linear_params", (0.0, 0.001))[0],
                     slope_sd=column_params.get("linear_params", (0.0, 0.001))[1],
                     noise_sd=column_params.get("noise_sd", 0.1),
                 )
-                col = drift.make_column()
-                sample_data = col.get_dataset(chemicals)
+                col = drift.make_column(chemicals)
+                sample_data = col.get_dataset()
             else:
                 sample_data = chemicals
             ms = IndependentMassSpectrometer(POSITIVE, sample_data)

@@ -31,19 +31,55 @@ def run_pipeline(
     rt_tol: float = 0.5,
     max_rt: int = 180,
     top_n: int = 1,
+    use_rt_noise: bool = False,
+    noise_sd: float = 0.1,
+    intercept_params: tuple[float, float] = (0.0, 5.0),
+    linear_params: tuple[float, float] = (0.0, 0.001),
 ) -> dict:
-    """Run the full untargeted demo pipeline and return alignment metrics."""
+    """Run the full untargeted demo pipeline and return alignment metrics.
+
+    Parameters
+    ----------
+    use_rt_noise:
+        Whether to apply retention time drift to each injection using
+        :class:`~vimms.Column.LinearColumn`.
+    noise_sd:
+        Standard deviation of random noise added around the drift function.
+    intercept_params:
+        Mean and standard deviation of the intercept term (seconds).
+    linear_params:
+        Mean and standard deviation of the linear term.
+    """
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Simulate chemicals and dataset design
     chemicals, design = setup_simulation(n_chemicals, n_samples_per_group)
 
+    column_params = None
+    if use_rt_noise:
+        column_params = {
+            "noise_sd": noise_sd,
+            "intercept_params": intercept_params,
+            "linear_params": linear_params,
+        }
+
     # Generate mzML files
-    generate_mzml_files(chemicals, design, out_dir, max_rt=max_rt, top_n=top_n)
+    sample_chems = generate_mzml_files(
+        chemicals,
+        design,
+        out_dir,
+        max_rt=max_rt,
+        top_n=top_n,
+        column_params=column_params,
+    )
 
     # Ground truth table and library
-    gt = generate_ground_truth_table(chemicals, design)
+    gt = generate_ground_truth_table(
+        chemicals,
+        design,
+        per_sample_chems=sample_chems if use_rt_noise else None,
+    )
     gt_file = out_dir / "ground_truth.csv"
     gt.to_csv(gt_file, index=False)
     write_ground_truth_mgf(chemicals, out_dir / "ground_truth.mgf")
@@ -73,7 +109,7 @@ def run_pipeline(
 def main() -> None:
     """Command-line entry point for running the pipeline."""
 
-    metrics = run_pipeline()
+    metrics = run_pipeline(use_rt_noise=True)
     report_metrics(metrics)
 
 

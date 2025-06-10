@@ -1,11 +1,12 @@
 
 from demo.untargeted.generate_chemicals import generate_chemicals
-from demo.untargeted.generate_dataset import (
+from demo.untargeted.dataset import (
     create_design,
     generate_mzml_files,
     generate_ground_truth_table,
     write_ground_truth_mgf,
     setup_simulation,
+    generate_synthetic_dataset,
 )
 
 from demo.untargeted.join_aligner import join_align
@@ -130,14 +131,18 @@ def test_peak_table_from_ground_truth():
 
 
 def test_run_pipeline(tmp_path):
-    metrics = run_pipeline(
-        out_dir=tmp_path,
+    dataset = generate_synthetic_dataset(
+        tmp_path,
         n_chemicals=1,
         n_samples_per_group=1,
+        mzml_max_rt=20,
+        top_n=1,
+    )
+    metrics = run_pipeline(
+        dataset,
+        out_dir=tmp_path,
         mz_tol=0.02,
         rt_tol=0.1,
-        max_rt=20,
-        top_n=1,
     )
     assert set(metrics) == {"precision", "recall", "f1", "ari"}
     assert (tmp_path / "aligned.csv").is_file()

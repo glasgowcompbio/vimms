@@ -14,8 +14,16 @@ python -m vimms.scripts.openms_optimise --mzml input.mzML --out-dir results
 
 Processes mzML output from a simulation (or real acquisition) to compute fragmentation coverage using OpenMS feature detection. The script produces a tabular report summarising how many peaks were fragmented.
 
-## data_generation.py
+## Untargeted demo
 
-Generates example chemical mixtures and mzML files, useful for testing pipelines or benchmarking fragmenters.
+Generate a small synthetic dataset and run the demo pipeline:
+
+```bash
+python -m demo.untargeted.dataset  # writes mzML files to ./out
+python -m demo.untargeted.pipeline
+```
+
+The dataset loader in `demo.untargeted.dataset` can also be used to build an
+`UntargetedDataset` from your own mzML files.
 
 For a full listing of scripts refer to the [scripts folder](https://github.com/glasgowcompbio/vimms/tree/master/vimms/scripts).

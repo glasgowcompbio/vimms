@@ -17,6 +17,13 @@ ViMMS is compatible with Python 3+. You can install the current release of ViMMS
 $ pip install vimms
 ```
 
+Optional features are available via extras. For example:
+```
+$ pip install "vimms[optimisation]"  # install Optuna
+$ pip install "vimms[parallel]"      # install ipyparallel
+$ pip install "vimms[plotting]"      # install Plotly support
+```
+
 Find the current version on our [Release page](https://github.com/glasgowcompbio/vimms/releases) or on [PyPi](https://pypi.org/project/vimms/#history).
 
 To use an older version like ViMMS 1.0, used in our [original paper](https://www.mdpi.com/2218-1989/9/10/219), download it [here](https://zenodo.org/badge/latestdoi/196360601). However, note that this version may be outdated.

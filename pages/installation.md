@@ -6,6 +6,13 @@ ViMMS is designed for Python 3 and above. Install the latest stable release with
 ```bash
 pip install vimms
 ```
+
+Additional features can be installed using optional extras. For example,
+```
+pip install "vimms[optimisation]"    # install Optuna support
+pip install "vimms[parallel]"        # install ipyparallel for distributed runs
+pip install "vimms[plotting]"        # install Plotly based visualisations
+```
 Check out the latest versions on the [Release page](https://github.com/glasgowcompbio/vimms/releases) or [PyPi](https://pypi.org/project/vimms/#history).
 
 **🕰 Older Releases**

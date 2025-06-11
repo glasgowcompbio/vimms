@@ -85,7 +85,6 @@ def run_pipeline(
     )
     return pipeline.run()
 
-
 def main(argv: list[str] | None = None) -> None:
     """Command-line entry point for generating data and running the pipeline."""
 

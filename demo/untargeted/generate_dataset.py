@@ -240,7 +240,4 @@ def generate_synthetic_dataset(
         for group, samples in design.samples.items()
         for sample in samples
     }
-
     return Dataset(design=design, mzml_files=mzml_files, ground_truth=gt, mgf_file=mgf_file)
-
-

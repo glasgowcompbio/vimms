@@ -12,10 +12,19 @@ import numpy as np
 from PIL import ImageColor
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from plotly.colors import DEFAULT_PLOTLY_COLORS
+try:
+    import seaborn as sns
+except ImportError:  # pragma: no cover - optional dependency
+    sns = None
+
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    from plotly.colors import DEFAULT_PLOTLY_COLORS
+except ImportError:  # pragma: no cover - optional dependency
+    go = None
+    make_subplots = None
+    DEFAULT_PLOTLY_COLORS = None
 
 from vimms.Common import path_or_mzml, get_scan_times_combined, get_scan_times
 from vimms.Box import GenericBox, BoxGrid
@@ -395,6 +404,9 @@ class PlotPoints:
         abs_scaling=False,
     ):
 
+        if go is None:
+            raise ImportError("plotly is required for plotly_ms1s; install vimms[visual]")
+
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         if np.sum(self.active_ms1) == 0:
             return
@@ -450,6 +462,9 @@ class PlotPoints:
         colour_minm=None,
         abs_scaling=False,
     ):
+
+        if go is None:
+            raise ImportError("plotly is required for plotly_ms2s; install vimms[visual]")
 
         self.points_in_bounds(min_rt=min_rt, max_rt=max_rt, min_mz=min_mz, max_mz=max_mz)
         if np.sum(self.active_ms2) == 0:
@@ -898,6 +913,10 @@ def mpl_fragmented_boxes(exp_name, eva, mode="max", min_intensity=0.0):
 
 
 def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=None):
+    if go is None:
+        raise ImportError(
+            "plotly is required for plotly_results_plot; install vimms[visual]"
+        )
     num_chems = len(evals[0].chems)
     results = [eva.evaluation_report(min_intensity=min_intensity) for eva in evals]
     repeat = max(r["num_runs"] for r in results)
@@ -962,6 +981,8 @@ def plotly_results_plot(experiment_names, evals, min_intensity=0.0, suptitle=Non
 
 
 def plotly_mzml(mzml, draw_minm=0.0, colour_minm=None, show_precursors=False):
+    if go is None:
+        raise ImportError("plotly is required for plotly_mzml; install vimms[visual]")
     fig = go.Figure()
 
     mzml = path_or_mzml(mzml)
@@ -983,6 +1004,10 @@ def plotly_mzml(mzml, draw_minm=0.0, colour_minm=None, show_precursors=False):
 
 
 def plotly_timing_hist(processing_times, title, binsize=None):
+    if go is None:
+        raise ImportError(
+            "plotly is required for plotly_timing_hist; install vimms[visual]"
+        )
     fig = make_subplots(rows=1, cols=len(processing_times))
 
     for i, run_times in enumerate(processing_times):
@@ -1007,6 +1032,10 @@ def plotly_timing_hist(processing_times, title, binsize=None):
 
 
 def plotly_fragmentation_events(exp_name, mzmls, colour_minm=None):
+    if go is None:
+        raise ImportError(
+            "plotly is required for plotly_fragmentation_events; install vimms[visual]"
+        )
     fig = make_subplots(rows=len(mzmls), cols=1, shared_xaxes="all", shared_yaxes="all")
 
     for i, mzml in enumerate(mzmls):
@@ -1026,6 +1055,10 @@ def plotly_fragmentation_events(exp_name, mzmls, colour_minm=None):
 
 
 def seaborn_hist(data, xlabel, binsize=None):
+    if sns is None:
+        raise ImportError(
+            "seaborn is required for seaborn_hist; install vimms[visual]"
+        )
     fig, axes = plt.subplots(1, len(data), figsize=(15, 5), sharey=True)
 
     try:
@@ -1041,6 +1074,10 @@ def seaborn_hist(data, xlabel, binsize=None):
 
 
 def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined"):
+    if sns is None:
+        raise ImportError(
+            "seaborn is required for seaborn_mzml_timing_hist; install vimms[visual]"
+        )
     if mode == "combined":
         timings = [get_scan_times_combined(mzmls)]
     else:
@@ -1072,10 +1109,18 @@ def seaborn_mzml_timing_hist(mzmls, binsize=None, mode="combined"):
 
 
 def seaborn_timing_hist(processing_times, binsize=None):
+    if sns is None:
+        raise ImportError(
+            "seaborn is required for seaborn_timing_hist; install vimms[visual]"
+        )
     return seaborn_hist(processing_times, xlabel="Processing time (secs)", binsize=binsize)
 
 
 def seaborn_uncovered_area_hist(eva, box_likes, min_intensity=0.0, cumulative=False, binsize=None):
+    if sns is None:
+        raise ImportError(
+            "seaborn is required for seaborn_uncovered_area_hist; install vimms[visual]"
+        )
 
     boxes = [[b.to_box(0, 0) for b in ls] for ls in box_likes]
     geom = BoxGrid()

@@ -27,10 +27,3 @@ def generate_chemicals(n_chemicals: int = 100):
     return cmc.sample(n_chemicals, 2)
 
 
-def main():
-    chemicals = generate_chemicals()
-    save_obj(chemicals, str(FIXTURES / "demo_chemicals.p"))
-
-
-if __name__ == "__main__":
-    main()

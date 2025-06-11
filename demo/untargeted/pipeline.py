@@ -1,5 +1,6 @@
 from pathlib import Path
 from abc import ABC, abstractmethod
+import argparse
 
 from .generate_dataset import Dataset, generate_synthetic_dataset
 from .join_aligner import join_align
@@ -84,11 +85,18 @@ def run_pipeline(
     )
     return pipeline.run()
 
+def main(argv: list[str] | None = None) -> None:
+    """Command-line entry point for generating data and running the pipeline."""
 
-def main() -> None:
-    """Command-line entry point for running the pipeline."""
-    dataset = generate_synthetic_dataset(Path("./out"), use_rt_noise=True)
-    metrics = run_pipeline(dataset, Path("./out"))
+    parser = argparse.ArgumentParser(description="Run the untargeted demo pipeline")
+    parser.add_argument("--out-dir", type=Path, default=Path("./out"))
+    parser.add_argument("--use-rt-noise", action="store_true", help="Add RT noise to the synthetic dataset")
+    parser.add_argument("--mz-tol", type=float, default=0.01)
+    parser.add_argument("--rt-tol", type=float, default=0.5)
+    args = parser.parse_args(argv)
+
+    dataset = generate_synthetic_dataset(args.out_dir, use_rt_noise=args.use_rt_noise)
+    metrics = run_pipeline(dataset, args.out_dir, mz_tol=args.mz_tol, rt_tol=args.rt_tol)
     report_metrics(metrics)
 
 

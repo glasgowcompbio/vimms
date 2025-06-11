@@ -240,16 +240,4 @@ def generate_synthetic_dataset(
         for group, samples in design.samples.items()
         for sample in samples
     }
-
     return Dataset(design=design, mzml_files=mzml_files, ground_truth=gt, mgf_file=mgf_file)
-
-
-def main() -> None:
-    """Entry point for dataset preparation."""
-    dataset = generate_synthetic_dataset(Path("./out"))
-    for group, names in dataset.design.samples.items():
-        print(group, names)
-
-
-if __name__ == "__main__":
-    main()

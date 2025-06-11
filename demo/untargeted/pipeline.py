@@ -33,6 +33,37 @@ class BasePipeline(ABC):
         self.rt_tol = rt_tol
         self.writer = OutputWriter(out_dir)
 
+    # ------------------------------------------------------------------
+    # Steps in the preprocessing pipeline. These methods wrap the helper
+    # functions defined in :mod:`processing` so subclasses can override
+    # individual steps when needed.
+    # ------------------------------------------------------------------
+
+    def group_peaks(self, aligned):
+        """Group isotopes/adducts together."""
+
+        return group_related_peaks(aligned)
+
+    def identify(self, grouped):
+        """Match grouped peaks to library entries."""
+
+        return identify_compounds(grouped, self.dataset.mgf_file)
+
+    def annotate(self, identified):
+        """Annotate identified peaks with spectral information."""
+
+        return annotate_spectra(identified, self.dataset.mgf_file)
+
+    def normalize(self, annotated):
+        """Apply batch normalisation."""
+
+        return batch_normalize(annotated, self.dataset.design)
+
+    def impute(self, normalized):
+        """Fill in missing values in the peak table."""
+
+        return impute_missing_values(normalized)
+
     def run(self) -> dict | None:
         """Run the preprocessing pipeline."""
 
@@ -41,11 +72,11 @@ class BasePipeline(ABC):
             peaks, self.mz_tol, self.rt_tol, return_labels=True
         )
 
-        grouped = group_related_peaks(aligned)
-        identified = identify_compounds(grouped, self.dataset.mgf_file)
-        annotated = annotate_spectra(identified, self.dataset.mgf_file)
-        normalized = batch_normalize(annotated, self.dataset.design)
-        _ = impute_missing_values(normalized)
+        grouped = self.group_peaks(aligned)
+        identified = self.identify(grouped)
+        annotated = self.annotate(identified)
+        normalized = self.normalize(annotated)
+        _ = self.impute(normalized)
 
         metrics = compute_statistics(labeled, self.dataset)
         self.writer.write_all(peaks=peaks, aligned=aligned, metrics=metrics)
@@ -66,7 +97,6 @@ class SyntheticPipeline(BasePipeline):
         return get_peak_data(self.dataset.ground_truth)
 
 
-
 def report_metrics(metrics):
     """Print alignment metrics in a friendly format."""
 
@@ -84,6 +114,7 @@ def run_pipeline(
         dataset=dataset, out_dir=out_dir, mz_tol=mz_tol, rt_tol=rt_tol
     )
     return pipeline.run()
+
 
 def main(argv: list[str] | None = None) -> None:
     """Command-line entry point for generating data and running the pipeline."""

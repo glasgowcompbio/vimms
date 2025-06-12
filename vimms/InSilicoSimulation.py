@@ -5,7 +5,10 @@ import json
 import os
 from pathlib import Path
 
-import ipyparallel as ipp
+try:
+    import ipyparallel as ipp
+except ImportError:  # pragma: no cover - optional dependency
+    ipp = None
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
@@ -181,14 +184,14 @@ def run_SmartROI(chems, scan_duration, params, out_dir):
     logger.warning("Running controllers in parallel, please wait ...")
     run_serial = False
     try:
+        if ipp is None:
+            raise ImportError
         rc = ipp.Client()
         dview = rc[:]  # use all engines
         with dview.sync_imports():
             pass
         dview.map_sync(run_single_SmartROI, params_list)
-    except OSError:  # cluster has not been started
-        run_serial = True
-    except ipp.error.TimeoutError:  # takes too long to run
+    except Exception:
         run_serial = True
 
     if run_serial:  # if any exception from above, try to run it serially
@@ -271,17 +274,16 @@ def run_WeightedDEW(chems, scan_duration, params, out_dir):
 
     # Try to run the controllers in parallel. If fails, then run it serially
     logger.warning("Running controllers in parallel, please wait ...")
+    run_serial = False
     try:
-        import ipyparallel as ipp
-
+        if ipp is None:
+            raise ImportError
         rc = ipp.Client()
         dview = rc[:]  # use all engines
         with dview.sync_imports():
             pass
         dview.map_sync(run_single_WeightedDEW, params_list)
-    except OSError:  # cluster has not been started
-        run_serial = True
-    except ipp.error.TimeoutError:  # takes too long to run
+    except Exception:
         run_serial = True
 
     if run_serial:  # if any exception from above, try to run it serially

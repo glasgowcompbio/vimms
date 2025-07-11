@@ -21,5 +21,6 @@ formats: all
 python:
   install:
     - method: poetry
+      path: .
       with:
         - dev

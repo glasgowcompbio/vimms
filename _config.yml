@@ -6,5 +6,5 @@ nav_external_links:
     url: https://github.com/glasgowcompbio/vimms/tree/master/demo
   - title: Code for Papers
     url: https://github.com/glasgowcompbio/vimms/tree/master/examples
-  - title: API Documentation
-    url: https://vimms.readthedocs.io
+  - title: Documentation
+    url: https://glasgowcompbio.github.io/vimms/

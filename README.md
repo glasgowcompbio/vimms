@@ -10,7 +10,7 @@ To solve this, we introduce the **V**irtual **M**etabolomics **M**ass **S**pectr
 
 Eager to start using ViMMS? Take advantage of these resources:
 - [Installation guide](pages/installation.md).
-- Visit our project documentation page: [![Documentation Status](https://readthedocs.org/projects/vimms/badge/?version=latest)](http://vimms.readthedocs.io/?badge=latest)
+- Visit our project documentation page: [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://glasgowcompbio.github.io/vimms/)
 - Our [Demo folder](https://github.com/glasgowcompbio/vimms/tree/master/demo) contains notebooks that demonstrate how to use the framework in a simulated environment.
 - For specific examples that accompany our publications, see the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples).
 - You can also find this [quick guide on how to get started using ViMMS](https://github.com/glasgowcompbio/vimms/blob/master/demo/guide_to_vimms/guide_to_vimms.ipynb).

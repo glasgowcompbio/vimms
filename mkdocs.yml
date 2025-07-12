@@ -1,41 +1,106 @@
 # mkdocs.yml
 site_name: Virtual Metabolomics Mass Spectrometry (ViMMS)
+site_url: https://glasgowcompbio.github.io/vimms/
+site_description: ViMMS - Virtual Metabolomics Mass Spectrometry Framework
+site_author: Glasgow Computational Biology Group
+
+repo_name: glasgowcompbio/vimms
+repo_url: https://github.com/glasgowcompbio/vimms
+edit_uri: edit/master/docs/
+
 theme:
-  name: "readthedocs"
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 plugins:
-- search
-- mkdocstrings:
-    handlers:
+  - search
+  - mkdocstrings:
+      handlers:
         python:
-            paths: ["."]
+          paths: ["."]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            docstring_style: google
+            docstring_section_style: table
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 80
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
 
 nav:
   - Home: README.md
-  - Simulation Overview: simulation_overview.md
-  - Creating Chemicals: chemicals.md
-  - Running Controllers: controllers.md
-  - Evaluating Simulations: evaluation.md
-  - Running on a Real Instrument: real_instrument.md
-  - Adding Noise: noise.md
-  - Chromatographic Models: chromatography.md
-  - Command Line Utilities: cli_tools.md
+  - User Guide:
+      - Simulation Overview: simulation_overview.md
+      - Creating Chemicals: chemicals.md
+      - Running Controllers: controllers.md
+      - Evaluating Simulations: evaluation.md
+      - Running on a Real Instrument: real_instrument.md
+      - Adding Noise: noise.md
+      - Chromatographic Models: chromatography.md
+      - Command Line Utilities: cli_tools.md
   - API Documentation:
-    - Common: api/common.md
-    - Chemical Generation Process:
-        - Chemicals: api/chemicals.md
-        - Chemical Samplers: api/chemical_samplers.md
-        - ROI: api/roi.md
-        - Box: api/box.md
-    - Mass Spectrometry Process:
-        - Mass Spec: api/mass_spec.md
-        - Column: api/column.md
-        - Noise: api/noise.md
-    - Fragmentation Strategy Simulation Process:
-        - Environment: api/environment.md
-        - Controllers: api/controllers.md
-        - Dynamic Exclusion: api/exclusion.md
-        - Agents: api/agent.md
-    - Others:
-        - Feature Extractions: api/feature_extractions.md
-        - MzMLWriter: api/mzml_writer.md
+      - Common: api/common.md
+      - Chemical Generation Process:
+          - Chemicals: api/chemicals.md
+          - Chemical Samplers: api/chemical_samplers.md
+          - ROI: api/roi.md
+          - Box: api/box.md
+      - Mass Spectrometry Process:
+          - Mass Spec: api/mass_spec.md
+          - Column: api/column.md
+          - Noise: api/noise.md
+      - Fragmentation Strategy Simulation Process:
+          - Environment: api/environment.md
+          - Controllers: api/controllers.md
+          - Dynamic Exclusion: api/exclusion.md
+          - Agents: api/agent.md
+      - Others:
+          - Feature Extractions: api/feature_extractions.md
+          - MzMLWriter: api/mzml_writer.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/glasgowcompbio/vimms
+    - icon: fontawesome/solid/book
+      link: https://doi.org/10.1021/acs.analchem.9b02521
+
+copyright: Copyright &copy; 2025 Glasgow Computational Biology Group

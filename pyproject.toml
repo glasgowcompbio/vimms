@@ -52,6 +52,7 @@ mkdocstrings = "^0.29.1"
 black = "^25.1.0"
 pre-commit = "^3.7.0"
 mkdocstrings-python = "^1.16.12"
+mkdocs-material = "^9.5.48"
 
 [tool.setuptools_scm]
 

@@ -79,24 +79,25 @@ CHROM_TYPE_FUNCTIONAL = "functional"
 
 ADDUCT_NAMES_POS = [
     "M+H",
-    "[M+ACN]+H",
-    "[M+CH3OH]+H",
+    "M+NH4",
     "[M+NH3]+H",
     "M+Na",
     "M+K",
-    "M+2Na-H",
     "M+ACN+Na",
+    "M+2Na-H",
     "M+2K+H",
+    "[M+ACN]+H",
+    "[M+CH3OH]+H",
     "[M+DMSO]+H",
     "[M+2ACN]+H",
     "2M+H",
-    "M+ACN+Na",
     "2M+NH4",
 ]
-ADDUCT_NAMES_NEG = ["M-H"]
+ADDUCT_NAMES_NEG = ["M-H", "M+Cl", "M+FA-H", "M+Ac-H"]
 
 ADDUCT_TERMS = {
     "M+H": (1, PROTON_MASS),
+    "M+NH4": (1, 18.033823),
     "[M+ACN]+H": (1, 42.033823),
     "[M+CH3OH]+H": (1, 33.033489),
     "[M+NH3]+H": (1, 18.033823),
@@ -110,11 +111,70 @@ ADDUCT_TERMS = {
     "2M+H": (2, 1.007276),
     "2M+NH4": (2, 18),
     "M-H": (1, -PROTON_MASS),
+    "M+Cl": (1, 34.96885268),
+    "M+FA-H": (1, 44.998201),
+    "M+Ac-H": (1, 59.013851),
 }
 
 # example prior dictionary to be passed when creating an
 # adducts object to only get M+H adducts out
 ADDUCT_DICT_POS_MH = {POSITIVE: {"M+H": 1.0}}
+
+ADDUCT_PRIOR_POS = {
+    "M+H": 1.0,
+    "M+NH4": 0.3,
+    "[M+NH3]+H": 0.15,
+    "M+Na": 0.25,
+    "M+K": 0.15,
+    "M+ACN+Na": 0.05,
+    "M+2Na-H": 0.03,
+    "M+2K+H": 0.02,
+    "[M+ACN]+H": 0.08,
+    "[M+CH3OH]+H": 0.05,
+    "[M+DMSO]+H": 0.03,
+    "[M+2ACN]+H": 0.02,
+    "2M+H": 0.04,
+    "2M+NH4": 0.02,
+}
+ADDUCT_PRIOR_NEG = {
+    "M-H": 1.0,
+    "M+Cl": 0.2,
+    "M+FA-H": 0.35,
+    "M+Ac-H": 0.15,
+}
+
+ADDUCT_PROFILE_PRESETS = {
+    "default": {POSITIVE: ADDUCT_PRIOR_POS, NEGATIVE: ADDUCT_PRIOR_NEG},
+    "esi_positive": {POSITIVE: ADDUCT_PRIOR_POS},
+    "esi_negative": {NEGATIVE: ADDUCT_PRIOR_NEG},
+}
+
+NATURAL_ISOTOPES = {
+    "C": [(12.0, 0.9893), (13.0033548378, 0.0107)],
+    "H": [(1.00782503214, 0.999885), (2.01410177812, 0.000115)],
+    "N": [(14.00307400524, 0.99636), (15.00010889888, 0.00364)],
+    "O": [
+        (15.9949146221, 0.99757),
+        (16.9991317565, 0.00038),
+        (17.9991596129, 0.00205),
+    ],
+    "S": [
+        (31.97207069, 0.9499),
+        (32.9714585, 0.0075),
+        (33.96786683, 0.0425),
+        (35.96708088, 0.0001),
+    ],
+    "Cl": [(34.96885268, 0.7576), (36.96590259, 0.2424)],
+    "Br": [(78.9183376, 0.5069), (80.9162906, 0.4931)],
+    "Si": [
+        (27.9769265327, 0.92223),
+        (28.976494700, 0.04685),
+        (29.97377017, 0.03092),
+    ],
+    "P": [(30.973761512, 1.0)],
+    "F": [(18.998403205, 1.0)],
+    "I": [(126.904468, 1.0)],
+}
 
 ATOM_NAMES = ["C", "H", "N", "O", "P", "S", "Cl", "I", "Br", "Si", "F", "D"]
 ATOM_MASSES = {

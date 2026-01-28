@@ -80,7 +80,6 @@ CHROM_TYPE_FUNCTIONAL = "functional"
 ADDUCT_NAMES_POS = [
     "M+H",
     "M+NH4",
-    "[M+NH3]+H",
     "M+Na",
     "M+K",
     "M+ACN+Na",
@@ -123,7 +122,6 @@ ADDUCT_DICT_POS_MH = {POSITIVE: {"M+H": 1.0}}
 ADDUCT_PRIOR_POS = {
     "M+H": 1.0,
     "M+NH4": 0.3,
-    "[M+NH3]+H": 0.15,
     "M+Na": 0.25,
     "M+K": 0.15,
     "M+ACN+Na": 0.05,

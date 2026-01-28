@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections import deque
 from typing import Iterable, List, Tuple
 
 import numpy as np
@@ -71,6 +72,21 @@ class Deisotoper:
         return clusters
 
     def _guess_charge(self, mzs: np.ndarray, mz: float, idx: int) -> int:
+        # Prefer charge assignments that match the 13C spacing.
+        best_charge = None
+        best_error = None
+        for charge in range(1, self.max_charge + 1):
+            target = mz + C13_MZ_DIFF / charge
+            match_idx = self._find_peak(mzs, target, idx + 1)
+            if match_idx is None:
+                continue
+            error = self._ppm_error(mzs[match_idx], target)
+            if best_error is None or error < best_error:
+                best_error = error
+                best_charge = charge
+        if best_charge is not None:
+            return best_charge
+
         best_charge = 1
         best_match = None
         for charge in range(1, self.max_charge + 1):
@@ -86,25 +102,33 @@ class Deisotoper:
     def _grow_cluster(
         self, mzs: np.ndarray, intensities: np.ndarray, start_idx: int, charge: int
     ) -> List[int]:
-        cluster_indices = [start_idx]
-        isotope_idx = 1
-        prev_intensity = intensities[start_idx]
-        while True:
-            match = self._find_isotope_peak(
-                mzs, cluster_indices[-1] + 1, mzs[start_idx], charge, isotope_idx
-            )
-            if match is None:
-                break
-            match_idx, match_diff, _ = match
-            max_increase = self.max_relative_intensity_increase
-            if match_diff >= self.heavy_isotope_threshold:
-                max_increase = self.max_relative_intensity_increase_heavy
-            if intensities[match_idx] > prev_intensity * max_increase:
-                break
-            cluster_indices.append(match_idx)
-            prev_intensity = intensities[match_idx]
-            isotope_idx += 1
-        return cluster_indices
+        # Build a connected component of peaks linked by any single-isotope mass
+        # difference. This avoids splitting fine-structure isotope patterns into
+        # multiple clusters.
+        cluster = {start_idx}
+        queue = deque([start_idx])
+
+        while queue:
+            current_idx = queue.popleft()
+            current_mz = mzs[current_idx]
+            current_intensity = intensities[current_idx]
+
+            for diff in self.isotope_mass_diffs:
+                target = current_mz + diff / charge
+                match_idx = self._find_peak(mzs, target, current_idx + 1)
+                if match_idx is None or match_idx in cluster:
+                    continue
+
+                max_increase = self.max_relative_intensity_increase
+                if diff >= self.heavy_isotope_threshold:
+                    max_increase = self.max_relative_intensity_increase_heavy
+                if intensities[match_idx] > current_intensity * max_increase:
+                    continue
+
+                cluster.add(match_idx)
+                queue.append(match_idx)
+
+        return sorted(cluster)
 
     def _find_isotope_peak(
         self, mzs: np.ndarray, start_idx: int, base_mz: float, charge: int, isotope_idx: int
@@ -132,13 +156,21 @@ class Deisotoper:
             else:
                 right = mid - 1
         candidates = []
-        for idx in (left - 1, left, left + 1):
-            if 0 <= idx < len(mzs):
+        for idx in (left - 2, left - 1, left, left + 1, left + 2):
+            if start_idx <= idx < len(mzs):
                 candidates.append(idx)
+
+        best_idx = None
+        best_error = None
         for idx in candidates:
-            if self._ppm_error(mzs[idx], target) <= self.ppm_tolerance:
-                return idx
-        return None
+            error = self._ppm_error(mzs[idx], target)
+            if error > self.ppm_tolerance:
+                continue
+            if best_error is None or error < best_error:
+                best_error = error
+                best_idx = idx
+
+        return best_idx
 
     @staticmethod
     def _ppm_error(mz: float, target: float) -> float:
@@ -146,7 +178,7 @@ class Deisotoper:
 
     @staticmethod
     def _default_isotope_mass_diffs(
-        min_abundance: float = 0.0005, max_shift: float = 4.0
+        min_abundance: float = 0.0001, max_shift: float = 4.0
     ) -> Tuple[float, ...]:
         diffs = {round(C13_MZ_DIFF, 6)}
         for isotopes in NATURAL_ISOTOPES.values():

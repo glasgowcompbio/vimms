@@ -110,12 +110,14 @@ class Isotopes:
         self, total_proportion, min_prob=1e-12, max_peaks=20, max_states=4000, mass_precision=8
     ):
         distribution = [(0.0, 1.0)]
+        monoisotope_log_prob = 0.0
         for element, count in self.formula.atoms.items():
             if count <= 0:
                 continue
             isotopes = NATURAL_ISOTOPES.get(element)
             if not isotopes or len(isotopes) == 1:
                 continue
+            monoisotope_log_prob += count * np.log(isotopes[0][1])
             mono_mass = isotopes[0][0]
             base_distribution = [(mass - mono_mass, abundance) for mass, abundance in isotopes]
             element_distribution = self._power_distribution(
@@ -133,7 +135,19 @@ class Isotopes:
                 mass_precision=mass_precision,
             )
 
-        distribution = [(shift, prob) for shift, prob in distribution if prob >= min_prob]
+        # Ensure the monoisotopic (zero-shift) peak is always present, even if
+        # truncation/pruning would otherwise drop it.
+        monoisotope_shift = round(0.0, mass_precision)
+        monoisotope_prob = float(np.exp(monoisotope_log_prob))
+        distribution_dict = dict(distribution)
+        distribution_dict[monoisotope_shift] = monoisotope_prob
+        distribution = list(distribution_dict.items())
+
+        distribution = [
+            (shift, prob)
+            for shift, prob in distribution
+            if shift == monoisotope_shift or prob >= min_prob
+        ]
         distribution.sort(key=lambda x: x[0])
 
         selected = []

@@ -32,6 +32,14 @@ def test_isotope_distribution_chlorine_m2_peak():
     assert any(np.isclose(delta, 1.997, atol=0.01) for delta in deltas)
 
 
+def test_isotope_distribution_preserves_mono_when_filtered():
+    formula = Formula("C500H1000")
+    isotopes = Isotopes(formula)
+    peaks = isotopes.get_isotopes(total_proportion=0.99, min_prob=0.01)
+
+    assert np.isclose(peaks[0][0], formula.mass, atol=1e-6)
+
+
 def test_deisotoper_recovers_mono():
     formula = Formula("C10H16N2O2S")
     isotopes = Isotopes(formula)

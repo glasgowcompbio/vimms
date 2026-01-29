@@ -277,7 +277,7 @@ class Adducts:
                 proportions[k] = np.zeros_like(proportions[k])
                 proportions[k][np.argmax(alpha)] = 1.0
             else:
-                proportions[k] = proportions[k] / proportions[k].sum()
+                proportions[k] = proportions[k] / proportions[k].max()
             assert len(proportions[k]) == len(self.adduct_names[k])
         return proportions
 

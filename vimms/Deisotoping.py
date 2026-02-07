@@ -192,3 +192,122 @@ class Deisotoper:
                 if 0 < diff <= max_shift:
                     diffs.add(round(diff, 6))
         return tuple(sorted(diffs))
+
+
+def deisotope_with_ms_deisotope(
+    peaks: Iterable[Tuple[float, float]],
+    charge_range: Tuple[int, int] = (1, 3),
+    averagine: str = "peptide",
+    ms1_tolerance: float = 10.0,
+):
+    """
+    Deisotope peaks using the optional ms_deisotope package.
+
+    Args:
+        peaks: iterable of (mz, intensity) pairs.
+        charge_range: inclusive min/max charge range.
+        averagine: averagine model name used by ms_deisotope.
+        ms1_tolerance: ppm tolerance for isotopic matching.
+
+    Returns:
+        The ms_deisotope deconvolution result object.
+    """
+    from ms_deisotope.deconvolution import deconvolute_peaks
+
+    peaks_array = np.array(list(peaks), dtype=float)
+    if peaks_array.size == 0:
+        return []
+
+    return deconvolute_peaks(
+        peaks_array,
+        charge_range=charge_range,
+        averagine=averagine,
+        ms1_tolerance=ms1_tolerance,
+    )
+
+
+def deisotope_with_pyopenms(
+    peaks: Iterable[Tuple[float, float]],
+    fragment_tolerance: float = 10.0,
+    fragment_unit_ppm: bool = True,
+    min_charge: int = 1,
+    max_charge: int = 3,
+    keep_only_deisotoped: bool = True,
+    min_isopeaks: int = 2,
+    max_isopeaks: int = 10,
+    make_single_charged: bool = False,
+):
+    """
+    Deisotope peaks using pyopenms Deisotoper on an MS1-like spectrum.
+
+    Args:
+        peaks: iterable of (mz, intensity) pairs.
+        fragment_tolerance: m/z tolerance for matching isotopic peaks.
+        fragment_unit_ppm: whether the tolerance is in ppm.
+        min_charge: minimum charge to consider.
+        max_charge: maximum charge to consider.
+        keep_only_deisotoped: keep only deisotoped peaks in the output.
+        min_isopeaks: minimum number of isotopic peaks in a cluster.
+        max_isopeaks: maximum number of isotopic peaks in a cluster.
+        make_single_charged: convert all features to single charge if True.
+
+    Returns:
+        Tuple of (spectrum, peak_mzs, peak_intensities) after deisotoping.
+    """
+    import pyopenms as oms
+
+    peaks_array = np.array(list(peaks), dtype=float)
+    if peaks_array.size == 0:
+        return None, np.array([]), np.array([])
+
+    spectrum = oms.MSSpectrum()
+    spectrum.set_peaks((peaks_array[:, 0], peaks_array[:, 1]))
+
+    oms.Deisotoper.deisotopeAndSingleCharge(
+        spectrum,
+        fragment_tolerance,
+        fragment_unit_ppm,
+        min_charge,
+        max_charge,
+        keep_only_deisotoped,
+        min_isopeaks,
+        max_isopeaks,
+        make_single_charged,
+    )
+
+    mzs, intensities = spectrum.get_peaks()
+    return spectrum, np.array(mzs), np.array(intensities)
+
+
+def deadduct_with_pyopenms(
+    feature_map,
+    adducts: List[str] | None = None,
+    max_charge: int = 3,
+    ppm_tolerance: float = 10.0,
+):
+    """
+    De-adduct features using pyopenms MetaboliteAdductDecharger.
+
+    Args:
+        feature_map: pyopenms FeatureMap containing detected features.
+        adducts: list of adduct strings (e.g. ["[M+H]+", "[M+Na]+"]) or None for defaults.
+        max_charge: maximum charge to consider.
+        ppm_tolerance: mass tolerance used for matching (ppm).
+
+    Returns:
+        De-adducted pyopenms FeatureMap.
+    """
+    import pyopenms as oms
+
+    decharger = oms.MetaboliteAdductDecharger()
+    params = decharger.getParameters()
+    params.setValue("mass_error_ppm", ppm_tolerance)
+    params.setValue("charge_max", max_charge)
+    if adducts:
+        adduct_info = oms.AdductInfo()
+        adduct_info.setAdducts(adducts)
+        decharger.setAdducts(adduct_info)
+    decharger.setParameters(params)
+    output = oms.FeatureMap()
+    decharger.decharge(feature_map, output)
+    return output

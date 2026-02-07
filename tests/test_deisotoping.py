@@ -1,6 +1,7 @@
 # test deisotoping and isotope generation
 
 import numpy as np
+import pytest
 
 from vimms.Chemicals import Isotopes, Adducts
 from vimms.Common import Formula, ADDUCT_TERMS, POSITIVE, PROTON_MASS
@@ -67,3 +68,57 @@ def test_deisotoper_handles_m_plus_2_only():
 
     assert len(clusters) == 1
     assert np.isclose(clusters[0].monoisotopic_mz, 100.0, atol=1e-6)
+
+
+def test_pyopenms_deisotope_helper():
+    pytest.importorskip("pyopenms")
+    from vimms.Deisotoping import deisotope_with_pyopenms
+
+    peaks = [(100.0, 1e5), (101.003355, 5e4), (102.00671, 2e4)]
+    _, mzs, intensities = deisotope_with_pyopenms(peaks, min_isopeaks=2, max_isopeaks=3)
+
+    assert len(mzs) <= len(peaks)
+    assert len(mzs) == len(intensities)
+
+
+def test_pyopenms_deadduct_helper():
+    pytest.importorskip("pyopenms")
+    import pyopenms as oms
+
+    from vimms.Deisotoping import deadduct_with_pyopenms
+
+    fmap = oms.FeatureMap()
+    feature = oms.Feature()
+    feature.setMZ(100.0)
+    feature.setIntensity(1e5)
+    fmap.push_back(feature)
+
+    output = deadduct_with_pyopenms(fmap, adducts=["[M+H]+"])
+    assert output.size() >= 1
+
+
+def test_pyopenms_deadduct_multiple_features():
+    pytest.importorskip("pyopenms")
+    import pyopenms as oms
+
+    from vimms.Deisotoping import deadduct_with_pyopenms
+
+    fmap = oms.FeatureMap()
+    for mz, intensity in [(100.0, 1e5), (122.989218, 4e4)]:
+        feature = oms.Feature()
+        feature.setMZ(mz)
+        feature.setIntensity(intensity)
+        fmap.push_back(feature)
+
+    output = deadduct_with_pyopenms(fmap, adducts=["[M+H]+", "[M+Na]+"])
+    assert output.size() >= 1
+
+
+def test_pyopenms_deisotope_empty_peaks():
+    pytest.importorskip("pyopenms")
+    from vimms.Deisotoping import deisotope_with_pyopenms
+
+    spectrum, mzs, intensities = deisotope_with_pyopenms([])
+    assert spectrum is None
+    assert mzs.size == 0
+    assert intensities.size == 0

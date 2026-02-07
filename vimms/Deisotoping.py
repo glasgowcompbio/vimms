@@ -4,7 +4,7 @@ from typing import Iterable, List, Tuple
 
 import numpy as np
 
-from vimms.Common import C13_MZ_DIFF, NATURAL_ISOTOPES
+from vimms.Common import C13_MZ_DIFF, NATURAL_ISOTOPES, ELECTRON_MASS
 
 
 @dataclass(frozen=True)
@@ -328,7 +328,7 @@ def deadduct_with_pyopenms(
     # while MS m/z shifts correspond to charged species (atomic +/- e- mass).
     # Correcting by the electron mass ensures we recover a chemically-sensible
     # neutral mass from observed m/z values.
-    electron_mass = 0.000548579909065  # u
+    electron_mass = ELECTRON_MASS
 
     def infer_negative_mode() -> bool:
         charges = []

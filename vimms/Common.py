@@ -72,6 +72,7 @@ DEFAULT_MS2_ISOLATION_MODE = "Quadrupole"  # None, Quadrupole, IonTrap
 DEFAULT_SOURCE_CID_ENERGY = 0
 
 PROTON_MASS = 1.00727645199076
+ELECTRON_MASS = 0.000548579909065  # u
 
 CHROM_TYPE_EMPIRICAL = "empirical"
 CHROM_TYPE_CONSTANT = "constant"
@@ -110,7 +111,8 @@ ADDUCT_TERMS = {
     "2M+H": (2, 1.007276),
     "2M+NH4": (2, 18),
     "M-H": (1, -PROTON_MASS),
-    "M+Cl": (1, 34.96885268),
+    # [M+Cl]- adds Cl- (atomic mass + electron mass), not neutral Cl.
+    "M+Cl": (1, 34.96885268 + ELECTRON_MASS),
     "M+FA-H": (1, 44.998201),
     "M+Ac-H": (1, 59.013851),
 }

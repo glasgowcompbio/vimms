@@ -59,6 +59,15 @@ def test_isotope_distribution_chlorine_m2_peak():
     assert any(np.isclose(delta, 1.997, atol=0.01) for delta in deltas)
 
 
+def test_adduct_terms_chloride_uses_chloride_anion_mass():
+    # [M+Cl]- uses Cl- (atomic mass + electron mass), not neutral Cl.
+    from vimms.Common import ELECTRON_MASS, NATURAL_ISOTOPES
+
+    _, cl_shift = ADDUCT_TERMS["M+Cl"]
+    cl_atomic = NATURAL_ISOTOPES["Cl"][0][0]
+    assert np.isclose(cl_shift - cl_atomic, ELECTRON_MASS, atol=1e-12)
+
+
 def test_isotope_distribution_preserves_mono_when_filtered():
     formula = Formula("C500H1000")
     isotopes = Isotopes(formula)

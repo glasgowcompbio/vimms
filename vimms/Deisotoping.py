@@ -232,10 +232,16 @@ def deisotope_with_pyopenms(
     fragment_unit_ppm: bool = True,
     min_charge: int = 1,
     max_charge: int = 3,
-    keep_only_deisotoped: bool = True,
-    min_isopeaks: int = 2,
+    keep_only_deisotoped: bool = False,
+    min_isopeaks: int = 3,
     max_isopeaks: int = 10,
-    make_single_charged: bool = False,
+    make_single_charged: bool = True,
+    annotate_charge: bool = False,
+    annotate_iso_peak_count: bool = False,
+    use_decreasing_model: bool = True,
+    start_intensity_check: int = 2,
+    add_up_intensity: bool = False,
+    annotate_features: bool = False,
 ):
     """
     Deisotope peaks using pyopenms Deisotoper on an MS1-like spectrum.
@@ -250,6 +256,12 @@ def deisotope_with_pyopenms(
         min_isopeaks: minimum number of isotopic peaks in a cluster.
         max_isopeaks: maximum number of isotopic peaks in a cluster.
         make_single_charged: convert all features to single charge if True.
+        annotate_charge: annotate charge in the output if True.
+        annotate_iso_peak_count: annotate isotope peak count in the output if True.
+        use_decreasing_model: enforce decreasing intensity model if True.
+        start_intensity_check: isotope index at which intensity check starts.
+        add_up_intensity: add up intensities of isotope peaks if True.
+        annotate_features: annotate features in the output if True.
 
     Returns:
         Tuple of (spectrum, peak_mzs, peak_intensities) after deisotoping.
@@ -262,6 +274,7 @@ def deisotope_with_pyopenms(
 
     spectrum = oms.MSSpectrum()
     spectrum.set_peaks((peaks_array[:, 0], peaks_array[:, 1]))
+    spectrum.sortByPosition()
 
     oms.Deisotoper.deisotopeAndSingleCharge(
         spectrum,
@@ -273,6 +286,12 @@ def deisotope_with_pyopenms(
         min_isopeaks,
         max_isopeaks,
         make_single_charged,
+        annotate_charge,
+        annotate_iso_peak_count,
+        use_decreasing_model,
+        start_intensity_check,
+        add_up_intensity,
+        annotate_features,
     )
 
     mzs, intensities = spectrum.get_peaks()
@@ -284,30 +303,193 @@ def deadduct_with_pyopenms(
     adducts: List[str] | None = None,
     max_charge: int = 3,
     ppm_tolerance: float = 10.0,
+    keep_only_backbone: bool = True,
 ):
     """
-    De-adduct features using pyopenms MetaboliteAdductDecharger.
+    De-adduct features using pyopenms MetaboliteFeatureDeconvolution.
 
     Args:
         feature_map: pyopenms FeatureMap containing detected features.
-        adducts: list of adduct strings (e.g. ["[M+H]+", "[M+Na]+"]) or None for defaults.
+        adducts: list of adduct strings or OpenMS potential_adducts strings.
+            Supported bracket forms: "[M+H]+", "[M+Na]+", "[M+K]+", "[M+NH4]+".
+            OpenMS form examples: "H:+:0.4", "Na:+:0.25".
         max_charge: maximum charge to consider.
-        ppm_tolerance: mass tolerance used for matching (ppm).
+        ppm_tolerance: approximate mass tolerance used for matching (ppm).
+            OpenMS MetaboliteFeatureDeconvolution uses a global Da tolerance; we approximate it at the
+            median m/z of the input features.
+        keep_only_backbone: if True, return only the representative (backbone) features.
 
     Returns:
-        De-adducted pyopenms FeatureMap.
+        De-adducted pyopenms FeatureMap with neutral masses (charge set to 0).
     """
     import pyopenms as oms
 
-    decharger = oms.MetaboliteAdductDecharger()
-    params = decharger.getParameters()
-    params.setValue("mass_error_ppm", ppm_tolerance)
-    params.setValue("charge_max", max_charge)
+    # OpenMS reports adduct masses using *atomic* masses (neutral species),
+    # while MS m/z shifts correspond to charged species (atomic +/- e- mass).
+    # Correcting by the electron mass ensures we recover a chemically-sensible
+    # neutral mass from observed m/z values.
+    electron_mass = 0.000548579909065  # u
+
+    def infer_negative_mode() -> bool:
+        charges = []
+        for feature in feature_map:
+            try:
+                charges.append(int(feature.getCharge()))
+            except Exception:
+                continue
+        nonzero = [c for c in charges if c != 0]
+        if nonzero:
+            has_pos = any(c > 0 for c in nonzero)
+            has_neg = any(c < 0 for c in nonzero)
+            if has_pos and has_neg:
+                raise ValueError("Mixed positive/negative charges in FeatureMap are not supported.")
+            return has_neg
+
+        if not adducts:
+            return False
+
+        inferred = set()
+        for value in adducts:
+            value = value.strip()
+            if not value:
+                continue
+            if value.startswith("[") and value.endswith("]-"):
+                inferred.add("-")
+            elif value.startswith("[") and value.endswith("]+"):
+                inferred.add("+")
+            else:
+                parts = value.split(":")
+                if len(parts) == 3:
+                    inferred.add(parts[1])
+        if inferred == {"-"}:
+            return True
+        if inferred == {"+"}:
+            return False
+        if inferred:
+            raise ValueError(
+                f"Unable to infer polarity from adducts: mixed charge signs {sorted(inferred)}"
+            )
+        return False
+
+    def to_openms_potential_adducts(values: List[str]) -> List[bytes]:
+        parsed = []
+        for value in values:
+            value = value.strip()
+            if not value:
+                continue
+
+            if value.startswith("["):
+                if value.startswith("[M+") and value.endswith("]+"):
+                    name = value[len("[M+") : -len("]+")]
+                    parsed.append((name, "+", 1.0))
+                    continue
+                if value == "[M-H]-":
+                    parsed.append(("H-1", "-", 1.0))
+                    continue
+                if value == "[M+Cl]-":
+                    parsed.append(("Cl", "-", 1.0))
+                    continue
+                raise ValueError(f"Unsupported adduct string '{value}' for pyopenms")
+
+            parts = value.split(":")
+            if len(parts) != 3:
+                raise ValueError(f"Unsupported OpenMS potential_adduct string '{value}'")
+            name, charge, prob = parts
+            parsed.append((name, charge, float(prob)))
+
+        # OpenMS requires charged adduct probabilities to sum to 1.0, so normalise by charge sign.
+        for charge_sign in ("+", "-"):
+            indices = [i for i, (_, charge, _) in enumerate(parsed) if charge == charge_sign]
+            if not indices:
+                continue
+            total = sum(parsed[i][2] for i in indices)
+            if total <= 0:
+                raise ValueError(
+                    f"Invalid OpenMS potential_adduct probabilities for charge '{charge_sign}'"
+                )
+            for i in indices:
+                name, charge, prob = parsed[i]
+                parsed[i] = (name, charge, prob / total)
+
+        potential = []
+        for name, charge, prob in parsed:
+            potential.append(f"{name}:{charge}:{prob:.6g}".encode())
+        return potential
+
+    mzs = []
+    for feature in feature_map:
+        try:
+            mzs.append(float(feature.getMZ()))
+        except Exception:
+            continue
+    reference_mz = float(np.median(mzs)) if mzs else 100.0
+    negative_mode = infer_negative_mode()
+
+    feature_map_in = oms.FeatureMap()
+    for feature in feature_map:
+        new_feature = oms.Feature(feature)
+        if new_feature.getCharge() == 0:
+            new_feature.setCharge(-1 if negative_mode else 1)
+        feature_map_in.push_back(new_feature)
+
+    deconvolver = oms.MetaboliteFeatureDeconvolution()
+    params = deconvolver.getParameters()
+    if params.exists(b"unit"):
+        params.setValue(b"unit", b"Da")
+    if params.exists(b"negative_mode"):
+        params.setValue(b"negative_mode", b"true" if negative_mode else b"false")
+    if negative_mode:
+        params.setValue(b"charge_min", -int(max_charge))
+        params.setValue(b"charge_max", -1)
+    else:
+        params.setValue(b"charge_min", 1)
+        params.setValue(b"charge_max", int(max_charge))
+    params.setValue(b"mass_max_diff", float(max(ppm_tolerance * reference_mz / 1e6, 0.002)))
     if adducts:
-        adduct_info = oms.AdductInfo()
-        adduct_info.setAdducts(adducts)
-        decharger.setAdducts(adduct_info)
-    decharger.setParameters(params)
-    output = oms.FeatureMap()
-    decharger.decharge(feature_map, output)
-    return output
+        params.setValue(b"potential_adducts", to_openms_potential_adducts(adducts))
+    deconvolver.setParameters(params)
+
+    annotated = oms.FeatureMap()
+    cons_map = oms.ConsensusMap()
+    cons_map_p = oms.ConsensusMap()
+    deconvolver.compute(feature_map_in, annotated, cons_map, cons_map_p)
+
+    neutral = oms.FeatureMap()
+    for feature in annotated:
+        if keep_only_backbone:
+            try:
+                if int(feature.getMetaValue(b"is_backbone")) != 1:
+                    continue
+            except Exception:
+                # If OpenMS didn't annotate backbone status, keep the feature.
+                pass
+
+        charge = int(feature.getCharge())
+        if charge == 0:
+            charge = 1
+
+        has_adduct_mass = False
+        try:
+            adduct_mass = float(feature.getMetaValue(b"dc_charge_adduct_mass"))
+            has_adduct_mass = True
+        except Exception:
+            adduct_mass = 0.0
+
+        neutral_mass = float(feature.getMZ()) * abs(charge)
+        if has_adduct_mass:
+            neutral_mass = neutral_mass - adduct_mass + electron_mass * charge
+
+        neutral_feature = oms.Feature()
+        neutral_feature.setMZ(neutral_mass)
+        neutral_feature.setRT(float(feature.getRT()))
+        neutral_feature.setIntensity(float(feature.getIntensity()))
+        neutral_feature.setCharge(0)
+
+        try:
+            neutral_feature.setMetaValue(b"Group", feature.getMetaValue(b"Group"))
+        except Exception:
+            pass
+
+        neutral.push_back(neutral_feature)
+
+    return neutral

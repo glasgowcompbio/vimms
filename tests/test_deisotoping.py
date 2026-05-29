@@ -4,7 +4,15 @@ import numpy as np
 import pytest
 
 from vimms.Chemicals import Isotopes, Adducts
-from vimms.Common import C13_MZ_DIFF, Formula, ADDUCT_TERMS, POSITIVE, PROTON_MASS
+from vimms.Common import (
+    C13_MZ_DIFF,
+    Formula,
+    ADDUCT_NAMES_POS,
+    ADDUCT_PRIOR_POS,
+    ADDUCT_TERMS,
+    POSITIVE,
+    PROTON_MASS,
+)
 from vimms.Deisotoping import Deisotoper
 from vimms.MassSpecUtils import adduct_transformation
 
@@ -66,6 +74,61 @@ def test_adduct_terms_chloride_uses_chloride_anion_mass():
     _, cl_shift = ADDUCT_TERMS["M+Cl"]
     cl_atomic = NATURAL_ISOTOPES["Cl"][0][0]
     assert np.isclose(cl_shift - cl_atomic, ELECTRON_MASS, atol=1e-12)
+
+
+def test_default_positive_adducts_exclude_unsupported_dimers():
+    assert "2M+H" not in ADDUCT_NAMES_POS
+    assert "2M+NH4" not in ADDUCT_NAMES_POS
+    assert "2M+H" not in ADDUCT_PRIOR_POS
+    assert "2M+NH4" not in ADDUCT_PRIOR_POS
+    assert "2M+H" not in ADDUCT_TERMS
+    assert "2M+NH4" not in ADDUCT_TERMS
+
+
+def test_unsupported_dimer_adducts_raise_clear_error():
+    formula = Formula("C10H20")
+
+    with pytest.raises(ValueError, match="multimer isotope envelopes"):
+        Adducts(formula, adduct_prior_dict={POSITIVE: {"2M+H": 1.0}})
+
+    with pytest.raises(ValueError, match="multimer isotope envelopes"):
+        Adducts(formula, adduct_prior_dict={POSITIVE: {"2M+NH4": 1.0}})
+
+
+def test_potassium_adduct_uses_corrected_name():
+    assert "M+2K-H" in ADDUCT_NAMES_POS
+    assert "M+2K-H" in ADDUCT_PRIOR_POS
+    assert ADDUCT_TERMS["M+2K-H"] == (1, 76.919040)
+    assert "M+2K+H" not in ADDUCT_NAMES_POS
+    assert "M+2K+H" not in ADDUCT_PRIOR_POS
+    assert "M+2K+H" not in ADDUCT_TERMS
+
+    formula = Formula("C10H20")
+    with pytest.raises(ValueError, match="use 'M\\+2K-H' instead"):
+        Adducts(formula, adduct_prior_dict={POSITIVE: {"M+2K+H": 1.0}})
+
+
+def test_isotope_distribution_keeps_prominent_halogen_high_mass_peaks():
+    chlorinated = Isotopes(Formula("C30H40Cl2O5S2")).get_isotopes(total_proportion=0.99)
+    chlorinated_deltas = [mz - chlorinated[0][0] for mz, _, _ in chlorinated[1:]]
+
+    brominated = Isotopes(Formula("C60H100Br2O10")).get_isotopes(total_proportion=0.99)
+    brominated_deltas = [mz - brominated[0][0] for mz, _, _ in brominated[1:]]
+
+    assert len(chlorinated) > 20
+    assert any(np.isclose(delta, 3.994, atol=0.02) for delta in chlorinated_deltas)
+    assert len(brominated) > 20
+    assert any(np.isclose(delta, 6.003, atol=0.02) for delta in brominated_deltas)
+
+
+def test_isotope_distribution_warns_when_explicit_peak_cap_truncates():
+    formula = Formula("C30H40Cl2O5S2")
+    isotopes = Isotopes(formula)
+
+    with pytest.warns(RuntimeWarning, match="max_peaks prevented"):
+        peaks = isotopes.get_isotopes(total_proportion=0.99, max_peaks=20)
+
+    assert len(peaks) == 20
 
 
 def test_isotope_distribution_preserves_mono_when_filtered():

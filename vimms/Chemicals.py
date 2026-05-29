@@ -6,6 +6,7 @@ to the simulation.
 import copy
 import itertools
 import pickle
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections import deque
 
@@ -31,6 +32,7 @@ from vimms.Common import (
     ADDUCT_NAMES_NEG,
     ADDUCT_PRIOR_POS,
     ADDUCT_PRIOR_NEG,
+    ADDUCT_TERMS,
     NATURAL_ISOTOPES,
 )
 from vimms.Noise import GaussianPeakNoise
@@ -63,12 +65,27 @@ class DatabaseCompound:
         self.inchikey = inchikey
 
 
+_UNSUPPORTED_ADDUCT_MESSAGES = {
+    "2M+H": (
+        "Adduct '2M+H' is not supported because multimer isotope envelopes "
+        "require adduct-specific isotope generation."
+    ),
+    "2M+NH4": (
+        "Adduct '2M+NH4' is not supported because multimer isotope envelopes "
+        "require adduct-specific isotope generation."
+    ),
+    "M+2K+H": "Adduct 'M+2K+H' is mislabelled; use 'M+2K-H' instead.",
+}
+
+
 class Isotopes:
     """
     A class to represent an isotope of a chemical
     """
 
-    def __init__(self, formula, min_prob=1e-12, max_peaks=20, max_states=4000, mass_precision=8):
+    def __init__(
+        self, formula, min_prob=1e-12, max_peaks=None, max_states=4000, mass_precision=8
+    ):
         """
         Create an Isotope object
         Args:
@@ -107,7 +124,7 @@ class Isotopes:
         return peaks
 
     def _get_isotope_distribution(
-        self, total_proportion, min_prob=1e-12, max_peaks=20, max_states=4000, mass_precision=8
+        self, total_proportion, min_prob=1e-12, max_peaks=None, max_states=4000, mass_precision=8
     ):
         distribution = [(0.0, 1.0)]
         monoisotope_log_prob = 0.0
@@ -155,8 +172,18 @@ class Isotopes:
         for mass_shift, prob in distribution:
             selected.append((mass_shift, prob))
             cumulative += prob
-            if cumulative >= total_proportion or len(selected) >= max_peaks:
+            reached_total = cumulative >= total_proportion
+            reached_cap = max_peaks is not None and len(selected) >= max_peaks
+            if reached_total or reached_cap:
                 break
+
+        if max_peaks is not None and cumulative < total_proportion:
+            warnings.warn(
+                "max_peaks prevented isotope generation from reaching total_proportion; "
+                "the truncated isotope envelope will be renormalised.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         total = sum(prob for _, prob in selected)
         if total == 0:
@@ -259,6 +286,7 @@ class Adducts:
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
         self.adduct_concentration = adduct_concentration
+        self._validate_adduct_names()
 
     def get_adducts(self):
         """
@@ -302,6 +330,16 @@ class Adducts:
 
         """
         return self.adduct_names
+
+    def _validate_adduct_names(self):
+        for ionisation_mode, names in self.adduct_names.items():
+            for name in names:
+                if name in _UNSUPPORTED_ADDUCT_MESSAGES:
+                    raise ValueError(_UNSUPPORTED_ADDUCT_MESSAGES[name])
+                if name not in ADDUCT_TERMS:
+                    raise ValueError(
+                        f"Unknown adduct '{name}' for ionisation mode '{ionisation_mode}'"
+                    )
 
 
 class BaseChemical(metaclass=ABCMeta):

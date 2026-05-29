@@ -85,13 +85,11 @@ ADDUCT_NAMES_POS = [
     "M+K",
     "M+ACN+Na",
     "M+2Na-H",
-    "M+2K+H",
+    "M+2K-H",
     "[M+ACN]+H",
     "[M+CH3OH]+H",
     "[M+DMSO]+H",
     "[M+2ACN]+H",
-    "2M+H",
-    "2M+NH4",
 ]
 ADDUCT_NAMES_NEG = ["M-H", "M+Cl", "M+FA-H", "M+Ac-H"]
 
@@ -105,11 +103,9 @@ ADDUCT_TERMS = {
     "M+K": (1, 38.963158),
     "M+2Na-H": (1, 44.971160),
     "M+ACN+Na": (1, 64.015765),
-    "M+2K+H": (1, 76.919040),
+    "M+2K-H": (1, 76.919040),
     "[M+DMSO]+H": (1, 79.02122),
     "[M+2ACN]+H": (1, 83.060370),
-    "2M+H": (2, 1.007276),
-    "2M+NH4": (2, 18),
     "M-H": (1, -PROTON_MASS),
     # [M+Cl]- adds Cl- (atomic mass + electron mass), not neutral Cl.
     "M+Cl": (1, 34.96885268 + ELECTRON_MASS),
@@ -128,13 +124,11 @@ ADDUCT_PRIOR_POS = {
     "M+K": 0.15,
     "M+ACN+Na": 0.05,
     "M+2Na-H": 0.03,
-    "M+2K+H": 0.02,
+    "M+2K-H": 0.02,
     "[M+ACN]+H": 0.08,
     "[M+CH3OH]+H": 0.05,
     "[M+DMSO]+H": 0.03,
     "[M+2ACN]+H": 0.02,
-    "2M+H": 0.04,
-    "2M+NH4": 0.02,
 }
 ADDUCT_PRIOR_NEG = {
     "M-H": 1.0,

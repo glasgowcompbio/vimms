@@ -3,6 +3,8 @@ from collections import deque
 from typing import Iterable, List, Tuple
 
 import numpy as np
+import pyopenms as oms
+from ms_deisotope.deconvolution import deconvolute_peaks
 
 from vimms.Common import C13_MZ_DIFF, NATURAL_ISOTOPES, ELECTRON_MASS
 
@@ -201,7 +203,7 @@ def deisotope_with_ms_deisotope(
     ms1_tolerance: float = 10.0,
 ):
     """
-    Deisotope peaks using the optional ms_deisotope package.
+    Deisotope peaks using ms_deisotope.
 
     Args:
         peaks: iterable of (mz, intensity) pairs.
@@ -212,8 +214,6 @@ def deisotope_with_ms_deisotope(
     Returns:
         The ms_deisotope deconvolution result object.
     """
-    from ms_deisotope.deconvolution import deconvolute_peaks
-
     peaks_array = np.array(list(peaks), dtype=float)
     if peaks_array.size == 0:
         return []
@@ -266,8 +266,6 @@ def deisotope_with_pyopenms(
     Returns:
         Tuple of (spectrum, peak_mzs, peak_intensities) after deisotoping.
     """
-    import pyopenms as oms
-
     peaks_array = np.array(list(peaks), dtype=float)
     if peaks_array.size == 0:
         return None, np.array([]), np.array([])
@@ -322,116 +320,98 @@ def deadduct_with_pyopenms(
     Returns:
         De-adducted pyopenms FeatureMap with neutral masses (charge set to 0).
     """
-    import pyopenms as oms
+    reference_mz = _reference_mz(feature_map)
+    negative_mode = _infer_negative_mode(feature_map, adducts)
+    feature_map_in = _feature_map_with_charge(feature_map, negative_mode)
 
-    # OpenMS reports adduct masses using *atomic* masses (neutral species),
-    # while MS m/z shifts correspond to charged species (atomic +/- e- mass).
-    # Correcting by the electron mass ensures we recover a chemically-sensible
-    # neutral mass from observed m/z values.
-    electron_mass = ELECTRON_MASS
+    annotated = oms.FeatureMap()
+    deconvolver = _configured_metabolite_deconvolver(
+        adducts=adducts,
+        max_charge=max_charge,
+        negative_mode=negative_mode,
+        ppm_tolerance=ppm_tolerance,
+        reference_mz=reference_mz,
+    )
+    deconvolver.compute(
+        feature_map_in,
+        annotated,
+        oms.ConsensusMap(),
+        oms.ConsensusMap(),
+    )
 
-    def infer_negative_mode() -> bool:
-        charges = []
-        for feature in feature_map:
-            try:
-                charges.append(int(feature.getCharge()))
-            except Exception:
-                continue
-        nonzero = [c for c in charges if c != 0]
-        if nonzero:
-            has_pos = any(c > 0 for c in nonzero)
-            has_neg = any(c < 0 for c in nonzero)
-            if has_pos and has_neg:
-                raise ValueError("Mixed positive/negative charges in FeatureMap are not supported.")
-            return has_neg
+    return _neutral_feature_map(annotated, keep_only_backbone)
 
-        if not adducts:
-            return False
 
-        inferred = set()
-        for value in adducts:
-            value = value.strip()
-            if not value:
-                continue
-            if value.startswith("[") and value.endswith("]-"):
-                inferred.add("-")
-            elif value.startswith("[") and value.endswith("]+"):
-                inferred.add("+")
-            else:
-                parts = value.split(":")
-                if len(parts) == 3:
-                    inferred.add(parts[1])
-        if inferred == {"-"}:
-            return True
-        if inferred == {"+"}:
-            return False
-        if inferred:
-            raise ValueError(
-                f"Unable to infer polarity from adducts: mixed charge signs {sorted(inferred)}"
-            )
-        return False
-
-    def to_openms_potential_adducts(values: List[str]) -> List[bytes]:
-        parsed = []
-        for value in values:
-            value = value.strip()
-            if not value:
-                continue
-
-            if value.startswith("["):
-                if value.startswith("[M+") and value.endswith("]+"):
-                    name = value[len("[M+") : -len("]+")]
-                    parsed.append((name, "+", 1.0))
-                    continue
-                if value == "[M-H]-":
-                    parsed.append(("H-1", "-", 1.0))
-                    continue
-                if value == "[M+Cl]-":
-                    parsed.append(("Cl", "-", 1.0))
-                    continue
-                raise ValueError(f"Unsupported adduct string '{value}' for pyopenms")
-
-            parts = value.split(":")
-            if len(parts) != 3:
-                raise ValueError(f"Unsupported OpenMS potential_adduct string '{value}'")
-            name, charge, prob = parts
-            parsed.append((name, charge, float(prob)))
-
-        # OpenMS requires charged adduct probabilities to sum to 1.0, so normalise by charge sign.
-        for charge_sign in ("+", "-"):
-            indices = [i for i, (_, charge, _) in enumerate(parsed) if charge == charge_sign]
-            if not indices:
-                continue
-            total = sum(parsed[i][2] for i in indices)
-            if total <= 0:
-                raise ValueError(
-                    f"Invalid OpenMS potential_adduct probabilities for charge '{charge_sign}'"
-                )
-            for i in indices:
-                name, charge, prob = parsed[i]
-                parsed[i] = (name, charge, prob / total)
-
-        potential = []
-        for name, charge, prob in parsed:
-            potential.append(f"{name}:{charge}:{prob:.6g}".encode())
-        return potential
-
+def _reference_mz(feature_map) -> float:
     mzs = []
     for feature in feature_map:
         try:
             mzs.append(float(feature.getMZ()))
         except Exception:
             continue
-    reference_mz = float(np.median(mzs)) if mzs else 100.0
-    negative_mode = infer_negative_mode()
+    return float(np.median(mzs)) if mzs else 100.0
 
+
+def _infer_negative_mode(feature_map, adducts: List[str] | None) -> bool:
+    charges = []
+    for feature in feature_map:
+        try:
+            charges.append(int(feature.getCharge()))
+        except Exception:
+            continue
+    nonzero = [charge for charge in charges if charge != 0]
+    if nonzero:
+        has_pos = any(charge > 0 for charge in nonzero)
+        has_neg = any(charge < 0 for charge in nonzero)
+        if has_pos and has_neg:
+            raise ValueError("Mixed positive/negative charges in FeatureMap are not supported.")
+        return has_neg
+
+    inferred = _charge_signs_from_adducts(adducts)
+    if inferred == {"-"}:
+        return True
+    if inferred == {"+"} or not inferred:
+        return False
+    raise ValueError(f"Unable to infer polarity from adducts: mixed charge signs {sorted(inferred)}")
+
+
+def _charge_signs_from_adducts(adducts: List[str] | None) -> set[str]:
+    if not adducts:
+        return set()
+
+    inferred = set()
+    for value in adducts:
+        value = value.strip()
+        if not value:
+            continue
+        if value.startswith("[") and value.endswith("]-"):
+            inferred.add("-")
+        elif value.startswith("[") and value.endswith("]+"):
+            inferred.add("+")
+        else:
+            parts = value.split(":")
+            if len(parts) == 3:
+                inferred.add(parts[1])
+    return inferred
+
+
+def _feature_map_with_charge(feature_map, negative_mode: bool):
     feature_map_in = oms.FeatureMap()
     for feature in feature_map:
         new_feature = oms.Feature(feature)
         if new_feature.getCharge() == 0:
             new_feature.setCharge(-1 if negative_mode else 1)
         feature_map_in.push_back(new_feature)
+    return feature_map_in
 
+
+def _configured_metabolite_deconvolver(
+    adducts: List[str] | None,
+    max_charge: int,
+    negative_mode: bool,
+    ppm_tolerance: float,
+    reference_mz: float,
+):
     deconvolver = oms.MetaboliteFeatureDeconvolution()
     params = deconvolver.getParameters()
     if params.exists(b"unit"):
@@ -446,50 +426,94 @@ def deadduct_with_pyopenms(
         params.setValue(b"charge_max", int(max_charge))
     params.setValue(b"mass_max_diff", float(max(ppm_tolerance * reference_mz / 1e6, 0.002)))
     if adducts:
-        params.setValue(b"potential_adducts", to_openms_potential_adducts(adducts))
+        params.setValue(b"potential_adducts", _to_openms_potential_adducts(adducts))
     deconvolver.setParameters(params)
+    return deconvolver
 
-    annotated = oms.FeatureMap()
-    cons_map = oms.ConsensusMap()
-    cons_map_p = oms.ConsensusMap()
-    deconvolver.compute(feature_map_in, annotated, cons_map, cons_map_p)
 
+def _to_openms_potential_adducts(values: List[str]) -> List[bytes]:
+    parsed = [_parse_openms_adduct(value) for value in values if value.strip()]
+    parsed = _normalise_adduct_probabilities(parsed)
+    return [f"{name}:{charge}:{prob:.6g}".encode() for name, charge, prob in parsed]
+
+
+def _parse_openms_adduct(value: str) -> tuple[str, str, float]:
+    value = value.strip()
+    if value.startswith("["):
+        if value.startswith("[M+") and value.endswith("]+"):
+            name = value[len("[M+") : -len("]+")]
+            return name, "+", 1.0
+        if value == "[M-H]-":
+            return "H-1", "-", 1.0
+        if value == "[M+Cl]-":
+            return "Cl", "-", 1.0
+        raise ValueError(f"Unsupported adduct string '{value}' for pyopenms")
+
+    parts = value.split(":")
+    if len(parts) != 3:
+        raise ValueError(f"Unsupported OpenMS potential_adduct string '{value}'")
+    name, charge, prob = parts
+    return name, charge, float(prob)
+
+
+def _normalise_adduct_probabilities(parsed: List[tuple[str, str, float]]):
+    normalised = list(parsed)
+    for charge_sign in ("+", "-"):
+        indices = [i for i, (_, charge, _) in enumerate(normalised) if charge == charge_sign]
+        if not indices:
+            continue
+        total = sum(normalised[i][2] for i in indices)
+        if total <= 0:
+            raise ValueError(
+                f"Invalid OpenMS potential_adduct probabilities for charge '{charge_sign}'"
+            )
+        for i in indices:
+            name, charge, prob = normalised[i]
+            normalised[i] = (name, charge, prob / total)
+    return normalised
+
+
+def _neutral_feature_map(annotated, keep_only_backbone: bool):
     neutral = oms.FeatureMap()
     for feature in annotated:
-        if keep_only_backbone:
-            try:
-                if int(feature.getMetaValue(b"is_backbone")) != 1:
-                    continue
-            except Exception:
-                # If OpenMS didn't annotate backbone status, keep the feature.
-                pass
-
-        charge = int(feature.getCharge())
-        if charge == 0:
-            charge = 1
-
-        has_adduct_mass = False
-        try:
-            adduct_mass = float(feature.getMetaValue(b"dc_charge_adduct_mass"))
-            has_adduct_mass = True
-        except Exception:
-            adduct_mass = 0.0
-
-        neutral_mass = float(feature.getMZ()) * abs(charge)
-        if has_adduct_mass:
-            neutral_mass = neutral_mass - adduct_mass + electron_mass * charge
+        if keep_only_backbone and not _is_backbone_feature(feature):
+            continue
 
         neutral_feature = oms.Feature()
-        neutral_feature.setMZ(neutral_mass)
+        neutral_feature.setMZ(_neutral_mass(feature))
         neutral_feature.setRT(float(feature.getRT()))
         neutral_feature.setIntensity(float(feature.getIntensity()))
         neutral_feature.setCharge(0)
-
-        try:
-            neutral_feature.setMetaValue(b"Group", feature.getMetaValue(b"Group"))
-        except Exception:
-            pass
-
+        _copy_group_meta(feature, neutral_feature)
         neutral.push_back(neutral_feature)
-
     return neutral
+
+
+def _is_backbone_feature(feature) -> bool:
+    try:
+        return int(feature.getMetaValue(b"is_backbone")) == 1
+    except Exception:
+        return True
+
+
+def _neutral_mass(feature) -> float:
+    charge = int(feature.getCharge())
+    if charge == 0:
+        charge = 1
+
+    neutral_mass = float(feature.getMZ()) * abs(charge)
+    try:
+        adduct_mass = float(feature.getMetaValue(b"dc_charge_adduct_mass"))
+    except Exception:
+        return neutral_mass
+
+    # OpenMS reports adduct masses using atomic masses (neutral species), while
+    # MS m/z shifts correspond to charged species (atomic +/- electron mass).
+    return neutral_mass - adduct_mass + ELECTRON_MASS * charge
+
+
+def _copy_group_meta(source, target):
+    try:
+        target.setMetaValue(b"Group", source.getMetaValue(b"Group"))
+    except Exception:
+        pass

@@ -7,11 +7,16 @@ from vimms.Chemicals import Isotopes, Adducts
 from vimms.Common import (
     C13_MZ_DIFF,
     Formula,
+    ADDUCT_DEFINITIONS,
+    ADDUCT_NAMES_NEG,
     ADDUCT_NAMES_POS,
+    ADDUCT_PRIOR_NEG,
     ADDUCT_PRIOR_POS,
     ADDUCT_TERMS,
+    NEGATIVE,
     POSITIVE,
     PROTON_MASS,
+    validate_adduct_name,
 )
 from vimms.Deisotoping import Deisotoper
 from vimms.MassSpecUtils import adduct_transformation
@@ -85,6 +90,31 @@ def test_default_positive_adducts_exclude_unsupported_dimers():
     assert "2M+NH4" not in ADDUCT_TERMS
 
 
+def test_derived_adduct_constants_are_consistent():
+    expected_pos = [
+        name
+        for name, definition in ADDUCT_DEFINITIONS.items()
+        if definition["polarity"] == POSITIVE and definition["prior"] is not None
+    ]
+    expected_neg = [
+        name
+        for name, definition in ADDUCT_DEFINITIONS.items()
+        if definition["polarity"] == NEGATIVE and definition["prior"] is not None
+    ]
+
+    assert ADDUCT_NAMES_POS == expected_pos
+    assert ADDUCT_NAMES_NEG == expected_neg
+    assert ADDUCT_PRIOR_POS == {
+        name: ADDUCT_DEFINITIONS[name]["prior"] for name in ADDUCT_NAMES_POS
+    }
+    assert ADDUCT_PRIOR_NEG == {
+        name: ADDUCT_DEFINITIONS[name]["prior"] for name in ADDUCT_NAMES_NEG
+    }
+    assert ADDUCT_TERMS == {
+        name: definition["term"] for name, definition in ADDUCT_DEFINITIONS.items()
+    }
+
+
 def test_unsupported_dimer_adducts_raise_clear_error():
     formula = Formula("C10H20")
 
@@ -106,6 +136,11 @@ def test_potassium_adduct_uses_corrected_name():
     formula = Formula("C10H20")
     with pytest.raises(ValueError, match="use 'M\\+2K-H' instead"):
         Adducts(formula, adduct_prior_dict={POSITIVE: {"M+2K+H": 1.0}})
+
+
+def test_adduct_validation_rejects_wrong_polarity():
+    with pytest.raises(ValueError, match="defined for ionisation mode"):
+        validate_adduct_name("M+H", NEGATIVE)
 
 
 def test_isotope_distribution_keeps_prominent_halogen_high_mass_peaks():
@@ -169,7 +204,6 @@ def test_deisotoper_handles_m_plus_2_only():
 
 
 def test_pyopenms_deisotope_helper():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5), (101.003355, 5e4), (102.00671, 2e4)]
@@ -180,7 +214,6 @@ def test_pyopenms_deisotope_helper():
 
 
 def test_pyopenms_deadduct_helper():
-    pytest.importorskip("pyopenms")
     import pyopenms as oms
 
     from vimms.Deisotoping import deadduct_with_pyopenms
@@ -196,7 +229,6 @@ def test_pyopenms_deadduct_helper():
 
 
 def test_pyopenms_deadduct_multiple_features():
-    pytest.importorskip("pyopenms")
     import pyopenms as oms
 
     from vimms.Deisotoping import deadduct_with_pyopenms
@@ -213,7 +245,6 @@ def test_pyopenms_deadduct_multiple_features():
 
 
 def test_pyopenms_deisotope_empty_peaks():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     spectrum, mzs, intensities = deisotope_with_pyopenms([])
@@ -223,7 +254,6 @@ def test_pyopenms_deisotope_empty_peaks():
 
 
 def test_pyopenms_deisotope_sorts_input():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(102.00671, 2e4), (100.0, 1e5), (101.003355, 5e4)]
@@ -234,7 +264,6 @@ def test_pyopenms_deisotope_sorts_input():
 
 
 def test_pyopenms_deisotope_keeps_non_isotopic_peaks_by_default():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5)]
@@ -246,7 +275,6 @@ def test_pyopenms_deisotope_keeps_non_isotopic_peaks_by_default():
 
 
 def test_pyopenms_deisotope_keep_only_deisotoped_returns_mono_peak():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5), (101.003355, 5e4), (102.00671, 2e4)]
@@ -267,7 +295,6 @@ def test_pyopenms_deisotope_keep_only_deisotoped_returns_mono_peak():
 
 
 def test_pyopenms_deisotope_add_up_intensity_sums_cluster():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5), (101.003355, 5e4), (102.00671, 2e4)]
@@ -287,7 +314,6 @@ def test_pyopenms_deisotope_add_up_intensity_sums_cluster():
 
 
 def test_pyopenms_deisotope_annotation_arrays_present_and_consistent():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5), (101.003355, 5e4), (102.00671, 2e4)]
@@ -322,7 +348,6 @@ def test_pyopenms_deisotope_annotation_arrays_present_and_consistent():
 
 
 def test_pyopenms_deisotope_make_single_charged_converts_charge_two():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     mz0 = 100.0
@@ -348,7 +373,6 @@ def test_pyopenms_deisotope_make_single_charged_converts_charge_two():
 
 
 def test_pyopenms_deisotope_start_intensity_check_controls_strictness():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5), (101.003355, 1.5e5)]
@@ -375,7 +399,6 @@ def test_pyopenms_deisotope_start_intensity_check_controls_strictness():
 
 
 def test_pyopenms_deisotope_is_c13_only_drops_m_plus_2_only():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     peaks = [(100.0, 1e5), (101.997, 6e4)]
@@ -388,7 +411,6 @@ def test_pyopenms_deisotope_is_c13_only_drops_m_plus_2_only():
 
 
 def test_pyopenms_deisotope_is_c13_only_on_multi_element_generator():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     formula = Formula("Cl2")
@@ -418,7 +440,6 @@ def test_pyopenms_deisotope_is_c13_only_on_multi_element_generator():
 
 
 def test_pyopenms_deisotope_recovers_mono_from_generated_adducted_isotopes():
-    pytest.importorskip("pyopenms")
     from vimms.Deisotoping import deisotope_with_pyopenms
 
     formula = Formula("C10H16N2O2S")
@@ -449,7 +470,6 @@ def test_pyopenms_deisotope_recovers_mono_from_generated_adducted_isotopes():
 
 
 def test_end_to_end_deadduct_then_homegrown_deisotope_recovers_neutral_mono():
-    pytest.importorskip("pyopenms")
     import pyopenms as oms
 
     from vimms.Deisotoping import deadduct_with_pyopenms
@@ -490,7 +510,6 @@ def test_end_to_end_deadduct_then_homegrown_deisotope_recovers_neutral_mono():
 
 
 def test_end_to_end_deadduct_then_pyopenms_deisotope_recovers_neutral_mono():
-    pytest.importorskip("pyopenms")
     import pyopenms as oms
 
     from vimms.Deisotoping import deadduct_with_pyopenms, deisotope_with_pyopenms
@@ -538,7 +557,6 @@ def test_end_to_end_deadduct_then_pyopenms_deisotope_recovers_neutral_mono():
 
 
 def test_end_to_end_deadduct_negative_then_homegrown_deisotope_recovers_neutral_mono():
-    pytest.importorskip("pyopenms")
     import pyopenms as oms
 
     from vimms.Deisotoping import deadduct_with_pyopenms

@@ -3,7 +3,7 @@ nav_exclude: true
 ---
 # Documentation for `Controllers`
 
-Controllers in ViMMS implement fragmentation strategies, determining which ions in an MS1 (survey) scan should be fragmented. A standard fragmentation strategy used in data-dependant acquisition (DDA) is the Top-N strategy, where the top N most intense ions in the survey scan are fragmented. This strategy is implemented in the [TopNController](https://github.com/glasgowcompbio/vimms/tree/master/vimms/Controller/topN/TopNController) in ViMMS.
+Controllers in ViMMS implement fragmentation strategies, determining which ions in an MS1 (survey) scan should be fragmented. A standard fragmentation strategy used in data-dependant acquisition (DDA) is the Top-N strategy, where the top N most intense ions in the survey scan are fragmented. This strategy is implemented in the [TopNController](https://github.com/glasgowcompbio/vimms/tree/main/vimms/Controller/topN/TopNController) in ViMMS.
 
 In addition to Top-N, several other DDA strategies have been implemented that improve upon the standard TopN controller (for more details, refer to our papers).
 

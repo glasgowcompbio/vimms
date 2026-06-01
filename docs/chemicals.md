@@ -28,13 +28,13 @@ chemicals = cm.sample(100, 2)  # sample 100 chemicals up to MS2
 
 ViMMS offers many options to specify formula samplers and customize the generated RT, intensity, chromatograms, and MS2 peaks for a Chemical object. 
 
-You can explore these functionalities further with our notebooks demonstrating the creation of [purely simulated chemicals](https://github.com/glasgowcompbio/vimms/blob/master/demo/01.%20Data/03.%20Generating%20Sets%20of%20Chemicals%20with%20the%20ChemicalMixtureCreator%20class.ipynb) and [HMDB-sampled chemicals](https://github.com/glasgowcompbio/vimms/blob/master/demo/01.%20Data/01.%20Extracting%20Chemicals%20from%20HMDB.ipynb).
+You can explore these functionalities further with our notebooks demonstrating the creation of [purely simulated chemicals](https://github.com/glasgowcompbio/vimms/blob/main/demo/01.%20Data/03.%20Generating%20Sets%20of%20Chemicals%20with%20the%20ChemicalMixtureCreator%20class.ipynb) and [HMDB-sampled chemicals](https://github.com/glasgowcompbio/vimms/blob/main/demo/01.%20Data/01.%20Extracting%20Chemicals%20from%20HMDB.ipynb).
 
 ## Unknown Chemicals
 
 Unknown chemicals are those without identifiable properties, typically extracted from existing mzML files. These could come from prior runs on an actual mass spectrometer. Each peak picked is presumed to correspond to a chemical, and their identities remain unknown. As fragmentation strategies operate without needing to know chemical identities, this presumption suffices for our simulation process.
 
-For an example of how to extract unknown chemicals from existing mzML files, see this [notebook](https://github.com/glasgowcompbio/vimms/blob/master/demo/01.%20Data/02.%20Extracting%20Chemicals%20from%20an%20mzML%20file.ipynb).
+For an example of how to extract unknown chemicals from existing mzML files, see this [notebook](https://github.com/glasgowcompbio/vimms/blob/main/demo/01.%20Data/02.%20Extracting%20Chemicals%20from%20an%20mzML%20file.ipynb).
 ### Multi-sample Mixtures
 
 For experiments involving multiple samples, `MultipleMixtureCreator` can introduce group specific intensity changes and missing values. Provide a master list of chemicals and a description of each sample group:

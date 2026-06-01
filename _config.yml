@@ -3,8 +3,8 @@ nav_external_links:
   - title: GitHub
     url: https://github.com/glasgowcompbio/vimms
   - title: Example Usage
-    url: https://github.com/glasgowcompbio/vimms/tree/master/demo
+    url: https://github.com/glasgowcompbio/vimms/tree/main/demo
   - title: Code for Papers
-    url: https://github.com/glasgowcompbio/vimms/tree/master/examples
+    url: https://github.com/glasgowcompbio/vimms/tree/main/examples
   - title: Documentation
     url: https://glasgowcompbio.github.io/vimms/

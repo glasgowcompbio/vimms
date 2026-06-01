@@ -17,7 +17,7 @@ We use github to host code, to track issues and feature requests, as well as acc
  
 The following is the appropriate procedure for contributing:
 
-1. Fork the repo and create your branch from `master`.
+1. Fork the repo and create your branch from `main`.
 2. Implement your codes.
 3. If you've added code that should be tested, add tests. We use [pyTest](https://pytest.org) as the testing framework.
 5. If you've changed APIs, update the [documentation](https://vimms.readthedocs.io). We use [mkdocs](https://www.mkdocs.org/) and [mkdocstrings](https://github.com/mkdocstrings/mkdocstrings) for documentation.

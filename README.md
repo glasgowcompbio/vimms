@@ -11,9 +11,9 @@ To solve this, we introduce the **V**irtual **M**etabolomics **M**ass **S**pectr
 Eager to start using ViMMS? Take advantage of these resources:
 - [Installation guide](pages/installation.md).
 - Visit our project documentation page: [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://glasgowcompbio.github.io/vimms/)
-- Our [Demo folder](https://github.com/glasgowcompbio/vimms/tree/master/demo) contains notebooks that demonstrate how to use the framework in a simulated environment.
-- For specific examples that accompany our publications, see the [Example folder](https://github.com/glasgowcompbio/vimms/tree/master/examples).
-- You can also find this [quick guide on how to get started using ViMMS](https://github.com/glasgowcompbio/vimms/blob/master/demo/guide_to_vimms/guide_to_vimms.ipynb).
+- Our [Demo folder](https://github.com/glasgowcompbio/vimms/tree/main/demo) contains notebooks that demonstrate how to use the framework in a simulated environment.
+- For specific examples that accompany our publications, see the [Example folder](https://github.com/glasgowcompbio/vimms/tree/main/examples).
+- You can also find this [quick guide on how to get started using ViMMS](https://github.com/glasgowcompbio/vimms/blob/main/demo/guide_to_vimms/guide_to_vimms.ipynb).
 - For instructions on publishing a release to PyPI, see the [Release guide](docs/release.md).
 
 ## Development Setup
@@ -44,7 +44,7 @@ To see a more thorough explanation of the use cases of ViMMS, please refer to th
 
 # Contributions
 
-As an open-source project licensed under MIT, we welcomes all forms of contributions, including bug fixes, new features, and more. You can find our community contribution guidelines [here](https://github.com/glasgowcompbio/vimms/blob/master/CONTRIBUTING.md).
+As an open-source project licensed under MIT, we welcomes all forms of contributions, including bug fixes, new features, and more. You can find our community contribution guidelines [here](https://github.com/glasgowcompbio/vimms/blob/main/CONTRIBUTING.md).
 
 # Citing ViMMS 
 

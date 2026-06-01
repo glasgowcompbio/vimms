@@ -18,4 +18,4 @@ Processes mzML output from a simulation (or real acquisition) to compute fragmen
 
 Generates example chemical mixtures and mzML files, useful for testing pipelines or benchmarking fragmenters.
 
-For a full listing of scripts refer to the [scripts folder](https://github.com/glasgowcompbio/vimms/tree/master/vimms/scripts).
+For a full listing of scripts refer to the [scripts folder](https://github.com/glasgowcompbio/vimms/tree/main/vimms/scripts).

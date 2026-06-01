@@ -29,4 +29,4 @@ The evaluation helpers rely on peak picking using MZMine parameters defined in `
 
 ### Further Reading
 
-Refer to the docstrings in [Evaluation.py](https://github.com/glasgowcompbio/vimms/blob/master/vimms/Evaluation.py) for a detailed list of available functions.
+Refer to the docstrings in [Evaluation.py](https://github.com/glasgowcompbio/vimms/blob/main/vimms/Evaluation.py) for a detailed list of available functions.

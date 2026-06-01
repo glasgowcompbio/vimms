@@ -42,11 +42,11 @@ set_log_level_warning()
 env.run()
 ```
 
-For additional examples, refer to our [notebooks](https://github.com/glasgowcompbio/vimms/tree/master/demo/02.%20Methods) corresponding to the four controllers described in our paper, [Rapid Development of Improved Data-Dependent Acquisition Strategies](https://pubs.acs.org/doi/abs/10.1021/acs.analchem.0c03895).
+For additional examples, refer to our [notebooks](https://github.com/glasgowcompbio/vimms/tree/main/demo/02.%20Methods) corresponding to the four controllers described in our paper, [Rapid Development of Improved Data-Dependent Acquisition Strategies](https://pubs.acs.org/doi/abs/10.1021/acs.analchem.0c03895).
 
 ## Evaluation
 
-ViMMS allows evaluation of simulation results using methods provided [here](https://github.com/glasgowcompbio/vimms/blob/master/vimms/Evaluation.py). These tools offer a convenient way to assess the performance and outcomes of your simulations.
+ViMMS allows evaluation of simulation results using methods provided [here](https://github.com/glasgowcompbio/vimms/blob/main/vimms/Evaluation.py). These tools offer a convenient way to assess the performance and outcomes of your simulations.
 ### Available Controllers
 
 ViMMS ships with several ready to use controllers. Common options include:

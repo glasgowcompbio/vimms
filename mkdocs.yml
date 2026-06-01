@@ -6,7 +6,7 @@ site_author: Glasgow Computational Biology Group
 
 repo_name: glasgowcompbio/vimms
 repo_url: https://github.com/glasgowcompbio/vimms
-edit_uri: edit/master/docs/
+edit_uri: edit/main/docs/
 
 theme:
   name: material

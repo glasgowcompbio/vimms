@@ -61,9 +61,9 @@ development dependencies installed via `poetry install`.
 ## More Information
 
 Additional usage notes and installation instructions are available in our
-[Installation guide](https://github.com/glasgowcompbio/vimms/blob/master/pages/installation.md),
+[Installation guide](https://github.com/glasgowcompbio/vimms/blob/main/pages/installation.md),
 while example notebooks can be found in the
-[demo directory](https://github.com/glasgowcompbio/vimms/tree/master/demo).
+[demo directory](https://github.com/glasgowcompbio/vimms/tree/main/demo).
 
 ## Running on a Real Instrument
 

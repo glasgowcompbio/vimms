@@ -72,49 +72,114 @@ DEFAULT_MS2_ISOLATION_MODE = "Quadrupole"  # None, Quadrupole, IonTrap
 DEFAULT_SOURCE_CID_ENERGY = 0
 
 PROTON_MASS = 1.00727645199076
+ELECTRON_MASS = 0.000548579909065  # u
 
 CHROM_TYPE_EMPIRICAL = "empirical"
 CHROM_TYPE_CONSTANT = "constant"
 CHROM_TYPE_FUNCTIONAL = "functional"
 
-ADDUCT_NAMES_POS = [
-    "M+H",
-    "[M+ACN]+H",
-    "[M+CH3OH]+H",
-    "[M+NH3]+H",
-    "M+Na",
-    "M+K",
-    "M+2Na-H",
-    "M+ACN+Na",
-    "M+2K+H",
-    "[M+DMSO]+H",
-    "[M+2ACN]+H",
-    "2M+H",
-    "M+ACN+Na",
-    "2M+NH4",
-]
-ADDUCT_NAMES_NEG = ["M-H"]
-
-ADDUCT_TERMS = {
-    "M+H": (1, PROTON_MASS),
-    "[M+ACN]+H": (1, 42.033823),
-    "[M+CH3OH]+H": (1, 33.033489),
-    "[M+NH3]+H": (1, 18.033823),
-    "M+Na": (1, 22.989218),
-    "M+K": (1, 38.963158),
-    "M+2Na-H": (1, 44.971160),
-    "M+ACN+Na": (1, 64.015765),
-    "M+2K+H": (1, 76.919040),
-    "[M+DMSO]+H": (1, 79.02122),
-    "[M+2ACN]+H": (1, 83.060370),
-    "2M+H": (2, 1.007276),
-    "2M+NH4": (2, 18),
-    "M-H": (1, -PROTON_MASS),
+ADDUCT_DEFINITIONS = {
+    "M+H": {"polarity": POSITIVE, "term": (1, PROTON_MASS), "prior": 1.0},
+    "M+NH4": {"polarity": POSITIVE, "term": (1, 18.033823), "prior": 0.3},
+    "M+Na": {"polarity": POSITIVE, "term": (1, 22.989218), "prior": 0.25},
+    "M+K": {"polarity": POSITIVE, "term": (1, 38.963158), "prior": 0.15},
+    "M+ACN+Na": {"polarity": POSITIVE, "term": (1, 64.015765), "prior": 0.05},
+    "M+2Na-H": {"polarity": POSITIVE, "term": (1, 44.971160), "prior": 0.03},
+    "M+2K-H": {"polarity": POSITIVE, "term": (1, 76.919040), "prior": 0.02},
+    "[M+ACN]+H": {"polarity": POSITIVE, "term": (1, 42.033823), "prior": 0.08},
+    "[M+CH3OH]+H": {"polarity": POSITIVE, "term": (1, 33.033489), "prior": 0.05},
+    "[M+DMSO]+H": {"polarity": POSITIVE, "term": (1, 79.02122), "prior": 0.03},
+    "[M+2ACN]+H": {"polarity": POSITIVE, "term": (1, 83.060370), "prior": 0.02},
+    "[M+NH3]+H": {"polarity": POSITIVE, "term": (1, 18.033823), "prior": None},
+    "M-H": {"polarity": NEGATIVE, "term": (1, -PROTON_MASS), "prior": 1.0},
+    # [M+Cl]- adds Cl- (atomic mass + electron mass), not neutral Cl.
+    "M+Cl": {"polarity": NEGATIVE, "term": (1, 34.96885268 + ELECTRON_MASS), "prior": 0.2},
+    "M+FA-H": {"polarity": NEGATIVE, "term": (1, 44.998201), "prior": 0.35},
+    "M+Ac-H": {"polarity": NEGATIVE, "term": (1, 59.013851), "prior": 0.15},
 }
+
+UNSUPPORTED_ADDUCT_MESSAGES = {
+    "2M+H": (
+        "Adduct '2M+H' is not supported because multimer isotope envelopes "
+        "require adduct-specific isotope generation."
+    ),
+    "2M+NH4": (
+        "Adduct '2M+NH4' is not supported because multimer isotope envelopes "
+        "require adduct-specific isotope generation."
+    ),
+    "M+2K+H": "Adduct 'M+2K+H' is mislabelled; use 'M+2K-H' instead.",
+}
+
+
+def _adduct_prior_by_polarity(polarity):
+    return {
+        name: definition["prior"]
+        for name, definition in ADDUCT_DEFINITIONS.items()
+        if definition["polarity"] == polarity and definition["prior"] is not None
+    }
+
+
+ADDUCT_PRIOR_POS = _adduct_prior_by_polarity(POSITIVE)
+ADDUCT_PRIOR_NEG = _adduct_prior_by_polarity(NEGATIVE)
+ADDUCT_NAMES_POS = list(ADDUCT_PRIOR_POS.keys())
+ADDUCT_NAMES_NEG = list(ADDUCT_PRIOR_NEG.keys())
+ADDUCT_TERMS = {
+    name: definition["term"] for name, definition in ADDUCT_DEFINITIONS.items()
+}
+
+
+def validate_adduct_name(name, ionisation_mode=None):
+    if name in UNSUPPORTED_ADDUCT_MESSAGES:
+        raise ValueError(UNSUPPORTED_ADDUCT_MESSAGES[name])
+    if name not in ADDUCT_DEFINITIONS:
+        message = f"Unknown adduct '{name}'"
+        if ionisation_mode is not None:
+            message += f" for ionisation mode '{ionisation_mode}'"
+        raise ValueError(message)
+
+    expected_mode = ADDUCT_DEFINITIONS[name]["polarity"]
+    if ionisation_mode is not None and ionisation_mode != expected_mode:
+        raise ValueError(
+            f"Adduct '{name}' is defined for ionisation mode '{expected_mode}', "
+            f"not '{ionisation_mode}'"
+        )
 
 # example prior dictionary to be passed when creating an
 # adducts object to only get M+H adducts out
 ADDUCT_DICT_POS_MH = {POSITIVE: {"M+H": 1.0}}
+
+ADDUCT_PROFILE_PRESETS = {
+    "default": {POSITIVE: ADDUCT_PRIOR_POS, NEGATIVE: ADDUCT_PRIOR_NEG},
+    "esi_positive": {POSITIVE: ADDUCT_PRIOR_POS},
+    "esi_negative": {NEGATIVE: ADDUCT_PRIOR_NEG},
+}
+
+NATURAL_ISOTOPES = {
+    "C": [(12.0, 0.9893), (13.0033548378, 0.0107)],
+    "H": [(1.00782503214, 0.999885), (2.01410177812, 0.000115)],
+    "N": [(14.00307400524, 0.99636), (15.00010889888, 0.00364)],
+    "O": [
+        (15.9949146221, 0.99757),
+        (16.9991317565, 0.00038),
+        (17.9991596129, 0.00205),
+    ],
+    "S": [
+        (31.97207069, 0.9499),
+        (32.9714585, 0.0075),
+        (33.96786683, 0.0425),
+        (35.96708088, 0.0001),
+    ],
+    "Cl": [(34.96885268, 0.7576), (36.96590259, 0.2424)],
+    "Br": [(78.9183376, 0.5069), (80.9162906, 0.4931)],
+    "Si": [
+        (27.9769265327, 0.92223),
+        (28.976494700, 0.04685),
+        (29.97377017, 0.03092),
+    ],
+    "P": [(30.973761512, 1.0)],
+    "F": [(18.998403205, 1.0)],
+    "I": [(126.904468, 1.0)],
+}
 
 ATOM_NAMES = ["C", "H", "N", "O", "P", "S", "Cl", "I", "Br", "Si", "F", "D"]
 ATOM_MASSES = {

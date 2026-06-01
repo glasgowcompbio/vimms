@@ -10,8 +10,6 @@ from abc import ABCMeta, abstractmethod
 from collections import deque
 
 import numpy as np
-import scipy
-import scipy.stats
 from loguru import logger
 
 from vimms.ChemicalSamplers import (
@@ -26,15 +24,17 @@ from vimms.Common import (
     PROTON_MASS,
     POSITIVE,
     NEGATIVE,
-    C12_PROPORTION,
     C13_MZ_DIFF,
-    C,
     MONO,
-    C13,
     load_obj,
     ADDUCT_NAMES_POS,
     ADDUCT_NAMES_NEG,
+    ADDUCT_PRIOR_POS,
+    ADDUCT_PRIOR_NEG,
+    ADDUCT_PROFILE_PRESETS,
+    validate_adduct_name,
 )
+from vimms.IsotopeDistribution import get_isotope_distribution
 from vimms.Noise import GaussianPeakNoise
 from vimms.Roi import make_roi, RoiBuilderParams
 
@@ -70,15 +70,23 @@ class Isotopes:
     A class to represent an isotope of a chemical
     """
 
-    def __init__(self, formula):
+    def __init__(
+        self, formula, min_prob=1e-12, max_peaks=None, max_states=4000, mass_precision=8
+    ):
         """
         Create an Isotope object
         Args:
             formula: the formula for the given isotope
         """
         self.formula = formula
+        self.min_prob = min_prob
+        self.max_peaks = max_peaks
+        self.max_states = max_states
+        self.mass_precision = mass_precision
 
-    def get_isotopes(self, total_proportion):
+    def get_isotopes(
+        self, total_proportion, min_prob=None, max_peaks=None, max_states=None, mass_precision=None
+    ):
         """
         Gets the isotope total proportion
 
@@ -87,68 +95,32 @@ class Isotopes:
 
         Returns: the computed isotope total proportion
 
-        TODO: Add functionality for elements other than Carbon
         """
-        peaks = [() for i in range(len(self._get_isotope_proportions(total_proportion)))]
-        for i in range(len(peaks)):
-            peaks[i] += (self._get_isotope_mz(self._get_isotope_names(i)),)
-            peaks[i] += (self._get_isotope_proportions(total_proportion)[i],)
-            peaks[i] += (self._get_isotope_names(i),)
+        peaks = []
+        distributions = self._get_isotope_distribution(
+            total_proportion=total_proportion,
+            min_prob=self.min_prob if min_prob is None else min_prob,
+            max_peaks=self.max_peaks if max_peaks is None else max_peaks,
+            max_states=self.max_states if max_states is None else max_states,
+            mass_precision=self.mass_precision if mass_precision is None else mass_precision,
+        )
+        base_mz = self.formula._get_mz()
+        for idx, (mass_shift, proportion) in enumerate(distributions):
+            name = MONO if idx == 0 else f"M+{idx}"
+            peaks.append((base_mz + mass_shift, proportion, name))
         return peaks
 
-    def _get_isotope_proportions(self, total_proportion):
-        """
-        Get isotope proportion by sampling from a binomial pmf
-
-        Args:
-            total_proportion: the total proportion to compute
-
-        Returns: the computed isotope total proportion
-
-        """
-        proportions = []
-        while sum(proportions) < total_proportion:
-            proportions.extend(
-                [
-                    scipy.stats.binom.pmf(
-                        len(proportions), self.formula._get_n_element(C), 1 - C12_PROPORTION
-                    )
-                ]
-            )
-        normalised_proportions = [
-            proportions[i] / sum(proportions) for i in range(len(proportions))
-        ]
-        return normalised_proportions
-
-    def _get_isotope_names(self, isotope_number):
-        """
-        Get the isotope name given the number, e.g. 0 is the monoisotope
-        Args:
-            isotope_number: the isotope number
-
-        Returns: the isotope name
-
-        """
-        if isotope_number == 0:
-            return MONO
-        else:
-            return str(isotope_number) + C13
-
-    def _get_isotope_mz(self, isotope):
-        """
-        Get the isotope m/z value
-        Args:
-            isotope: the isotope name
-
-        Returns: the isotope m/z value
-
-        """
-        if isotope == MONO:
-            return self.formula._get_mz()
-        elif isotope[-3:] == C13:
-            return self.formula._get_mz() + float(isotope.split(C13)[0]) * C13_MZ_DIFF
-        else:
-            return None
+    def _get_isotope_distribution(
+        self, total_proportion, min_prob=1e-12, max_peaks=None, max_states=4000, mass_precision=8
+    ):
+        return get_isotope_distribution(
+            self.formula,
+            total_proportion,
+            min_prob=min_prob,
+            max_peaks=max_peaks,
+            max_states=max_states,
+            mass_precision=mass_precision,
+        )
 
 
 class Adducts:
@@ -156,24 +128,41 @@ class Adducts:
     A class to represent an adduct of a chemical
     """
 
-    def __init__(self, formula, adduct_proportion_cutoff=0.05, adduct_prior_dict=None):
+    def __init__(
+        self,
+        formula,
+        adduct_proportion_cutoff=0.05,
+        adduct_prior_dict=None,
+        adduct_profile=None,
+        adduct_concentration=15.0,
+    ):
         """
         Create an Adduct class
 
         Args:
             formula: the formula of this adduct
             adduct_proportion_cutoff: proportion cut-off of the adduct
-            adduct_prior_dict: custom adduct dictionary, if any
+            adduct_prior_dict: custom adduct dictionary or callable, if any
+            adduct_profile: preset profile name or dict of adduct priors
+            adduct_concentration: dirichlet concentration for adduct sampling
         """
+        if callable(adduct_prior_dict):
+            adduct_prior_dict = adduct_prior_dict(formula)
+
+        if adduct_prior_dict is None and adduct_profile is not None:
+            if isinstance(adduct_profile, str):
+                adduct_prior_dict = ADDUCT_PROFILE_PRESETS.get(adduct_profile)
+                if adduct_prior_dict is None:
+                    raise ValueError(f"Unknown adduct profile '{adduct_profile}'")
+            else:
+                adduct_prior_dict = adduct_profile
+
         if adduct_prior_dict is None:
             self.adduct_names = {POSITIVE: ADDUCT_NAMES_POS, NEGATIVE: ADDUCT_NAMES_NEG}
             self.adduct_prior = {
-                POSITIVE: np.ones(len(self.adduct_names[POSITIVE])) * 0.1,
-                NEGATIVE: np.ones(len(self.adduct_names[NEGATIVE])) * 0.1,
+                POSITIVE: np.array([ADDUCT_PRIOR_POS.get(name, 0.05) for name in ADDUCT_NAMES_POS]),
+                NEGATIVE: np.array([ADDUCT_PRIOR_NEG.get(name, 0.05) for name in ADDUCT_NAMES_NEG]),
             }
-            # give more weight to the first one, i.e. M+H
-            self.adduct_prior[POSITIVE][0] = 1.0
-            self.adduct_prior[NEGATIVE][0] = 1.0
         else:
             assert POSITIVE in adduct_prior_dict or NEGATIVE in adduct_prior_dict
             self.adduct_names = {k: list(adduct_prior_dict[k].keys()) for k in adduct_prior_dict}
@@ -182,6 +171,8 @@ class Adducts:
             }
         self.formula = formula
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
+        self.adduct_concentration = adduct_concentration
+        self._validate_adduct_names()
 
     def get_adducts(self):
         """
@@ -204,15 +195,17 @@ class Adducts:
         Returns: adduct proportion after sampling
 
         """
-        # TODO: replace this with something proper
         proportions = {}
         for k in self.adduct_prior:
-            proportions[k] = np.random.dirichlet(self.adduct_prior[k])
-            while max(proportions[k]) < 0.2:
-                proportions[k] = np.random.dirichlet(self.adduct_prior[k])
+            alpha = self.adduct_prior[k] * self.adduct_concentration
+            alpha = np.where(alpha > 0, alpha, 0.001)
+            proportions[k] = np.random.dirichlet(alpha)
             proportions[k][np.where(proportions[k] < self.adduct_proportion_cutoff)] = 0
-            proportions[k] = proportions[k] / max(proportions[k])
-            proportions[k].tolist()
+            if proportions[k].sum() == 0:
+                proportions[k] = np.zeros_like(proportions[k])
+                proportions[k][np.argmax(alpha)] = 1.0
+            else:
+                proportions[k] = proportions[k] / proportions[k].max()
             assert len(proportions[k]) == len(self.adduct_names[k])
         return proportions
 
@@ -223,6 +216,11 @@ class Adducts:
 
         """
         return self.adduct_names
+
+    def _validate_adduct_names(self):
+        for ionisation_mode, names in self.adduct_names.items():
+            for name in names:
+                validate_adduct_name(name, ionisation_mode)
 
 
 class BaseChemical(metaclass=ABCMeta):
@@ -625,6 +623,8 @@ class ChemicalMixtureCreator:
         ms2_sampler=UniformMS2Sampler(),
         adduct_proportion_cutoff=0.05,
         adduct_prior_dict=None,
+        adduct_profile=None,
+        adduct_concentration=15.0,
     ):
         """
         Create a mixture of [vimms.Chemicals.KnownChemical][] objects.
@@ -642,6 +642,8 @@ class ChemicalMixtureCreator:
                          fragmentation spectra.
             adduct_proportion_cutoff: proportion of adduct cut-off
             adduct_prior_dict: custom adduct dictionary
+            adduct_profile: preset name or dict of adduct priors
+            adduct_concentration: dirichlet concentration for adduct sampling
         """
         self.formula_sampler = formula_sampler
         self.rt_and_intensity_sampler = rt_and_intensity_sampler
@@ -649,6 +651,8 @@ class ChemicalMixtureCreator:
         self.ms2_sampler = ms2_sampler
         self.adduct_proportion_cutoff = adduct_proportion_cutoff
         self.adduct_prior_dict = adduct_prior_dict
+        self.adduct_profile = adduct_profile
+        self.adduct_concentration = adduct_concentration
 
         # if self.database is not None:
         #     logger.debug('Sorting database compounds by masses')
@@ -691,6 +695,8 @@ class ChemicalMixtureCreator:
                     formula,
                     self.adduct_proportion_cutoff,
                     adduct_prior_dict=self.adduct_prior_dict,
+                    adduct_profile=self.adduct_profile,
+                    adduct_concentration=self.adduct_concentration,
                 )
 
                 chemicals.append(

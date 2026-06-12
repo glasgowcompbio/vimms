@@ -8,7 +8,16 @@ from typing import Any, Mapping
 import numpy as np
 import pandas as pd
 
-from vimms.Common import ADDUCT_TERMS, C13_MZ_DIFF, PROTON_MASS
+try:
+    from vimms.Common import ADDUCT_TERMS, C13_MZ_DIFF, PROTON_MASS
+
+    SODIUM_ADDUCT_MASS = float(ADDUCT_TERMS["M+Na"][1])
+except ModuleNotFoundError:
+    # Keep this picked-table generator usable from lightweight downstream
+    # packages that only need assignment artifacts, not the full scan simulator.
+    PROTON_MASS = 1.00727645199076
+    C13_MZ_DIFF = 1.0033548378
+    SODIUM_ADDUCT_MASS = 22.989218
 
 
 ASSIGNMENT_ROLES: tuple[str, ...] = (
@@ -20,7 +29,6 @@ ASSIGNMENT_ROLES: tuple[str, ...] = (
 )
 
 H2O_MASS = 18.010564684
-SODIUM_ADDUCT_MASS = float(ADDUCT_TERMS["M+Na"][1])
 
 
 @dataclass(frozen=True)

@@ -1,3 +1,5 @@
+"""Materialize assignment-noise peak tables as VIMMS chemicals and mzML sidecars."""
+
 from __future__ import annotations
 
 import json
@@ -54,6 +56,8 @@ class AssignmentChemicalArtifactConfig:
 def _chromatogram_for_peak(
     apex_seconds: float, width_seconds: float
 ) -> tuple[EmpiricalChromatogram, float]:
+    """Build a simple empirical chromatogram centered on one picked feature."""
+
     half_width = max(float(width_seconds), 1.0)
     start = max(0.0, float(apex_seconds) - half_width)
     apex = max(float(apex_seconds), start + 0.25)
@@ -69,6 +73,8 @@ def _make_ms2_children(
     row: pd.Series,
     rng: np.random.Generator,
 ) -> list[MSN]:
+    """Create fragment children for chemicals with available/plausible MS2 support."""
+
     score = float(row.get("best_ms2_score", 0.0))
     available = float(row.get("ms2_available", 0.0)) > 0.0
     if not available and score < 0.25:
@@ -97,6 +103,8 @@ def _materialize_assignment_chemicals(
     config: AssignmentChemicalArtifactConfig,
     rng: np.random.Generator,
 ) -> tuple[list[UnknownChemical], pd.DataFrame]:
+    """Convert every truth/artifact peak row into a VIMMS UnknownChemical."""
+
     chemicals: list[UnknownChemical] = []
     truth_rows: list[dict[str, Any]] = []
 
@@ -109,6 +117,9 @@ def _materialize_assignment_chemicals(
             float(row.get("peak_width", 0.08)) * 60.0 * 1.5,
         )
         chromatogram, start_rt = _chromatogram_for_peak(target_rt_seconds, width_seconds)
+        # UnknownChemical stores a neutral mass, but the picked-table contract is
+        # already m/z based. Subtracting a proton gives a chemical that emits at
+        # the target m/z without changing model-facing values.
         neutral_for_unknown = max(1.0, target_mz - PROTON_MASS)
         max_intensity = max(
             float(row.get("intensity", np.exp(row.get("log_intensity", 12.0)))), 1.0
@@ -149,6 +160,8 @@ def _materialize_assignment_chemicals(
 
 
 def _output_path(config: AssignmentChemicalArtifactConfig) -> Path | None:
+    """Return an output directory only when mzML writing is requested."""
+
     if not config.write_mzml:
         return None
     if config.output_dir is None:
@@ -162,6 +175,8 @@ def _run_scan_simulation(
     chemicals: list[UnknownChemical],
     config: AssignmentChemicalArtifactConfig,
 ) -> tuple[Environment, Path | None]:
+    """Run VIMMS TopN scan simulation for optional audit/export mzML output."""
+
     out_dir = _output_path(config)
     out_file = f"{config.prefix}.mzML" if out_dir is not None else None
     mass_spec = IndependentMassSpectrometer(
@@ -195,6 +210,8 @@ def _run_scan_simulation(
 
 
 def _scan_summary(scans: Mapping[int, list[Any]]) -> pd.DataFrame:
+    """Flatten VIMMS controller scans into a lightweight audit table."""
+
     rows: list[dict[str, Any]] = []
     for ms_level, level_scans in sorted(scans.items()):
         for scan in level_scans:
@@ -211,12 +228,16 @@ def _scan_summary(scans: Mapping[int, list[Any]]) -> pd.DataFrame:
 
 
 def _empty_scan_summary() -> pd.DataFrame:
+    """Return the scan-summary schema used when mzML writing is disabled."""
+
     return pd.DataFrame(
         columns=["scan_id", "ms_level", "rt_seconds", "n_peaks", "tic"]
     )
 
 
 def _truth_table_from_peaks(peak_table: pd.DataFrame) -> pd.DataFrame:
+    """Extract peak-level truth columns from the model-facing peak table."""
+
     columns = [
         "peak_id",
         "true_label",
@@ -238,6 +259,8 @@ def _truth_table_from_peaks(peak_table: pd.DataFrame) -> pd.DataFrame:
 
 
 def _jsonable(value: Any) -> Any:
+    """Recursively convert dataclass metadata values to JSON-safe objects."""
+
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, tuple):
@@ -276,6 +299,8 @@ def generate_assignment_chemical_artifact(
         rng=rng,
     )
     if config.write_mzml:
+        # Scans are sidecars only. The returned peak table stays bit-identical
+        # to the direct picked-table generator used by IonClassifier.
         env, mzml_path = _run_scan_simulation(chemicals, config)
         scan_summary = _scan_summary(env.controller.scans)
     else:

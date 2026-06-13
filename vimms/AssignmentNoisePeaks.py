@@ -1,3 +1,5 @@
+"""Peak-row generation helpers for assignment-noise scenarios."""
+
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -9,6 +11,8 @@ from vimms.AssignmentNoiseLabels import label_for
 
 
 def _skew(values: np.ndarray) -> float:
+    """Return sample skewness with a stable value for near-constant profiles."""
+
     arr = np.asarray(values, dtype=float)
     sd = arr.std()
     if sd < 1e-8:
@@ -17,6 +21,8 @@ def _skew(values: np.ndarray) -> float:
 
 
 def _beta_score(rng: np.random.Generator, true: bool, fp_prob: float) -> float:
+    """Sample an MS2-like support score for true and false candidate evidence."""
+
     if true:
         return float(rng.beta(9.0, 2.2))
     if rng.random() < fp_prob:
@@ -49,6 +55,8 @@ def _peak_row(
     ms2_true_score: bool = False,
     metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Create one normalized picked-peak row with feature and truth metadata."""
+
     row: dict[str, Any] = {
         "mz": float(mz),
         "rt": float(rt),
@@ -93,6 +101,8 @@ def _peak_row(
     available_prob = 0.70 if ms2_true_score else min(0.85, 0.25 + 0.55 * fp_prob)
     available = bool(rng.random() < available_prob)
     if not available:
+        # Keep weak residual scores so the feature exists, but make it clear
+        # that no useful spectrum should support this row.
         for candidate_index in range(n_candidates):
             row[f"ms2_score_cand_{candidate_index}"] *= float(rng.uniform(0.0, 0.25))
         ms2_scores = [
@@ -107,6 +117,8 @@ def _peak_row(
 
 
 def _finalize_peak_table(peaks: list[dict[str, Any]], rng: np.random.Generator) -> pd.DataFrame:
+    """Compute local context features and assign stable peak identifiers."""
+
     df = pd.DataFrame(peaks)
     if df.empty:
         return df
@@ -151,6 +163,8 @@ def _add_diffuse_background(
     profile: AssignmentNoiseProfile,
     n: int,
 ) -> None:
+    """Append unstructured clutter and blank-contaminant background peaks."""
+
     mz_min = float(candidates["neutral_mass"].min() - 25.0)
     mz_max = float(candidates["neutral_mass"].max() + 45.0)
     rt_center = float(candidates["pred_rt"].mean())
@@ -193,6 +207,8 @@ def _add_candidate_ions(
     roles: tuple[str, ...],
     latent_profiles: dict[int, np.ndarray],
 ) -> None:
+    """Append true candidate-role peaks plus split/merged artifacts."""
+
     for _, candidate in candidates.iterrows():
         candidate_index = int(candidate["candidate_index"])
         if int(candidate["present"]) <= 0:
@@ -272,6 +288,8 @@ def _add_candidate_ions(
             emitted_any = True
 
             if rng.random() < profile.p_split:
+                # Split/shoulder artifacts resemble the parent ion in m/z/RT and
+                # abundance profile but remain background labels.
                 split_profile = peak_profile + rng.normal(0.0, 0.15, size=profile.n_bio_samples)
                 peaks.append(
                     _peak_row(
@@ -300,6 +318,9 @@ def _add_candidate_ions(
                 )
 
             if rng.random() < profile.p_merge:
+                # Merged peaks intentionally have good-looking evidence but are
+                # labelled background because the picked feature is not the clean
+                # theoretical ion.
                 merged_profile = peak_profile + rng.normal(0.0, 0.18, size=profile.n_bio_samples)
                 peaks.append(
                     _peak_row(
@@ -335,6 +356,8 @@ def _add_structured_interferents(
     ions: pd.DataFrame,
     profile: AssignmentNoiseProfile,
 ) -> None:
+    """Append wrong-source peaks near theoretical ions and candidate RTs."""
+
     for _, ion in ions.iterrows():
         if rng.random() >= profile.p_interferent:
             continue
@@ -408,6 +431,8 @@ def _add_coeluting_isobars(
     ions: pd.DataFrame,
     profile: AssignmentNoiseProfile,
 ) -> None:
+    """Append high-quality background peaks that coelute with theoretical ions."""
+
     for _, ion in ions.iterrows():
         if rng.random() >= profile.p_coeluting_isobar:
             continue
@@ -460,6 +485,8 @@ def _add_matched_decoy_clusters(
     profile: AssignmentNoiseProfile,
     latent_profiles: dict[int, np.ndarray],
 ) -> None:
+    """Append plausible isotope/adduct clusters for absent or wrong candidates."""
+
     candidate_indices = list(candidates["candidate_index"].astype(int))
     absent = list(
         candidates.loc[candidates["present"].astype(int) == 0, "candidate_index"].astype(int)
@@ -479,6 +506,8 @@ def _add_matched_decoy_clusters(
         cand_ions = ions[ions["candidate_index"] == candidate_index].sort_values("role_index")
         decoy_log_a = float(candidate["expected_log_intensity"] + rng.normal(-0.05, 0.55))
         if latent_profiles and rng.random() < 0.65:
+            # Reusing a true latent profile makes a decoy cluster look like a
+            # coherent biological signal instead of independent random clutter.
             base_profile = latent_profiles[int(rng.choice(list(latent_profiles.keys())))].copy()
             base_profile = base_profile - base_profile.mean() + decoy_log_a
         else:
@@ -541,6 +570,8 @@ def _add_matched_decoy_clusters(
                 },
             )
             if rng.random() < profile.p_decoy_false_ms2:
+                # Some decoy clusters get candidate-specific false MS2 support,
+                # matching the failure mode the classifier must reject.
                 row[f"ms2_score_cand_{candidate_index}"] = float(
                     max(row.get(f"ms2_score_cand_{candidate_index}", 0.0), rng.beta(5.0, 2.0))
                 )
@@ -590,6 +621,8 @@ def _trim_peaks(
     rng: np.random.Generator,
     max_peaks: int,
 ) -> list[dict[str, Any]]:
+    """Limit peak count while preserving true ions and hard negative artifacts."""
+
     if len(peaks) <= max_peaks:
         return peaks
     true_rows = [p for p in peaks if int(p["true_label"]) > 0]
@@ -605,6 +638,8 @@ def _trim_peaks(
     easy_rows = [
         p for p in peaks if int(p["true_label"]) == 0 and p["source_type"] not in hard_types
     ]
+    # True ions are always retained. Hard negatives are retained before easy
+    # diffuse clutter so stress profiles remain adversarial after trimming.
     remaining = max(0, max_peaks - len(true_rows))
     if len(hard_rows) > remaining:
         idx = rng.choice(len(hard_rows), size=remaining, replace=False)

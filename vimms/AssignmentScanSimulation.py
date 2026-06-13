@@ -1,3 +1,5 @@
+"""Backward-compatible wrappers for the old assignment scan-simulation API."""
+
 from __future__ import annotations
 
 import warnings
@@ -13,6 +15,8 @@ AssignmentScanSimulationConfig = AssignmentChemicalArtifactConfig
 
 
 def generate_assignment_scan_artifact(*args, **kwargs):
+    """Deprecated alias for ``generate_assignment_chemical_artifact``."""
+
     warnings.warn(
         "generate_assignment_scan_artifact is deprecated; use "
         "generate_assignment_chemical_artifact instead.",
@@ -23,6 +27,8 @@ def generate_assignment_scan_artifact(*args, **kwargs):
 
 
 def write_assignment_scan_artifact(*args, **kwargs):
+    """Deprecated alias for ``write_assignment_chemical_artifact``."""
+
     warnings.warn(
         "write_assignment_scan_artifact is deprecated; use "
         "write_assignment_chemical_artifact instead.",

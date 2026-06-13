@@ -1,3 +1,5 @@
+"""Generate labelled picked-peak assignment scenarios for IonClassifier."""
+
 from __future__ import annotations
 
 import json
@@ -161,6 +163,8 @@ def role_properties(role: str, carbon_count: float) -> dict[str, float]:
 
 
 def _validate_config(config: AssignmentScenarioConfig) -> None:
+    """Validate dimensions and explicit candidate-presence overrides."""
+
     profile = config.profile
     if profile.n_candidates < 1:
         raise ValueError("n_candidates must be at least 1")
@@ -180,12 +184,16 @@ def _presence_pattern(
     profile: AssignmentNoiseProfile,
     present_pattern: tuple[int, ...] | None,
 ) -> np.ndarray:
+    """Sample which candidates are truly present in a local assignment problem."""
+
     if present_pattern is not None:
         return np.asarray(present_pattern, dtype=np.int8)
     present = (rng.random(profile.n_candidates) < profile.p_present).astype(np.int8)
     if not present.any():
         present[0] = 1
     if profile.n_candidates > 1 and present.all() and profile.p_matched_decoy > 0.0:
+        # Keep one plausible absent candidate available so matched-decoy
+        # clusters can test false positive rejection.
         present[-1] = 0
     return present
 
@@ -195,6 +203,8 @@ def _make_candidate_table(
     profile: AssignmentNoiseProfile,
     present: np.ndarray,
 ) -> pd.DataFrame:
+    """Create candidate metadata around one target-like local mass/RT region."""
+
     base_mass = float(rng.uniform(profile.mass_min, profile.mass_max))
     base_rt = float(rng.uniform(profile.rt_min, profile.rt_max))
     base_c = int(rng.integers(5, 45))
@@ -236,6 +246,8 @@ def _make_candidate_table(
 
 
 def _make_ion_table(candidates: pd.DataFrame, roles: tuple[str, ...]) -> pd.DataFrame:
+    """Expand candidates into theoretical role/adduct/isotope ions."""
+
     rows: list[dict[str, Any]] = []
     for _, candidate in candidates.iterrows():
         candidate_index = int(candidate["candidate_index"])
@@ -264,6 +276,8 @@ def _make_ion_truth_table(
     candidate_table: pd.DataFrame,
     ion_table: pd.DataFrame,
 ) -> pd.DataFrame:
+    """Record observed and missing true companion ions for every candidate role."""
+
     observed = (
         peak_table.loc[peak_table["true_label"] > 0, ["true_label", "peak_id", "source_type"]]
         .drop_duplicates("true_label")
@@ -321,6 +335,8 @@ def generate_assignment_peak_table(
     latent_profiles: dict[int, np.ndarray] = {}
     for _, candidate in candidate_table.iterrows():
         candidate_index = int(candidate["candidate_index"])
+        # Candidate ions share a latent abundance profile so isotope/adduct
+        # companions look correlated, while artifacts can partially mimic it.
         latent_profiles[candidate_index] = rng.normal(
             float(candidate["expected_log_intensity"]),
             rng.uniform(0.35, 0.95),
@@ -328,6 +344,8 @@ def generate_assignment_peak_table(
         )
 
     peaks: list[dict[str, Any]] = []
+    # Add true evidence first, then layer increasingly adversarial background
+    # profiles around the same theoretical ions.
     _add_candidate_ions(peaks, rng, candidate_table, ion_table, profile, roles, latent_profiles)
     _add_structured_interferents(peaks, rng, candidate_table, ion_table, profile)
     _add_coeluting_isobars(peaks, rng, candidate_table, ion_table, profile)

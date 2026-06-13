@@ -56,6 +56,11 @@ scores remain the original truth-aligned assignment-table values. `UniformSpikeN
 is not used for these artifacts because spike peaks are not chemical-backed and
 cannot be fragmented.
 
+The public assignment-noise API remains `vimms.AssignmentNoise`; implementation
+details for peak/artifact injection live in internal helper modules. The old
+`vimms.AssignmentScanSimulation` names are compatibility wrappers around
+`AssignmentChemicalArtifact` and emit deprecation warnings.
+
 ### Adding Noise
 
 The mass spectrometer accepts peak noise objects from `vimms.Noise` to make simulated spectra more realistic. For example:

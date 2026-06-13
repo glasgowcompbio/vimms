@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pandas as pd
+import pytest
 
 from vimms.AssignmentNoise import (
     AssignmentNoiseProfile,
@@ -13,6 +14,10 @@ from vimms.AssignmentChemicalArtifact import (
     AssignmentChemicalArtifactConfig,
     generate_assignment_chemical_artifact,
     write_assignment_chemical_artifact,
+)
+from vimms.AssignmentScanSimulation import (
+    generate_assignment_scan_artifact,
+    write_assignment_scan_artifact,
 )
 
 
@@ -143,3 +148,39 @@ def test_assignment_chemical_artifact_without_mzml_still_has_chemical_truth() ->
     assert artifact["mzml_path"] is None
     assert artifact["scan_summary"].empty
     assert len(artifact["chemical_truth_table"]) == len(artifact["peak_table"])
+
+
+def test_assignment_chemical_artifact_writer_persists_bundle_without_mzml(tmp_path) -> None:
+    artifact = generate_assignment_chemical_artifact(
+        AssignmentChemicalArtifactConfig(
+            seed=31,
+            profile=_scan_stress_profile(max_peaks=40),
+            present_pattern=(1, 0, 1),
+            write_mzml=False,
+        )
+    )
+
+    paths = write_assignment_chemical_artifact(artifact, tmp_path, prefix="no_mzml")
+
+    assert paths["peak_table"].exists()
+    assert paths["candidate_table"].exists()
+    assert paths["chemical_truth_table"].exists()
+    assert paths["scan_summary"].exists()
+    assert "mzml_path" not in paths
+    metadata = json.loads(paths["scenario_metadata"].read_text(encoding="utf-8"))
+    assert metadata["mzml_path"] == ""
+
+
+def test_assignment_scan_simulation_compatibility_wrappers_warn(tmp_path) -> None:
+    config = AssignmentChemicalArtifactConfig(
+        seed=37,
+        profile=_scan_stress_profile(max_peaks=35),
+        present_pattern=(1, 0, 1),
+        write_mzml=False,
+    )
+    with pytest.warns(DeprecationWarning, match="generate_assignment_scan_artifact"):
+        artifact = generate_assignment_scan_artifact(config)
+    with pytest.warns(DeprecationWarning, match="write_assignment_scan_artifact"):
+        paths = write_assignment_scan_artifact(artifact, tmp_path, prefix="compat")
+
+    assert paths["peak_table"].exists()

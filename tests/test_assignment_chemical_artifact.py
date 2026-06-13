@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import json
 
-from vimms.AssignmentNoise import AssignmentNoiseProfile
-from vimms.AssignmentScanSimulation import (
-    AssignmentScanSimulationConfig,
-    generate_assignment_scan_artifact,
-    write_assignment_scan_artifact,
+import pandas as pd
+
+from vimms.AssignmentNoise import (
+    AssignmentNoiseProfile,
+    AssignmentScenarioConfig,
+    generate_assignment_peak_table,
+)
+from vimms.AssignmentChemicalArtifact import (
+    AssignmentChemicalArtifactConfig,
+    generate_assignment_chemical_artifact,
+    write_assignment_chemical_artifact,
 )
 
 
@@ -39,11 +45,19 @@ def _scan_stress_profile(**overrides):
     return AssignmentNoiseProfile(**values)
 
 
-def test_assignment_scan_artifact_writes_mzml_and_scan_tables(tmp_path) -> None:
-    artifact = generate_assignment_scan_artifact(
-        AssignmentScanSimulationConfig(
+def test_assignment_chemical_artifact_writes_mzml_without_mutating_peak_table(tmp_path) -> None:
+    profile = _scan_stress_profile()
+    direct = generate_assignment_peak_table(
+        AssignmentScenarioConfig(
             seed=17,
-            profile=_scan_stress_profile(),
+            profile=profile,
+            present_pattern=(1, 0, 1),
+        )
+    )
+    artifact = generate_assignment_chemical_artifact(
+        AssignmentChemicalArtifactConfig(
+            seed=17,
+            profile=profile,
             present_pattern=(1, 0, 1),
             output_dir=tmp_path,
             prefix="scan_demo",
@@ -54,27 +68,31 @@ def test_assignment_scan_artifact_writes_mzml_and_scan_tables(tmp_path) -> None:
     mzml_path = artifact["mzml_path"]
     assert mzml_path is not None
     assert mzml_path.exists()
-    assert artifact["scenario_metadata"]["source_mode"] == "scan"
+    assert artifact["scenario_metadata"]["artifact_mode"] == "chemical"
     assert artifact["scenario_metadata"]["scan_simulation"]["spike_noise_used"] is False
+    assert (
+        artifact["scenario_metadata"]["scan_simulation"]["feature_extraction"]
+        == "not_used_for_model_features"
+    )
 
     peaks = artifact["peak_table"]
     scans = artifact["scan_summary"]
     chemical_truth = artifact["chemical_truth_table"]
+    pd.testing.assert_frame_equal(peaks, direct["peak_table"])
     assert not peaks.empty
     assert not scans.empty
     assert (scans["ms_level"] == 1).any()
-    assert {"scan_backed", "scan_ms1_match_count", "rt_seconds", "ms2_scan_count"}.issubset(
+    assert not {"scan_backed", "scan_ms1_match_count", "rt_seconds", "ms2_scan_count"}.intersection(
         peaks.columns
     )
-    assert peaks["scan_backed"].sum() > 0
     assert len(chemical_truth) == len(peaks)
     assert (chemical_truth["chemical_backed"] == 1).all()
     assert (chemical_truth["spike_noise_used"] == 0).all()
 
 
-def test_assignment_scan_artifact_keeps_hard_artifacts_chemical_backed(tmp_path) -> None:
-    artifact = generate_assignment_scan_artifact(
-        AssignmentScanSimulationConfig(
+def test_assignment_chemical_artifact_keeps_hard_artifacts_chemical_backed(tmp_path) -> None:
+    artifact = generate_assignment_chemical_artifact(
+        AssignmentChemicalArtifactConfig(
             seed=19,
             profile=_scan_stress_profile(max_peaks=120),
             present_pattern=(1, 0, 1),
@@ -104,9 +122,24 @@ def test_assignment_scan_artifact_keeps_hard_artifacts_chemical_backed(tmp_path)
         .all()
     )
 
-    paths = write_assignment_scan_artifact(artifact, tmp_path / "bundle", prefix="scan")
+    paths = write_assignment_chemical_artifact(artifact, tmp_path / "bundle", prefix="scan")
     assert paths["peak_table"].exists()
     assert paths["chemical_truth_table"].exists()
     assert paths["scan_summary"].exists()
     metadata = json.loads(paths["scenario_metadata"].read_text(encoding="utf-8"))
-    assert "internal truth" in " ".join(metadata["notes"])
+    assert "original truth-aligned assignment table" in " ".join(metadata["notes"])
+
+
+def test_assignment_chemical_artifact_without_mzml_still_has_chemical_truth() -> None:
+    artifact = generate_assignment_chemical_artifact(
+        AssignmentChemicalArtifactConfig(
+            seed=23,
+            profile=_scan_stress_profile(max_peaks=40),
+            present_pattern=(1, 0, 1),
+            write_mzml=False,
+        )
+    )
+
+    assert artifact["mzml_path"] is None
+    assert artifact["scan_summary"].empty
+    assert len(artifact["chemical_truth_table"]) == len(artifact["peak_table"])

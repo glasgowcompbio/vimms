@@ -36,22 +36,24 @@ Running the environment produces a list of scans that can be written to mzML usi
 
 ## IonClassifier Assignment Artifacts
 
-`vimms.AssignmentScanSimulation` provides a scan-level synthetic assignment
-workflow for IonClassifier-style local peak assignment problems:
+`vimms.AssignmentChemicalArtifact` provides chemical-backed synthetic assignment
+artifacts for IonClassifier-style local peak assignment problems:
 
 ```text
 assignment artifact generator
   -> VIMMS chemicals
-  -> IndependentMassSpectrometer + TopNController
-  -> mzML
-  -> internal truth/scan feature table
+  -> optional IndependentMassSpectrometer + TopNController
+  -> optional mzML/scan summary sidecars
+  -> original truth-aligned picked feature table
 ```
 
-The generated artifacts include mzML, candidate tables, picked-like feature
-tables, chemical truth, scan summaries, and assignment labels. Assignment
+The generated artifacts include candidate tables, picked-like feature tables,
+chemical truth, assignment labels, and optional mzML/scan summaries. Assignment
 artifacts are materialized as chemicals so matched decoys, interferents, blanks,
-and false MS2 support are scan-level and fragmentable. `UniformSpikeNoise` is
-not used for these artifacts because spike peaks are not chemical-backed and
+and false MS2 support have a VIMMS chemical representation. The model-facing
+peak table is not remeasured from scans: m/z, RT, intensity, labels, and MS2
+scores remain the original truth-aligned assignment-table values. `UniformSpikeNoise`
+is not used for these artifacts because spike peaks are not chemical-backed and
 cannot be fragmented.
 
 ### Adding Noise

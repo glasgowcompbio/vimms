@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 import pandas as pd
-import pytest
 
 from vimms.AssignmentNoise import (
     AssignmentNoiseProfile,
@@ -14,10 +13,6 @@ from vimms.AssignmentChemicalArtifact import (
     AssignmentChemicalArtifactConfig,
     generate_assignment_chemical_artifact,
     write_assignment_chemical_artifact,
-)
-from vimms.AssignmentScanSimulation import (
-    generate_assignment_scan_artifact,
-    write_assignment_scan_artifact,
 )
 
 
@@ -66,6 +61,7 @@ def test_assignment_chemical_artifact_writes_mzml_without_mutating_peak_table(tm
             present_pattern=(1, 0, 1),
             output_dir=tmp_path,
             prefix="scan_demo",
+            write_mzml=True,
             topn_n=12,
         )
     )
@@ -103,6 +99,7 @@ def test_assignment_chemical_artifact_keeps_hard_artifacts_chemical_backed(tmp_p
             present_pattern=(1, 0, 1),
             output_dir=tmp_path,
             prefix="hard_demo",
+            write_mzml=True,
             topn_n=16,
         )
     )
@@ -169,18 +166,3 @@ def test_assignment_chemical_artifact_writer_persists_bundle_without_mzml(tmp_pa
     assert "mzml_path" not in paths
     metadata = json.loads(paths["scenario_metadata"].read_text(encoding="utf-8"))
     assert metadata["mzml_path"] == ""
-
-
-def test_assignment_scan_simulation_compatibility_wrappers_warn(tmp_path) -> None:
-    config = AssignmentChemicalArtifactConfig(
-        seed=37,
-        profile=_scan_stress_profile(max_peaks=35),
-        present_pattern=(1, 0, 1),
-        write_mzml=False,
-    )
-    with pytest.warns(DeprecationWarning, match="generate_assignment_scan_artifact"):
-        artifact = generate_assignment_scan_artifact(config)
-    with pytest.warns(DeprecationWarning, match="write_assignment_scan_artifact"):
-        paths = write_assignment_scan_artifact(artifact, tmp_path, prefix="compat")
-
-    assert paths["peak_table"].exists()

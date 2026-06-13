@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 import numpy as np
 import pandas as pd
 
 from vimms.AssignmentNoiseLabels import label_for
+
+if TYPE_CHECKING:
+    from vimms.AssignmentNoise import AssignmentNoiseProfile
 
 
 def _skew(values: np.ndarray) -> float:

@@ -48,18 +48,19 @@ assignment artifact generator
 ```
 
 The generated artifacts include candidate tables, picked-like feature tables,
-chemical truth, assignment labels, and optional mzML/scan summaries. Assignment
-artifacts are materialized as chemicals so matched decoys, interferents, blanks,
-and false MS2 support have a VIMMS chemical representation. The model-facing
-peak table is not remeasured from scans: m/z, RT, intensity, labels, and MS2
-scores remain the original truth-aligned assignment-table values. `UniformSpikeNoise`
-is not used for these artifacts because spike peaks are not chemical-backed and
-cannot be fragmented.
+chemical truth, assignment labels, and optional mzML/scan summaries. mzML
+writing is disabled by default and should be enabled only for audit/export.
+Assignment artifacts are materialized as chemicals so matched decoys,
+interferents, blanks, and false MS2 support have a VIMMS chemical
+representation. The model-facing peak table is not remeasured from scans: m/z,
+RT, intensity, labels, and MS2 scores remain the original truth-aligned
+assignment-table values. `UniformSpikeNoise` is not used for these artifacts
+because spike peaks are not chemical-backed and cannot be fragmented.
 
-The public assignment-noise API remains `vimms.AssignmentNoise`; implementation
-details for peak/artifact injection live in internal helper modules. The old
-`vimms.AssignmentScanSimulation` names are compatibility wrappers around
-`AssignmentChemicalArtifact` and emit deprecation warnings.
+The public assignment-noise APIs are `vimms.AssignmentNoise` for direct picked
+tables and `vimms.AssignmentChemicalArtifact` for chemical-backed artifacts.
+Implementation details for peak/artifact injection live in internal helper
+modules.
 
 ### Adding Noise
 

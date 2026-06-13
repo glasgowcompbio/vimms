@@ -42,7 +42,7 @@ class AssignmentChemicalArtifactConfig:
     present_pattern: tuple[int, ...] | None = None
     output_dir: str | Path | None = None
     prefix: str = "assignment"
-    write_mzml: bool = True
+    write_mzml: bool = False
     topn_n: int = 20
     isolation_width: float = 0.7
     mz_tol: float = 10.0

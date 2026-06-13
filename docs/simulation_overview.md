@@ -34,6 +34,26 @@ env.run()
 
 Running the environment produces a list of scans that can be written to mzML using `Environment.write_mzML()`. Evaluation data can also be stored by setting `save_eval=True` on the environment.
 
+## IonClassifier Assignment Artifacts
+
+`vimms.AssignmentScanSimulation` provides a scan-level synthetic assignment
+workflow for IonClassifier-style local peak assignment problems:
+
+```text
+assignment artifact generator
+  -> VIMMS chemicals
+  -> IndependentMassSpectrometer + TopNController
+  -> mzML
+  -> internal truth/scan feature table
+```
+
+The generated artifacts include mzML, candidate tables, picked-like feature
+tables, chemical truth, scan summaries, and assignment labels. Assignment
+artifacts are materialized as chemicals so matched decoys, interferents, blanks,
+and false MS2 support are scan-level and fragmentable. `UniformSpikeNoise` is
+not used for these artifacts because spike peaks are not chemical-backed and
+cannot be fragmented.
+
 ### Adding Noise
 
 The mass spectrometer accepts peak noise objects from `vimms.Noise` to make simulated spectra more realistic. For example:

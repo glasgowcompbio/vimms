@@ -575,3 +575,53 @@ class TestWeightedDEWController:
         # write simulated output to mzML file
         filename = "topN_weighted_dew_controller_qcbeer_chems_no_noise.mzML"
         check_mzML(env, OUT_DIR, filename)
+
+
+class TestTopNIsolationWindow:
+    """
+    The written mzML must carry the precursor <isolationWindow> (target m/z plus
+    lower/upper offsets), not only the selected-ion m/z, so that downstream tools
+    can recover the precursor isolation range. Regression test for the previously
+    missing isolation window.
+    """
+
+    def test_isolation_window_written(self, even_chems):
+        import xml.etree.ElementTree as ET
+
+        isolation_width = 2.0  # distinctive width -> offsets must be 1.0
+        N = 10
+        mass_spec = IndependentMassSpectrometer(POSITIVE, even_chems)
+        controller = TopNController(
+            POSITIVE, N, isolation_width, 10, 15, 0, force_N=True
+        )
+        env = Environment(mass_spec, controller, 200, 300, progress_bar=False)
+        run_environment(env)
+
+        filename = "topn_isolation_window.mzML"
+        check_mzML(env, OUT_DIR, filename)
+
+        NS = "{http://psi.hupo.org/ms/mzml}"
+
+        def cvparams(el):
+            return {c.get("accession"): c.get("value") for c in el.findall(NS + "cvParam")}
+
+        tree = ET.parse(os.path.join(OUT_DIR, filename))
+        n_ms2 = 0
+        for spec in tree.iter(NS + "spectrum"):
+            if cvparams(spec).get("MS:1000511") != "2":  # ms level
+                continue
+            n_ms2 += 1
+            precursor = spec.find(".//" + NS + "precursor")
+            window = precursor.find(NS + "isolationWindow")
+            assert window is not None, "MS2 precursor is missing an isolationWindow"
+            wp = cvparams(window)
+            target = float(wp["MS:1000827"])  # isolation window target m/z
+            lower = float(wp["MS:1000828"])   # isolation window lower offset
+            upper = float(wp["MS:1000829"])   # isolation window upper offset
+            sel = cvparams(precursor.find(".//" + NS + "selectedIon"))
+            selected_mz = float(sel["MS:1000744"])  # selected ion m/z
+            assert target == selected_mz                 # window centred on precursor
+            assert lower == isolation_width / 2.0        # offsets are half the width
+            assert upper == isolation_width / 2.0
+
+        assert n_ms2 > 0, "no MS2 scans were written"

@@ -182,17 +182,38 @@ class MzmlWriter:
             collision_energy = scan.scan_params.get(ScanParameters.COLLISION_ENERGY)
             activation_type = scan.scan_params.get(ScanParameters.ACTIVATION_TYPE)
 
+            isolation_widths = scan.scan_params.get(ScanParameters.ISOLATION_WIDTH)
+
             precursor_information = []
-            for precursor in scan.scan_params.get(ScanParameters.PRECURSOR_MZ):
-                precursor_information.append(
-                    {
-                        "mz": precursor.precursor_mz,
-                        "intensity": precursor.precursor_intensity,
-                        "charge": precursor.precursor_charge,
-                        "spectrum_reference": precursor.precursor_scan_id,
-                        "activation": [activation_type, {"collision energy": collision_energy}],
+            for i, precursor in enumerate(scan.scan_params.get(ScanParameters.PRECURSOR_MZ)):
+                info = {
+                    "mz": precursor.precursor_mz,
+                    "intensity": precursor.precursor_intensity,
+                    "charge": precursor.precursor_charge,
+                    "spectrum_reference": precursor.precursor_scan_id,
+                    "activation": [activation_type, {"collision energy": collision_energy}],
+                }
+
+                # Emit the precursor isolation window so that downstream mzML
+                # consumers can recover the isolation range, not just the centre
+                # m/z. psims accepts {"lower", "target", "upper"} where lower/upper
+                # are the m/z offsets from the target. The isolation width is the
+                # one passed to the controller (ScanParameters.ISOLATION_WIDTH).
+                width = None
+                if isinstance(isolation_widths, (list, tuple, np.ndarray)):
+                    if i < len(isolation_widths):
+                        width = isolation_widths[i]
+                elif isolation_widths is not None:
+                    width = isolation_widths
+                if width is not None:
+                    half_width = width / 2.0
+                    info["isolation_window"] = {
+                        "lower": half_width,
+                        "target": precursor.precursor_mz,
+                        "upper": half_width,
                     }
-                )
+
+                precursor_information.append(info)
 
         lowest_observed_mz = min(scan.mzs)
         highest_observed_mz = max(scan.mzs)

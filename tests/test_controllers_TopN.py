@@ -19,13 +19,21 @@ from tests.conftest import (
 )
 from vimms.ChemicalSamplers import (
     EvenMZFormulaSampler,
+    UniformMZFormulaSampler,
     FixedMS2Sampler,
     UniformRTAndIntensitySampler,
     ConstantChromatogramSampler,
     DatabaseFormulaSampler,
 )
 from vimms.Chemicals import ChemicalMixtureCreator
-from vimms.Common import POSITIVE, set_log_level_warning, NEGATIVE, ScanParameters
+from vimms.Common import (
+    ADDUCT_DICT_POS_MH,
+    DUMMY_PRECURSOR_MZ,
+    POSITIVE,
+    set_log_level_warning,
+    NEGATIVE,
+    ScanParameters,
+)
 from vimms.Controller import (
     TopNController,
     SimpleMs1Controller,
@@ -35,6 +43,48 @@ from vimms.Controller import (
 from vimms.Environment import Environment
 from vimms.MassSpec import IndependentMassSpectrometer
 from vimms.Noise import GaussianPeakNoise
+
+
+def make_low_mz_fixed_ms2_dataset():
+    fs = UniformMZFormulaSampler(min_mz=75, max_mz=75)
+    ms = FixedMS2Sampler(n_frags=2)
+    ri = UniformRTAndIntensitySampler(min_rt=100, max_rt=101)
+    cs = ConstantChromatogramSampler()
+    cm = ChemicalMixtureCreator(
+        fs,
+        ms2_sampler=ms,
+        rt_and_intensity_sampler=ri,
+        chromatogram_sampler=cs,
+        adduct_prior_dict=ADDUCT_DICT_POS_MH,
+        adduct_proportion_cutoff=0.0,
+    )
+    return cm.sample(1, 2)
+
+
+def run_low_mz_topn(advanced_params=None):
+    dataset = make_low_mz_fixed_ms2_dataset()
+    mass_spec = IndependentMassSpectrometer(POSITIVE, dataset)
+    controller = TopNController(
+        POSITIVE,
+        1,
+        0.7,
+        10,
+        15,
+        0,
+        advanced_params=advanced_params,
+        force_N=True,
+    )
+    env = Environment(mass_spec, controller, 100, 103, progress_bar=False)
+    run_environment(env)
+    return mass_spec, controller
+
+
+def get_real_ms2_scan(controller):
+    for scan in controller.scans[2]:
+        precursor_list = scan.scan_params.get(ScanParameters.PRECURSOR_MZ)
+        if precursor_list[0].precursor_mz != DUMMY_PRECURSOR_MZ:
+            return scan
+    raise AssertionError("Expected at least one non-dummy MS2 scan")
 
 
 class TestNegative:
@@ -223,6 +273,7 @@ class TestTopNAdvanced:
         # set some values that are not the defaults, so we know they're passed correctly
         params = AdvancedParams(
             default_ms1_scan_window=(10.0, 2000.0),
+            default_ms2_scan_window=(50.0, 500.0),
             ms1_agc_target=100000,
             ms1_max_it=500,
             ms1_collision_energy=200,
@@ -285,6 +336,8 @@ class TestTopNAdvanced:
         # ms2 check
         scan = controller.scans[2][0]
         scan_params = scan.scan_params
+        assert scan_params.get(ScanParameters.FIRST_MASS) == params.default_ms2_scan_window[0]
+        assert scan_params.get(ScanParameters.LAST_MASS) == params.default_ms2_scan_window[1]
         assert scan_params.get(ScanParameters.AGC_TARGET) == params.ms2_agc_target
         assert scan_params.get(ScanParameters.MAX_IT) == params.ms2_max_it
         assert scan_params.get(ScanParameters.COLLISION_ENERGY) == params.ms2_collision_energy
@@ -295,6 +348,28 @@ class TestTopNAdvanced:
         assert scan_params.get(ScanParameters.MASS_ANALYSER) == params.ms2_mass_analyser
         assert scan_params.get(ScanParameters.ISOLATION_MODE) == params.ms2_isolation_mode
         assert scan_params.get(ScanParameters.SOURCE_CID_ENERGY) == params.ms2_source_cid_energy
+
+
+class TestTopNMS2ScanWindow:
+    def test_default_ms2_scan_window_allows_low_mz_product_ions(self):
+        mass_spec, controller = run_low_mz_topn()
+
+        scan = get_real_ms2_scan(controller)
+        scan_params = scan.scan_params
+        assert scan_params.get(ScanParameters.FIRST_MASS) == 0.0
+        assert scan.num_peaks == 2
+        assert all(mz < 70 for mz in scan.mzs)
+        assert any(event.precursor_mz for event in mass_spec.fragmentation_events)
+
+    def test_advanced_ms2_scan_window_can_restore_low_mz_cutoff(self):
+        params = AdvancedParams(default_ms2_scan_window=(70.0, None))
+        mass_spec, controller = run_low_mz_topn(advanced_params=params)
+
+        scan = get_real_ms2_scan(controller)
+        scan_params = scan.scan_params
+        assert scan_params.get(ScanParameters.FIRST_MASS) == 70.0
+        assert scan.num_peaks == 0
+        assert not any(event.precursor_mz for event in mass_spec.fragmentation_events)
 
 
 class TestIonisationMode:

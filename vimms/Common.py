@@ -48,7 +48,7 @@ SCAN_DURATION = "scan_duration"
 POSITIVE = "Positive"
 NEGATIVE = "Negative"
 DEFAULT_MS1_SCAN_WINDOW = (70.0, 1000.0)
-DEFAULT_MSN_SCAN_WINDOW = (70.0, 600.0)
+DEFAULT_MSN_SCAN_WINDOW = (0.0, None)
 DEFAULT_ISOLATION_WIDTH = 0.7
 CHEM_DATA = "data"
 CHEM_NOISE = "noise"
@@ -848,6 +848,7 @@ def get_dda_scan_param(
     polarity=POSITIVE,
     metadata=None,
     scan_id=None,
+    default_ms2_scan_window=DEFAULT_MSN_SCAN_WINDOW,
 ):
     """
     Generate the default MS2 scan parameters.
@@ -870,6 +871,9 @@ def get_dda_scan_param(
         polarity: the polarity value, either POSITIVE or NEGATIVE
         metadata: additional metadata to include in this scan
         scan_id: the scan ID, if specified
+        default_ms2_scan_window: the MS2 product-ion m/z window. If the upper
+                                 bound is None, it is scaled dynamically from
+                                 the precursor m/z.
 
     Returns: the parameters of the MS2 scan to create
 
@@ -879,6 +883,11 @@ def get_dda_scan_param(
     dda_scan_params.set(ScanParameters.MS_LEVEL, 2)
 
     assert isinstance(mz, list) == isinstance(intensity, list)
+    assert len(default_ms2_scan_window) == 2
+    first_mass, configured_last_mass = default_ms2_scan_window
+    assert first_mass is not None
+    if configured_last_mass is not None:
+        assert configured_last_mass >= first_mass
 
     # create precursor object, assume it's all singly charged
     precursor_charge = +1 if (polarity == POSITIVE) else -1
@@ -931,7 +940,7 @@ def get_dda_scan_param(
     dda_scan_params.set(ScanParameters.MAX_IT, max_it)
     dda_scan_params.set(ScanParameters.SOURCE_CID_ENERGY, source_cid_energy)
     dda_scan_params.set(ScanParameters.POLARITY, polarity)
-    dda_scan_params.set(ScanParameters.FIRST_MASS, DEFAULT_MSN_SCAN_WINDOW[0])
+    dda_scan_params.set(ScanParameters.FIRST_MASS, first_mass)
     dda_scan_params.set(ScanParameters.METADATA, metadata)
     dda_scan_params.set(ScanParameters.SCAN_ID, scan_id)
 
@@ -941,6 +950,7 @@ def get_dda_scan_param(
     max_precursor_mz = max(
         [(p.precursor_mz + isol / 2) for (p, isol) in zip(precursor_list, isolation_width)]
     )
-    last_mass = max_precursor_mz * charge * wiggle_room
+    dynamic_last_mass = max_precursor_mz * charge * wiggle_room
+    last_mass = dynamic_last_mass if configured_last_mass is None else configured_last_mass
     dda_scan_params.set(ScanParameters.LAST_MASS, last_mass)
     return dda_scan_params

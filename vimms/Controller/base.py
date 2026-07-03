@@ -11,6 +11,7 @@ import pandas as pd
 
 from vimms.Common import (
     DEFAULT_MS1_SCAN_WINDOW,
+    DEFAULT_MSN_SCAN_WINDOW,
     DEFAULT_MS1_AGC_TARGET,
     DEFAULT_MS1_MAXIT,
     DEFAULT_MS1_COLLISION_ENERGY,
@@ -65,6 +66,7 @@ class AdvancedParams:
         ms2_mass_analyser=DEFAULT_MS2_MASS_ANALYSER,
         ms2_isolation_mode=DEFAULT_MS2_ISOLATION_MODE,
         ms2_source_cid_energy=DEFAULT_SOURCE_CID_ENERGY,
+        default_ms2_scan_window=DEFAULT_MSN_SCAN_WINDOW,
     ):
         """
         Create an advanced parameter object
@@ -87,8 +89,10 @@ class AdvancedParams:
             ms2_mass_analyser: the mass analyser to use for MS2 scan, either IonTrap or Orbitrap
             ms2_isolation_mode: the isolation mode for MS2 scan, either None, Quadrupole, IonTrap
             ms2_source_cid_energy: source CID energy
+            default_ms2_scan_window: the product-ion m/z window to perform MS2 scan
         """
         self.default_ms1_scan_window = default_ms1_scan_window
+        self.default_ms2_scan_window = default_ms2_scan_window
 
         self.ms1_agc_target = ms1_agc_target
         self.ms1_max_it = ms1_max_it
@@ -203,6 +207,7 @@ class Controller(ABC):
             isolation_mode=self.advanced_params.ms2_isolation_mode,
             polarity=self.environment.mass_spec.ionisation_mode,
             metadata=metadata,
+            default_ms2_scan_window=self.advanced_params.default_ms2_scan_window,
         )
         return task
 

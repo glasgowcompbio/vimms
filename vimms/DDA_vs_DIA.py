@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_processing.mzmine import pick_peaks
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_processing.mzmine import pick_peaks
 
 from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid

@@ -2297,26 +2297,6 @@ files = [
 ]
 
 [[package]]
-name = "mass-spec-utils"
-version = "0.0.12"
-description = "Some useful MS code"
-optional = false
-python-versions = ">=3.6"
-groups = ["main"]
-files = [
-    {file = "mass_spec_utils-0.0.12-py3-none-any.whl", hash = "sha256:673f0363c5337bb789e69768fe0c5040aacb834ddfb22016eaa9d42c512576dc"},
-    {file = "mass_spec_utils-0.0.12.tar.gz", hash = "sha256:ab561dd4d104c6103535428baa1e6e32c0e18448c9474d720ebab5a16119ec6d"},
-]
-
-[package.dependencies]
-loguru = "*"
-molmass = "*"
-numpy = "*"
-pymzml = "*"
-requests = "*"
-sortedcontainers = "*"
-
-[[package]]
 name = "matplotlib"
 version = "3.10.3"
 description = "Python plotting package"
@@ -5047,4 +5027,4 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "5afba1e135d061d1ca0cff6c57c4afcb7ac491f44a0f2af555b7f69a73073217"
+content-hash = "7f1cc787e132b60d79dc2f7c8702a065f92ee17603267b6632a7e42cc74218d0"

@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.library_matching.gnps import load_mgf
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.library_matching.gnps import load_mgf
 
 from vimms.Chromatograms import FunctionalChromatogram, ConstantChromatogram, EmpiricalChromatogram
 from vimms.Common import (

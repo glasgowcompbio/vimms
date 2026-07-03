@@ -1,4 +1,4 @@
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 import pylab as plt
 from sklearn.metrics import mean_squared_error
 from scipy import interpolate

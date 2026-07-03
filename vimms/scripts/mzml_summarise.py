@@ -3,7 +3,7 @@ import sys
 import glob
 import os
 
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 from tabulate import tabulate
 
 TABLE_HEADS = [

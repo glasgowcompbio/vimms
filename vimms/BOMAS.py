@@ -2,8 +2,8 @@ import os
 import time
 
 import numpy as np
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 
 from vimms.Agent import TopNDEWAgent
 from vimms.Box import BoxGrid

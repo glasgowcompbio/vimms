@@ -1,9 +1,9 @@
 # MS2 matchinig
 from vimms.Common import load_obj, set_log_level_warning, set_log_level_debug
 from tqdm.auto import tqdm
-from mass_spec_utils.library_matching.spectrum import Spectrum
-from mass_spec_utils.library_matching.gnps import load_mgf
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.library_matching.spectrum import Spectrum
+from vimms.mass_spec_utils.library_matching.gnps import load_mgf
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 from loguru import logger
 import os
 import csv

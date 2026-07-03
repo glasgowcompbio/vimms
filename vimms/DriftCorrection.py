@@ -4,8 +4,8 @@ from abc import abstractmethod
 
 # import GPy
 
-from mass_spec_utils.library_matching.spectral_scoring_functions import cosine_similarity
-from mass_spec_utils.library_matching.spectrum import Spectrum
+from vimms.mass_spec_utils.library_matching.spectral_scoring_functions import cosine_similarity
+from vimms.mass_spec_utils.library_matching.spectrum import Spectrum
 
 
 class DriftModel:

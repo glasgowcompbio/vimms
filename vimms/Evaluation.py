@@ -16,9 +16,9 @@ import pandas as pd
 import statsmodels.api as sm
 from loguru import logger
 
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans, PickedBox
-from mass_spec_utils.library_matching.spectrum import SpectralRecord
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans, PickedBox
+from vimms.mass_spec_utils.library_matching.spectrum import SpectralRecord
 
 from vimms.Common import path_or_mzml
 from vimms.PeakPicking import MZMineParams

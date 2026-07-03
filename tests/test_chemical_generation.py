@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 import pytest
-from mass_spec_utils.library_matching.gnps import load_mgf
+from vimms.mass_spec_utils.library_matching.gnps import load_mgf
 
 from tests.conftest import HMDB, MGF_FILE, MZML_FILE, OUT_DIR, check_mzML, check_non_empty_MS2
 from vimms.ChemicalSamplers import (

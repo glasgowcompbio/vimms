@@ -3,9 +3,9 @@
 # spectra in the MSP file can be matched to a spectrum in an ms2 scan
 # in the .mzml
 from vimms.Common import load_obj, ScanParameters, PROTON_MASS
-from mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
-from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.library_matching.spectrum import Spectrum, SpectralRecord
+from vimms.mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 from loguru import logger
 import pandas as pd
 import numpy as np

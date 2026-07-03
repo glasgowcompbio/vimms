@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_processing.mzmine import pick_peaks
-from mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_processing.mzmine import pick_peaks
+from vimms.mass_spec_utils.library_matching.spec_libraries import SpectralLibrary
 from matplotlib_venn import venn3
 from scipy.stats import ttest_ind
 from tqdm.auto import tqdm

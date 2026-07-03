@@ -13,7 +13,7 @@ from operator import or_, attrgetter
 
 import intervaltree
 import numpy as np
-from mass_spec_utils.data_import.mzmine import PickedBox
+from vimms.mass_spec_utils.data_import.mzmine import PickedBox
 
 
 class Point:

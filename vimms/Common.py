@@ -26,7 +26,7 @@ import requests
 from loguru import logger
 from tqdm.auto import tqdm
 
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 
 ###############################################################################
 # Common constants

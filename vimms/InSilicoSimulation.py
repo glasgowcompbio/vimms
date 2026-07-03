@@ -9,9 +9,9 @@ import ipyparallel as ipp
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
-from mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
-from mass_spec_utils.data_import.mzml import MZMLFile
-from mass_spec_utils.data_processing.mzmine import pick_peaks
+from vimms.mass_spec_utils.data_import.mzmine import load_picked_boxes, map_boxes_to_scans
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_processing.mzmine import pick_peaks
 
 from vimms.Chemicals import ChemicalMixtureFromMZML
 from vimms.Common import set_log_level_warning, set_log_level_debug

@@ -3,7 +3,7 @@
 import csv
 
 import numpy as np
-from mass_spec_utils.adduct_calculator.adduct_rules import AdductTransformer
+from vimms.mass_spec_utils.adduct_calculator.adduct_rules import AdductTransformer
 from molmass import Formula
 
 from vimms.Common import DEFAULT_ISOLATION_WIDTH, ScanParameters

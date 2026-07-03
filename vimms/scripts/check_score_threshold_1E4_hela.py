@@ -1,6 +1,6 @@
 # TopN on the HeLA data
 
-from mass_spec_utils.data_import.mzml import MZMLFile
+from vimms.mass_spec_utils.data_import.mzml import MZMLFile
 from vimms.scripts.check_fragmented_ions import (
     compare_histograms,
     BlockDeconvoluter,

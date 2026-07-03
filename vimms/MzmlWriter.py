@@ -50,29 +50,28 @@ class MzmlWriter:
         create_if_not_exist(out_dir)
 
         # start writing mzML here
-        with PsimsMzMLWriter(open(out_file, "wb")) as writer:
-            # add default controlled vocabularies
-            writer.controlled_vocabularies()
+        with open(out_file, "wb") as out_handle:
+            with PsimsMzMLWriter(out_handle) as writer:
+                # add default controlled vocabularies
+                writer.controlled_vocabularies()
 
-            # write other fields like sample list, software list, etc.
-            self._write_info(writer)
+                # write other fields like sample list, software list, etc.
+                self._write_info(writer)
 
-            # open the run
-            with writer.run(id=self.analysis_name):
-                self._write_spectra(writer, self.scans)
+                # open the run
+                with writer.run(id=self.analysis_name):
+                    self._write_spectra(writer, self.scans)
 
-                # open chromatogram list sections
-                with writer.chromatogram_list(count=1):
-                    tic_rts, tic_intensities = self._get_tic_chromatogram(self.scans)
-                    writer.write_chromatogram(
-                        tic_rts,
-                        tic_intensities,
-                        id="tic",
-                        chromatogram_type="total ion current chromatogram",
-                        time_unit="second",
-                    )
-
-        writer.close()
+                    # open chromatogram list sections
+                    with writer.chromatogram_list(count=1):
+                        tic_rts, tic_intensities = self._get_tic_chromatogram(self.scans)
+                        writer.write_chromatogram(
+                            tic_rts,
+                            tic_intensities,
+                            id="tic",
+                            chromatogram_type="total ion current chromatogram",
+                            time_unit="second",
+                        )
 
     def _write_info(self, out):
         """
